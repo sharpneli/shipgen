@@ -17,8 +17,8 @@ class Warship(Style):
     SECONDARY_LIST = True    # several secondary batteries, each on deck or in casemates (layout.py)
     CASEMATES = True
 
-    def build_layout(self, design, shp, depth, shift=0.0):
-        return build_layout(design, shp, depth, shift)
+    def build_layout(self, design, res, shift=0.0):
+        return build_layout(design, res, shift)
 
 
 STYLE = Warship()

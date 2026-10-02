@@ -108,7 +108,7 @@ def fit(design, L, B=0.0):
     for _ in range(12):
         d = with_hull(design, L, B)
         r = navarch.solve(d)
-        lay = build_layout(d, r.power_shp, r.depth, 0.0)
+        lay = build_layout(d, r, 0.0)
         B2 = beam_needed(design, L, B, lay.weights, lay.geo)
         if "beam" in lay.short and B < b_max:
             B2 = max(B2, B * 1.05)
@@ -192,7 +192,7 @@ def balance(design, iterations=6):
     shift = 0.0
     lay = None
     for _ in range(iterations):
-        lay = build_layout(design, r.power_shp, r.depth, shift)
+        lay = build_layout(design, r, shift)
         r = navarch.solve(design, lay.weights, lay.geo)
         moment = sum(w.w * (w.x - r.lcb) for w in r.weights)
         movable = sum(w.w for w in r.weights if w.group not in ("hull", "misc"))
@@ -201,7 +201,7 @@ def balance(design, iterations=6):
             shift = new_shift
             break
         shift = new_shift
-    lay = build_layout(design, r.power_shp, r.depth, shift)
+    lay = build_layout(design, r, shift)
     r = navarch.solve(design, lay.weights, lay.geo)
     assign_arcs(lay)
     return lay, r, design

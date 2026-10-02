@@ -18,6 +18,7 @@ COMMON_LIMITS = {
     ("torpedoes", "mounts"): (0, 40), ("torpedoes", "tubes"): (1, 20),
     ("aa", "heavy"): (0, 500), ("aa", "light"): (0, 500),
     ("armour", "belt_mm"): (0, 2000), ("armour", "deck_mm"): (0, 2000), ("armour", "turret_mm"): (0, 2000),
+    ("armour", "tds_m"): (0, 20),
 }
 
 
@@ -36,9 +37,11 @@ class Style:
 
     def validate(self, design) -> list[str]:
         """Checks beyond the numeric limits."""
-        from navarch import MACHINERY
-        mt = self.machinery_type(design)
-        errs = [] if mt in MACHINERY else [f"machinery.type = {mt!r}: use {', '.join(MACHINERY)}"]
+        import powerplant
+        errs = powerplant.validate(design, self.DEFAULT_TECH)
+        if "type" in (design.get("machinery") or {}):
+            errs.append("machinery.type is gone: give the plant's technology as machinery.tech "
+                        "(plant-templates.md has examples by year)")
         errs += [f"hull.{k}: the designer works out the hull's size from what it carries; remove it"
                  for k in ("length", "beam") if k in (design.get("hull") or {})]
         if isinstance(design.get("secondary"), list) and not self.SECONDARY_LIST:
@@ -65,21 +68,18 @@ class Style:
             errs.append("main.superfire: use true, false, or {\"fore\": n, \"aft\": n} within the group sizes")
         return errs
 
-    DEFAULT_MACHINERY = "naval_turbine"
+    DEFAULT_TECH = None         # machinery.tech when the design gives none (None: powerplant.DEFAULT_TECH)
     MIDSHIPS_TURRETS = False    # does the layout support main["mid"]
     WING_TURRETS = False        # does the layout support main["wing"] (pairs) and main["echelon"]
     SECONDARY_LIST = False      # may "secondary" be a list of batteries with count/where (armament.batteries)
     CASEMATES = False           # may a secondary battery be "mount": "casemate" (guns in the hull side)
 
-    def machinery_type(self, design):
-        return (design.get("machinery") or {}).get("type", self.DEFAULT_MACHINERY)
-
     def tuning(self, design) -> dict:
-        """Overrides of navarch.TUNING for this design (the base: its machinery type)."""
-        from navarch import machinery_tuning
-        return machinery_tuning(self.machinery_type(design))
+        """Overrides of navarch.TUNING for this design."""
+        return {}
 
-    def build_layout(self, design, shp, depth, shift=0.0):
+    def build_layout(self, design, res, shift=0.0):
+        """Lay the ship out for the solved weights res (navarch.Result: power, depth, draught, fuel, plant)."""
         raise NotImplementedError
 
     def rough_payload(self, design, D) -> list:

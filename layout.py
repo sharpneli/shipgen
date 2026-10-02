@@ -24,7 +24,8 @@ import math
 from geometry import (make_turret_type, make_torpedo_type, rrect_polygon, rrect_clamped, circle_polygon,
                       turret_shapes, turret_height, turret_reach, point_in_polygon, polygons_intersect,
                       sector_polygon)
-from navarch import Weight, mount_weights, torpedo_weight, machinery_length, funnel_count, TUNING
+import powerplant
+from navarch import Weight, mount_weights, torpedo_weight, funnel_count, TUNING
 from hitbox import ARC_BEAM
 from geometry import Hull, AA_CFG
 
@@ -74,6 +75,7 @@ class Layout:
         self.decks = []         # raised decks and flight decks: dict(id, kind, points, base, top)
         self.sponsons = []      # platforms outboard of a flight deck: dict(id, points, base, top)
         self.sweeps = []        # main turrets' barrel sweep zones: dict(owner, polys, axis)
+        self.casings = []       # casings over machinery taller than its space: dict(id, x0, x1, w, base, top, ...)
         self.conning_tower = None   # armoured warships: dict(x, y, r, top), inside the bridge (not drawn)
         self.short = set()      # what the hull lacks for everything to fit: "length" and/or "beam" (sizing)
 
@@ -163,6 +165,94 @@ def add_magazines(lay, mounts, inner_hw):
         if y:
             c["y"] = y
         lay.compartments.append(c)
+
+
+def plan_machinery(lay, design, res, hull, x=0.0):
+    """The machinery space for the solved ship res (navarch.Result: its plant, power, depth, draught, fuel), centred
+    near x. The room the plant gets: across, the hull inside its frames, less torpedo protection (armour.tds_m) and
+    wing bunkers on each side; up, from the inner bottom to the armour deck (the main deck if unarmoured). Fuel the
+    wing bunkers and double bottom can't take goes into end bunkers or tanks, which lengthen the block. Stores the
+    plan in lay.geo["plant"] and returns the block's length (powerplant.segments)."""
+    from navarch import armour_geometry
+    p = res.plant
+    armour = design.get("armour") or {}
+    D, T = res.depth, res.draught
+    tds = armour.get("tds_m", 0.0)
+    wing = p["wing_bunker_m"] if (p["tech"]["fuel"] == "coal" and p["bunkers"] == "wing") else 0.0
+    w = powerplant.STEEL_FRAME * 2 * hull.half_width(x) - 2 * tds - 2 * wing
+    ag = armour_geometry(design, hull.L, T, D, lay.geo)
+    armoured = ag["belt_mm"] > 0 or ag["deck_mm"] > 0
+    top = ag["deck_z"] if armoured else D
+    db = powerplant.double_bottom(D)
+    h = top - db
+    sp = powerplant.space(p, res.power_shp, w, h)
+    cb = design["hull"]["block_coefficient"]
+    wing_t, end = powerplant.bunkers(p, res.fuel, sp["length"], w, h, hull.L, hull.B, cb, D, T, tds)
+    segs = powerplant.segments(p, sp, end)
+    if not sp["fits"]:
+        lay.fail("beam", f"The plant's units are {sp['unit'][1]:.1f} m wide, but the machinery space is only "
+                         f"{max(w, 0.0):.1f} m across. Use more shafts (smaller units) or less side protection.")
+    lay.geo["plant"] = dict(fuel=p["tech"]["fuel"], space=sp, segments=segs, wing_t=wing_t, wing_m=wing, end_m=end,
+                            width=w, height=h, inner_bottom=db, top=top, armoured=armoured, deck_mm=ag["deck_mm"],
+                            tds=tds)
+    return sum(seg_l for _, seg_l in segs)
+
+
+def stack_machinery(segs, x_front):
+    """Place machinery segments one after another, aft from x_front: [(kind, x0, x1)]."""
+    out, x = [], x_front
+    for kind, seg_l in segs:
+        out.append((kind, x - seg_l, x))
+        x -= seg_l
+    return out
+
+
+def add_machinery_rooms(lay, placed, inner_hw, depth):
+    """Compartments for the placed machinery segments [(kind, x0, x1)]: boiler rooms, engine rooms and bunkers
+    (each cut into rooms no longer than about 0.07 L), wing bunkers beside the machinery, and the casing over a
+    plant that stands taller than its space. Sets lay.geo machinery (the block's span), machinery_x and
+    machinery_rooms."""
+    plan = lay.geo["plant"]
+    fuel = plan["fuel"]
+    names = {"boiler": "Boiler room", "engine": "Engine room", "bunker": "Bunker"}
+    count = {k: 0 for k in names}
+    rooms = []
+    max_room = max(6.0, 0.07 * lay.hull.L)
+    for kind, x0, x1 in sorted(placed, key=lambda s: -s[2]):
+        n = max(1, math.ceil((x1 - x0) / max_room - 1e-9))
+        for k in range(n):
+            count[kind] += 1
+            a, b = x1 - (k + 1) * (x1 - x0) / n, x1 - k * (x1 - x0) / n
+            c = dict(id=f"{names[kind]} {count[kind]}", kind=f"{kind}_room" if kind != "bunker" else "bunker",
+                     x0=a, x1=b, half_width=plan["width"] / 2 if plan["wing_m"] else min(inner_hw, plan["width"] / 2))
+            if kind == "bunker":
+                c["fuel"] = fuel
+            rooms.append(c)
+    lay.compartments += rooms
+    x0, x1 = min(s[1] for s in placed), max(s[2] for s in placed)
+    if plan["wing_m"] > 0:
+        y = plan["width"] / 2 + plan["wing_m"] / 2
+        for side in (1, -1):
+            lay.compartments.append(dict(id=f"Wing bunker {'S' if side > 0 else 'P'}", kind="bunker", fuel=fuel,
+                                         x0=x0, x1=x1, y=side * y, half_width=plan["wing_m"] / 2,
+                                         base=plan["inner_bottom"] - depth, top=0.0,     # up to the main deck
+                                         tonnes=round(plan["wing_t"] / 2, 1)))
+    sp = plan["space"]
+    if sp["protrusion"] > 0:     # the units stand above the bounding deck: a casing (glacis if armoured) over them
+        engines = [s for s in placed if s[0] == "engine"] or placed
+        cw = min(plan["width"], sp["rows"] * (sp["unit"][1] + 0.8)) if sp["rows"] else plan["width"]
+        top = plan["inner_bottom"] + sp["unit"][2] - depth
+        lay.casings = [dict(id=f"Machinery casing {i + 1}", x0=a, x1=b, w=cw, base=plan["top"] - depth, top=top,
+                            armour_mm=plan["deck_mm"] if plan["armoured"] else 0)
+                       for i, (_, a, b) in enumerate(engines)]
+        if plan["armoured"]:
+            for c in lay.casings:
+                area = 2 * ((c["x1"] - c["x0"]) + c["w"]) * (c["top"] - c["base"]) + (c["x1"] - c["x0"]) * c["w"]
+                lay.weights.append(Weight(c["id"], "armour", area * plan["deck_mm"] / 1000 * 7.85,
+                                          x=(c["x0"] + c["x1"]) / 2, z_rel=("deck", (c["base"] + c["top"]) / 2)))
+    lay.geo["machinery"] = (x0, x1)
+    lay.geo["machinery_x"] = (x0 + x1) / 2
+    lay.geo["machinery_rooms"] = [(r["kind"], r["id"], r["x0"], r["x1"]) for r in rooms]
 
 
 # ---------------------------------------------------------------------------
@@ -356,10 +446,12 @@ def stepped_counts(main):
     return sf.get("fore", nf), sf.get("aft", na)
 
 
-def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> Layout:
+def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
+    shp, depth = res.power_shp, res.depth
     lay = Layout()
     hs = hull_spec(design)
     hull = Hull(hs)
+    lay.hull = hull
     L, B = hull.L, hull.B
     armour = design.get("armour", {})
     deck = design.get("deck", "wood" if L >= 150 else "steel")
@@ -379,7 +471,7 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
     n_step_f, n_step_a = stepped_counts(main)
     flush_f, flush_a = nf > max(n_step_f, 1), na > max(n_step_a, 1)   # a flush turret ends the group
 
-    L_mach = machinery_length(shp)
+    L_mach = plan_machinery(lay, design, res, hull)
     nfun = design.get("funnels") or funnel_count(shp)
     fw = clamp(0.6 * math.sqrt(shp / nfun / 1000.0), 2.2, 0.3 * B)
     fl = 1.45 * fw
@@ -446,8 +538,10 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
         return {i: wing_side(i, -1, y) + wing_side(i, 1, y) + (wing_stagger(y) if echelon else 0.0)
                 for i, it in enumerate(seq) if it == "W"}
 
-    M_req = max(L_mach + 2, lb + nfun * (fl + 2.0) + la + 3) + nm * s_mid + \
-        sum(wing_widths(B / 2 - reach - 0.6).values())
+    # the middle holds, on deck, the bridge, funnels, midships and wing turrets and aft control, and below it the
+    # machinery and the midships turrets' magazines: whichever is longer (wing turrets stand beside the machinery)
+    M_req = max(L_mach + 2 + nm * (2 * r + 2.0),
+                lb + nfun * (fl + 2.0) + la + 3 + nm * s_mid + sum(wing_widths(B / 2 - reach - 0.6).values()))
 
     need_hw = reach + 0.6
     if tm and need_hw > B / 2:
@@ -461,13 +555,13 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
 
     # preferred / minimum clearances from the hull ends to the outer edge of each group
     if nf:
-        bow_pref, bow_min = 0.12 * L + 2.5 * r, 0.08 * L + 1.5 * r
+        bow_pref, bow_min = 0.09 * L + 2.5 * r, 0.06 * L + 1.5 * r
     else:
-        bow_pref, bow_min = 0.18 * L, 0.10 * L
+        bow_pref, bow_min = 0.14 * L, 0.08 * L
     if na:
-        st_pref, st_min = 0.14 * L + 2.0 * r, 0.07 * L + 1.0 * r
+        st_pref, st_min = 0.08 * L + 2.0 * r, 0.05 * L + 1.0 * r
     else:
-        st_pref, st_min = 0.15 * L, 0.08 * L
+        st_pref, st_min = 0.12 * L, 0.06 * L
 
     def arrangement(bow_c, st_c, sh):
         """Positions for the given clearances and shift."""
@@ -944,8 +1038,8 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
     lay.compartments.append(dict(id="Citadel", kind="citadel", x0=cit[0], x1=cit[1], half_width=inner_hw,
                                  belt_mm=armour.get("belt_mm", 0), deck_mm=armour.get("deck_mm", 0)))
     add_magazines(lay, mounts, inner_hw)
-    m0, m1 = lay.geo["machinery"]
-    lay.compartments.append(dict(id="Machinery", kind="machinery", x0=m0, x1=m1, half_width=inner_hw))
+    add_machinery_rooms(lay, stack_machinery(lay.geo["plant"]["segments"], lay.geo["machinery"][1]), inner_hw,
+                        depth)
     lay.compartments.append(dict(id="Steering gear", kind="steering", x0=-L / 2 + 0.03 * L, x1=-L / 2 + 0.08 * L,
                                  half_width=0.5 * B / 2))
 

@@ -22,8 +22,9 @@ import math
 
 import armament
 from geometry import polygon_area, polygon_y_span
-from layout import LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, clamp, hull_spec
-from navarch import STEEL, Weight, funnel_count, machinery_length
+from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_machinery_rooms, clamp, hull_spec,
+                    plan_machinery, stack_machinery)
+from navarch import STEEL, Weight, funnel_count
 from geometry import AA_CFG, Hull
 from styles.base import Style
 
@@ -195,10 +196,10 @@ class Carrier(Style):
         return dict(super().tuning(design), freeboard_a=0.024, freeboard_b=2.5, misc_frac=0.11, hull_z_frac=0.5,
                     flight_deck_t_per_m2=0.34, hangar_t_per_m2=0.32)
 
-    def build_layout(self, design, shp, depth, shift=0.0):
+    def build_layout(self, design, res, shift=0.0):
         if aviation(design)["flight_deck"] == "none":
-            return _seaplane_layout(design, shp, depth, shift)
-        return _flight_deck_layout(design, shp, depth, shift)
+            return _seaplane_layout(design, res, shift)
+        return _flight_deck_layout(design, res, shift)
 
     def rough_payload(self, design, D):
         L = design["hull"]["length"]
@@ -299,6 +300,16 @@ def _funnel_size(shp, n, max_w):
     return fw, 1.45 * fw
 
 
+def _machinery(lay, design, res, hull, mc):
+    """The machinery block centred at mc, with its rooms. It has to fit in the middle half of the hull."""
+    L_mach = plan_machinery(lay, design, res, hull, mc)
+    if L_mach > 0.5 * hull.L:
+        lay.fail("length", f"The machinery needs {L_mach:.0f} m, more than half the hull. Use less power or a more "
+                           "compact plant.")
+    add_machinery_rooms(lay, stack_machinery(lay.geo["plant"]["segments"], mc + L_mach / 2), 0.8 * hull.B / 2,
+                        res.depth)
+
+
 def _compartments(lay, design, hull, mach, hangar, extra=()):
     armour = design.get("armour") or {}
     av = aviation(design)
@@ -315,7 +326,6 @@ def _compartments(lay, design, hull, mach, hangar, extra=()):
              belt_mm=armour.get("belt_mm", 0), deck_mm=armour.get("deck_mm", 0)),
         dict(id="Hangar", kind="hangar", x0=hx0, x1=hx1, half_width=hhw, base=0.0,
              top=2 * LEVEL_H if av["flight_deck"] == "none" else HANGAR_H * av["hangar_decks"]),
-        dict(id="Machinery", kind="machinery", x0=m0, x1=m1, half_width=inner_hw),
         dict(id="Aviation magazines", kind="magazine", x0=m1, x1=cit[1], half_width=inner_hw),
         dict(id="Aviation fuel", kind="fuel_tank", x0=cit[0], x1=m0, half_width=inner_hw),
         dict(id="Steering gear", kind="steering", x0=-L / 2 + 0.03 * L, x1=-L / 2 + 0.08 * L, half_width=0.5 * B / 2),
@@ -336,7 +346,8 @@ def _finish(lay, design, hs, hull, mounts, turret_types, blocks, funnels, masts,
     return lay
 
 
-def _flight_deck_layout(design, shp, depth, shift):
+def _flight_deck_layout(design, res, shift):
+    shp, depth = res.power_shp, res.depth
     lay, hs, hull, shift = _common(design, shp, shift)
     L, B = hull.L, hull.B
     av, dp = aviation(design), deck_plan(design)
@@ -451,16 +462,15 @@ def _flight_deck_layout(design, shp, depth, shift):
             base=it["base"] - 0.5, top=it["base"]))
 
     # ---------------- machinery and compartments ----------------
-    L_mach = machinery_length(shp)
     mc = -0.04 * L + shift
-    lay.geo["machinery"] = (mc - L_mach / 2, mc + L_mach / 2)
-    lay.geo["machinery_x"] = mc
+    _machinery(lay, design, res, hull, mc)
     _compartments(lay, design, hull, lay.geo["machinery"], dp["hangar"])
     return _finish(lay, design, hs, hull, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top,
                    flight_deck=fd, sponsons=sponsons, boats=[])
 
 
-def _seaplane_layout(design, shp, depth, shift):
+def _seaplane_layout(design, res, shift):
+    shp, depth = res.power_shp, res.depth
     """Seaplane carrier: guns forward, bridge, funnels over the machinery, a hangar aft opening onto an
     aircraft deck over the stern with catapults, and cranes that lift the seaplanes in and out."""
     lay, hs, hull, shift = _common(design, shp, shift)
@@ -547,10 +557,7 @@ def _seaplane_layout(design, shp, depth, shift):
                 lay.occupy(fp, LEVEL_H, LEVEL_H + 1.5, f"Boat{len(boats)}")
             break
 
-    L_mach = machinery_length(shp)
-    mc = (hx1 + bx0) / 2
-    lay.geo["machinery"] = (mc - L_mach / 2, mc + L_mach / 2)
-    lay.geo["machinery_x"] = mc
+    _machinery(lay, design, res, hull, (hx1 + bx0) / 2)
     _compartments(lay, design, hull, lay.geo["machinery"], (hx0, hx1, hhw))
     return _finish(lay, design, hs, hull, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top,
                    fittings=fittings, cranes=cranes, boats=boats,

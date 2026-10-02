@@ -2,23 +2,24 @@
 merchant: cargo ships and tankers.
 
     "cargo": {"kind": "dry" | "tanker", "deadweight_t": 8500}      cargo carried at full load
-    "machinery": {"type": "steam_recip" | "steam_turbine" | "diesel", "position": "amidships" | "aft"}
+    "machinery": {"position": "amidships" | "aft", "tech": {...}, ...}
+                 the plant (powerplant.py); default tech: 1940 oil-fired triple expansion (Liberty)
 
 The hull is a "three-island" ship: a raised forecastle, a bridge deck carrying the midships house, and a poop.
 Holds (dry cargo: hatches, masts and derricks) or tanks (tanker: tank hatches and a catwalk) fill the
 wells between them. With machinery aft the engine house and funnel stand on a longer poop and the midships
 house is just the bridge. Standard displacement is the lightship; full load adds fuel and cargo.
 
-Merchant machinery is heavier and thirstier per shp than warship machinery, and merchants cruise at their
-service speed, so range is computed at speed_kn. Guns are secondaries fitted where they suit (DEMS guns,
-Q-ships; no main battery): "ends" on the poop and forecastle, "sides" along the bulwarks, then torpedo mounts
-along the sides and AA on the house and ends.
+Merchants cruise at their service speed, so range is computed at speed_kn. Guns are secondaries fitted where
+they suit (DEMS guns, Q-ships; no main battery): "ends" on the poop and forecastle, "sides" along the bulwarks,
+then torpedo mounts along the sides and AA on the house and ends.
 """
 from __future__ import annotations
 
 import armament
-from layout import LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, clamp
-from navarch import MACHINERY, Weight
+from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_machinery_rooms, clamp, plan_machinery,
+                    stack_machinery)
+from navarch import Weight
 from geometry import AA_CFG, Hull
 from styles.base import Style
 from styles.carrier import SECONDARY_LIMITS, _funnel_size, _vdc, guns_are_secondaries
@@ -44,12 +45,7 @@ def cargo(design):
 
 
 def machinery(design):
-    return {"type": "steam_recip", "position": "amidships", **(design.get("machinery") or {})}
-
-
-def machinery_length(shp, mtype):
-    k = (MACHINERY[mtype] or {}).get("len_k", 1.0)
-    return k * 0.14 * shp ** 0.5 + 6.0
+    return {"position": "amidships", **(design.get("machinery") or {})}
 
 
 def stow(C, holds, ctx, fill=1.5):
@@ -97,7 +93,20 @@ class Merchant(Style):
     LIMITS = {**SECONDARY_LIMITS, ("hull", "block_coefficient"): (0.55, 0.85), ("speed_kn",): (6, 30),
               ("cargo", "deadweight_t"): (0, 80000)}
 
-    DEFAULT_MACHINERY = "steam_recip"
+    DEFAULT_TECH = {   # 1940 oil-fired triple expansion (Liberty), plant-templates.md
+        "name": "Triple expansion, large-tube water-tube boilers, oil-fired (1940)",
+        "fuel": "oil",
+        "weight_kg_per_kw": 103.5,
+        "stress_floor": 0.45,
+        "sfc_g_per_kwh": 660,
+        "density_t_per_m3": 0.28,
+        "unit_max_mw": 12.0,
+        "unit": {"mw": 5, "height_m": 7.5, "width_m": 4.5, "length_m": 9},
+        "boiler_fraction": 0.55,
+        "crew_k": 15.3,
+        "part_load": "REC",
+        "draught": {"system": "forced", "velocity_m_s": 14.0, "reach_m": 20.0, "gas_temp_k": 570, "air_fuel_ratio": 15},
+    }
     DEFAULT_CB = 0.72
     SIZE = {**Style.SIZE, "gm_frac": 0.04, "tb": 0.46, "lb_max": 8.0}
 
@@ -115,8 +124,8 @@ class Merchant(Style):
                     cruise_at_service=True, tb_max=0.62, lcb_frac=0.012,
                     gm_stiff_frac=0.2)
 
-    def build_layout(self, design, shp, depth, shift=0.0):
-        return _layout(design, shp, depth, shift)
+    def build_layout(self, design, res, shift=0.0):
+        return _layout(design, res, shift)
 
     def rough_payload(self, design, D):
         L = design["hull"]["length"]
@@ -138,17 +147,17 @@ class Merchant(Style):
     def results(self, design, lay, r):
         cg, m = cargo(design), machinery(design)
         return dict(cargo_t=round(cg["deadweight_t"]), deadweight_t=round(r.full - r.std),
-                    cargo_kind=cg["kind"], holds=len(lay.geo.get("holds", [])), machinery=m["type"],
-                    machinery_position=m["position"])
+                    cargo_kind=cg["kind"], holds=len(lay.geo.get("holds", [])), machinery_position=m["position"])
 
     def summary(self, design, lay, r):
         cg, m = cargo(design), machinery(design)
         return [f"cargo: {cg['deadweight_t']:,.0f} t {cg['kind']} in {len(lay.geo.get('holds', []))} "
                 f"{'tanks' if cg['kind'] == 'tanker' else 'holds'}   deadweight {r.full - r.std:,.0f} t   "
-                f"{m['type'].replace('_', ' ')} machinery {m['position']}"]
+                f"machinery {m['position']}"]
 
 
-def _layout(design, shp, depth, shift):
+def _layout(design, res, shift):
+    shp, depth = res.power_shp, res.depth
     lay = Layout()
     hs = merchant_hull_spec(design)
     hull = Hull(hs)
@@ -161,7 +170,7 @@ def _layout(design, shp, depth, shift):
     shift = clamp(shift, *lay.shift_range)
     lay.geo["shift"] = shift
     armour = design.get("armour") or {}
-    L_mach = machinery_length(shp, mach["type"])
+    L_mach = plan_machinery(lay, design, res, hull, -0.38 * L if aft_engines else 0.0)
 
     # ---------------- the three islands ----------------
     fc_len = clamp(0.09 * L, 6, 22)
@@ -336,8 +345,8 @@ def _layout(design, shp, depth, shift):
     for i, (h0, h1) in enumerate(holds):
         lay.compartments.append(dict(id=f"{'Tank' if tanker else 'Hold'} {i + 1}",
                                      kind="cargo_tank" if tanker else "hold", x0=h0, x1=h1, half_width=inner_hw))
-    lay.compartments += [dict(id="Machinery", kind="machinery", x0=m0, x1=m1, half_width=inner_hw),
-                         dict(id="Steering gear", kind="steering", x0=-L / 2 + 0.02 * L, x1=-L / 2 + 0.06 * L,
+    add_machinery_rooms(lay, stack_machinery(lay.geo["plant"]["segments"], m1), inner_hw, depth)
+    lay.compartments += [dict(id="Steering gear", kind="steering", x0=-L / 2 + 0.02 * L, x1=-L / 2 + 0.06 * L,
                               half_width=0.5 * B / 2)]
     lay.geo["citadel"] = (m0, m1)
 

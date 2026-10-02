@@ -2,7 +2,8 @@
   "id": "battleship", "name": "Fast Battleship", "type": "BB",
   "hull": {"block_coefficient": 0.59},
   "speed_kn": 33, "range_nm": 15000,
-  "armour": {"belt_mm": 307, "deck_mm": 152, "turret_mm": 432},
+  "machinery": {"stress": 0.4, "shafts": 4, "tech": {"name": "High-pressure geared turbines (1940)", "fuel": "oil", "weight_kg_per_kw": 35.2, "stress_floor": 0.5, "sfc_g_per_kwh": 349, "density_t_per_m3": 0.42, "unit_max_mw": 42.8, "unit": {"mw": 30, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.5, "crew_k": 10, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 14.7, "reach_m": 28.9, "gas_temp_k": 450, "air_fuel_ratio": 15}}},
+  "armour": {"tds_m": 5.2, "belt_mm": 307, "deck_mm": 152, "turret_mm": 432},
   "main": {"calibre_mm": 406, "calibre_length": 50, "barrels": 3, "fore": 2, "aft": 1},
   "secondary": {"calibre_mm": 127, "calibre_length": 38, "barrels": 2, "per_side": 5},
   "aa": {"heavy": 20, "light": 30}

@@ -16,6 +16,8 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
+import powerplant
+
 STEEL = 7.85  # t/m^3
 SEAWATER = 1.025  # t/m^3
 
@@ -26,11 +28,7 @@ TUNING = dict(
     freeboard_b=1.5,
     admiralty_a=111.0,      # admiralty coefficient C = a * Fn^-b * (form corrections)
     admiralty_b=0.69,
-    shp_per_t_ref=41.0,     # machinery specific power at 212,000 shp ...
-    shp_per_t_exp=0.66,     # ... rising for smaller plants: (212000/P)^exp
-    shp_per_t_max=105.0,
-    sfc=0.42,               # kg fuel per shp per hour at cruise (incl. hotel load)
-    cruise_kn=15.0,
+    cruise_kn=15.0,         # range is at min(cruise_kn, 0.6 x speed); the plant (powerplant.py) sets weight and fuel
     misc_frac=0.08,         # equipment, outfit, electrics, stores, crew, as a fraction of std displacement
     superstructure_t_per_m2=0.32,
     gun_k=1.6e-6,           # gun tube mass t = gun_k * cal_mm^3 * (L/50)
@@ -46,27 +44,6 @@ TUNING = dict(
     planing_rw_disp=0.06,   # ... and at Fn∇ = 1
     planing_eta=0.5,        # propulsive efficiency
 )
-
-
-# Machinery other than the default lightweight naval turbines (TUNING shp_per_t_*): fixed shp per tonne,
-# fuel kg per shp-hour (incl. hotel load), and an engine room length factor (styles.merchant).
-MACHINERY = {
-    "naval_turbine": None,
-    "coal_turbine": dict(spt=13.0, sfc=0.75, len_k=1.4),   # pre-1920 naval turbines with coal-fired boilers
-    "steam_recip": dict(spt=6.0, sfc=0.62, len_k=1.6),
-    "steam_turbine": dict(spt=10.0, sfc=0.42, len_k=1.3),
-    "diesel": dict(spt=8.0, sfc=0.20, len_k=1.2),
-    "petrol": dict(spt=450.0, sfc=0.28, len_k=0.5),        # high-speed petrol engines (MTBs, PT boats)
-    "fast_diesel": dict(spt=180.0, sfc=0.22, len_k=0.6),   # high-speed diesels (fast attack craft)
-}
-
-
-def machinery_tuning(mtype):
-    """TUNING overrides for a machinery type."""
-    mc = MACHINERY[mtype]
-    if mc is None:
-        return {}
-    return dict(shp_per_t_ref=mc["spt"], shp_per_t_exp=0.0, shp_per_t_max=mc["spt"], sfc=mc["sfc"])
 
 
 @dataclass
@@ -89,6 +66,8 @@ class Result:
     power_shp: float = 0.0
     fuel: float = 0.0
     crew: int = 0
+    plant: dict = field(default_factory=dict)       # powerplant.spec of the design
+    plant_rated: dict = field(default_factory=dict)  # powerplant.rated at power_shp
     gm_full: float = 0.0
     gm_light: float = 0.0
     lcg: float = 0.0
@@ -174,17 +153,6 @@ def planing_power(disp, v_kn, tun=TUNING):
     return r_kn * v_kn * 0.5144 / tun["planing_eta"] / 0.7457
 
 
-def machinery_weight(shp, tun=TUNING):
-    spt = tun["shp_per_t_ref"] * (212000.0 / max(shp, 1.0)) ** tun["shp_per_t_exp"]
-    spt = min(spt, tun["shp_per_t_max"])
-    return shp / spt
-
-
-def machinery_length(shp):
-    """Length of boiler + engine rooms, metres."""
-    return 0.14 * math.sqrt(shp)
-
-
 def funnel_count(shp):
     return 1 if shp < 25000 else 2
 
@@ -212,6 +180,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
     import styles
     style = styles.get(design)
     tun = {**TUNING, **style.tuning(design)}
+    plant = powerplant.spec(design, style.DEFAULT_TECH)
     L = design["hull"]["length"]
     B = design["hull"]["beam"]
     cb = design["hull"]["block_coefficient"]
@@ -229,8 +198,8 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         items.append(Weight("Hull structure", "hull", tun["hull_k"] * (L * B * D) ** tun["hull_exp"],
                             x=-0.01 * L, z_rel=("frac", tun.get("hull_z_frac", 0.58))))
         shp = power_required(disp, V, L, B, cb, tun)
-        items.append(Weight("Machinery", "machinery", machinery_weight(shp, tun), x=geo.get("machinery_x", -0.02 * L),
-                            z_rel=("frac", 0.32)))
+        items.append(Weight("Machinery", "machinery", powerplant.rated(plant, shp)["weight_t"],
+                            x=geo.get("machinery_x", -0.02 * L), z_rel=("frac", 0.32)))
         if placed is None:
             items += rough_payload(design, D) + style.rough_payload(design, D)
         else:
@@ -245,7 +214,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         # fuel for the requested range at cruise speed (merchants cruise at their service speed)
         vc = V if tun.get("cruise_at_service") else min(tun["cruise_kn"], 0.6 * V)
         shp_c = power_required(disp, vc, L, B, cb, tun)
-        fuel = shp_c * tun["sfc"] * (rng / vc) / 1000.0
+        fuel = powerplant.fuel_rate(plant, shp, shp_c) * (rng / vc) / 1000.0
         std_load, full_load = style.payload_weights(design, L, D, geo, tun, dict(
             items=items, fuel=fuel, fuel_x=geo.get("machinery_x", -0.02 * L), lcb=tun["lcb_frac"] * L))
         std += sum(w.w for w in std_load)
@@ -270,6 +239,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
     res.draught, res.depth, res.freeboard = full / (SEAWATER * L * B * cb), D, D - full / (SEAWATER * L * B * cb)
     res.power_shp = shp
     res.crew = style.crew(design, std)
+    res.plant, res.plant_rated = plant, powerplant.rated(plant, shp)
     res.weights = items
     groups = {}
     for w in items:

@@ -2,7 +2,7 @@
   "id": "escort_carrier", "name": "Escort Carrier", "type": "CVE", "style": "carrier",
   "hull": {"block_coefficient": 0.62},
   "speed_kn": 19, "range_nm": 10000,
-  "machinery": {"type": "steam_recip"},
+  "machinery": {"shafts": 2, "tech": {"name": "Triple expansion, large-tube water-tube boilers, oil-fired (1940)", "fuel": "oil", "weight_kg_per_kw": 103.5, "stress_floor": 0.45, "sfc_g_per_kwh": 660, "density_t_per_m3": 0.28, "unit_max_mw": 12.0, "unit": {"mw": 5, "height_m": 7.5, "width_m": 4.5, "length_m": 9}, "boiler_fraction": 0.55, "crew_k": 15.3, "part_load": "REC", "draught": {"system": "forced", "velocity_m_s": 14.0, "reach_m": 20.0, "gas_temp_k": 570, "air_fuel_ratio": 15}}},
   "aviation": {"flight_deck": "axial", "aircraft": 28, "aircraft_t": 5, "elevators": 2,
                "deck_edge_elevators": 0, "catapults": 1, "number": "73"},
   "aa": {"heavy": 4, "light": 20}

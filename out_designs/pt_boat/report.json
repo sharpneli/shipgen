@@ -4,7 +4,7 @@
   "valid": true,
   "errors": [],
   "warnings": [
-    "Trimmed 0.3 m by the stern."
+    "Trimmed 0.5 m by the stern."
   ],
   "inputs": {
     "id": "pt_boat",
@@ -17,7 +17,33 @@
     "speed_kn": 41,
     "range_nm": 350,
     "machinery": {
-      "type": "petrol"
+      "stress": 1.0,
+      "shafts": 3,
+      "tech": {
+        "name": "Petrol engines (1940)",
+        "fuel": "petrol",
+        "weight_kg_per_kw": 6.5,
+        "stress_floor": 0.7,
+        "sfc_g_per_kwh": 291,
+        "density_t_per_m3": 0.4,
+        "unit_max_mw": 1.1,
+        "unit": {
+          "mw": 1,
+          "height_m": 1.2,
+          "width_m": 1.1,
+          "length_m": 2.5
+        },
+        "boiler_fraction": 0.0,
+        "crew_k": 3,
+        "part_load": "DSL",
+        "draught": {
+          "system": "exhaust",
+          "velocity_m_s": 35,
+          "reach_m": 60,
+          "gas_temp_k": 620,
+          "air_fuel_ratio": 38
+        }
+      }
     },
     "torpedoes": {
       "mounts": 4,
@@ -38,130 +64,130 @@
     "length_m": 26.0,
     "beam_m": 5.78,
     "block_coefficient": 0.45,
-    "standard_displacement_t": 60,
-    "full_displacement_t": 73,
-    "draught_m": 1.05,
-    "depth_m": 2.9,
+    "standard_displacement_t": 71,
+    "full_displacement_t": 83,
+    "draught_m": 1.2,
+    "depth_m": 3.05,
     "freeboard_m": 1.85,
-    "power_shp": 5300.0,
-    "fuel_t": 13,
-    "crew": 16,
-    "gm_full_m": 0.91,
-    "gm_light_m": 1.0,
-    "trim_m": -0.28,
-    "lcg_m": -3.23,
+    "power_shp": 6000.0,
+    "fuel_t": 12,
+    "crew": 19,
+    "gm_full_m": 0.73,
+    "gm_light_m": 0.74,
+    "trim_m": -0.51,
+    "lcg_m": -3.45,
     "lcb_m": -2.86,
     "layout_shift_m": 1.04,
-    "volumetric_froude": 3.31,
-    "power_to_weight_hp_per_t": 72.6,
+    "volumetric_froude": 3.24,
+    "power_to_weight_hp_per_t": 72.5,
     "power_model": "planing placeholder"
   },
   "weight_groups_t": {
-    "hull": 26,
+    "hull": 27,
+    "machinery": 20,
     "armament": 15,
-    "fuel": 13,
-    "machinery": 12,
-    "misc": 6,
+    "fuel": 12,
+    "misc": 7,
     "superstructure": 1
   },
   "weights": [
     {
       "name": "Hull structure",
       "group": "hull",
-      "t": 26.1,
+      "t": 27.5,
       "x": -0.26,
-      "z": 1.68
+      "z": 1.77
     },
     {
       "name": "Machinery",
       "group": "machinery",
-      "t": 11.7,
+      "t": 20.5,
       "x": -6.5,
-      "z": 0.93
+      "z": 0.97
     },
     {
       "name": "Charthouse",
       "group": "superstructure",
       "t": 1.4,
       "x": 3.9,
-      "z": 4.2
+      "z": 4.35
     },
     {
       "name": "T1S",
       "group": "armament",
       "t": 2.6,
       "x": -0.74,
-      "z": 3.6
+      "z": 3.75
     },
     {
       "name": "T1P",
       "group": "armament",
       "t": 2.6,
       "x": -0.74,
-      "z": 3.6
+      "z": 3.75
     },
     {
       "name": "T2S",
       "group": "armament",
       "t": 2.6,
       "x": -8.74,
-      "z": 3.6
+      "z": 3.75
     },
     {
       "name": "T2P",
       "group": "armament",
       "t": 2.6,
       "x": -8.74,
-      "z": 3.6
+      "z": 3.75
     },
     {
       "name": "Mount Y",
       "group": "armament",
       "t": 0.9,
       "x": -10.16,
-      "z": 3.65
+      "z": 3.8
     },
     {
       "name": "Magazine Y",
       "group": "armament",
       "t": 0.7,
       "x": -10.16,
-      "z": 0.72
+      "z": 0.76
     },
     {
       "name": "AA1",
       "group": "armament",
       "t": 1.0,
       "x": -1.3,
-      "z": 4.1
+      "z": 4.25
     },
     {
       "name": "AA2",
       "group": "armament",
       "t": 1.0,
       "x": -5.85,
-      "z": 4.1
+      "z": 4.25
     },
     {
       "name": "AA3",
       "group": "armament",
       "t": 1.0,
       "x": -3.58,
-      "z": 4.1
+      "z": 4.25
     },
     {
       "name": "Equipment, outfit, crew & stores",
       "group": "misc",
-      "t": 6.0,
+      "t": 7.1,
       "x": 0.0,
-      "z": 1.45
+      "z": 1.52
     },
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 12.5,
+      "t": 11.7,
       "x": -6.5,
-      "z": 0.52
+      "z": 0.55
     }
   ]
 }

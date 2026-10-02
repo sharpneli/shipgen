@@ -6,7 +6,7 @@ exhausting through the transom (no funnels), a small charthouse with the open br
 tubes along the deck edges, toed out a few degrees, aimed by steering the boat.
 
     "torpedoes": {"mounts": 2, "tubes": 1}     fixed tubes, in port/starboard pairs (mounts rounded up to even)
-    "machinery": {"type": "petrol" | "fast_diesel" | ...}
+    "machinery": {"tech": {...}}             default: 1940 petrol engines (plant-templates.md)
 
 POWER IS A PLACEHOLDER: navarch.planing_power (a flat resistance/weight ratio once planing). It is the one
 function to replace with a researched planing model; TUNING planing_rw / planing_rw_disp / planing_eta tune
@@ -15,7 +15,7 @@ it meanwhile.
 from __future__ import annotations
 
 import armament
-from layout import LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, clamp
+from layout import LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, clamp, plan_machinery
 from navarch import Weight, volumetric_froude
 from geometry import AA_CFG, Hull
 from styles.base import Style
@@ -33,7 +33,12 @@ def planing_hull_spec(design):
 
 class Planing(Style):
     name = "planing"
-    DEFAULT_MACHINERY = "petrol"
+    DEFAULT_TECH = {"name": "Petrol engines (1940)", "fuel": "petrol", "weight_kg_per_kw": 6.5, "stress_floor": 0.7,
+                   "sfc_g_per_kwh": 291, "density_t_per_m3": 0.4, "unit_max_mw": 1.1,
+                   "unit": {"mw": 1, "height_m": 1.2, "width_m": 1.1, "length_m": 2.5}, "boiler_fraction": 0.0,
+                   "crew_k": 3, "part_load": "DSL",
+                   "draught": {"system": "exhaust", "velocity_m_s": 35, "reach_m": 60, "gas_temp_k": 620,
+                               "air_fuel_ratio": 38}}
     DEFAULT_CB = 0.45
     SIZE = dict(length=(8.0, 60.0), beam_max=12.0, gm_frac=0.06, tb=1.0, lb_max=4.5, slender=False)
     LIMITS = {("hull", "block_coefficient"): (0.35, 0.6),
@@ -44,8 +49,8 @@ class Planing(Style):
                     freeboard_b=0.8, misc_frac=0.10, cruise_kn=25.0, lcb_frac=-0.11, gm_stiff_frac=0.5,
                     fn_warn=99.0, lb_warn=2.8, trim_tol_frac=0.025, trim_warn_frac=0.01)
 
-    def build_layout(self, design, shp, depth, shift=0.0):
-        return _layout(design, shp, depth, shift)
+    def build_layout(self, design, res, shift=0.0):
+        return _layout(design, res, shift)
 
     def checks(self, design, r, tun):
         fnv = volumetric_froude(r.full, design["speed_kn"])
@@ -66,7 +71,8 @@ class Planing(Style):
                 f"{r.power_shp / r.full:.0f} hp/t   (placeholder power model)"]
 
 
-def _layout(design, shp, depth, shift):
+def _layout(design, res, shift):
+    shp, depth = res.power_shp, res.depth
     lay = Layout()
     hs = planing_hull_spec(design)
     hull = Hull(hs)
@@ -84,6 +90,9 @@ def _layout(design, shp, depth, shift):
     masts = [dict(x=cx0 + 0.25 * (cx1 - cx0), yard=min(0.5 * B, 2.4), tripod=False, top=LEVEL_H + 3.5)]
 
     m0, m1 = -0.42 * L, -0.08 * L
+    L_mach = plan_machinery(lay, design, res, hull, (m0 + m1) / 2)
+    if L_mach > m1 - m0:
+        lay.fail("length", f"The engines need {L_mach:.1f} m, but the engine room has {m1 - m0:.1f} m.")
     lay.geo["machinery"] = (m0, m1)
     lay.geo["machinery_x"] = (m0 + m1) / 2
     lay.geo["citadel"] = (m0, m1)
@@ -149,7 +158,7 @@ def _layout(design, shp, depth, shift):
     lay.compartments += [
         dict(id="Crew space", kind="crew", x0=cx1, x1=L / 2 - 0.08 * L, half_width=inner_hw),
         dict(id="Fuel tanks", kind="fuel_tank", x0=m1, x1=cx0 + 0.05 * L, half_width=inner_hw),
-        dict(id="Engine room", kind="machinery", x0=m0, x1=m1, half_width=inner_hw),
+        dict(id="Engine room", kind="engine_room", x0=m0, x1=m1, half_width=inner_hw),
         dict(id="Tiller flat", kind="steering", x0=-L / 2, x1=m0, half_width=0.6 * B / 2)]
     lay.spec = dict(
         id=design["id"], name=design.get("name", design["id"]), **{"class": design.get("type", "")},
