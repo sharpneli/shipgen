@@ -1,26 +1,44 @@
 # shipgen: parametric top-down ship designer and sprite generator
 
 ```
-pip install cairosvg pillow numpy
+pip install cairosvg pillow numpy             # the renderer only; the design side needs the standard library alone
 python design.py designs/*.json            # player designs -> out_designs/<id>/ (10 px/m + 5 mip levels)
 python design.py designs/x.json --no-limits # skip the input ranges; errors (capsizing etc.) never block output
+python design.py designs/x.json --no-previews # game assets only (sprites, mips, height map): ~0.5 s, not ~3 s
 python verify.py out_designs/battleship     # pixel check: sprites vs hitboxes
 python shipgen.py                           # the original hand-authored fleet (fleet.py)
 ```
 
 ## Pipeline
+Two halves with one contract between them: the design side turns the player's design into plain data, and the
+renderer draws only from that data.
 ```
-design JSON (player input: counts, calibres, armour, speed)
+design JSON (player input: counts, calibres, armour, speed, look)
    │
-   ├─ styles/      the design style: warship, carrier, merchant (limits, tuning, layout, extra weights)
+   ▼  DESIGN SIDE: standard library only, no drawing          (about 1-30 ms per ship)
+   shipdesign.py  validate(design) -> errors;  build(design) -> ship (plain, JSON-serialisable dict)
+   ├─ styles/      the design style: warship, carrier, merchant, planing (limits, tuning, layout, extra weights)
    ├─ navarch.py   weights → displacement, draught, power, fuel, GM, trim   (iterates to a fixed point)
    ├─ layout.py    warship layout + shared layout primitives; balances CG over CB by shifting the arrangement
    ├─ armament.py  style-neutral gun, torpedo and AA placement (used by carrier and merchant)
-   ├─ hitbox.py    fixed firing arcs by mount kind; hitbox export
-   ├─ geometry.py  turret polygons shared by the sprite AND the hitbox (single source of truth)
-   ├─ shadow.py    height map for sun shadows + the reference shadow renderer
-   └─ shipgen.py   SVG/PNG renderer (hull_base, turrets, hull_upper)
+   └─ hitbox.py    fixed firing arcs by mount kind; hitbox export
+   │
+   │  ship = {design, report, hitboxes, render: {spec, deck_m, mounts, columns, summary}}
+   ▼  RENDER SIDE: reads only `ship`                           (~0.5 s game assets, ~3 s with previews)
+   render.py      render_ship(ship, out_dir, scale, mips, look=None, previews=True)
+   ├─ looks.py     every colour, turret drawing and silhouette (by the design's "look")
+   ├─ shipgen.py   SVG/PNG drawing (hull_base, turrets, hull_upper)
+   └─ shadow.py    rasterises the height-map columns; the reference shadow renderer
+
+   geometry.py   shared by both: hull form, turret polygons (sprite AND hitbox), AA sizes, arc helpers
+design.py      the command line: validate, shipdesign.build, write report.json and hitboxes.json, render
 ```
+- Use the design side alone (a game's designer UI): `ship = shipdesign.build(design)` gives the report and hitboxes
+  in milliseconds, and `render.render_ship(ship, ...)` can run later, elsewhere, or from the same dict loaded
+  from JSON.
+- The rules that keep the halves apart: nothing on the design side imports the renderer, PIL, cairosvg or numpy;
+  the renderer imports no design-side module (only `geometry` and `looks`); and the renderer reads nothing but
+  the `ship` dict. `shipdesign.py`'s docstring documents that dict.
 
 ## Design input
 ```json

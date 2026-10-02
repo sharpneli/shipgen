@@ -17,7 +17,7 @@ from __future__ import annotations
 import armament
 from layout import LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, clamp
 from navarch import Weight, volumetric_froude
-from shipgen import AA_CFG, Hull
+from geometry import AA_CFG, Hull
 from styles.base import Style
 from styles.carrier import _vdc
 
@@ -36,8 +36,6 @@ class Planing(Style):
     DEFAULT_MACHINERY = "petrol"
     LIMITS = {("hull", "length"): (10, 60), ("hull", "beam"): (2.5, 12), ("hull", "block_coefficient"): (0.35, 0.6),
               ("speed_kn",): (15, 60), ("range_nm",): (100, 3000)}
-    PALETTE = {"deck": "#6f7a72", "deck_line": "#2f3530", "hull": "#4d5650",
-               "levels": ["#8b958e", "#9da69f", "#b0b8b2", "#c3cac5"]}
 
     def tuning(self, design):
         return dict(super().tuning(design), power_model="planing", hull_k=0.06, freeboard_a=0.04,

@@ -26,7 +26,7 @@ from geometry import (make_turret_type, make_torpedo_type, rrect_polygon, rrect_
                       sector_polygon)
 from navarch import Weight, mount_weights, torpedo_weight, machinery_length, funnel_count, TUNING
 from hitbox import ARC_BEAM
-from shipgen import Hull, AA_CFG
+from geometry import Hull, AA_CFG
 
 LEVEL_H = 2.6  # height of one superstructure level, metres
 

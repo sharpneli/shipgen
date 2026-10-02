@@ -19,7 +19,7 @@ from __future__ import annotations
 import armament
 from layout import LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, clamp
 from navarch import MACHINERY, Weight
-from shipgen import AA_CFG, Hull
+from geometry import AA_CFG, Hull
 from styles.base import Style
 from styles.carrier import SECONDARY_LIMITS, _funnel_size, _vdc, guns_are_secondaries
 
@@ -84,9 +84,6 @@ class Merchant(Style):
     SECONDARY_LIST = True
     LIMITS = {**SECONDARY_LIMITS, ("hull", "block_coefficient"): (0.55, 0.85), ("speed_kn",): (6, 30),
               ("cargo", "deadweight_t"): (0, 80000)}
-    PALETTE = {"hull": "#2a2b2c", "deck": "#7f776b", "deck_line": "#3a352e",
-               "levels": ["#e3ded2", "#e9e5da", "#eeebe2", "#f2f0e9"], "funnel": "#b5852f",
-               "funnel_cap": "#1b1b1b", "boat": "#e6e2d8", "mast": "#4a3f33", "fitting": "#6a6258"}
 
     DEFAULT_MACHINERY = "steam_recip"
 

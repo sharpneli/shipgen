@@ -63,6 +63,60 @@ def point_in_polygon(x, y, pts):
     return inside
 
 
+# AA mounts: (tub radius, barrels, barrel length, barrel width, barrel spacing) in metres.
+# The tub radius is also the AA hitbox radius.
+AA_CFG = {"quad40": (2.0, 4, 2.8, 0.17, 0.42),
+          "twin40": (1.5, 2, 2.6, 0.17, 0.5),
+          "single20": (0.75, 1, 1.7, 0.12, 0.0)}
+
+
+# ---------------------------------------------------------------------------
+# hull profile
+# ---------------------------------------------------------------------------
+class Hull:
+    def __init__(self, spec):
+        self.L = spec["length"]
+        self.B = spec["beam"]
+        self.bow = {"taper": 0.33, "power": 1.6, "shape": "pointed", **spec.get("bow", {})}
+        self.stern = {"taper": 0.18, "power": 2.0, "shape": "round", "transom": 0.45,
+                      **spec.get("stern", {})}
+
+    @staticmethod
+    def _end(t, power, shape):
+        # t: 0 at the start of the taper, 1 at the very tip
+        base = max(0.0, 1.0 - t ** power)
+        return math.sqrt(base) if shape == "round" else base
+
+    def half_width(self, x: float) -> float:
+        u = (x + self.L / 2) / self.L
+        b, s = self.bow, self.stern
+        if u >= 1 - b["taper"]:
+            t = min(1.0, (u - (1 - b["taper"])) / b["taper"])
+            w = self._end(t, b["power"], b["shape"])
+            if b.get("flare"):   # a flared shoulder: fuller through the middle of the taper, the same tip
+                w = min(1.0, w + b["flare"] * math.sin(math.pi * t) * (1 - t))
+        elif u <= s["taper"]:
+            t = min(1.0, max(0.0, 1 - u / s["taper"]))
+            w = s["transom"] + (1 - s["transom"]) * self._end(t, s["power"], s["shape"])
+        else:
+            w = 1.0
+        return self.B / 2 * w
+
+    def points(self, inset=0.0, max_hw=None, x_min=None, x_max=None, n=260):
+        """Closed outline as a point list (port side stern->bow, then starboard bow->stern)."""
+        lo = -self.L / 2 if x_min is None else x_min
+        hi = self.L / 2 if x_max is None else x_max
+        xs = [lo + (hi - lo) * (1 - math.cos(math.pi * i / n)) / 2 for i in range(n + 1)]
+        pts = []
+        for x in xs:
+            w = self.half_width(x) - inset
+            if max_hw is not None:
+                w = min(w, max_hw)
+            if w > 0.01:
+                pts.append((x, w))
+        return [(x, -w) for x, w in pts] + [(x, w) for x, w in reversed(pts)]
+
+
 # ---------------------------------------------------------------------------
 # turret types generated from gun parameters
 # ---------------------------------------------------------------------------
@@ -196,8 +250,35 @@ def _segments_cross(p, q, r, s):
 
 def polygons_intersect(a, b):
     """True if two simple polygons overlap (edges cross, or one lies inside the other)."""
+    if (max(x for x, _ in a) < min(x for x, _ in b) or max(x for x, _ in b) < min(x for x, _ in a) or
+            max(y for _, y in a) < min(y for _, y in b) or max(y for _, y in b) < min(y for _, y in a)):
+        return False   # bounding boxes apart: cannot touch
     for i in range(len(a)):
         for j in range(len(b)):
             if _segments_cross(a[i], a[(i + 1) % len(a)], b[j], b[(j + 1) % len(b)]):
                 return True
     return point_in_polygon(*a[0], b) or point_in_polygon(*b[0], a)
+
+
+# ---------------------------------------------------------------------------
+# firing arcs: [start, end] clockwise from ahead, end may exceed 360
+# ---------------------------------------------------------------------------
+def _wrap180(a):
+    return (a + 180.0) % 360.0 - 180.0
+
+
+def angle_allowed(arcs, a):
+    a %= 360.0
+    return any(lo <= a <= hi or lo <= a + 360.0 <= hi for lo, hi in arcs)
+
+
+def nearest_allowed(arcs, a):
+    if not arcs or angle_allowed(arcs, a):
+        return a
+    best, bd = a, 1e9
+    for lo, hi in arcs:
+        for e in (lo, hi):
+            d = abs(_wrap180(e - a))
+            if d < bd:
+                best, bd = e, d
+    return best

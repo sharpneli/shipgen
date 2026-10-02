@@ -16,18 +16,14 @@ picks counts and calibres. Every arc is centred on the mount's rest bearing (deg
 """
 from __future__ import annotations
 
-from geometry import rrect_polygon, turret_shapes, turret_reach
-from shipgen import AA_CFG
+from geometry import rrect_polygon, turret_shapes, turret_reach, _wrap180, angle_allowed, nearest_allowed  # noqa: F401
+from geometry import AA_CFG
 
 ARC_END = 135.0
 ARC_SIDE = 90.0
 ARC_BEAM = 65.0
 ARC_TORPEDO = 60.0
 ARC_FIXED = 1.0
-
-
-def _wrap180(a):
-    return (a + 180.0) % 360.0 - 180.0
 
 
 def _arc(centre, half):
@@ -60,23 +56,6 @@ def assign_arcs(lay):
     by_id = {m["id"]: m for m in lay.mounts}
     for sm in lay.spec["turrets"]:
         sm["rest"] = by_id[sm["id"]]["rest"]
-
-
-def angle_allowed(arcs, a):
-    a %= 360.0
-    return any(lo <= a <= hi or lo <= a + 360.0 <= hi for lo, hi in arcs)
-
-
-def nearest_allowed(arcs, a):
-    if not arcs or angle_allowed(arcs, a):
-        return a
-    best, bd = a, 1e9
-    for lo, hi in arcs:
-        for e in (lo, hi):
-            d = abs(_wrap180(e - a))
-            if d < bd:
-                best, bd = e, d
-    return best
 
 
 def export_hitboxes(lay, design):

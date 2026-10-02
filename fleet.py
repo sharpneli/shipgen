@@ -13,34 +13,9 @@ Turret mounts: type, x, y, z (draw order), rest (degrees, 0 = ahead), traverse (
 """
 
 # ---------------------------------------------------------------------------
-# Palette: a WWII "haze gray" scheme. Override per ship with "palette": {...}
+from looks import DEFAULT_PALETTE  # noqa: F401  (re-exported)
+# Palette: looks.DEFAULT_PALETTE (WWII haze grey). Override per ship with "palette": {...}
 # ---------------------------------------------------------------------------
-DEFAULT_PALETTE = {
-    "line": "#1c2126",
-    "hull": "#4b545d",
-    "deck": "#7b858e",
-    "wood": "#a68c63",
-    "deck_line": "#3c3328",
-    "levels": ["#8e979f", "#a3abb2", "#b6bdc3", "#c7cdd2"],
-    "turret": "#959ea6",
-    "barbette": "#6c757d",
-    "barrel": "#454c53",
-    "tube": "#5b636a",
-    "tub": "#6f7880",
-    "funnel": "#8a939b",
-    "funnel_cap": "#2b2f33",
-    "mast": "#30363b",
-    "boat": "#c9ced2",
-    "fitting": "#5e666d",
-    "chain": "#2a2e32",
-    "flight_deck": "#55606b",
-    "marking": "#e9ece6",
-    "stripe": "#e4c64a",
-    "track": "#3b424a",          # catapult tracks
-    "hatch": "#5d6650",          # cargo hatch tarpaulins
-    "hatch_coaming": "#4a5157",
-    "crane": "#3a4045",
-}
 
 # ---------------------------------------------------------------------------
 # Turret types (sprites are drawn with the barrels pointing +x, pivot at centre)

@@ -24,7 +24,6 @@ COMMON_LIMITS = {
 class Style:
     name = "base"
     LIMITS: dict = {}
-    PALETTE: dict = {}      # renderer palette defaults for this style (the design's "palette" wins)
 
     def limits(self):
         return {**COMMON_LIMITS, **self.LIMITS}

@@ -32,16 +32,12 @@ import random
 import cairosvg
 from PIL import Image, ImageDraw, ImageFont
 
-from fleet import FLEET, TURRET_TYPES, DEFAULT_PALETTE
-from geometry import turret_shapes, turret_reach, BARREL_ROOT, rrect_polygon
+from fleet import FLEET, TURRET_TYPES
+from looks import DEFAULT_PALETTE
+from geometry import turret_shapes, turret_reach, BARREL_ROOT, rrect_polygon, Hull, AA_CFG
 
 PAD_M = 3.0  # empty margin around each hull sprite, metres
 
-# AA mount drawing: (tub radius, barrels, barrel length, barrel width, barrel spacing) in metres.
-# The tub radius is also the AA hitbox radius.
-AA_CFG = {"quad40": (2.0, 4, 2.8, 0.17, 0.42),
-          "twin40": (1.5, 2, 2.6, 0.17, 0.5),
-          "single20": (0.75, 1, 1.7, 0.12, 0.0)}
 
 
 # ----------------------------------------------------------------------------
@@ -84,55 +80,9 @@ def shade(hex_color: str, k: float) -> str:
     return "#" + "".join(f"{max(0, min(255, v)):02x}" for v in c)
 
 
-# ----------------------------------------------------------------------------
-# hull profile
-# ----------------------------------------------------------------------------
-class Hull:
-    def __init__(self, spec):
-        self.L = spec["length"]
-        self.B = spec["beam"]
-        self.bow = {"taper": 0.33, "power": 1.6, "shape": "pointed", **spec.get("bow", {})}
-        self.stern = {"taper": 0.18, "power": 2.0, "shape": "round", "transom": 0.45,
-                      **spec.get("stern", {})}
-
-    @staticmethod
-    def _end(t, power, shape):
-        # t: 0 at the start of the taper, 1 at the very tip
-        base = max(0.0, 1.0 - t ** power)
-        return math.sqrt(base) if shape == "round" else base
-
-    def half_width(self, x: float) -> float:
-        u = (x + self.L / 2) / self.L
-        b, s = self.bow, self.stern
-        if u >= 1 - b["taper"]:
-            t = min(1.0, (u - (1 - b["taper"])) / b["taper"])
-            w = self._end(t, b["power"], b["shape"])
-            if b.get("flare"):   # a flared shoulder: fuller through the middle of the taper, the same tip
-                w = min(1.0, w + b["flare"] * math.sin(math.pi * t) * (1 - t))
-        elif u <= s["taper"]:
-            t = min(1.0, max(0.0, 1 - u / s["taper"]))
-            w = s["transom"] + (1 - s["transom"]) * self._end(t, s["power"], s["shape"])
-        else:
-            w = 1.0
-        return self.B / 2 * w
-
-    def points(self, inset=0.0, max_hw=None, x_min=None, x_max=None, n=260):
-        """Closed outline as a point list (port side stern->bow, then starboard bow->stern)."""
-        lo = -self.L / 2 if x_min is None else x_min
-        hi = self.L / 2 if x_max is None else x_max
-        xs = [lo + (hi - lo) * (1 - math.cos(math.pi * i / n)) / 2 for i in range(n + 1)]
-        pts = []
-        for x in xs:
-            w = self.half_width(x) - inset
-            if max_hw is not None:
-                w = min(w, max_hw)
-            if w > 0.01:
-                pts.append((x, w))
-        return [(x, -w) for x, w in pts] + [(x, w) for x, w in reversed(pts)]
-
-    def outline(self, inset=0.0, max_hw=None, x_min=None, x_max=None, n=260) -> str:
-        """Closed path of the hull (or an inset deck) outline."""
-        return poly(self.points(inset, max_hw, x_min, x_max, n))
+def hull_path(hull, inset=0.0, max_hw=None, x_min=None, x_max=None, n=260) -> str:
+    """SVG path of the hull (or an inset deck) outline."""
+    return poly(hull.points(inset, max_hw, x_min, x_max, n))
 
 
 # ----------------------------------------------------------------------------
@@ -439,7 +389,7 @@ def build_hull_layers(spec, scale, align=2, shadows=True):
     hull = Hull(look_hull_spec(spec))
     hx, hy = ship_extent(spec, hull, scale, align)
     vb = (-hx, -hy, 2 * hx, 2 * hy)
-    hull_d = hull.outline()
+    hull_d = hull_path(hull)
     defs = f'<clipPath id="hullclip"><path d="{hull_d}"/></clipPath>'
 
     base, upper = [], []
@@ -447,7 +397,7 @@ def build_hull_layers(spec, scale, align=2, shadows=True):
     # --- hull and deck -------------------------------------------------------
     base.append(f'<path d="{hull_d}" fill="{pal["hull"]}" {P.stroke(1.4)}/>')
     inset = spec.get("deck_inset", 0.55)
-    deck_d = hull.outline(inset=inset, max_hw=spec.get("deck_max_hw"),
+    deck_d = hull_path(hull, inset=inset, max_hw=spec.get("deck_max_hw"),
                           x_min=spec.get("deck_x0"), x_max=spec.get("deck_x1"))
     deck_col = pal["wood"] if spec.get("deck") == "wood" else pal["deck"]
     base.append(f'<path d="{deck_d}" fill="{deck_col}"/>')
@@ -472,7 +422,7 @@ def build_hull_layers(spec, scale, align=2, shadows=True):
 
     # raised decks (forecastle, bridge deck, poop): the hull outline between x0 and x1, a step up
     for i, rd in enumerate(spec.get("raised_decks", [])):
-        rd_d = hull.outline(inset=rd.get("inset", 0.3), x_min=rd["x0"], x_max=rd["x1"])
+        rd_d = hull_path(hull, inset=rd.get("inset", 0.3), x_min=rd["x0"], x_max=rd["x1"])
         defs += f'<clipPath id="rdclip{i}"><path d="{rd_d}"/></clipPath>'
         base.append(f'<path d="{rd_d}" fill="{shade(deck_col, 1.07)}" {P.stroke()}/>'
                     f'<g clip-path="url(#rdclip{i})" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '

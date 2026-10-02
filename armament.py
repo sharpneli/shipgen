@@ -13,7 +13,7 @@ import math
 from geometry import make_torpedo_type, make_turret_type, turret_height, turret_reach
 from layout import _fp_circle, _fp_rect, _overlap, stepped_counts, turret_name
 from navarch import TUNING, Weight, mount_weights, torpedo_weight
-from shipgen import AA_CFG
+from geometry import AA_CFG
 
 
 def body_reach(t):

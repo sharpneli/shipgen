@@ -6,10 +6,10 @@ deck finish, funnel bands and how turrets are drawn. It never touches the layout
 hitboxes or the sprite sizes, so the same design in two looks plays identically.
 
 Each look has:
-    palette    colour overrides for every ship style (shipgen.DEFAULT_PALETTE keys, plus the optional
+    palette    colour overrides for every ship style (DEFAULT_PALETTE keys, plus the optional
                "funnel_band" and "steel_line")
     by_style   further overrides for one style (merchant, planing, ...), applied over that style's own
-               PALETTE: a merchant keeps its merchant colours unless the look says otherwise
+               STYLE_PALETTES entry: a merchant keeps its merchant colours unless the look says otherwise
     turrets    how armoured (bb) turrets are drawn: "standard", "slab", "round", "classic" or "faceted"
                (shipgen.build_turret). The outline stays close to the hitbox shape (geometry.turret_shapes).
     shapes     silhouette variations, all drawn only (shipgen.look_hull_spec, Painter):
@@ -21,11 +21,49 @@ Each look has:
                  mast     "pole": no tripod legs; "fighting_top": pole masts with a round fighting top
     shapes_by_style   further shape overrides for one style (optional)
 
-Precedence, lowest first: DEFAULT_PALETTE, look palette, style PALETTE, look by_style, design "palette".
+Precedence, lowest first: DEFAULT_PALETTE, look palette, STYLE_PALETTES[style], look by_style, design "palette".
+All colours live here: the design side (shipdesign, styles) has none.
 
 To add a look: add an entry to LOOKS. A new turret style also needs a branch in shipgen.look_turret_body.
 """
 from __future__ import annotations
+
+# The renderer's base colours: a WWII haze-grey scheme (formerly fleet.py)
+DEFAULT_PALETTE = {
+    "line": "#1c2126",
+    "hull": "#4b545d",
+    "deck": "#7b858e",
+    "wood": "#a68c63",
+    "deck_line": "#3c3328",
+    "levels": ["#8e979f", "#a3abb2", "#b6bdc3", "#c7cdd2"],
+    "turret": "#959ea6",
+    "barbette": "#6c757d",
+    "barrel": "#454c53",
+    "tube": "#5b636a",
+    "tub": "#6f7880",
+    "funnel": "#8a939b",
+    "funnel_cap": "#2b2f33",
+    "mast": "#30363b",
+    "boat": "#c9ced2",
+    "fitting": "#5e666d",
+    "chain": "#2a2e32",
+    "flight_deck": "#55606b",
+    "marking": "#e9ece6",
+    "stripe": "#e4c64a",
+    "track": "#3b424a",          # catapult tracks
+    "hatch": "#5d6650",          # cargo hatch tarpaulins
+    "hatch_coaming": "#4a5157",
+    "crane": "#3a4045",
+}
+
+# Each style's own colours, under any look (formerly the styles' PALETTE): merchants are not navy grey
+STYLE_PALETTES = {
+    "merchant": {"hull": "#2a2b2c", "deck": "#7f776b", "deck_line": "#3a352e",
+                 "levels": ["#e3ded2", "#e9e5da", "#eeebe2", "#f2f0e9"], "funnel": "#b5852f",
+                 "funnel_cap": "#1b1b1b", "boat": "#e6e2d8", "mast": "#4a3f33", "fitting": "#6a6258"},
+    "planing": {"deck": "#6f7a72", "deck_line": "#2f3530", "hull": "#4d5650",
+                "levels": ["#8b958e", "#9da69f", "#b0b8b2", "#c3cac5"]},
+}
 
 LOOKS = {
     # the original WWII haze-grey scheme
@@ -125,6 +163,10 @@ LOOKS = {
 DEFAULT_LOOK = "standard"
 
 
+def style_name(design) -> str:
+    return design.get("style", "warship")
+
+
 def look_name(design) -> str:
     return design.get("look", DEFAULT_LOOK)
 
@@ -138,12 +180,12 @@ def validate(design) -> list[str]:
     return [] if name in LOOKS else [f"look = {name!r}: use {', '.join(LOOKS)}"]
 
 
-def shapes(design, style) -> dict:
+def shapes(design) -> dict:
     lk = get(design)
-    return {**lk["shapes"], **lk.get("shapes_by_style", {}).get(style.name, {})}
+    return {**lk["shapes"], **lk.get("shapes_by_style", {}).get(style_name(design), {})}
 
 
-def palette(design, style) -> dict:
-    """The design's palette overrides (merged over shipgen.DEFAULT_PALETTE by the renderer)."""
-    lk = get(design)
-    return {**lk["palette"], **style.PALETTE, **lk["by_style"].get(style.name, {}), **design.get("palette", {})}
+def palette(design) -> dict:
+    """The design's palette overrides (merged over DEFAULT_PALETTE by the renderer)."""
+    lk, st = get(design), style_name(design)
+    return {**lk["palette"], **STYLE_PALETTES.get(st, {}), **lk["by_style"].get(st, {}), **design.get("palette", {})}

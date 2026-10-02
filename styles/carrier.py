@@ -24,7 +24,7 @@ import armament
 from geometry import polygon_area, polygon_y_span
 from layout import LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, clamp, hull_spec
 from navarch import STEEL, Weight, funnel_count, machinery_length
-from shipgen import AA_CFG, Hull
+from geometry import AA_CFG, Hull
 from styles.base import Style
 
 HANGAR_H = 5.6      # clear height of one hangar deck, metres
