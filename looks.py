@@ -18,7 +18,8 @@ Each look has:
                  funnel   "box", "oval" or "capped" (default: stadium)
                  blocks   superstructure corners: "boxy", "soft", "bowfront" (round fronts, square backs) or
                           "chamfer" (default: as laid out)
-                 mast     "pole": no tripod legs
+                 mast     "pole": no tripod legs; "fighting_top": pole masts with a round fighting top
+    shapes_by_style   further shape overrides for one style (optional)
 
 Precedence, lowest first: DEFAULT_PALETTE, look palette, style PALETTE, look by_style, design "palette".
 
@@ -98,6 +99,27 @@ LOOKS = {
                               "levels": ["#b5b9bb", "#c0c4c6", "#cbcfd0", "#d6d9da"]}},
         turrets="faceted",
         shapes={"bow_power": 0.2, "bow_flare": 0.04, "funnel": "capped", "blocks": "chamfer", "mast": "pole"}),
+
+    # a period livery rather than a nation: the 1890s black, white and buff most navies wore. Holystoned teak,
+    # black drum turrets with sighting hoods, buff funnels and masts with fighting tops, a full beamy bow.
+    # Merchants get varnished teak deckhouses and a red funnel with a black top; torpedo craft are all black
+    "victorian": dict(
+        desc="1890s livery: black hull, white upperworks, buff funnels and masts",
+        palette={"hull": "#1d1d1f", "deck": "#6b5f50", "wood": "#d6c7a2", "deck_line": "#8a7650",
+                 "steel_line": "#3e352b",
+                 "levels": ["#e9e5da", "#eeebe2", "#f2f0e9", "#f6f4ef"],
+                 "turret": "#2c2c2e", "barbette": "#3a3a3c", "barrel": "#1b1b1c", "tub": "#2c2c2e",
+                 "funnel": "#c9a04a", "funnel_cap": "#161616", "funnel_band": "#161616", "boat": "#f1eee6",
+                 "fitting": "#3a3631", "mast": "#b08640", "flight_deck": "#cbb98f", "stripe": "#1d1d1f",
+                 "marking": "#f4f1e8", "chain": "#1e1e1e", "crane": "#2c2c2e"},
+        by_style={"merchant": {"hull": "#1b1b1c", "deck": "#c9b78f", "deck_line": "#7d6a46",
+                               "levels": ["#8e5f35", "#9a6a3e", "#a67548", "#b28052"], "funnel": "#b8402e",
+                               "funnel_band": "#161616", "boat": "#f1eee6", "hatch": "#4b4a3d", "mast": "#b08640"},
+                  "planing": {"hull": "#1b1b1c", "deck": "#2f2f31", "deck_line": "#121213",
+                              "levels": ["#3a3a3c", "#454547", "#505052", "#5b5b5d"], "turret": "#3a3a3c"}},
+        turrets="drum",
+        shapes={"bow_power": 0.4, "funnel": "oval", "blocks": "soft", "mast": "fighting_top"},
+        shapes_by_style={s_: {"mast": "pole"} for s_ in ("merchant", "carrier", "planing")}),
 }
 
 DEFAULT_LOOK = "standard"
@@ -114,6 +136,11 @@ def get(design) -> dict:
 def validate(design) -> list[str]:
     name = look_name(design)
     return [] if name in LOOKS else [f"look = {name!r}: use {', '.join(LOOKS)}"]
+
+
+def shapes(design, style) -> dict:
+    lk = get(design)
+    return {**lk["shapes"], **lk.get("shapes_by_style", {}).get(style.name, {})}
 
 
 def palette(design, style) -> dict:

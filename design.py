@@ -175,7 +175,7 @@ def render_design(design, lay, r, out_dir, S, mips=0):
     spec["palette"] = looks.palette(design, styles.get(design))   # visual only: nothing above depends on it
     pal = {**DEFAULT_PALETTE, **spec["palette"]}
     turret_look = looks.get(design)["turrets"]
-    spec["shapes"] = looks.get(design)["shapes"]
+    spec["shapes"] = looks.shapes(design, styles.get(design))
     turret_pngs = {}
     tmeta = {}
     for tid, t in spec["turret_types"].items():

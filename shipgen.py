@@ -280,11 +280,15 @@ class Painter:
             s.append(f'<line x1="{f(x)}" y1="{f(y)}" x2="{f(bx)}" y2="{f(by)}" stroke="{p["mast"]}" '
                      f'stroke-width="{f(max(self.sw * 1.4, 0.3))}" stroke-linecap="round"/>'
                      f'<circle cx="{f(bx)}" cy="{f(by)}" r="0.3" fill="{p["mast"]}"/>')
-        if m.get("tripod", True) and self.shapes.get("mast") != "pole":   # a look may make every mast a pole
+        if m.get("tripod", True) and self.shapes.get("mast") not in ("pole", "fighting_top"):   # a look may make every mast a pole
             for ang in (150, 210):
                 lx = x + 4.0 * math.cos(math.radians(ang))
                 s.append(f'<line x1="{f(x)}" y1="{f(y)}" x2="{f(lx)}" y2="{f(y + 3.0 * (1 if ang == 150 else -1))}" '
                          f'stroke="{p["mast"]}" stroke-width="{f(max(self.sw * 1.3, 0.3))}" stroke-linecap="round"/>')
+        if self.shapes.get("mast") == "fighting_top":   # a round fighting top on the mast
+            s.append(f'<circle cx="{f(x)}" cy="{f(y)}" r="1.6" fill="{shade(p["mast"], 0.75)}" {self.stroke(0.8)}/>'
+                     f'<circle cx="{f(x)}" cy="{f(y)}" r="1.25" fill="none" stroke="{shade(p["mast"], 1.2)}" '
+                     f'stroke-width="0.2"/>')
         s.append(f'<circle cx="{f(x)}" cy="{f(y)}" r="0.7" fill="{p["mast"]}" {self.stroke(0.6)}/>')
         return "".join(s)
 
@@ -614,6 +618,10 @@ def look_turret_body(look, r):
     if look == "faceted":    # angled cheeks and rear corners, flat sides
         body = mirror([(0.86, -0.52), (0.58, -0.86), (-0.78, -0.86), (-0.95, -0.62), (-0.95, 0.0)])
         return body, ears(-0.6, -0.44, -0.98, -0.8), 0.86 * r, 0.52 * r
+    if look == "drum":       # a Victorian round turret: a drum with sighting hoods standing out at the rear sides
+        body = [((-0.05 + 0.9 * math.cos(math.radians(a))) * r, 0.9 * math.sin(math.radians(a)) * r)
+                for a in range(0, 360, 10)]
+        return body, ears(-0.55, -0.35, -0.98, -0.72, 0.08), 0.85 * r, 0.0
     raise ValueError(f"unknown turret look {look!r}")
 
 
@@ -657,8 +665,9 @@ def build_turret(t, palette, scale, align=2, shadows=True, look="standard"):
                      f'rx="{f(bw * 0.3)}" fill="{shade(body_col, 0.55)}" {P.stroke(0.6)}/>')
         s.append(f'<path d="{body}" fill="{body_col}" {P.stroke(1.2)}/>')
         s.append(f'<path d="{body}" fill="{shade(body_col, 1.12)}" transform="translate({f(0.02 * r)},0) scale(0.8)"/>')
-        s.append(f'<path d="M{f(xf)},{f(-hf)} L{f(xf)},{f(hf)} L{f(xf - 0.22 * r)},{f(hf - 0.08 * r)} '
-                 f'L{f(xf - 0.22 * r)},{f(-hf + 0.08 * r)} Z" fill="{shade(body_col, 0.82)}"/>')   # sloped face plate
+        if hf:   # sloped face plate (a drum turret has none)
+            s.append(f'<path d="M{f(xf)},{f(-hf)} L{f(xf)},{f(hf)} L{f(xf - 0.22 * r)},{f(hf - 0.08 * r)} '
+                     f'L{f(xf - 0.22 * r)},{f(-hf + 0.08 * r)} Z" fill="{shade(body_col, 0.82)}"/>')
         for part in parts:
             s.append(f'<path d="{poly(part)}" fill="{shade(body_col, 0.85)}" {P.stroke(0.8)}/>')
         hood = shade(body_col, 0.8)
@@ -678,6 +687,11 @@ def build_turret(t, palette, scale, align=2, shadows=True, look="standard"):
                          f'rx="{f(0.08 * r)}" fill="{hood}" {P.stroke(0.5)}/>')
             s.append(f'<rect x="{f(-0.3 * r)}" y="{f(-0.12 * r)}" width="{f(0.22 * r)}" height="{f(0.24 * r)}" '
                      f'rx="{f(0.04 * r)}" fill="{hood}" {P.stroke(0.5)}/>')
+        elif look == "drum":    # two small sighting hoods at the front edge, a round roof hatch
+            for yy in (-0.38 * r, 0.38 * r):
+                s.append(f'<rect x="{f(0.42 * r)}" y="{f(yy - 0.08 * r)}" width="{f(0.2 * r)}" height="{f(0.16 * r)}" '
+                         f'rx="{f(0.05 * r)}" fill="{shade(body_col, 1.5)}" {P.stroke(0.5)}/>')
+            s.append(f'<circle cx="{f(-0.2 * r)}" cy="0" r="{f(0.14 * r)}" fill="{shade(body_col, 1.4)}" {P.stroke(0.5)}/>')
         elif look == "faceted":  # domed cupolas forward, a rangefinder hood across the rear
             for yy in (-0.42 * r, 0.42 * r):
                 s.append(f'<circle cx="{f(0.25 * r)}" cy="{f(yy)}" r="{f(0.12 * r)}" fill="{hood}" {P.stroke(0.5)}/>'
