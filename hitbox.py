@@ -22,6 +22,7 @@ import re
 
 from geometry import rrect_polygon, turret_shapes, turret_reach, _wrap180, angle_allowed, nearest_allowed  # noqa: F401
 from geometry import AA_CFG
+import powerplant
 
 ARC_END = 135.0
 ARC_SIDE = 90.0
@@ -80,6 +81,31 @@ def assign_arcs(lay):
         sm["rest"] = by_id[sm["id"]]["rest"]
 
 
+CONTROL_ROLES = ("bridge", "director", "aft_control")
+
+
+def assign_smoke(lay, res):
+    """Control positions in a funnel's smoke (powerplant model, section 6b): a bridge, director or aft control
+    standing aft of a funnel, closer than its smoke reach (powerplant.smoke_reach) and lower than the funnel top
+    plus 0.3 x the distance. Sets lay.smoke {block id: [funnel ids]} and warns about each."""
+    from layout import block_top
+    lay.smoke = {}
+    if not lay.funnels:
+        return
+    reach = powerplant.smoke_reach(res.plant, res.power_shp)
+    for b in lay.blocks:
+        if block_role(b["id"]) not in CONTROL_ROLES:
+            continue
+        hit = []
+        for f in lay.funnels:
+            d = (f["x"] - f["l"] / 2) - b["x1"]
+            if 0 <= d < reach and block_top(b) < lay.fun_top + 0.3 * d and abs(f["y"] - b["y"]) < b["w"] / 2 + f["w"]:
+                hit.append(f["id"])
+        if hit:
+            lay.smoke[b["id"]] = hit
+            lay.warnings.append(f"{b['id']} stands in the smoke of {', '.join(hit)}: poor visibility from it.")
+
+
 def block_role(bid):
     """A superstructure block's role (BLOCK_ROLES); anything else is a deckhouse."""
     return BLOCK_ROLES.get(re.sub(r"\s*\d+[SP]?$", "", bid), "deckhouse")
@@ -126,22 +152,35 @@ def export_hitboxes(lay, design, res):
                               armour_mm=round(BARBETTE * arm)))
     for b in lay.blocks:
         pts = rrect_polygon(b["x0"], b["y"] - b["w"] / 2, b["x1"], b["y"] + b["w"] / 2, b["rf"], b["rb"])
+        smoke = getattr(lay, "smoke", {}).get(b["id"])
         comps.append(dict(id=b["id"], kind="superstructure", role=block_role(b["id"]), shape="polygon",
                           points=[[round(x, 3), round(y, 3)] for x, y in pts],
                           rrect=dict(x0=round(b["x0"], 3), x1=round(b["x1"], 3), y0=round(b["y"] - b["w"] / 2, 3),
                                      y1=round(b["y"] + b["w"] / 2, 3), rf=round(b["rf"], 3), rb=round(b["rb"], 3)),
                           base=round(block_base(b), 2), top=round(block_top(b), 2)))
+        if smoke:
+            comps[-1]["smoke"] = smoke
     ct = lay.conning_tower
     if ct:
         comps.append(dict(id="Conning tower", kind="conning_tower", shape="circle", x=round(ct["x"], 3),
                           y=round(ct["y"], 3), r=round(ct["r"], 3), base=0.0, top=round(ct["top"], 2),
                           armour_mm=ag["belt_mm"]))
+    plan = lay.geo.get("plant")
     for f in lay.funnels:
         pts = rrect_polygon(f["x"] - f["l"] / 2, f["y"] - f["w"] / 2, f["x"] + f["l"] / 2, f["y"] + f["w"] / 2,
                             f["w"] / 2, f["w"] / 2)
-        comps.append(dict(id=f["id"], kind="funnel", shape="polygon",
-                          points=[[round(x, 3), round(y, 3)] for x, y in pts], base=f.get("z0", 0.0),
-                          top=round(lay.fun_top, 2)))
+        pts = [[round(x, 3), round(y, 3)] for x, y in pts]
+        comps.append(dict(id=f["id"], kind="funnel", shape="polygon", points=pts, base=f.get("z0", 0.0),
+                          top=round(lay.fun_top, 2), boiler_rooms=f.get("serves", [])))
+        if plan and f.get("serves") is not None:   # the uptakes: from the top of the boilers up to the funnel
+            comps.append(dict(id=f"{f['id']} uptakes", kind="uptake", funnel=f["id"], shape="polygon", points=pts,
+                              base=round(plan["inner_bottom"] + plan["space"]["unit"][2] - D, 2),
+                              top=f.get("z0", 0.0), boiler_rooms=f.get("serves", [])))
+    for c in lay.casings:      # over machinery that stands taller than its space; armoured as the deck it pierces
+        pts = rrect_polygon(c["x0"], -c["w"] / 2, c["x1"], c["w"] / 2, 0.5, 0.5)
+        comps.append(dict(id=c["id"], kind="casing", shape="polygon",
+                          points=[[round(x, 3), round(y, 3)] for x, y in pts], base=round(c["base"], 2),
+                          top=round(c["top"], 2), armour_mm=c["armour_mm"]))
     for dk in lay.decks + [{**sp, "kind": "sponson"} for sp in lay.sponsons]:
         comps.append(dict(id=dk["id"], kind=dk["kind"], shape="polygon",
                           points=[[round(x, 3), round(y, 3)] for x, y in dk["points"]],

@@ -22,9 +22,9 @@ import math
 
 import armament
 from geometry import polygon_area, polygon_y_span
-from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_machinery_rooms, clamp, hull_spec,
-                    plan_machinery, stack_machinery)
-from navarch import STEEL, Weight, funnel_count
+from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
+                    boiler_seg, clamp, hull_spec, plan_funnels, plan_machinery, stack_machinery)
+from navarch import STEEL, Weight
 from geometry import AA_CFG, Hull
 from styles.base import Style
 
@@ -295,19 +295,21 @@ def _check_capacity(lay, av, dp):
                            "smaller aircraft.")
 
 
-def _funnel_size(shp, n, max_w):
-    fw = clamp(0.6 * math.sqrt(shp / n / 1000.0), 2.2, max_w)
-    return fw, 1.45 * fw
-
 
 def _machinery(lay, design, res, hull, mc):
-    """The machinery block centred at mc, with its rooms. It has to fit in the middle half of the hull."""
+    """Plan the machinery block centred at mc. It has to fit in the middle half of the hull."""
     L_mach = plan_machinery(lay, design, res, hull, mc)
     if L_mach > 0.5 * hull.L:
         lay.fail("length", f"The machinery needs {L_mach:.0f} m, more than half the hull. Use less power or a more "
                            "compact plant.")
-    add_machinery_rooms(lay, stack_machinery(lay.geo["plant"]["segments"], mc + L_mach / 2), 0.8 * hull.B / 2,
-                        res.depth)
+    lay.geo["machinery"] = (mc - L_mach / 2, mc + L_mach / 2)
+    lay.geo["machinery_x"] = mc
+    return L_mach
+
+
+def _machinery_rooms(lay, hull, res):
+    m0, m1 = lay.geo["machinery"]
+    add_machinery_rooms(lay, stack_machinery(lay.geo["plant"]["segments"], m1), 0.8 * hull.B / 2, res.depth)
 
 
 def _compartments(lay, design, hull, mach, hangar, extra=()):
@@ -339,7 +341,7 @@ def _finish(lay, design, hs, hull, mounts, turret_types, blocks, funnels, masts,
         turret_types=turret_types,
         turrets=[dict(id=m["id"], type=m["type"], x=m["x"], y=m["y"], z=m["z"], rest=m["rest"]) for m in mounts],
         superstructure=[{k: v for k, v in b.items() if k not in ("id", "kind")} for b in blocks],
-        funnels=[{k: v for k, v in f_.items() if k != "id"} for f_ in funnels],
+        funnels=[{k: v for k, v in f_.items() if k not in ("id", "seg", "serves")} for f_ in funnels],
         masts=masts, aa=[{k: v for k, v in a.items() if k not in ("id", "base")} for a in aa_out],
         **spec_extra)
     lay.mounts, lay.blocks, lay.funnels, lay.aa, lay.fun_top = mounts, blocks, funnels, aa_out, fun_top
@@ -358,10 +360,12 @@ def _flight_deck_layout(design, res, shift):
     fd = _flight_deck_drawing(dp, av, L)
 
     # ---------------- island: on the starboard deck edge, funnel uptakes at its after end ----------------
-    nfun = design.get("funnels") or 1
+    mc = -0.04 * L + shift
+    _machinery(lay, design, res, hull, mc)
     li = clamp(0.11 * L, 8, 36)
     wi = clamp(0.3 * B, 4, 10)
-    fw, fl = _funnel_size(shp, nfun, wi - 1.0)
+    nfun, fw, fl = plan_funnels(lay, design, res, B, fd_h + LEVEL_H * 4 + 3.0)
+    fw = min(fw, wi - 1.0)
     fl = min(fl, 0.45 * li / nfun)
     wi = max(wi, fw + 1.2)
     xi = 0.05 * L + shift
@@ -380,10 +384,10 @@ def _flight_deck_layout(design, res, shift):
     fun_top = fd_h + LEVEL_H * top_level + 3.0
     for i in range(nfun):
         fx = ix0 + 1.0 + (i + 0.5) * (fl + 1.0)
-        funnels.append(dict(id=f"Funnel {i + 1}", x=fx, y=yi, l=fl, w=fw, pipes=2 if fw > 4 else 1, z0=fd_h))
+        funnels.append(dict(id=f"Funnel {i + 1}", x=fx, y=yi, l=fl, w=fw, pipes=2 if fw > 4 else 1, z0=fd_h,
+                            seg=boiler_seg(lay)))
         lay.occupy(_fp_rect(fx - fl / 2, yi - fw / 2, fx + fl / 2, yi + fw / 2), fd_h, fun_top, f"Funnel {i + 1}")
-        lay.weights.append(Weight(f"Funnel {i + 1}", "superstructure", fl * fw * 0.9, x=fx,
-                                  z_rel=("deck", (fd_h + fun_top) / 2)))
+        add_funnel_weights(lay, funnels[-1], fun_top, mc, res.depth)
     masts = [dict(x=fwd0 - 0.5, y=yi, yard=min(0.6 * wi, 6), tripod=False, top=fun_top + 5.0)]
 
     mounts, turret_types = [], {}
@@ -462,8 +466,7 @@ def _flight_deck_layout(design, res, shift):
             base=it["base"] - 0.5, top=it["base"]))
 
     # ---------------- machinery and compartments ----------------
-    mc = -0.04 * L + shift
-    _machinery(lay, design, res, hull, mc)
+    _machinery_rooms(lay, hull, res)
     _compartments(lay, design, hull, lay.geo["machinery"], dp["hangar"])
     return _finish(lay, design, hs, hull, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top,
                    flight_deck=fd, sponsons=sponsons, boats=[])
@@ -495,16 +498,19 @@ def _seaplane_layout(design, res, shift):
     add_block(lay, blocks, "Bridge", bx0 + 0.15 * lb, bx1, 0.85 * wb, 2, 0.4 * wb, 1.0)
     add_block(lay, blocks, "Bridge upper", bx0 + 0.35 * lb, bx1 - 0.05 * lb, 0.7 * wb, 3, 0.3 * wb, 0.8)
     fun_top = LEVEL_H * 3 + 3.0
-    nfun = design.get("funnels") or funnel_count(shp)
-    fw, fl = _funnel_size(shp, nfun, 0.3 * B)
+    mc = (hx1 + bx0) / 2
+    _machinery(lay, design, res, hull, mc)
+    nfun, fw, fl = plan_funnels(lay, design, res, B, fun_top)
+    fw = min(fw, 0.3 * B)
     room = bx0 - hx1 - 2.0
     if room < nfun * (fl + 1.0):
         lay.fail("length", f"No room for {nfun} funnel(s) between the bridge and the hangar.")
     for i in range(nfun):
         fx = hx1 + 1.0 + (i + 0.5) * room / nfun
-        funnels.append(dict(id=f"Funnel {i + 1}", x=fx, y=0.0, l=fl, w=fw, pipes=2 if fw > 4 else 1))
+        funnels.append(dict(id=f"Funnel {i + 1}", x=fx, y=0.0, l=fl, w=fw, pipes=2 if fw > 4 else 1,
+                            seg=boiler_seg(lay)))
         lay.occupy(_fp_rect(fx - fl / 2, -fw / 2, fx + fl / 2, fw / 2), 0, fun_top, f"Funnel {i + 1}")
-        lay.weights.append(Weight(f"Funnel {i + 1}", "superstructure", fl * fw * 0.9, x=fx, z_rel=("deck", fun_top / 2)))
+        add_funnel_weights(lay, funnels[-1], fun_top, mc, res.depth)
     masts = [dict(x=bx0 - 1.0, yard=min(0.3 * B, 8), tripod=False)]
 
     # aircraft deck: catapults and cranes
@@ -557,7 +563,7 @@ def _seaplane_layout(design, res, shift):
                 lay.occupy(fp, LEVEL_H, LEVEL_H + 1.5, f"Boat{len(boats)}")
             break
 
-    _machinery(lay, design, res, hull, (hx1 + bx0) / 2)
+    _machinery_rooms(lay, hull, res)
     _compartments(lay, design, hull, lay.geo["machinery"], (hx0, hx1, hhw))
     return _finish(lay, design, hs, hull, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top,
                    fittings=fittings, cranes=cranes, boats=boats,

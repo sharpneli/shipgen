@@ -28,7 +28,32 @@ doesn't: the decisions behind the current design, how to work safely here, and w
   - Connecticut's 203 mm wing turrets need a second main battery, which ties into the French "floating hotels" below.
   - verify.py flags the 88 mm casemates at the ends of `nassau_casemates` at 0.846 at one 37° angle. It's rasterisation of a 2 px barrel; the other angles score 0.89–0.96.
 - **French "floating hotel" pre-dreadnoughts** with many different calibres: several main and intermediate batteries, often in wing turrets. The layout will need more than one main or secondary battery.
-- A refactor of the whole design physics (engine models etc.). It should make the physics configurable by period, so engine efficiency and similar values can change over time.
+- **Powerplant (done; `powerplant.py`, `research/powerplant-model.md`, README "Design input").** All four steps of the session plan are in:
+  1. plant size and weight from the tech
+  2. the machinery block with rooms and bunkers
+  3. funnels from gas flow and uptake reach, with midships turrets only in gaps next to the boilers
+  4. smoke on control positions, and the published plant numbers (report `plant`)
+  - The user's decisions:
+    - There is no year input: designs carry the tech as numbers (`machinery.tech`), because players may research things early or late.
+    - `plant-templates.md`, written by `plant_templates.py`, has example blocks by year for authoring designs.
+    - The spec is "not taken 1:1". Ships getting longer and looking different as requirements are added is fine.
+  - Departures from the spec:
+    - ST7 and ST8 densities are raised to 0.42 and 0.44, per the spec's own ±20% calibration note.
+    - Funnel casings are drawn at 3× the gas area (`powerplant.CASING`).
+    - Coal wing bunkers run up to the main deck.
+    - Oil also fills the torpedo protection's liquid layers.
+    - Funnels never limit arcs. They compete through sweep reservation instead, since arcs stay fixed.
+    - Natural and boost draught plants get funnel tops 25 m above the grates (`layout.STACK_NATURAL`).
+  - **Calibration still open:** early turbine ships (ST5: Dreadnought, Invincible, Kongo, the Lion-like battlecruiser) come out about 30% longer than the real ships. The triple-expansion ships (Nassau, Mikasa, Connecticut) and the WWII ships land within about 10%. ST5's low units cap the whole space's usable height (`h_u + 2.5`), including the boiler rooms. Possible knobs:
+    - a separate, taller limit for the boiler rooms
+    - ST5's density
+    - letting boilers run on under the bridge
+  - Not done yet:
+    - Generator rooms for electric transmission aren't placed separately.
+    - The cruise model has no cruising-turbine choice (the template has a "with cruising turbines" variant).
+    - Fuel tonnage drives bunker length, but coal's protective value isn't modelled (that's the game's).
+  - **Next: crew.** The user is writing a crew model (a separate file) that will add the physical space for crew quarters. The plant already gives engineering crew (`plant.crew`, `crew_k × MW^0.75`), but total crew is still the old per-style formula and doesn't include it yet.
+- Remaining physics refactor: the rest of the weight model by period (hull, armour quality and so on) and the parameters the user plans for sizing (hull form, beam preference).
 - Research to replace the planing power placeholder (`navarch.planing_power`). It's one function by design.
 - **Size from contents (done; README "Design input"):** designs give no length or beam (`hull.length` and `hull.beam` are now validation errors). The designer works out the hull from what it carries, and hitting a tonnage or length target is the player's job.
   - The rules and their default values (`Style.SIZE`, `shipdesign.min_length`, merchant `STOWAGE`) are internal for now. The user will add parameters to control them later (engine efficiency etc.), probably alongside the period physics refactor.
@@ -40,8 +65,8 @@ doesn't: the decisions behind the current design, how to work safely here, and w
   - A designer UI should show length, beam and displacement prominently, since they're now outputs.
 - **Damage model data (`research/`; `warship-damage-research.md` is the synthesis, §13 the wish list).** shipgen emits only the physical model (hitboxes per system, armour, links). What a hit does is the game's business.
   - Step 1 (done): `vertical` heights, the `armour` section, turret face/side/rear/roof, barbettes down to the armour deck, block roles, the conning tower, and one magazine per mount with links.
-  - Step 2: a compartment grid, with main bulkheads every ~0.055 L snapped to barbettes, magazines, machinery rooms and the citadel ends. Cells are port, centre and starboard, and bottom, below the armour deck and between decks. Each has a volume, a permeability, its contents and its neighbours. Also split the machinery into boiler and engine rooms, and add shafts, propellers and rudders. Use fewer cells for small craft.
-  - Step 3: links and flags, best done with the period refactor: uptakes to boiler rooms, engine room to shaft, generators to fore and aft power networks, grouped or alternating machinery, fuel type, centreline bulkhead, torpedo protection depth along the length. Carrier extras: flight-deck segments, lifts, hangar bays, avgas fore and aft.
+  - Step 2: a compartment grid, with main bulkheads every ~0.055 L snapped to barbettes, magazines, machinery rooms and the citadel ends. Cells are port, centre and starboard, and bottom, below the armour deck and between decks. Each has a volume, a permeability, its contents and its neighbours. Also add shafts, propellers and rudders. Use fewer cells for small craft. The machinery is already split into boiler rooms, engine rooms and bunkers by the powerplant work.
+  - Step 3: links and flags, best done with the period refactor: engine room to shaft (uptakes to boiler rooms are done), generators to fore and aft power networks, grouped or alternating machinery, fuel type, centreline bulkhead, torpedo protection depth along the length. Carrier extras: flight-deck segments, lifts, hangar bays, avgas fore and aft.
   - **Buoyancy:** the user hasn't decided how realistic it should be. It will likely be a grid, but it must not drive a full simulation of the ship's motion. Flooding only makes the ship settle: a deeper draught costs speed and puts more of the belt under water.
   - Known simplifications: magazines of neighbouring mounts may overlap each other and the machinery (the grid will settle that), and carrier and merchant guns have no magazines yet. The barbette weight (`navarch.mount_weights`, 0.45 × depth) doesn't match the barbette hitbox, which reaches down to the armour deck.
 
@@ -49,7 +74,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
 - **Git:** the repo is on GitHub (`git@github.com:sharpneli/shipgen.git`, branch `main`). Pushing over SSH works with the user's key. Commit or push only when the user asks.
 - Dependencies are `pip install cairosvg pillow numpy`. The system Python lacks them; use the venv at `~/.venv` (`~/.venv/bin/python design.py ...`).
 - **Checking the boundary:** `python3 -c "import shipdesign, json; shipdesign.build(json.load(open('designs/battleship.json')))"` must work with the system Python (no PIL, cairosvg or numpy), and importing `render` must not load `shipdesign`, `navarch`, `layout`, `styles`, `hitbox` or `armament` (check `sys.modules`).
-- **Speed:** `shipdesign.build` takes about 5–170 ms per ship, and a silly design up to 0.5 s. The size search runs the layout around 10–25 times, and each run takes 0.2–9 ms. A `hint` (the previous length) halves that. `Layout.free` and `geometry.polygons_intersect` reject by bounding box first, and AA spacing checks only the AA footprints. `render_ship(previews=False)` takes about 0.5 s; the previews (numpy shadow march), the sheet and the debug overlay are most of the ~3 s full render.
+- **Speed:** `shipdesign.build` takes about 5–350 ms per ship (coal-era warships are the slowest), and a silly design up to 0.5 s. The size search runs the layout around 10–25 times, and each run takes 0.2–9 ms. A `hint` (the previous length) halves that. `Layout.free` and `geometry.polygons_intersect` reject by bounding box first, and AA spacing checks only the AA footprints. `render_ship(previews=False)` takes about 0.5 s; the previews (numpy shadow march), the sheet and the debug overlay are most of the ~3 s full render.
 - **Checking a look change:** render a design in every look and confirm `hitboxes.json`, `sprite.json` and `report.json` (except its `inputs` echo) are identical across looks. `standard` must stay byte-identical to the old sprites.
 - **Regression method used throughout:** copy `out_designs/` aside, regenerate, and `diff -r`. Unrelated designs should stay byte-identical; expected changes should be limited to the designs you meant to change. The hand-authored fleet (`python shipgen.py --out <dir>`) has stayed byte-identical through all the changes, so keep it that way.
 - Run `python verify.py out_designs/*` after every change. It does pixel checks of sprites against hitboxes.

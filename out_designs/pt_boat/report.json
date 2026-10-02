@@ -82,6 +82,57 @@
     "power_to_weight_hp_per_t": 72.5,
     "power_model": "planing placeholder"
   },
+  "plant": {
+    "name": "Petrol engines (1940)",
+    "fuel": "petrol",
+    "rated_kw": 4497,
+    "rated_shp": 6030.0,
+    "continuous_kw": 3823,
+    "overload_max": 1.0,
+    "shafts": 3,
+    "units": 6,
+    "unit_mw": 0.75,
+    "weight_t": 20.5,
+    "sfc_g_per_kwh": 314.3,
+    "part_load": {
+      "curve": "DSL",
+      "loads": [
+        0.1,
+        0.25,
+        0.5,
+        0.75,
+        1.0
+      ],
+      "multipliers": [
+        1.25,
+        1.1,
+        1.03,
+        1.0,
+        1.01
+      ],
+      "overload_per_tenth": 0.4
+    },
+    "draught": "exhaust",
+    "stress": 1.0,
+    "transmission": "mechanical",
+    "arrangement": "grouped",
+    "crew": 9,
+    "machinery_length_m": 5.6,
+    "boiler_rooms": 0,
+    "engine_rooms": 1,
+    "rows": 2,
+    "protrusion_m": 0.0,
+    "space_m": {
+      "width": 5.32,
+      "height": 2.05
+    },
+    "wing_bunkers_t": 0,
+    "end_bunkers_m": 0.0,
+    "funnels": 0,
+    "funnel_gas_area_m2": 0.0,
+    "funnel_gas_velocity_m_s": 0.0,
+    "smoke_reach_m": 0.0
+  },
   "weight_groups_t": {
     "hull": 27,
     "machinery": 20,

@@ -53,146 +53,204 @@
     "length_m": 154.5,
     "beam_m": 19.83,
     "block_coefficient": 0.74,
-    "standard_displacement_t": 4420,
-    "full_displacement_t": 20704,
-    "draught_m": 8.91,
-    "depth_m": 11.61,
+    "standard_displacement_t": 4450,
+    "full_displacement_t": 20736,
+    "draught_m": 8.92,
+    "depth_m": 11.62,
     "freeboard_m": 2.7,
     "power_shp": 7700.0,
-    "fuel_t": 2284,
+    "fuel_t": 2286,
     "crew": 43,
-    "gm_full_m": 2.87,
-    "gm_light_m": 9.96,
-    "trim_m": 0.0,
+    "gm_full_m": 2.86,
+    "gm_light_m": 9.83,
+    "trim_m": -0.0,
     "lcg_m": 1.85,
     "lcb_m": 1.85,
-    "layout_shift_m": 0.0,
+    "layout_shift_m": -0.0,
     "cargo_t": 14000,
-    "deadweight_t": 16284,
+    "deadweight_t": 16286,
     "cargo_kind": "tanker",
     "holds": 7,
     "machinery_position": "aft"
   },
+  "plant": {
+    "name": "Geared turbines, oil-fired small-tube boilers (1940)",
+    "fuel": "oil",
+    "rated_kw": 5772,
+    "rated_shp": 7740.0,
+    "continuous_kw": 5772,
+    "overload_max": 1.15,
+    "shafts": 1,
+    "units": 1,
+    "unit_mw": 5.77,
+    "weight_t": 390.2,
+    "sfc_g_per_kwh": 455.8,
+    "part_load": {
+      "curve": "GTB",
+      "loads": [
+        0.1,
+        0.25,
+        0.5,
+        0.75,
+        1.0
+      ],
+      "multipliers": [
+        1.9,
+        1.45,
+        1.18,
+        1.05,
+        1.0
+      ],
+      "overload_per_tenth": 0.3
+    },
+    "draught": "forced",
+    "stress": 0.0,
+    "transmission": "electric",
+    "arrangement": "grouped",
+    "crew": 45,
+    "machinery_length_m": 20.8,
+    "boiler_rooms": 1,
+    "engine_rooms": 1,
+    "rows": 4,
+    "protrusion_m": 0.0,
+    "space_m": {
+      "width": 17.99,
+      "height": 10.62
+    },
+    "wing_bunkers_t": 0,
+    "end_bunkers_m": 6.3,
+    "funnels": 1,
+    "funnel_gas_area_m2": 1.3,
+    "funnel_gas_velocity_m_s": 14.0,
+    "smoke_reach_m": 6.5
+  },
   "weight_groups_t": {
     "cargo": 14000,
-    "hull": 3557,
-    "fuel": 2284,
-    "machinery": 390,
-    "misc": 265,
-    "superstructure": 209
+    "hull": 3561,
+    "fuel": 2286,
+    "machinery": 410,
+    "misc": 267,
+    "superstructure": 212
   },
   "weights": [
     {
       "name": "Hull structure",
       "group": "hull",
-      "t": 3556.6,
+      "t": 3560.7,
       "x": -1.54,
-      "z": 6.73
+      "z": 6.74
     },
     {
       "name": "Machinery",
       "group": "machinery",
-      "t": 389.8,
-      "x": -62.99,
-      "z": 3.71
+      "t": 390.2,
+      "x": -62.98,
+      "z": 3.72
     },
     {
       "name": "House",
       "group": "superstructure",
       "t": 52.3,
       "x": 12.51,
-      "z": 15.31
+      "z": 15.32
     },
     {
       "name": "Bridge",
       "group": "superstructure",
       "t": 19.8,
       "x": 17.15,
-      "z": 17.91
+      "z": 17.92
     },
     {
       "name": "Engine house",
       "group": "superstructure",
-      "t": 87.9,
-      "x": -62.72,
-      "z": 15.31
+      "t": 88.0,
+      "x": -62.71,
+      "z": 15.32
     },
     {
       "name": "Engine house upper",
       "group": "superstructure",
       "t": 42.4,
-      "x": -62.22,
-      "z": 17.91
+      "x": -62.21,
+      "z": 17.92
     },
     {
       "name": "Funnel 1",
       "group": "superstructure",
-      "t": 6.3,
-      "x": -64.7,
-      "z": 16.91
+      "t": 9.0,
+      "x": -64.69,
+      "z": 18.12
+    },
+    {
+      "name": "Uptakes Funnel 1",
+      "group": "machinery",
+      "t": 20.2,
+      "x": -63.84,
+      "z": 9.15
     },
     {
       "name": "Equipment, outfit, crew & stores",
       "group": "misc",
-      "t": 265.2,
+      "t": 267.0,
       "x": 0.0,
-      "z": 5.8
+      "z": 5.81
     },
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 2283.6,
-      "x": -62.99,
+      "t": 2285.9,
+      "x": -62.98,
       "z": 2.09
     },
     {
       "name": "Cargo, tank 1",
       "group": "cargo",
-      "t": 2589.8,
+      "t": 2596.1,
       "x": 27.96,
-      "z": 5.22
+      "z": 5.23
     },
     {
       "name": "Cargo, tank 2",
       "group": "cargo",
-      "t": 2589.8,
+      "t": 2596.1,
       "x": 41.72,
-      "z": 5.22
+      "z": 5.23
     },
     {
       "name": "Cargo, tank 3",
       "group": "cargo",
-      "t": 2589.8,
+      "t": 2596.1,
       "x": 55.47,
-      "z": 5.22
+      "z": 5.23
     },
     {
       "name": "Cargo, tank 4",
       "group": "cargo",
-      "t": 2563.5,
+      "t": 2568.9,
       "x": -3.17,
-      "z": 5.22
+      "z": 5.23
     },
     {
       "name": "Cargo, tank 5",
       "group": "cargo",
-      "t": 1973.6,
-      "x": -16.79,
-      "z": 5.22
+      "t": 1972.6,
+      "x": -16.78,
+      "z": 5.23
     },
     {
       "name": "Cargo, tank 6",
       "group": "cargo",
-      "t": 846.7,
-      "x": -30.4,
-      "z": 5.22
+      "t": 835.1,
+      "x": -30.39,
+      "z": 5.23
     },
     {
       "name": "Cargo, tank 7",
       "group": "cargo",
-      "t": 846.7,
-      "x": -44.01,
-      "z": 5.22
+      "t": 835.1,
+      "x": -44.0,
+      "z": 5.23
     }
   ]
 }

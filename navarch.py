@@ -153,10 +153,6 @@ def planing_power(disp, v_kn, tun=TUNING):
     return r_kn * v_kn * 0.5144 / tun["planing_eta"] / 0.7457
 
 
-def funnel_count(shp):
-    return 1 if shp < 25000 else 2
-
-
 def design_freeboard(L, tun=TUNING):
     return tun["freeboard_a"] * L + tun["freeboard_b"]
 

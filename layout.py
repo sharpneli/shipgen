@@ -25,7 +25,7 @@ from geometry import (make_turret_type, make_torpedo_type, rrect_polygon, rrect_
                       turret_shapes, turret_height, turret_reach, point_in_polygon, polygons_intersect,
                       sector_polygon)
 import powerplant
-from navarch import Weight, mount_weights, torpedo_weight, funnel_count, TUNING
+from navarch import Weight, mount_weights, torpedo_weight, TUNING
 from hitbox import ARC_BEAM
 from geometry import Hull, AA_CFG
 
@@ -75,6 +75,7 @@ class Layout:
         self.decks = []         # raised decks and flight decks: dict(id, kind, points, base, top)
         self.sponsons = []      # platforms outboard of a flight deck: dict(id, points, base, top)
         self.sweeps = []        # main turrets' barrel sweep zones: dict(owner, polys, axis)
+        self.funnels_planned = []    # funnels with their machinery segment ("seg"); add_machinery_rooms adds "serves"
         self.casings = []       # casings over machinery taller than its space: dict(id, x0, x1, w, base, top, ...)
         self.conning_tower = None   # armoured warships: dict(x, y, r, top), inside the bridge (not drawn)
         self.short = set()      # what the hull lacks for everything to fit: "length" and/or "beam" (sizing)
@@ -218,7 +219,8 @@ def add_machinery_rooms(lay, placed, inner_hw, depth):
     count = {k: 0 for k in names}
     rooms = []
     max_room = max(6.0, 0.07 * lay.hull.L)
-    for kind, x0, x1 in sorted(placed, key=lambda s: -s[2]):
+    seg_rooms = {}
+    for si, (kind, x0, x1) in enumerate(placed):
         n = max(1, math.ceil((x1 - x0) / max_room - 1e-9))
         for k in range(n):
             count[kind] += 1
@@ -228,6 +230,7 @@ def add_machinery_rooms(lay, placed, inner_hw, depth):
             if kind == "bunker":
                 c["fuel"] = fuel
             rooms.append(c)
+            seg_rooms.setdefault(si, []).append(c["id"])
     lay.compartments += rooms
     x0, x1 = min(s[1] for s in placed), max(s[2] for s in placed)
     if plan["wing_m"] > 0:
@@ -253,6 +256,54 @@ def add_machinery_rooms(lay, placed, inner_hw, depth):
     lay.geo["machinery"] = (x0, x1)
     lay.geo["machinery_x"] = (x0 + x1) / 2
     lay.geo["machinery_rooms"] = [(r["kind"], r["id"], r["x0"], r["x1"]) for r in rooms]
+    for f in lay.funnels_planned:     # each funnel's uptakes lead from the boiler rooms of its segment
+        f["serves"] = seg_rooms.get(f.get("seg"), [])
+
+
+STACK_NATURAL = 25.0    # m from the grates to the funnel top that natural and boost draught plants want
+
+
+def plan_funnels(lay, design, res, beam, top, groups=None):
+    """Funnel count and size for the planned machinery (plan_machinery), with funnel tops `top` above the main
+    deck: powerplant.funnel_plan over the boiler groups (default: the plan's boiler segments), and at least the
+    design's "funnels". Returns (count, width, length)."""
+    plant = lay.geo["plant"]
+    if groups is None:
+        groups = [seg_l for kind, seg_l in plant["segments"] if kind == "boiler"]
+    stack = res.depth - plant["inner_bottom"] - 1.0 + top
+    fp = powerplant.funnel_plan(res.plant, res.power_shp, groups, beam, stack)
+    if design.get("funnels") and design["funnels"] > sum(fp["counts"]):    # the player may add more, not fewer
+        fp = powerplant.funnel_plan(res.plant, res.power_shp, groups, beam, stack,
+                                    extra=design["funnels"] - sum(fp["counts"]))
+    lay.geo["funnel_plan"] = fp
+    return sum(fp["counts"]), fp["width"], fp["length"]
+
+
+def boiler_seg(lay):
+    """Index of the plan's (first, largest) boiler segment, or its engines for an engines-only plant."""
+    segs = lay.geo["plant"]["segments"]
+    best = max(range(len(segs)), key=lambda i: (segs[i][0] == "boiler", segs[i][0] == "engine", segs[i][1]))
+    return best
+
+
+def add_funnel_weights(lay, f, top, served_x, depth):
+    """Weights of funnel f (dict: x, l, w, z0) standing to `top` above the main deck, and of its uptakes from the
+    boilers it serves (centred at served_x) up to the deck, with armoured gratings where they pierce an armoured
+    deck. Records the funnel for add_machinery_rooms."""
+    plant = lay.geo["plant"]
+    sp = plant["space"]
+    z0 = f.get("z0", 0.0)
+    vert = max(1.0, depth - (plant["inner_bottom"] + sp["unit"][2])) + z0
+    horiz = abs(f["x"] - served_x)
+    w_f, w_u = powerplant.funnel_weight(f["w"], f["l"], top - z0, vert, horiz)
+    lay.weights.append(Weight(f["id"], "superstructure", w_f, x=f["x"], z_rel=("deck", (z0 + top) / 2)))
+    lay.weights.append(Weight(f"Uptakes {f['id']}", "machinery", w_u, x=(f["x"] + served_x) / 2,
+                              z_rel=("deck", z0 - vert / 2)))
+    fp = lay.geo.get("funnel_plan")
+    if plant["armoured"] and fp:
+        lay.weights.append(Weight(f"Gratings {f['id']}", "armour", 0.6 * fp["area"] / max(1, sum(fp["counts"])),
+                                  x=served_x, z_rel=("deck", plant["top"] - depth)))
+    lay.funnels_planned.append(f)
 
 
 # ---------------------------------------------------------------------------
@@ -471,28 +522,105 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     n_step_f, n_step_a = stepped_counts(main)
     flush_f, flush_a = nf > max(n_step_f, 1), na > max(n_step_a, 1)   # a flush turret ends the group
 
-    L_mach = plan_machinery(lay, design, res, hull)
-    nfun = design.get("funnels") or funnel_count(shp)
-    fw = clamp(0.6 * math.sqrt(shp / nfun / 1000.0), 2.2, 0.3 * B)
-    fl = 1.45 * fw
+    plan_machinery(lay, design, res, hull)
+    plant = lay.geo["plant"]
     lb = clamp(0.05 * L + 2, 7, 18)                 # bridge length
     la = 0.045 * L + 2 if L >= 130 else 0.0         # aft control position length
+    tower_levels = [2, 3] + ([4] if L >= 180 else [])
+    wide = B >= 15
+
+    # ---------------- the middle's plan: machinery, funnels, midships and wing turrets ----------------
+    # The machinery block (boiler rooms, engine rooms, bunkers; powerplant.segments) runs forward to aft under the
+    # middle. Midships turrets (T) and echelon wing pairs (W) stand in gaps between its segments, over their
+    # magazines: more of them than gaps splits the longest boiler group, which then needs its own funnels.
+    segs = [list(s) for s in plant["segments"]]
+    n_gaps = nm + (nw if echelon else 0)
+    main_kind = "boiler" if any(k == "boiler" for k, _ in segs) else "engine"
+
+    def candidates():
+        """Gaps next to the boilers (engines-only plants: engine rooms): between boiler groups, or between the
+        boilers and the engine rooms or bunkers (Lion's and Kongo's Q turret)."""
+        return [i for i in range(1, len(segs)) if main_kind in (segs[i - 1][0], segs[i][0])]
+
+    while len(candidates()) < n_gaps:
+        i = max((i for i, (k, _) in enumerate(segs) if k == main_kind), key=lambda i: segs[i][1])
+        segs[i:i + 1] = [[main_kind, segs[i][1] / 2], [main_kind, segs[i][1] / 2]]
+    cands = candidates()
+    gaps = sorted({cands[min(len(cands) - 1, int((k + 0.5) * len(cands) / n_gaps))] for k in range(n_gaps)})
+    for c in cands:                # rounding collided: take the free candidates in order
+        if len(gaps) >= n_gaps:
+            break
+        if c not in gaps:
+            gaps = sorted(gaps + [c])
+    gap_kind = {}
+    t_gaps = [gaps[round((k + 0.5) * len(gaps) / nm - 0.5)] for k in range(nm)] if nm else []
+    for g in gaps:
+        gap_kind[g] = "T" if g in t_gaps else "W"
+    # funnels: enough for the gas, each within reach of its boilers (powerplant.funnel_plan). Natural and boost
+    # draught want a tall stack: at least STACK_NATURAL from the grates to the funnel top.
+    fun_top = LEVEL_H * max(tower_levels) + 3.0
+    below = depth - plant["inner_bottom"] - 1.0          # grates to the main deck
+    if res.plant["tech"]["draught"]["system"] in ("natural", "forced_boost"):
+        fun_top = max(fun_top, STACK_NATURAL - below)
+    groups = [s[1] for s in segs if s[0] == "boiler"]
+    nfun, fw, fl = plan_funnels(lay, design, res, B, fun_top, groups)
+    fplan = lay.geo["funnel_plan"]
+    fw = min(fw, 0.3 * B)
     # a midships turret's slot among the funnels: barrels stowed along the centreline one way, and on the other
     # side enough room that its neighbour stays out of the beam arcs
     beam_tan = math.tan(math.radians(90.0 - ARC_BEAM))
     s_mid = max(reach + 1.0, 0.55 * fw / beam_tan + 0.5) + R_main + 1.5
+    # torpedo mounts on narrow hulls stand on the centreline between the funnels
+    f_min = fl + (9.6 if ((design.get("torpedoes") or {}).get("mounts", 0) and not wide) else 2.0)
 
-    # the middle's plan, forward to aft: funnels (F), midships turrets (T) and wing turret pairs (W). Abreast
-    # pairs go to the ends of the middle (Dreadnought, Nassau), echelon pairs among the funnels (Invincible)
-    seq = ["F"] * nfun
-    for k in range(nm):
-        seq.insert(round((k + 1) * (nfun + nm) / (nm + 1) - 0.5), "T")
-    n0 = len(seq)
-    for k in range(nw):
-        if echelon:
-            seq.insert(round((k + 1) * (n0 + nw) / (nw + 1) - 0.5), "W")
+    # the plan, forward to aft: funnels (F, over a boiler group), open machinery (E: engine rooms, bunkers),
+    # midships turrets (T) and wing turret pairs (W). Abreast pairs go to the ends of the middle (Dreadnought,
+    # Nassau), echelon pairs into gaps among the machinery (Invincible)
+    seq, seg_of, widths0 = [], [], []
+    g_i = 0
+    for si, (kind, seg_l) in enumerate(segs):
+        if si in gap_kind:
+            seq.append(gap_kind[si])
+            seg_of.append(None)
+            widths0.append(None)
+        if kind == "boiler":
+            n_g = fplan["counts"][g_i]
+            g_i += 1
+            for _ in range(n_g):
+                seq.append("F")
+                seg_of.append(si)
+                widths0.append(max(seg_l / n_g, f_min))
         else:
-            seq.insert(k // 2 if k % 2 == 0 else len(seq) - k // 2, "W")
+            seq.append("E")
+            seg_of.append(si)
+            widths0.append(seg_l)
+    if not groups and nfun:        # engines only: the exhaust funnel(s) stand over the engine rooms
+        e_items = [i for i, it in enumerate(seq) if it == "E" and segs[seg_of[i]][0] == "engine"] or [0]
+        for _ in range(nfun):
+            seq.insert(e_items[0], "F")
+            seg_of.insert(e_items[0], None)
+            widths0.insert(e_items[0], f_min)
+    # engine rooms and bunkers at the ends of the block have nothing on deck: they leave the deck plan and run on
+    # under whatever stands above them (bridge, wing turrets, aft control). An engines-only plant keeps its engine
+    # rooms in the plan, under its exhaust funnels.
+    lead, trail = [], []
+    if groups:
+        while seq and seq[0] == "E":
+            lead.append(seg_of.pop(0))
+            seq.pop(0)
+            widths0.pop(0)
+        while seq and seq[-1] == "E":
+            trail.insert(0, seg_of.pop())
+            seq.pop()
+            widths0.pop()
+    if not echelon:
+        for k in range(nw):
+            at = 0 if k % 2 == 0 else len(seq)
+            seq.insert(at, "W")
+            seg_of.insert(at, None)
+            widths0.insert(at, None)
+    core = [i for i, it in enumerate(seq) if not (it == "W" and not echelon)]   # the plan over the machinery
+    lead_l, trail_l = sum(segs[si][1] for si in lead), sum(segs[si][1] for si in trail)
     w2 = clamp(0.36 * B, 4.5, 12)                   # bridge width
     ends = {-1: w2 / 2, len(seq): 0.14 * B if la else 0.0}
 
@@ -522,7 +650,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         reach into the barrels' sweep."""
         j = i + step
         g = wing_gap(y, half_of(j, y))
-        while 0 <= j < len(seq) and seq[j] == "F":
+        while 0 <= j < len(seq) and seq[j] in ("F", "E"):
             j += step
         g = max(g, wing_gap(y, half_of(j, y)))
         # past the bridge (or aft control) stands the end group's inner turret, whose body may cross the
@@ -538,10 +666,36 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         return {i: wing_side(i, -1, y) + wing_side(i, 1, y) + (wing_stagger(y) if echelon else 0.0)
                 for i, it in enumerate(seq) if it == "W"}
 
-    # the middle holds, on deck, the bridge, funnels, midships and wing turrets and aft control, and below it the
-    # machinery and the midships turrets' magazines: whichever is longer (wing turrets stand beside the machinery)
-    M_req = max(L_mach + 2 + nm * (2 * r + 2.0),
-                lb + nfun * (fl + 2.0) + la + 3 + nm * s_mid + sum(wing_widths(B / 2 - reach - 0.6).values()))
+    def plan_widths(y):
+        """Fore-and-aft length of each item of the plan, with the wing pairs standing at y."""
+        ww = wing_widths(y)
+        out = []
+        for i, it in enumerate(seq):
+            if it == "W":
+                out.append(ww[i])
+            elif it == "T":
+                stow = 0 if (i + 1 < len(seq) and seq[i + 1] == "T") else 180
+                j = i - 1 if stow == 180 else i + 1                  # the neighbour on the open side
+                margin = max(reach + 1.0, half_of(j, y) / beam_tan + 0.5)
+                out.append(margin + R_main + 1.5)
+            else:
+                out.append(widths0[i])
+        return out
+
+    # the middle holds, on deck, the bridge, the plan and the aft control; below it, the machinery (the plan's
+    # core with the end segments run on beyond it): whichever is longer
+    aft_l = la + 1.5 if la else 1.0
+
+    def middle_needs(ws):
+        """Length the middle needs: the deck plan with the bridge and aft control, the machinery, and the two
+        mixes (bridge, the plan through its core, then the trailing machinery; the leading machinery, then the plan
+        from its core to the aft control)."""
+        before = sum(ws[:core[0]]) if core else 0.0
+        c_l = sum(ws[i] for i in core)
+        return max(lb + 1.5 + sum(ws) + aft_l, lead_l + c_l + trail_l + 2.0,
+                   lb + 1.5 + before + c_l + trail_l + 1.0, lead_l + 1.0 + sum(ws) - before + aft_l)
+
+    M_req = middle_needs(plan_widths(B / 2 - reach - 0.6))
 
     need_hw = reach + 0.6
     if tm and need_hw > B / 2:
@@ -595,9 +749,9 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         deficit = M_req - (mid_fwd - mid_aft)
         if deficit > 0.5:
             lay.fail(
-                "length", f"Not enough length amidships: boilers and engines for {shp / 1000:.0f}k shp need about "
+                "length", f"Not enough length amidships: the machinery, funnels and midships turrets need about "
                 f"{M_req:.0f} m between the turret groups, but only {mid_fwd - mid_aft:.0f} m is free. "
-                "Reduce speed or remove a turret.")
+                "Reduce speed, use a more compact plant, or remove a turret.")
 
     # how far the whole arrangement may shift for balance
     def shift_ok(sh):
@@ -665,74 +819,69 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                                   z_rel=("deck", LEVEL_H * (level - 0.5))))
         return b
 
-    tower_levels = [2, 3] + ([4] if L >= 180 else [])
     bx1 = mid_fwd
     bx0 = bx1 - lb
-    wide = B >= 15
-    fun_top = LEVEL_H * max(tower_levels) + 3.0
 
-    # ---------------- midships turrets: placed with the funnels' plan, before any superstructure ----------------
+    # ---------------- the plan placed: machinery, funnels, midships and wing turrets ----------------
     fz0 = mid_aft + (la + 1.5 if la else 1.0)
     fz1 = bx0 - 1.5
-    mach_c = (fz0 + fz1) / 2
-    lay.geo["machinery"] = (mach_c - L_mach / 2, mach_c + L_mach / 2)
-    lay.geo["machinery_x"] = mach_c
     # wing turrets stand as far outboard as the narrowest hull section of the middle allows
     y_w = min(hull.half_width(fz0 + (fz1 - fz0) * k / 20) for k in range(21)) - reach - 0.6
-    wings_w = wing_widths(y_w) if nw else {}
     if nw and not echelon and y_w < reach + 0.25:
         lay.fail("beam", f"Wing turrets are {2 * reach:.1f} m across: a pair cannot stand abreast on this beam "
                          f"(needs about {4 * reach + 1.7:.1f} m). Set \"echelon\": true or use smaller guns.")
     elif nw and y_w <= 0.5:
         lay.fail("beam", f"Hull too narrow for wing turrets even in echelon: they need about "
                          f"{2 * reach + 2.2:.1f} m of beam amidships.")
-    if fz1 - fz0 < nfun * (fl + 1.0) + nm * s_mid + sum(wings_w.values()):
+    widths = plan_widths(y_w)
+    # where the plan's front may stand: the deck plan between the bridge and the aft control, and the machinery
+    # (core plus end segments) between the end turret groups
+    before_core = sum(widths[:core[0]]) if core else 0.0
+    core_l = sum(widths[i] for i in core)
+    lo_x = max(fz0 + sum(widths), mid_aft + 1.0 + trail_l + core_l + before_core)
+    hi_x = min(fz1, mid_fwd - 1.0 - lead_l + before_core)
+    if hi_x < lo_x - 0.5:
         what = [f"{nm} midships turret(s)"] * bool(nm) + [f"{nw} wing turret pair(s)"] * bool(nw)
-        lay.fail("length", f"No room for {nfun} funnel(s){' and ' + ' and '.join(what) if what else ''} between "
-                           "the bridge and the aft control position.")
-    pitch = (fz1 - fz0 - nm * s_mid - sum(wings_w.values())) / nfun
-    tp_ = design.get("torpedoes") or {}
-    pitch_cap = fl + 4.0
-    if tp_.get("mounts", 0) and not B >= 15:   # centreline torpedo mounts go between the funnels
-        pitch_cap = fl + 7.6 + 2.0
-    span = min(pitch, pitch_cap) * nfun
-    if nm or nw:
-        # midships turrets among the funnels (F T F, F T T F, ...), flush, firing to the sides. Each stows aft
-        # unless another turret is aft of it; its slot holds the stowed barrels on one side and, on the other,
-        # keeps the neighbour (funnel, bridge or aft control) out of its beam arcs.
-        # Wing turret pairs (W) stand outboard, firing to their own side; their slot keeps the centreline
-        # neighbours clear of their bodies (and of their barrels, if a neighbour is as wide as the turret stands)
-        fpitch = span / nfun
-        widths, stows = [], []
-        for i, it in enumerate(seq):
-            if it == "F":
-                widths.append(fpitch)
-                stows.append(None)
-                continue
-            if it == "W":
-                widths.append(wings_w[i])
-                stows.append(wing_side(i, -1, y_w))
-                continue
+        lay.fail("length", f"No room for the machinery, {nfun} funnel(s){' and ' + ' and '.join(what) if what else ''}"
+                           " between the end turret groups.")
+    xx = (lo_x + hi_x) / 2 if hi_x >= lo_x else hi_x
+    core_front = xx - before_core
+    fxs, f_seg, mids, wings, seg_span = [], [], [], [], {}
+    for i, (it, w_) in enumerate(zip(seq, widths)):
+        if it == "F":
+            fxs.append(xx - w_ / 2)
+            f_seg.append(seg_of[i])
+        elif it == "W":
+            # abreast: both at one x; echelon: port forward, starboard aft
+            x = xx - wing_side(i, -1, y_w)
+            wings.append([(x, -1), (x - wing_stagger(y_w), 1)] if echelon else [(x, -1), (x, 1)])
+        elif it == "T":
+            # flush, firing to the sides. Each stows aft unless another turret is aft of it; its slot holds the
+            # stowed barrels on one side and, on the other, keeps the neighbour out of its beam arcs
             stow = 0 if (i + 1 < len(seq) and seq[i + 1] == "T") else 180
-            j = i - 1 if stow == 180 else i + 1                  # the neighbour on the open side
-            half = half_of(j, y_w)
-            margin = max(reach + 1.0, half / beam_tan + 0.5)
-            widths.append(margin + R_main + 1.5)
-            stows.append((stow, margin))
-        xx = mach_c + sum(widths) / 2
-        fxs, mids, wings = [], [], []
-        for it, w_, st in zip(seq, widths, stows):
-            if it == "F":
-                fxs.append(xx - w_ / 2)
-            elif it == "W":
-                # abreast: both at one x; echelon: port forward, starboard aft
-                x = xx - st
-                wings.append([(x, -1), (x - wing_stagger(y_w), 1)] if echelon else [(x, -1), (x, 1)])
-            else:
-                stow, margin = st
-                mids.append((xx - margin if stow == 180 else xx - w_ + margin, stow))
-            xx -= w_
-        fxs.reverse()
+            j = i - 1 if stow == 180 else i + 1
+            margin = max(reach + 1.0, half_of(j, y_w) / beam_tan + 0.5)
+            mids.append((xx - margin if stow == 180 else xx - w_ + margin, stow))
+        if seg_of[i] is not None:
+            seg_span.setdefault(seg_of[i], [xx, xx - w_])[1] = xx - w_
+        xx -= w_
+    # the machinery: each segment of the plan centred under its items (a funnel group may be spaced wider than its
+    # boilers), the end segments run on fore and aft of the plan's core
+    pos = {si: ((a_ + b_) / 2 - segs[si][1] / 2, (a_ + b_) / 2 + segs[si][1] / 2) for si, (a_, b_) in seg_span.items()}
+    x = max([core_front] + [v[1] for v in pos.values()])
+    for si in reversed(lead):
+        pos[si] = (x, x + segs[si][1])
+        x += segs[si][1]
+    x = min([core_front - core_l] + [v[0] for v in pos.values()])
+    for si in trail:
+        pos[si] = (x - segs[si][1], x)
+        x -= segs[si][1]
+    mach_placed = [(segs[si][0], pos[si][0], pos[si][1]) for si in range(len(segs))]
+    f_seg = [si if si is not None else next((k for k, s in enumerate(segs) if s[0] == "engine"), 0) for si in f_seg]
+    mach_c = (min(p_[1] for p_ in mach_placed) + max(p_[2] for p_ in mach_placed)) / 2
+    lay.geo["machinery"] = (min(p_[1] for p_ in mach_placed), max(p_[2] for p_ in mach_placed))
+    lay.geo["machinery_x"] = mach_c
+    if nm or nw:
         mid_base = (LEVEL_H if wide else 0.0) + 1.2
 
         def main_mount(mid, x, y, rest, **kw):
@@ -753,9 +902,6 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             for x, side in pair:
                 fwd = (x == pair[0][0]) if echelon else x >= mach_c
                 main_mount(f"W{k + 1}{'S' if side > 0 else 'P'}", x, side * y_w, 0 if fwd else 180, wing=True)
-    else:
-        start = mach_c - span / 2
-        fxs = [start + (i + 0.5) * span / nfun for i in range(nfun)]
 
     # ---------------- superstructure, kept out of the guns' sweeps ----------------
     blocks = []
@@ -815,9 +961,10 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         if not lay.clear(fp, fun_top) or not lay.free(fp, 0.0):
             lay.fail("length", f"{fid} would stand in a turret's sweep or against the bridge: use fewer funnels "
                                "or midships turrets.")
-        funnels.append(dict(id=fid, x=fx, y=0.0, l=fl, w=fw, pipes=2 if fw > 4 else 1))
+        funnels.append(dict(id=fid, x=fx, y=0.0, l=fl, w=fw, pipes=2 if fw > 4 else 1, seg=f_seg[i]))
         lay.occupy(fp, 0, fun_top, fid)
-        lay.weights.append(Weight(fid, "superstructure", fl * fw * 0.9, x=fx, z_rel=("deck", fun_top / 2)))
+        seg = mach_placed[f_seg[i]]
+        add_funnel_weights(lay, funnels[-1], fun_top, (seg[1] + seg[2]) / 2, depth)
 
     # ---------------- secondaries on deck ----------------
     # one battery or a list; deck batteries stand on the deckhouse amidships (the first spread evenly, the rest in
@@ -1038,8 +1185,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     lay.compartments.append(dict(id="Citadel", kind="citadel", x0=cit[0], x1=cit[1], half_width=inner_hw,
                                  belt_mm=armour.get("belt_mm", 0), deck_mm=armour.get("deck_mm", 0)))
     add_magazines(lay, mounts, inner_hw)
-    add_machinery_rooms(lay, stack_machinery(lay.geo["plant"]["segments"], lay.geo["machinery"][1]), inner_hw,
-                        depth)
+    add_machinery_rooms(lay, mach_placed, inner_hw, depth)
     lay.compartments.append(dict(id="Steering gear", kind="steering", x0=-L / 2 + 0.03 * L, x1=-L / 2 + 0.08 * L,
                                  half_width=0.5 * B / 2))
 
@@ -1051,7 +1197,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         turret_types=turret_types,
         turrets=[dict(id=m["id"], type=m["type"], x=m["x"], y=m["y"], z=m["z"], rest=m["rest"]) for m in mounts],
         superstructure=[{k: v for k, v in b.items() if k not in ("id", "kind")} for b in blocks],
-        funnels=[{k: v for k, v in f_.items() if k != "id"} for f_ in funnels],
+        funnels=[{k: v for k, v in f_.items() if k not in ("id", "seg", "serves")} for f_ in funnels],
         masts=masts,
         aa=[{k: v for k, v in a.items() if k not in ("id", "base")} for a in aa_out],
         boats=boats,

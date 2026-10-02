@@ -61,34 +61,85 @@
     }
   },
   "results": {
-    "length_m": 89.0,
-    "beam_m": 12.01,
+    "length_m": 89.5,
+    "beam_m": 12.13,
     "block_coefficient": 0.55,
-    "standard_displacement_t": 1580,
-    "full_displacement_t": 1762,
-    "draught_m": 2.92,
-    "depth_m": 7.56,
-    "freeboard_m": 4.64,
-    "power_shp": 6200.0,
-    "fuel_t": 167,
-    "crew": 260,
+    "standard_displacement_t": 1623,
+    "full_displacement_t": 1807,
+    "draught_m": 2.95,
+    "depth_m": 7.6,
+    "freeboard_m": 4.65,
+    "power_shp": 6300.0,
+    "fuel_t": 170,
+    "crew": 265,
     "gm_full_m": 0.7,
-    "gm_light_m": 0.59,
+    "gm_light_m": 0.6,
     "trim_m": 0.0,
     "lcg_m": -1.07,
     "lcb_m": -1.07,
-    "layout_shift_m": -1.67,
+    "layout_shift_m": -1.83,
     "aircraft": 5,
     "aircraft_capacity": 6,
-    "hangar_area_m2": 215,
+    "hangar_area_m2": 219,
     "flight_deck": "none"
   },
+  "plant": {
+    "name": "Geared turbines, oil-fired small-tube boilers (1930)",
+    "fuel": "oil",
+    "rated_kw": 4696,
+    "rated_shp": 6300.0,
+    "continuous_kw": 4696,
+    "overload_max": 1.15,
+    "shafts": 2,
+    "units": 2,
+    "unit_mw": 2.35,
+    "weight_t": 244.2,
+    "sfc_g_per_kwh": 430.0,
+    "part_load": {
+      "curve": "GTB",
+      "loads": [
+        0.1,
+        0.25,
+        0.5,
+        0.75,
+        1.0
+      ],
+      "multipliers": [
+        1.9,
+        1.45,
+        1.18,
+        1.05,
+        1.0
+      ],
+      "overload_per_tenth": 0.3
+    },
+    "draught": "forced",
+    "stress": 0.0,
+    "transmission": "mechanical",
+    "arrangement": "grouped",
+    "crew": 38,
+    "machinery_length_m": 17.5,
+    "boiler_rooms": 2,
+    "engine_rooms": 2,
+    "rows": 3,
+    "protrusion_m": 0.0,
+    "space_m": {
+      "width": 11.16,
+      "height": 6.6
+    },
+    "wing_bunkers_t": 0,
+    "end_bunkers_m": 0.0,
+    "funnels": 1,
+    "funnel_gas_area_m2": 1.0,
+    "funnel_gas_velocity_m_s": 14.0,
+    "smoke_reach_m": 5.7
+  },
   "weight_groups_t": {
-    "hull": 905,
-    "machinery": 240,
-    "fuel": 182,
-    "superstructure": 173,
-    "misc": 172,
+    "hull": 924,
+    "machinery": 251,
+    "fuel": 185,
+    "superstructure": 181,
+    "misc": 176,
     "aviation": 60,
     "armament": 25,
     "armour": 5
@@ -97,149 +148,156 @@
     {
       "name": "Hull structure",
       "group": "hull",
-      "t": 905.2,
-      "x": -0.89,
-      "z": 3.78
+      "t": 924.3,
+      "x": -0.9,
+      "z": 3.8
     },
     {
       "name": "Machinery",
       "group": "machinery",
-      "t": 240.3,
-      "x": 4.62,
-      "z": 2.42
+      "t": 244.2,
+      "x": 4.52,
+      "z": 2.43
     },
     {
       "name": "Hangar",
       "group": "superstructure",
-      "t": 69.0,
-      "x": -15.91,
-      "z": 8.86
+      "t": 70.0,
+      "x": -16.15,
+      "z": 8.9
     },
     {
       "name": "Hangar roof",
       "group": "superstructure",
-      "t": 69.0,
-      "x": -15.91,
-      "z": 11.46
+      "t": 70.0,
+      "x": -16.15,
+      "z": 11.5
     },
     {
       "name": "Bridge base",
       "group": "superstructure",
-      "t": 13.5,
-      "x": 16.19,
-      "z": 8.86
+      "t": 13.6,
+      "x": 16.15,
+      "z": 8.9
     },
     {
       "name": "Bridge",
       "group": "superstructure",
-      "t": 9.7,
-      "x": 16.72,
-      "z": 11.46
+      "t": 9.8,
+      "x": 16.68,
+      "z": 11.5
     },
     {
       "name": "Bridge upper",
       "group": "superstructure",
-      "t": 5.6,
-      "x": 17.24,
-      "z": 14.06
+      "t": 5.7,
+      "x": 17.2,
+      "z": 14.1
     },
     {
       "name": "Funnel 1",
       "group": "superstructure",
-      "t": 6.3,
-      "x": 4.62,
-      "z": 12.96
+      "t": 11.8,
+      "x": 4.52,
+      "z": 13.0
+    },
+    {
+      "name": "Uptakes Funnel 1",
+      "group": "machinery",
+      "t": 6.8,
+      "x": 4.52,
+      "z": 5.51
     },
     {
       "name": "Mount S1",
       "group": "armament",
       "t": 7.0,
-      "x": 35.83,
-      "z": 8.29
+      "x": 36.04,
+      "z": 8.33
     },
     {
       "name": "Magazine S1",
       "group": "armament",
       "t": 4.5,
-      "x": 35.83,
-      "z": 1.89
+      "x": 36.04,
+      "z": 1.9
     },
     {
       "name": "Mount S2",
       "group": "armament",
       "t": 7.0,
-      "x": -26.31,
-      "z": 13.19
+      "x": -26.62,
+      "z": 13.23
     },
     {
       "name": "Magazine S2",
       "group": "armament",
       "t": 4.5,
-      "x": -26.31,
-      "z": 1.89
+      "x": -26.62,
+      "z": 1.9
     },
     {
       "name": "Barbette S2",
       "group": "armour",
       "t": 5.0,
-      "x": -26.31,
-      "z": 5.67
+      "x": -26.62,
+      "z": 5.7
     },
     {
       "name": "AA1",
       "group": "armament",
       "t": 1.0,
-      "x": -15.91,
-      "z": 13.76
+      "x": -16.15,
+      "z": 13.8
     },
     {
       "name": "AA2",
       "group": "armament",
       "t": 1.0,
-      "x": -15.91,
-      "z": 13.76
+      "x": -16.15,
+      "z": 13.8
     },
     {
       "name": "Aircraft cranes",
       "group": "aviation",
       "t": 40.0,
-      "x": -26.7,
-      "z": 11.56
+      "x": -26.85,
+      "z": 11.6
     },
     {
       "name": "Equipment, outfit, crew & stores",
       "group": "misc",
-      "t": 171.6,
+      "t": 176.3,
       "x": 0.0,
-      "z": 3.78
+      "z": 3.8
     },
     {
       "name": "Air group",
       "group": "aviation",
       "t": 12.5,
-      "x": -14.24,
-      "z": 9.56
+      "x": -14.32,
+      "z": 9.6
     },
     {
       "name": "Aviation ordnance",
       "group": "aviation",
       "t": 7.5,
-      "x": 16.88,
-      "z": 1.89
+      "x": 16.85,
+      "z": 1.9
     },
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 167.1,
-      "x": 4.62,
-      "z": 1.36
+      "t": 169.8,
+      "x": 4.52,
+      "z": 1.37
     },
     {
       "name": "Aviation fuel",
       "group": "fuel",
       "t": 15.0,
-      "x": -6.74,
-      "z": 1.13
+      "x": -6.92,
+      "z": 1.14
     }
   ]
 }

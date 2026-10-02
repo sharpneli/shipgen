@@ -53,9 +53,26 @@ design.py      the command line: validate, shipdesign.build, write report.json a
   "secondary": {"calibre_mm": 127, "calibre_length": 38, "barrels": 2, "per_side": 5},
   "torpedoes": {"mounts": 0, "tubes": 5},
   "aa": {"heavy": 20, "light": 30},
+  "machinery": {"stress": 0.4, "shafts": 4, "tech": {...}},
   "funnels": null
 }
 ```
+`machinery` is the propulsion plant (`powerplant.py`, from `research/powerplant-model.md`). There is no year input: `tech` holds the researched technology as numbers, so a navy can have a tech earlier or later than history did. `plant-templates.md` has blocks to copy for every period from 1880 to 1970, and `python plant_templates.py` regenerates them. A design without `tech` gets a 1940 high-pressure turbine plant (merchants: a 1940 oil-fired triple expansion; planing craft: 1940 petrol engines). The other keys are design choices: `stress`, `shafts`, `units_per_shaft`, `transmission`, `arrangement` (`grouped` or alternating `unit`), `centreline_bulkhead`, `bunkers` (`wing` or `ends`) and `wing_bunker_m`. The template's table explains each one. What the plant decides:
+- **Weight, fuel and engineering crew:** from the tech and the stress. Range is computed at cruise speed through the tech's part-load curve.
+- **Machinery length:** the plant's volume, fitted into the room the hull gives it. Across, that's the beam inside the frames, less torpedo protection (`armour.tds_m` per side) and wing bunkers, with units standing in rows. Up, it's the inner bottom to the armour deck.
+  - A unit taller than that pokes through the deck under a casing, which is armoured if the deck is.
+  - Coal fills wing bunkers, which run up to the main deck, then end bunkers. Oil fills the double bottom and the torpedo protection's liquid layers, then end tanks. End bunkers and tanks lengthen the machinery block.
+- **Machinery block:** bunkers, boiler rooms and engine rooms in line (`powerplant.segments`). Unit arrangement alternates boiler and engine rooms.
+- **Funnels** (`powerplant.funnel_plan`):
+  - Count: enough of them to pass the gas, each within its uptakes' `reach_m` of the boilers it serves. `"funnels"` can add more, never fewer.
+  - Natural and boost draught plants get funnels at least 25 m above their grates.
+  - Old coal plants need many big funnels spread over long boiler rooms.
+- **Warship middle.** The deck plan and the machinery below it are laid out together. The deck plan is the bridge, the funnels over their boiler groups, the midships and wing turrets, and the aft control.
+  - Midships turrets and echelon wing pairs stand only in gaps between machinery segments next to the boilers. There they stand over their magazines, like Lion's and Kongo's Q turret.
+  - More turrets than gaps splits a boiler group, which then needs its own funnel.
+  - Engine rooms and bunkers at the ends of the block run on under the bridge, the abreast wing turrets and the aft control.
+  - This is what makes many centreline turrets hard with early plants (a Gangut).
+- **Smoke:** a bridge, director or aft control standing in a funnel's smoke (`powerplant.smoke_reach`, which is shortest for oil with air heaters) is flagged in its hitbox and warned about.
 The design gives no size. The designer works out the hull from what it carries (`shipdesign.size`), and hitting a tonnage or length target is the player's job, by trading the inputs off. `hull.block_coefficient` (the hull form) is optional, with a default per style.
 - **Length:** the shortest hull, on a half-metre grid, that meets two rules:
   - Everything fits, at the layout's comfortable clearances. Warship end groups keep their preferred bow and stern room, which leaves room to shift for trim. Each layout failure is tagged with whether more length or more beam fixes it (`Layout.fail`).
@@ -111,7 +128,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
     - `"ends"`: on the centreline at the ends, alternating aft and fore. On a merchant that's the poop and forecastle; on a carrier, the flight deck in line with the island; on a seaplane carrier, the forecastle and hangar roof.
   - These guns stand flat on deck (no superfiring) and reserve no sweep zone, so they may overlap superstructure.
   - `torpedoes` and `aa` work on every style. A merchant with guns is a Q-ship or a DEMS-armed freighter.
-- `"machinery": {"type": ...}` works on every style: `naval_turbine` (the warship default), `steam_turbine`, `steam_recip` (the merchant default), `diesel`, `petrol` (the planing default), `fast_diesel`, or `coal_turbine` (pre-1920 coal-fired naval turbines, about 13 shp/t, for dreadnought-era designs). Each type sets machinery weight per shp and fuel use (`navarch.MACHINERY`).
+- `machinery` works on every style (see Design input above).
 - Guns under 76 mm are drawn as open mounts.
 - **carrier**: `"aviation": {"flight_deck": "axial" | "angled" | "none", "aircraft": 90, "aircraft_t": 6, "hangar_decks": 1, "elevators": 2, "deck_edge_elevators": 1, "catapults": 2, "cranes": 0, "number": "9"}`.
   - `none` is a seaplane carrier: a hangar aft, an aircraft deck over the stern, cranes and catapults.
@@ -147,6 +164,12 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
 
 ## Outputs (out_designs/<id>/)
 - `report.json`: valid flag, errors, warnings, the hull's length, beam and block coefficient, displacement (std/full), draught, power, fuel, crew, GM, trim, and the weight list with x/z. Carriers add aircraft and capacity, flight deck size and height; merchants add cargo, deadweight and hold count.
+  - `plant`: the plant's static numbers for the game (`powerplant.published`), and how it sits in the hull:
+    - power: rated and continuous kW, overload headroom, shafts and units
+    - fuel: fuel rate and the part-load curve
+    - draught system and engineering crew
+    - its space: machinery length, boiler and engine rooms, rows, protrusion, bunkers
+    - funnels: count, gas area and velocity, and smoke reach
 - `hitboxes.json`: all values in metres, ship-local (origin = sprite centre, +x bow, +y starboard). It describes the ship for the game's damage model (where things are, what armours them, what links to what), never what a hit does.
   - Heights (`base`/`top`/`z`) are metres above the main deck, negative below it. On a carrier the main deck is the hangar deck.
   - `vertical`: `keel`, `waterline` and `armour_deck` (null on a ship without belt or deck armour) on that height scale, plus `draught`, `depth` and `freeboard` (full load).
@@ -159,12 +182,17 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
     - Turrets: `local` body/parts/barrels polygons (rotate them by the turret angle, then add x, y), `broadphase_r`, `arcs_deg`, `rest_deg`, base/top heights.
       - `armour_mm` is the face. `armour` splits it into `face`/`side`/`rear`/`roof` (`hitbox.TURRET_*` ratios).
       - Gun mounts link to their `barbette` (a component) and their `magazine` (a compartment). The barbette links back with `mount` and reaches down to the armour deck.
-    - Superstructure: polygons with heights and a `role`: `bridge`, `director`, `aft_control`, `island`, `hangar`, `casemate` or `deckhouse` (`hitbox.BLOCK_ROLES`). Funnels: polygons with heights.
+    - Superstructure: polygons with heights and a `role`: `bridge`, `director`, `aft_control`, `island`, `hangar`, `casemate` or `deckhouse` (`hitbox.BLOCK_ROLES`). A control position in a funnel's smoke lists those funnels in `smoke`.
+    - Funnels: polygons with heights. `boiler_rooms` lists the rooms each one serves. An `uptake` component runs from the top of the boilers up to the funnel's base, with the same footprint and links.
+    - `casing`: over machinery taller than its space, from the bounding deck up, with `armour_mm`.
     - `conning_tower`: a circle inside the bridge's front on warships with a belt, armoured like the belt. It isn't drawn.
     - Decks: `flight_deck`, and `deck` for raised forecastles, bridge decks and poops. `sponson`: gun and AA platforms, and deck-edge elevators. All are polygons with heights.
     - AA: circles.
   - `compartments`: boxes `x0`/`x1`, `half_width` about `y` (0 if absent), `base`/`top`. They reach from the keel up to the armour deck, or the main deck on an unarmoured ship. Kinds:
-    - All ships: machinery and steering gear (`steering`).
+    - All ships: the machinery as `boiler_room`, `engine_room` and `bunker` (`fuel` is coal, oil, diesel or petrol), and steering gear (`steering`).
+      - Rooms are no longer than about 0.07 L.
+      - Wing bunkers stand beside the machinery from the inner bottom to the main deck, and give their `tonnes`.
+      - Planing craft have a single `engine_room`.
     - Warships and carriers: citadel (belt/deck mm).
     - Warships: one `magazine` per gun mount (`mount` links back). An off-centre mount's magazine stays inside the inner hull on its own side.
     - Planing craft: crew space and fuel tanks.

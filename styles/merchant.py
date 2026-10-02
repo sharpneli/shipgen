@@ -17,12 +17,12 @@ then torpedo mounts along the sides and AA on the house and ends.
 from __future__ import annotations
 
 import armament
-from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_machinery_rooms, clamp, plan_machinery,
-                    stack_machinery)
+from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
+                    boiler_seg, clamp, plan_funnels, plan_machinery, stack_machinery)
 from navarch import Weight
 from geometry import AA_CFG, Hull
 from styles.base import Style
-from styles.carrier import SECONDARY_LIMITS, _funnel_size, _vdc, guns_are_secondaries
+from styles.carrier import SECONDARY_LIMITS, _vdc, guns_are_secondaries
 
 RAISED_H = 2.4      # forecastle, bridge deck and poop stand this far above the main deck
 
@@ -209,7 +209,6 @@ def _layout(design, res, shift):
     house("Bridge", bx1 - 0.3 * bd_len, bx1 - 0.08 * bd_len, min(0.92 * B, 2 * (hw_mid - 0.4)), 3 if not aft_engines else 2,
           0.6, 0.6)
     fun_top = RAISED_H + LEVEL_H * 3 + 2.0
-    fw, fl = _funnel_size(shp, 1, 0.22 * B)
     if aft_engines:
         ex0, ex1 = -L / 2 + 0.03 * L, -L / 2 + poop_len - 1.0
         house("Engine house", ex0, ex1, min(0.7 * B, 2 * (hull.half_width((ex0 + ex1) / 2) - 1.5)), 1, 1.0, 1.0)
@@ -222,9 +221,14 @@ def _layout(design, res, shift):
         fx = bx0 + 0.3 * bd_len
         mx = bx0 + L_mach / 2 + 1.0
         boat_x, boat_y = fx, 0.31 * B
-    funnels.append(dict(id="Funnel 1", x=fx, y=0.0, l=fl, w=fw, pipes=1, z0=RAISED_H))
-    lay.occupy(_fp_rect(fx - fl / 2, -fw / 2, fx + fl / 2, fw / 2), RAISED_H, fun_top, "Funnel 1")
-    lay.weights.append(Weight("Funnel 1", "superstructure", fl * fw * 0.9, x=fx, z_rel=("deck", fun_top / 2)))
+    # funnels from the plant (powerplant.funnel_plan), in a row along the house from fx
+    nfun, fw, fl = plan_funnels(lay, design, res, B, fun_top)
+    fw = min(fw, 0.4 * B)
+    for i in range(nfun):
+        x = fx - i * (fl + 1.5) if aft_engines else fx + (i - (nfun - 1) / 2) * (fl + 1.5)
+        funnels.append(dict(id=f"Funnel {i + 1}", x=x, y=0.0, l=fl, w=fw, pipes=1, z0=RAISED_H, seg=boiler_seg(lay)))
+        lay.occupy(_fp_rect(x - fl / 2, -fw / 2, x + fl / 2, fw / 2), RAISED_H, fun_top, f"Funnel {i + 1}")
+        add_funnel_weights(lay, funnels[-1], fun_top, mx, depth)
     bl_ = clamp(0.045 * L, 5, 9)
     for dx in (-0.6 * bl_, 0.6 * bl_) if L >= 110 else (0.0,):
         for s in (1, -1):
@@ -356,7 +360,7 @@ def _layout(design, res, shift):
         turret_types=turret_types,
         turrets=[dict(id=m["id"], type=m["type"], x=m["x"], y=m["y"], z=m["z"], rest=m["rest"]) for m in mounts],
         superstructure=[{k: v for k, v in b.items() if k not in ("id", "kind")} for b in blocks],
-        funnels=[{k: v for k, v in f_.items() if k != "id"} for f_ in funnels],
+        funnels=[{k: v for k, v in f_.items() if k not in ("id", "seg", "serves")} for f_ in funnels],
         masts=masts, aa=[{k: v for k, v in a.items() if k not in ("id", "base")} for a in aa_out],
         boats=boats, raised_decks=raised, hatches=hatches, fittings=fittings,
         bollards=[L / 2 - 0.04 * L, -L / 2 + 0.04 * L],

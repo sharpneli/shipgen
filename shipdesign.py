@@ -31,7 +31,8 @@ import copy
 import navarch
 import styles
 from geometry import AA_CFG, rrect_polygon
-from hitbox import assign_arcs, export_hitboxes
+from hitbox import assign_arcs, assign_smoke, export_hitboxes
+import powerplant
 from layout import LEVEL_H, block_top
 
 MAST_ABOVE_FUNNEL = 6.0   # mast tops sit this far above the funnel tops
@@ -204,7 +205,26 @@ def balance(design, iterations=6):
     lay = build_layout(design, r, shift)
     r = navarch.solve(design, lay.weights, lay.geo)
     assign_arcs(lay)
+    assign_smoke(lay, r)
     return lay, r, design
+
+
+def plant_report(lay, r):
+    """The plant's static numbers for the game (powerplant.published) and how it sits in the hull."""
+    plan = lay.geo.get("plant") or {}
+    sp = plan.get("space", {})
+    fp = lay.geo.get("funnel_plan") or {}
+    extra = dict(
+        machinery_length_m=round(sum(seg_l for _, seg_l in plan.get("segments", [])), 1),
+        boiler_rooms=sum(1 for c in lay.compartments if c["kind"] == "boiler_room"),
+        engine_rooms=sum(1 for c in lay.compartments if c["kind"] == "engine_room"),
+        rows=sp.get("rows"), protrusion_m=round(sp.get("protrusion", 0.0), 2),
+        space_m=dict(width=round(plan.get("width", 0.0), 2), height=round(plan.get("height", 0.0), 2)),
+        wing_bunkers_t=round(plan.get("wing_t", 0.0)), end_bunkers_m=round(plan.get("end_m", 0.0), 1),
+        funnels=len(lay.funnels), funnel_gas_area_m2=round(fp.get("area", 0.0), 1),
+        funnel_gas_velocity_m_s=round(fp.get("velocity", 0.0), 1),
+        smoke_reach_m=round(powerplant.smoke_reach(r.plant, r.power_shp), 1) if lay.funnels else 0.0)
+    return powerplant.published(r.plant, r.power_shp, extra)
 
 
 def report_dict(design, lay, r, sized):
@@ -224,6 +244,7 @@ def report_dict(design, lay, r, sized):
             layout_shift_m=round(lay.geo["shift"], 2),
             **styles.get(design).results(sized, lay, r),
         ),
+        plant=plant_report(lay, r),
         weight_groups_t={k: round(v) for k, v in sorted(r.groups.items(), key=lambda kv: -kv[1])},
         weights=[dict(name=w.name, group=w.group, t=round(w.w, 1), x=round(w.x, 2), z=round(w.z, 2))
                  for w in r.weights],
