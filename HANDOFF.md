@@ -14,12 +14,13 @@ doesn't: the decisions behind the current design, how to work safely here, and w
 - **Warships are built around their guns.** Main turrets are placed first and reserve their barrel sweep (`Layout.reserve_sweep`). Superstructure placed later must keep out of it.
 - **Carriers and merchants have no main battery.** All their guns are secondaries fitted where they suit, and overlap is acceptable. Planing craft still have a main battery; the user hasn't decided whether MTB guns should become secondaries.
 - **The generator is permissive.** Gameplay limits will live in the game's designer UI. `--no-limits` skips the input ranges entirely. Silly designs may look stupid or fail the physics, but they must run.
+- **Looks are visual only** (`"look"` in the design, `looks.py`). The user wants ships of different powers to look different with no gameplay effect: a look may change only the sprite images, never the layout, physics, report results, hitboxes or `sprite.json`. Turret drawings differ by look, but hitboxes always use `geometry.turret_shapes`. Looks are named after dockyards: `brooklyn` (US), `kure` (Japan), `portsmouth` (UK), `kiel` (Germany), plus the default `standard`. More are planned.
 - Shadows come from the height map, not baked in. Mips are packed per layer (`<layer>_mips.png`, rects in `sprite.json`).
 - **Mip atlases are an interchange format only.** The game uploads each level to the GPU separately (Vulkan mip layout is hardware dependent) and never samples the packed image, so the missing gutters don't matter. Large sprites are fine too: the game may drop the biggest mip levels.
 
 ## Planned by the user
 - **The game spans about 1890 to 1970:** pre-dreadnoughts, through the dreadnought era, to early modern ships. Defaults and new features should cover that whole range.
-- **National graphical styles,** so ships of different powers look different even when their designs are similar.
+- **More looks** (`looks.py`). Four nations are done; more will follow. A period look (Victorian black hull, white upperworks and buff funnels for the 1890s) would suit the pre-dreadnoughts.
 - **Pre-dreadnoughts with lots of casemated guns.** The secondaries need a casemate mount type in the hull side, not only deck mounts. This would also fix Nassau-like ships, which can fit only 3 of their 6 secondaries per side on the deckhouse beside the wing turrets.
 - **French "floating hotel" pre-dreadnoughts** with many different calibres: several main and intermediate batteries, often in wing turrets. The layout will need more than one main or secondary battery.
 - A refactor of the whole design physics (engine models etc.). It should make the physics configurable by period, so engine efficiency and similar values can change over time.
@@ -28,6 +29,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
 ## How to work here
 - **Git:** the repo is on GitHub (`git@github.com:sharpneli/shipgen.git`, branch `main`). Pushing over SSH works with the user's key. Commit or push only when the user asks.
 - Dependencies are `pip install cairosvg pillow numpy`. The system Python lacks them; use the venv at `~/.venv` (`~/.venv/bin/python design.py ...`).
+- **Checking a look change:** render a design in every look and confirm `hitboxes.json`, `sprite.json` and `report.json` (except its `inputs` echo) are identical across looks. `standard` must stay byte-identical to the old sprites.
 - **Regression method used throughout:** copy `out_designs/` aside, regenerate, and `diff -r`. Unrelated designs should stay byte-identical; expected changes should be limited to the designs you meant to change. The hand-authored fleet (`python shipgen.py --out <dir>`) has stayed byte-identical through all the changes, so keep it that way.
 - Run `python verify.py out_designs/*` after every change. It does pixel checks of sprites against hitboxes.
 - A turret-sweep checker existed only in the previous session's scratch folder. It rebuilds each main turret's sweep and tests it against taller blocks and funnels. Folding it into `verify.py` would be a good addition.

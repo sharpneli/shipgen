@@ -25,6 +25,7 @@ import os
 
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
+import looks
 import navarch
 import styles
 from hitbox import assign_arcs, export_hitboxes, nearest_allowed
@@ -52,7 +53,7 @@ def validate(design, limits=True):
                 errs.append(f"{'.'.join(path)} = {d[path[-1]]} is outside {lo}..{hi}")
     if "id" not in design:
         errs.append("design needs an 'id'")
-    return errs + style.validate(design)
+    return errs + style.validate(design) + looks.validate(design)
 
 
 def solve_design(design, iterations=6):
@@ -171,13 +172,14 @@ def render_design(design, lay, r, out_dir, S, mips=0):
     os.makedirs(os.path.join(out_dir, "turrets"), exist_ok=True)
     align = 2 ** (mips + 1)
     spec = copy.deepcopy(lay.spec)
-    spec["palette"] = {**styles.get(design).PALETTE, **design.get("palette", {})}
+    spec["palette"] = looks.palette(design, styles.get(design))   # visual only: nothing above depends on it
     pal = {**DEFAULT_PALETTE, **spec["palette"]}
+    turret_look = looks.get(design)["turrets"]
     turret_pngs = {}
     tmeta = {}
     for tid, t in spec["turret_types"].items():
         png = os.path.join(out_dir, "turrets", f"{tid}.png")
-        render(build_turret(t, pal, S, align, shadows=False), png, png.replace(".png", ".svg"))
+        render(build_turret(t, pal, S, align, shadows=False, look=turret_look), png, png.replace(".png", ".svg"))
         turret_pngs[tid] = png
         w, h = Image.open(png).size
         tmeta[tid] = dict(file=f"turrets/{tid}.png", size_px=[w, h], pivot_px=[w / 2, h / 2], desc=t["desc"])
@@ -300,7 +302,8 @@ def sheet(design, lay, r, rest, stbd, hb, S, path):
     rep = report_dict(design, lay, r)
     res = rep["results"]
     lines = [
-        f"{rep['name']}  ({'VALID' if rep['valid'] else 'INVALID'})",
+        f"{rep['name']}  ({'VALID' if rep['valid'] else 'INVALID'})"
+        + (f"   look: {looks.look_name(design)}" if looks.look_name(design) != looks.DEFAULT_LOOK else ""),
         f"{L:.0f} x {lay.hull.B:.1f} m, Cb {design['hull'].get('block_coefficient', 0.55)}   "
         f"std {res['standard_displacement_t']:,} t   full {res['full_displacement_t']:,} t",
         f"draught {res['draught_m']} m   freeboard {res['freeboard_m']} m   {design['speed_kn']} kn "

@@ -33,7 +33,7 @@ import cairosvg
 from PIL import Image, ImageDraw, ImageFont
 
 from fleet import FLEET, TURRET_TYPES, DEFAULT_PALETTE
-from geometry import turret_shapes, turret_reach, BARREL_ROOT
+from geometry import turret_shapes, turret_reach, BARREL_ROOT, rrect_polygon
 
 PAD_M = 3.0  # empty margin around each hull sprite, metres
 
@@ -233,6 +233,9 @@ class Painter:
              if self.shadows else "",
              f'<path d="{d}" fill="{p["funnel"]}" {self.stroke()}/>',
              f'<path d="{inner}" fill="{p["funnel_cap"]}"/>']
+        if p.get("funnel_band"):   # a painted top band (a look's funnel marking), seen from above as a rim
+            band = rrect_path(x - l / 2 + 0.2, y - w / 2 + 0.2, x + l / 2 - 0.2, y + w / 2 - 0.2, r - 0.2, r - 0.2)
+            s.append(f'<path d="{band}" fill="none" stroke="{p["funnel_band"]}" stroke-width="0.25"/>')
         # uptake openings
         n = fn.get("pipes", 2)
         for i in range(n):
@@ -424,7 +427,8 @@ def build_hull_layers(spec, scale, align=2, shadows=True):
     while xx < hull.L / 2:
         lines.append(f'<line x1="{f(xx)}" y1="{f(-hull.B / 2)}" x2="{f(xx)}" y2="{f(hull.B / 2)}" stroke-dasharray="{f(spacing)} {f(spacing * 2)}"/>')
         xx += seam
-    base.append(f'<g clip-path="url(#deckclip)" stroke="{pal["deck_line"]}" stroke-width="{f(P.sw * 0.7)}" '
+    line_col = pal["deck_line"] if spec.get("deck") == "wood" else pal.get("steel_line", pal["deck_line"])
+    base.append(f'<g clip-path="url(#deckclip)" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '
                 f'stroke-opacity="0.45">{"".join(lines)}</g>')
 
     # raised decks (forecastle, bridge deck, poop): the hull outline between x0 and x1, a step up
@@ -432,7 +436,7 @@ def build_hull_layers(spec, scale, align=2, shadows=True):
         rd_d = hull.outline(inset=rd.get("inset", 0.3), x_min=rd["x0"], x_max=rd["x1"])
         defs += f'<clipPath id="rdclip{i}"><path d="{rd_d}"/></clipPath>'
         base.append(f'<path d="{rd_d}" fill="{shade(deck_col, 1.07)}" {P.stroke()}/>'
-                    f'<g clip-path="url(#rdclip{i})" stroke="{pal["deck_line"]}" stroke-width="{f(P.sw * 0.7)}" '
+                    f'<g clip-path="url(#rdclip{i})" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '
                     f'stroke-opacity="0.45">{"".join(lines)}</g>')
     for ht in spec.get("hatches", []):
         base.append(P.hatch(ht))
@@ -550,8 +554,37 @@ def turret_extent(t, scale=None, align=2):
     return half
 
 
-def build_turret(t, palette, scale, align=2, shadows=True):
-    """Turret sprite. Outlines come from geometry.turret_shapes, the same polygons used for hitboxes."""
+def look_turret_body(look, r):
+    """A look's drawing of an armoured (bb) turret, in units of r: (body outline, rangefinder parts, front face x,
+    front face half-width). Drawing only: the hitbox keeps geometry.turret_shapes, and each outline stays
+    close to it (verify.py checks the sprite against the hitbox)."""
+    def mirror(top):   # top: points from the front centreline round the port side (y < 0) to the rear
+        return [(x * r, y * r) for x, y in top] + [(x * r, -y * r) for x, y in reversed(top)]
+
+    def ears(x0, x1, y0, y1, rad=0.0):
+        return [rrect_polygon(x0 * r, y0 * r, x1 * r, y1 * r, rad * r, rad * r, seg=4),
+                rrect_polygon(x0 * r, -y1 * r, x1 * r, -y0 * r, rad * r, rad * r, seg=4)]
+
+    if look == "slab":       # boxy, slab-sided, rangefinder hoods on the rear corners
+        body = rrect_polygon(-0.95 * r, -0.84 * r, 0.86 * r, 0.84 * r, 0.1 * r, 0.28 * r)
+        return body, ears(-0.8, -0.56, -1.0, -0.7), 0.86 * r, 0.74 * r
+    if look == "round":      # flat face, straight cheeks, a rounded rear; a long rangefinder right across
+        rear = [(-0.05 - 0.92 * math.sin(math.radians(a)), -0.9 * math.cos(math.radians(a))) for a in range(0, 91, 10)]
+        body = mirror([(0.8, -0.48)] + rear)
+        return body, [rrect_polygon(-0.42 * r, -1.14 * r, -0.24 * r, 1.14 * r, 0.09 * r, 0.09 * r, seg=4)], 0.8 * r, 0.48 * r
+    if look == "classic":    # straight sides into a semicircular rear
+        rear = [(-0.18 - 0.8 * math.sin(math.radians(a)), -0.8 * math.cos(math.radians(a))) for a in range(0, 91, 10)]
+        body = mirror([(0.86, -0.62), (0.76, -0.8)] + rear)
+        return body, ears(-0.64, -0.46, -1.0, 1.0)[:1], 0.86 * r, 0.62 * r
+    if look == "faceted":    # angled cheeks and rear corners, flat sides
+        body = mirror([(0.86, -0.52), (0.58, -0.86), (-0.78, -0.86), (-0.95, -0.62), (-0.95, 0.0)])
+        return body, ears(-0.6, -0.44, -0.98, -0.8), 0.86 * r, 0.52 * r
+    raise ValueError(f"unknown turret look {look!r}")
+
+
+def build_turret(t, palette, scale, align=2, shadows=True, look="standard"):
+    """Turret sprite. Outlines come from geometry.turret_shapes, the same polygons used for hitboxes; a look
+    other than "standard" redraws armoured turrets in its own style (look_turret_body)."""
     P = Painter(palette, scale, shadows)
     p = palette
     r = t["r"]
@@ -579,7 +612,46 @@ def build_turret(t, palette, scale, align=2, shadows=True):
     if shadows:
         s.append(f'<circle r="{f(r * 1.08)}" fill="#000" fill-opacity="0.18"/>')
 
-    if shape == "bb":
+    if shape == "bb" and look != "standard":
+        pts, parts, xf, hf = look_turret_body(look, r)
+        body = poly(pts)
+        s.append(barrels(BARREL_ROOT["bb"] * r))
+        for i in range(n):   # gun ports
+            y = (i - (n - 1) / 2) * sp
+            s.append(f'<rect x="{f(xf - 0.1 * r)}" y="{f(y - bw * 0.85)}" width="{f(0.2 * r)}" height="{f(bw * 1.7)}" '
+                     f'rx="{f(bw * 0.3)}" fill="{shade(body_col, 0.55)}" {P.stroke(0.6)}/>')
+        s.append(f'<path d="{body}" fill="{body_col}" {P.stroke(1.2)}/>')
+        s.append(f'<path d="{body}" fill="{shade(body_col, 1.12)}" transform="translate({f(0.02 * r)},0) scale(0.8)"/>')
+        s.append(f'<path d="M{f(xf)},{f(-hf)} L{f(xf)},{f(hf)} L{f(xf - 0.22 * r)},{f(hf - 0.08 * r)} '
+                 f'L{f(xf - 0.22 * r)},{f(-hf + 0.08 * r)} Z" fill="{shade(body_col, 0.82)}"/>')   # sloped face plate
+        for part in parts:
+            s.append(f'<path d="{poly(part)}" fill="{shade(body_col, 0.85)}" {P.stroke(0.8)}/>')
+        hood = shade(body_col, 0.8)
+        if look == "slab":      # three periscope hoods forward, a vent box aft
+            for yy in (-0.5 * r, 0.0, 0.5 * r):
+                s.append(f'<rect x="{f(0.3 * r)}" y="{f(yy - 0.08 * r)}" width="{f(0.18 * r)}" height="{f(0.16 * r)}" '
+                         f'rx="{f(0.03 * r)}" fill="{hood}" {P.stroke(0.5)}/>')
+            s.append(f'<rect x="{f(-0.6 * r)}" y="{f(-0.25 * r)}" width="{f(0.28 * r)}" height="{f(0.5 * r)}" '
+                     f'rx="{f(0.05 * r)}" fill="{hood}" {P.stroke(0.5)}/>')
+        elif look == "round":   # two round cupolas forward, a hatch amidships
+            for yy in (-0.32 * r, 0.32 * r):
+                s.append(f'<circle cx="{f(0.3 * r)}" cy="{f(yy)}" r="{f(0.1 * r)}" fill="{hood}" {P.stroke(0.5)}/>')
+            s.append(f'<circle cx="{f(-0.05 * r)}" cy="0" r="{f(0.12 * r)}" fill="{hood}" {P.stroke(0.5)}/>')
+        elif look == "classic":  # sighting hoods on the roof sides, a hatch aft
+            for yy in (-0.5 * r, 0.5 * r):
+                s.append(f'<rect x="{f(0.15 * r)}" y="{f(yy - 0.1 * r)}" width="{f(0.3 * r)}" height="{f(0.2 * r)}" '
+                         f'rx="{f(0.08 * r)}" fill="{hood}" {P.stroke(0.5)}/>')
+            s.append(f'<rect x="{f(-0.3 * r)}" y="{f(-0.12 * r)}" width="{f(0.22 * r)}" height="{f(0.24 * r)}" '
+                     f'rx="{f(0.04 * r)}" fill="{hood}" {P.stroke(0.5)}/>')
+        elif look == "faceted":  # domed cupolas forward, a rangefinder hood across the rear
+            for yy in (-0.42 * r, 0.42 * r):
+                s.append(f'<circle cx="{f(0.25 * r)}" cy="{f(yy)}" r="{f(0.12 * r)}" fill="{hood}" {P.stroke(0.5)}/>'
+                         f'<circle cx="{f(0.22 * r)}" cy="{f(yy - 0.03 * r)}" r="{f(0.05 * r)}" '
+                         f'fill="{shade(body_col, 1.2)}"/>')
+            s.append(f'<rect x="{f(-0.62 * r)}" y="{f(-0.68 * r)}" width="{f(0.2 * r)}" height="{f(1.36 * r)}" '
+                     f'rx="{f(0.06 * r)}" fill="{hood}" {P.stroke(0.5)}/>')
+
+    elif shape == "bb":
         body = poly(G["body"])
         s.append(barrels(BARREL_ROOT["bb"] * r))
         # blast bags / gun ports

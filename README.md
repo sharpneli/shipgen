@@ -25,7 +25,7 @@ design JSON (player input: counts, calibres, armour, speed)
 ## Design input
 ```json
 {
-  "id": "battleship", "name": "Fast Battleship", "type": "BB",
+  "id": "battleship", "name": "Fast Battleship", "type": "BB", "look": "standard",
   "hull": {"length": 262, "beam": 33, "block_coefficient": 0.59},
   "speed_kn": 33, "range_nm": 15000,
   "armour": {"belt_mm": 307, "deck_mm": 152, "turret_mm": 432},
@@ -81,6 +81,22 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
   - `"torpedoes": {"mounts": 2, "tubes": 1}` are fixed tubes in port/starboard pairs along the deck edges, toed out 5°. They're aimed by steering the boat: in the hitboxes they have `rotating: false` and a 2° arc around their bearing.
   - **The power model is a placeholder** (`navarch.planing_power`): a flat resistance-to-weight ratio once planing (`TUNING planing_rw`, 0.13), ramping up from the hump, divided by a propulsive efficiency of 0.5. It's the one function to replace with a researched model. The report gives the volumetric Froude number Fn∇ and hp/t, and warns below Fn∇ 2 (not fully planing).
 - To add a style: subclass `styles.base.Style` in a new module, give it a `build_layout` (and whichever weight and report hooks it needs), and register it in `styles.STYLES`. The shared building blocks are `layout.add_block`, `Layout.decks` and `Layout.sponsons`, and the `armament` helpers.
+
+## Looks
+`"look"` sets how the ship is painted and drawn, as a navy of a given nation might build it. It's purely visual: the layout, physics, report results, hitboxes and sprite sizes are identical in every look, so two ships that differ only in look play the same. A look applies to every style (warship, carrier, merchant, planing).
+
+| look | inspired by | what changes |
+|---|---|---|
+| `standard` (default) | generic | WWII haze grey, teak decks |
+| `brooklyn` | US | deck blue on every horizontal surface, slab-sided boxy turrets with rear rangefinder hoods. Merchants: wartime grey |
+| `kure` | Japan | dark Kure grey, pale hinoki wood, brown linoleum steel decks with brass strips, black-topped funnels, rounded turrets with a long rangefinder across the rear, wooden carrier decks with red stripes. Merchants: black hull, white house |
+| `portsmouth` | UK | light Admiralty grey, pale holystoned teak, white boats, black funnel tops, straight-sided turrets with a round rear. Merchants: tramp colours, buff funnel with a black top |
+| `kiel` | Germany | dark hull and steel decks under light grey upperworks, mid teak, grey funnel caps, faceted turrets with domed cupolas. Merchants: dark hull, black funnel with a red band |
+
+- Looks live in `looks.py`. Each is a palette for all styles, plus overrides per style, plus a turret drawing (`shipgen.look_turret_body`).
+- Only armoured (`bb`) turrets change shape. The drawn outline stays close to the hitbox shape, and `verify.py` checks it like any other sprite.
+- A design's own `"palette"` still overrides everything.
+- To add a look: add an entry to `looks.LOOKS`. A new turret drawing also needs a branch in `shipgen.look_turret_body`.
 
 ## Outputs (out_designs/<id>/)
 - `report.json`: valid flag, errors, warnings, displacement (std/full), draught, power, fuel, crew, GM, trim, and the weight list with x/z. Carriers add aircraft and capacity, flight deck size and height; merchants add cargo, deadweight and hold count.
