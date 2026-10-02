@@ -39,7 +39,11 @@ design JSON (player input: counts, calibres, armour, speed)
 `main` options:
 - `"mid": n` (warship style only) puts n centreline turrets amidships, between the funnels. Lion has a Q turret; Gangut has two amidships.
 - `"superfire"` sets how many turrets of each end group step up: `true` (default, all), `false` (none, so each group has one end turret and flush turrets behind it), or `{"fore": 2}`. A flush turret behind a stepped one (Nelson's X) fires to the sides only.
-- Examples: `gangut.json` (1 + 2 amidships + 1, all flush), `battlecruiser.json` (Lion-style Q turret), `all_forward_flush.json` (all-forward with a flush third turret).
+- `"wing": n` (warship style only) adds n pairs of wing turrets, one each side, standing on the deckhouse amidships. They fire bow to stern on their own side.
+  - By default each pair stands abreast. The first pair goes at the forward end of the middle, the second at the aft end, then they fill inward (Dreadnought: one pair; Nassau: two, hexagonal).
+  - `"echelon": true` staggers each pair, port forward and starboard aft, and spreads the pairs among the funnels (Invincible, Neptune). An echelon pair fits a beam that's too narrow for an abreast pair, at the cost of length.
+  - Wing turrets stow fore-and-aft toward the nearer end of the ship. Secondaries fill the spots the wing turrets leave free.
+- Examples: `gangut.json` (1 + 2 amidships + 1, all flush), `dreadnought.json` (A, wing pair, X, Y), `nassau.json` (hexagonal), `invincible.json` (echelon), `battlecruiser.json` (Lion-style Q turret), `all_forward_flush.json` (all-forward with a flush third turret).
 
 Limits are generous on purpose: the game's designer enforces the gameplay limits, and the generator only keeps its input sane (`styles.base.COMMON_LIMITS`). Guns can be 1–2000 mm with 1–20 barrels, armour up to 2 m, and torpedo, secondary and AA counts are in the hundreds. Hull form and speed stay within the range where the physics formulas mean something. Hulls go up to 1,000 × 100 m, and each turret group (`fore`, `aft`, `mid`) can hold up to 40 turrets, named A, B, C, A4, A5, ... (and Q, P, R, S, Q5, ... amidships). Silly designs are allowed; the physics decides whether they're valid. For example, twenty 305 mm Q turrets need about 650 m of middle section and a wide beam.
 
@@ -104,7 +108,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
 - Firing arcs are fixed by mount kind, centred on the rest bearing (`hitbox.ARC_*`):
   - Centreline guns of a forward or aft group, including superfiring and carrier island-line guns: ±135°.
   - Centreline guns with a turret ahead of them (amidships turrets, flush turrets behind a superfiring one): ±65° about each beam. They stow fore-and-aft like real ships, pointing away from the nearest other centreline turret. Their rest bearing is therefore outside their arcs: train them out before firing. Every other mount rests inside its arcs.
-  - Side mounts (secondaries, sponson guns, side torpedo mounts): ±90°, bow to stern on their own side.
+  - Side mounts (secondaries, sponson guns, side torpedo mounts, wing turrets): ±90°, bow to stern on their own side. Wing turrets rest fore-and-aft, at the edge of that arc.
   - Centreline torpedo mounts: ±60° about each beam.
   - Fixed tubes: ±1° about their bearing.
   - Nothing on deck limits an arc. Instead, the warship layout places the main turrets first, and each reserves its sweep zone: a sector as long as its barrels, covering its arcs plus the turn from its stowed bearing to the starboard arc, so one side is always free for switching sides. Everything placed afterwards that stands taller than that turret's guns keeps out of the zone: bridge, aft control, funnels, masts, deckhouse, boats, secondaries, torpedo mounts and AA. The bridge and aft control step back, the deckhouse ends are trimmed, and the space needed is budgeted up front (a stowed turret's barrels, and the gap a side-firing turret needs beside its neighbours).
@@ -134,6 +138,9 @@ The sun is dynamic, so the game casts the shadows. `shadow.py`'s docstring has t
   | `liberty` (Liberty ship) | 3.3k / 14.0k, 2,300 shp | 3.4k / 14.2k, 2,500 ihp |
   | `tanker` (T2-like) | 5.1k / 22.1k | ~5.3k / 21.9k |
   | `gangut` (Gangut-like) | 20.4k std, 38.9k shp | 23.3k normal, 42k shp |
+  | `dreadnought` (HMS Dreadnought-like, 21 kn) | 17.4k std, 26.7k shp | 18.1k normal, 23k shp |
+  | `nassau` (Nassau-like, 19.5 kn) | 17.1k std, 21.8k shp | 18.6k normal, 22k ihp |
+  | `invincible` (Invincible-like, 25.5 kn) | 16.9k std, 48.1k shp | 17.3k normal, 41k shp |
   | `battlecruiser` (Lion-like, 28 kn) | 28.9k std, 90.6k shp | 26.3k normal; ~92k shp for 28 kn on trials |
   | `mtb` (Vosper 70 ft-like) | 35 / 44 t, 3,000 hp at 39 kn | ~47 t, 3,750 hp |
   | `pt_boat` (Elco 80 ft-like) | 60 / 72 t, 5,300 hp at 41 kn | ~46 / 56 t, 4,500 hp |

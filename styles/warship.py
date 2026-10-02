@@ -10,6 +10,7 @@ from styles.base import Style
 class Warship(Style):
     name = "warship"
     MIDSHIPS_TURRETS = True
+    WING_TURRETS = True
     LIMITS = {("hull", "length"): (50, 1000)}
 
     def build_layout(self, design, shp, depth, shift=0.0):

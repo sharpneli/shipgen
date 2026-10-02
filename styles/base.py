@@ -12,6 +12,7 @@ COMMON_LIMITS = {
     ("speed_kn",): (8, 42), ("range_nm",): (1000, 25000),
     ("main", "calibre_mm"): (1, 2000), ("main", "calibre_length"): (1, 200), ("main", "barrels"): (1, 20),
     ("main", "fore"): (0, 40), ("main", "aft"): (0, 40), ("main", "mid"): (0, 40),
+    ("main", "wing"): (0, 20),
     ("secondary", "calibre_mm"): (1, 2000), ("secondary", "calibre_length"): (1, 200),
     ("secondary", "barrels"): (1, 20), ("secondary", "per_side"): (0, 100), ("secondary", "count"): (0, 200),
     ("torpedoes", "mounts"): (0, 40), ("torpedoes", "tubes"): (1, 20),
@@ -38,6 +39,10 @@ class Style:
         main = design.get("main") or {}
         if main.get("mid") and not self.MIDSHIPS_TURRETS:
             errs.append(f"main.mid: the {self.name} style has no midships turrets")
+        if main.get("wing") and not self.WING_TURRETS:
+            errs.append(f"main.wing: the {self.name} style has no wing turrets")
+        if not isinstance(main.get("echelon", False), bool):
+            errs.append("main.echelon: use true or false")
         sf = main.get("superfire", True)
         if not isinstance(sf, (bool, dict)) or (isinstance(sf, dict) and not all(
                 isinstance(v, int) and 0 <= v <= main.get(k, 0) for k, v in sf.items() if k in ("fore", "aft"))):
@@ -46,6 +51,7 @@ class Style:
 
     DEFAULT_MACHINERY = "naval_turbine"
     MIDSHIPS_TURRETS = False    # does the layout support main["mid"]
+    WING_TURRETS = False        # does the layout support main["wing"] (pairs) and main["echelon"]
     SECONDARY_LIST = False      # may "secondary" be a list of batteries with count/where (armament.batteries)
 
     def machinery_type(self, design):

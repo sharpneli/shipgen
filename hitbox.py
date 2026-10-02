@@ -9,7 +9,8 @@ picks counts and calibres. Every arc is centred on the mount's rest bearing (deg
     centreline guns of a forward or after group (rest 0 or 180)   +-ARC_END
     centreline guns with a turret ahead of them: a flush turret
     behind a superfiring one, or an amidships turret               +-ARC_BEAM about each beam
-    side mounts: secondaries, sponson guns, side torpedo mounts   +-ARC_SIDE   (bow to stern, own side)
+    side mounts: secondaries, sponson guns, side torpedo mounts,
+    wing turrets (which stow fore-and-aft, at the edge of the arc) +-ARC_SIDE   (bow to stern, own side)
     centreline trainable torpedo mounts                           +-ARC_TORPEDO about each beam
     fixed tubes (MTBs; the boat aims them)                        +-ARC_FIXED about their bearing
 """
@@ -38,6 +39,8 @@ def _arc(centre, half):
 def mount_arcs(m):
     if m.get("fixed") is not None:
         return [_arc(m["fixed"], ARC_FIXED)]
+    if m.get("wing"):
+        return [_arc(90.0 if m["y"] > 0 else 270.0, ARC_SIDE)]
     if m.get("arc_role") == "beam":
         return [_arc(90.0, ARC_BEAM), _arc(270.0, ARC_BEAM)]
     if m["kind"] == "torpedo" and abs(m["y"]) < 0.5:

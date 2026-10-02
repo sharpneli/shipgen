@@ -356,7 +356,7 @@ def rough_payload(design, D):
     m = design.get("main")
     if m:
         _, t = make_turret_type(m["calibre_mm"], m["calibre_length"], m["barrels"])
-        n = m.get("fore", 0) + m.get("aft", 0) + m.get("mid", 0)
+        n = m.get("fore", 0) + m.get("aft", 0) + m.get("mid", 0) + 2 * m.get("wing", 0)
         tw, bw, aw = mount_weights(t, a.get("turret_mm", 0), D, 0)
         out.append(Weight("Main battery", "armament", n * tw, z_rel=("deck", 2)))
         out.append(Weight("Main barbettes", "armour", n * bw, z_rel=("frac", 0.75)))
