@@ -1,0 +1,365 @@
+{
+  "id": "fleet_carrier",
+  "name": "Fleet Carrier",
+  "scale_px_per_m": 10.0,
+  "size_px": [
+    2560,
+    512
+  ],
+  "origin_px": [
+    1280.0,
+    256.0
+  ],
+  "orientation": "bow points +x (right); angles clockwise, 0 = ahead",
+  "layer_order": [
+    "hull_base",
+    "turrets (ascending z)",
+    "hull_upper"
+  ],
+  "layers": {
+    "base": "hull_base.png",
+    "upper": "hull_upper.png",
+    "base_mips": "hull_base_mips.png",
+    "upper_mips": "hull_upper_mips.png"
+  },
+  "turret_types": {
+    "t2x127L38": {
+      "file": "turrets/t2x127L38.png",
+      "size_px": [
+        192,
+        192
+      ],
+      "pivot_px": [
+        96.0,
+        96.0
+      ],
+      "desc": "2 x 127mm/38",
+      "mips_file": "turrets/t2x127L38_mips.png",
+      "mip_rects": [
+        [
+          0,
+          0,
+          192,
+          192
+        ],
+        [
+          192,
+          0,
+          96,
+          96
+        ],
+        [
+          192,
+          96,
+          48,
+          48
+        ],
+        [
+          240,
+          96,
+          24,
+          24
+        ],
+        [
+          240,
+          120,
+          12,
+          12
+        ],
+        [
+          252,
+          120,
+          6,
+          6
+        ]
+      ]
+    },
+    "t1x127L38": {
+      "file": "turrets/t1x127L38.png",
+      "size_px": [
+        192,
+        192
+      ],
+      "pivot_px": [
+        96.0,
+        96.0
+      ],
+      "desc": "1 x 127mm/38",
+      "mips_file": "turrets/t1x127L38_mips.png",
+      "mip_rects": [
+        [
+          0,
+          0,
+          192,
+          192
+        ],
+        [
+          192,
+          0,
+          96,
+          96
+        ],
+        [
+          192,
+          96,
+          48,
+          48
+        ],
+        [
+          240,
+          96,
+          24,
+          24
+        ],
+        [
+          240,
+          120,
+          12,
+          12
+        ],
+        [
+          252,
+          120,
+          6,
+          6
+        ]
+      ]
+    }
+  },
+  "mips": {
+    "levels": 5,
+    "scale_px_per_m": [
+      10.0,
+      5.0,
+      2.5,
+      1.25,
+      0.625,
+      0.3125
+    ],
+    "rule": "each layer has <name>_mips.png with level k at mip_rects[k] = [x, y, w, h]; within level k, size, origin_px, pivot_px and mount px are the level-0 values / 2^k"
+  },
+  "shadow": {
+    "height_map": "height.png",
+    "height_step_m": 0.25,
+    "deck_m": 8.5,
+    "max_height_m": 34.5,
+    "note": "height map grey value x height_step_m = metres above the waterline (0 = sea); mount top_m is the turret roof above the waterline; see shadow.py",
+    "height_map_mips": "height_mips.png"
+  },
+  "mounts": [
+    {
+      "id": "S1",
+      "kind": "secondary",
+      "type": "t2x127L38",
+      "pos_m": [
+        38.460114836070474,
+        12.4106595659078
+      ],
+      "px": [
+        1664.6011483607049,
+        380.106595659078
+      ],
+      "rest_deg": 0.0,
+      "arcs_deg": [
+        [
+          225.0,
+          495.0
+        ]
+      ],
+      "z": 1,
+      "top_m": 17.62
+    },
+    {
+      "id": "S2",
+      "kind": "secondary",
+      "type": "t2x127L38",
+      "pos_m": [
+        47.523314836070476,
+        12.4106595659078
+      ],
+      "px": [
+        1755.2331483607047,
+        380.106595659078
+      ],
+      "rest_deg": 0.0,
+      "arcs_deg": [
+        [
+          225.0,
+          495.0
+        ]
+      ],
+      "z": 1,
+      "top_m": 17.62
+    },
+    {
+      "id": "S3",
+      "kind": "secondary",
+      "type": "t2x127L38",
+      "pos_m": [
+        3.448114836070474,
+        12.4106595659078
+      ],
+      "px": [
+        1314.4811483607048,
+        380.106595659078
+      ],
+      "rest_deg": -180.0,
+      "arcs_deg": [
+        [
+          45.0,
+          315.0
+        ]
+      ],
+      "z": 1,
+      "top_m": 17.62
+    },
+    {
+      "id": "S4",
+      "kind": "secondary",
+      "type": "t2x127L38",
+      "pos_m": [
+        -5.6150851639295265,
+        12.4106595659078
+      ],
+      "px": [
+        1223.8491483607047,
+        380.106595659078
+      ],
+      "rest_deg": -180.0,
+      "arcs_deg": [
+        [
+          45.0,
+          315.0
+        ]
+      ],
+      "z": 1,
+      "top_m": 17.62
+    },
+    {
+      "id": "SB1S",
+      "kind": "secondary",
+      "type": "t1x127L38",
+      "pos_m": [
+        -124.0,
+        19.343
+      ],
+      "px": [
+        40.0,
+        449.43
+      ],
+      "rest_deg": 90.0,
+      "arcs_deg": [
+        [
+          0.0,
+          180.0
+        ]
+      ],
+      "z": 3,
+      "top_m": 15.8
+    },
+    {
+      "id": "SB1P",
+      "kind": "secondary",
+      "type": "t1x127L38",
+      "pos_m": [
+        -124.0,
+        -19.343
+      ],
+      "px": [
+        40.0,
+        62.56999999999999
+      ],
+      "rest_deg": -90.0,
+      "arcs_deg": [
+        [
+          180.0,
+          360.0
+        ]
+      ],
+      "z": 3,
+      "top_m": 15.8
+    },
+    {
+      "id": "SB2S",
+      "kind": "secondary",
+      "type": "t1x127L38",
+      "pos_m": [
+        -12.75,
+        19.343
+      ],
+      "px": [
+        1152.5,
+        449.43
+      ],
+      "rest_deg": 90.0,
+      "arcs_deg": [
+        [
+          0.0,
+          180.0
+        ]
+      ],
+      "z": 3,
+      "top_m": 15.8
+    },
+    {
+      "id": "SB2P",
+      "kind": "secondary",
+      "type": "t1x127L38",
+      "pos_m": [
+        -12.75,
+        -19.343
+      ],
+      "px": [
+        1152.5,
+        62.56999999999999
+      ],
+      "rest_deg": -90.0,
+      "arcs_deg": [
+        [
+          180.0,
+          360.0
+        ]
+      ],
+      "z": 3,
+      "top_m": 15.8
+    }
+  ],
+  "mip_rects": [
+    [
+      0,
+      0,
+      2560,
+      512
+    ],
+    [
+      2560,
+      0,
+      1280,
+      256
+    ],
+    [
+      2560,
+      256,
+      640,
+      128
+    ],
+    [
+      3200,
+      256,
+      320,
+      64
+    ],
+    [
+      3200,
+      320,
+      160,
+      32
+    ],
+    [
+      3360,
+      320,
+      80,
+      16
+    ]
+  ]
+}

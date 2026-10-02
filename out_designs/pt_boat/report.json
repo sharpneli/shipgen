@@ -1,0 +1,166 @@
+{
+  "id": "pt_boat",
+  "name": "PT Boat",
+  "valid": true,
+  "errors": [],
+  "warnings": [
+    "Trimmed 0.3 m by the stern."
+  ],
+  "inputs": {
+    "id": "pt_boat",
+    "name": "PT Boat",
+    "type": "PT",
+    "style": "planing",
+    "hull": {
+      "length": 24.4,
+      "beam": 6.3,
+      "block_coefficient": 0.45
+    },
+    "speed_kn": 41,
+    "range_nm": 350,
+    "machinery": {
+      "type": "petrol"
+    },
+    "torpedoes": {
+      "mounts": 4,
+      "tubes": 1
+    },
+    "main": {
+      "calibre_mm": 40,
+      "calibre_length": 56,
+      "barrels": 1,
+      "fore": 0,
+      "aft": 1
+    },
+    "aa": {
+      "light": 3
+    }
+  },
+  "results": {
+    "standard_displacement_t": 60,
+    "full_displacement_t": 72,
+    "draught_m": 1.02,
+    "depth_m": 2.8,
+    "freeboard_m": 1.78,
+    "power_shp": 5300.0,
+    "fuel_t": 12,
+    "crew": 16,
+    "gm_full_m": 1.41,
+    "gm_light_m": 1.61,
+    "trim_m": -0.27,
+    "lcg_m": -3.03,
+    "lcb_m": -2.68,
+    "layout_shift_m": 0.98,
+    "volumetric_froude": 3.31,
+    "power_to_weight_hp_per_t": 72.6,
+    "power_model": "planing placeholder"
+  },
+  "weight_groups_t": {
+    "hull": 26,
+    "armament": 15,
+    "fuel": 12,
+    "machinery": 12,
+    "misc": 6,
+    "superstructure": 1
+  },
+  "weights": [
+    {
+      "name": "Hull structure",
+      "group": "hull",
+      "t": 25.9,
+      "x": -0.24,
+      "z": 1.63
+    },
+    {
+      "name": "Machinery",
+      "group": "machinery",
+      "t": 11.7,
+      "x": -6.1,
+      "z": 0.9
+    },
+    {
+      "name": "Charthouse",
+      "group": "superstructure",
+      "t": 1.4,
+      "x": 3.66,
+      "z": 4.1
+    },
+    {
+      "name": "T1S",
+      "group": "armament",
+      "t": 2.6,
+      "x": -0.41,
+      "z": 3.5
+    },
+    {
+      "name": "T1P",
+      "group": "armament",
+      "t": 2.6,
+      "x": -0.41,
+      "z": 3.5
+    },
+    {
+      "name": "T2S",
+      "group": "armament",
+      "t": 2.6,
+      "x": -8.41,
+      "z": 3.5
+    },
+    {
+      "name": "T2P",
+      "group": "armament",
+      "t": 2.6,
+      "x": -8.41,
+      "z": 3.5
+    },
+    {
+      "name": "Mount Y",
+      "group": "armament",
+      "t": 0.9,
+      "x": -9.36,
+      "z": 3.56
+    },
+    {
+      "name": "Magazine Y",
+      "group": "armament",
+      "t": 0.7,
+      "x": -9.36,
+      "z": 0.7
+    },
+    {
+      "name": "AA1",
+      "group": "armament",
+      "t": 1.0,
+      "x": -1.22,
+      "z": 4.0
+    },
+    {
+      "name": "AA2",
+      "group": "armament",
+      "t": 1.0,
+      "x": -5.49,
+      "z": 4.0
+    },
+    {
+      "name": "AA3",
+      "group": "armament",
+      "t": 1.0,
+      "x": -3.36,
+      "z": 4.0
+    },
+    {
+      "name": "Equipment, outfit, crew & stores",
+      "group": "misc",
+      "t": 6.0,
+      "x": 0.0,
+      "z": 1.4
+    },
+    {
+      "name": "Fuel",
+      "group": "fuel",
+      "t": 12.5,
+      "x": -6.1,
+      "z": 0.5
+    }
+  ]
+}

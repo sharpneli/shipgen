@@ -1,0 +1,391 @@
+{
+  "id": "supercarrier",
+  "name": "Conventional Supercarrier",
+  "valid": true,
+  "errors": [],
+  "warnings": [],
+  "inputs": {
+    "id": "supercarrier",
+    "name": "Conventional Supercarrier",
+    "type": "CVA",
+    "style": "carrier",
+    "hull": {
+      "length": 302,
+      "beam": 39.5,
+      "block_coefficient": 0.6
+    },
+    "speed_kn": 33,
+    "range_nm": 20000,
+    "armour": {
+      "belt_mm": 76,
+      "deck_mm": 50,
+      "flight_deck_mm": 45
+    },
+    "aviation": {
+      "flight_deck": "angled",
+      "aircraft": 85,
+      "aircraft_t": 15,
+      "deck_edge_elevators": 4,
+      "catapults": 4,
+      "number": "63"
+    },
+    "secondary": {
+      "calibre_mm": 127,
+      "calibre_length": 54,
+      "barrels": 1,
+      "per_side": 4
+    }
+  },
+  "results": {
+    "standard_displacement_t": 54564,
+    "full_displacement_t": 63534,
+    "draught_m": 8.66,
+    "depth_m": 18.41,
+    "freeboard_m": 9.75,
+    "power_shp": 243700.0,
+    "fuel_t": 7439,
+    "crew": 4297,
+    "gm_full_m": 5.63,
+    "gm_light_m": 5.69,
+    "trim_m": -0.04,
+    "lcg_m": -3.71,
+    "lcb_m": -3.62,
+    "layout_shift_m": 12.08,
+    "aircraft": 85,
+    "aircraft_capacity": 85,
+    "hangar_area_m2": 6871,
+    "flight_deck": "angled",
+    "flight_deck_m": [
+      299.0,
+      66.7
+    ],
+    "flight_deck_height_m": 17.35
+  },
+  "weight_groups_t": {
+    "hull": 31980,
+    "fuel": 8969,
+    "armour": 7121,
+    "machinery": 6517,
+    "misc": 5778,
+    "aviation": 2552,
+    "superstructure": 314,
+    "armament": 302
+  },
+  "weights": [
+    {
+      "name": "Hull structure",
+      "group": "hull",
+      "t": 24594.1,
+      "x": -3.02,
+      "z": 9.2
+    },
+    {
+      "name": "Machinery",
+      "group": "machinery",
+      "t": 6517.0,
+      "x": 0.0,
+      "z": 5.89
+    },
+    {
+      "name": "Island",
+      "group": "superstructure",
+      "t": 108.4,
+      "x": 27.18,
+      "z": 27.31
+    },
+    {
+      "name": "Island upper",
+      "group": "superstructure",
+      "t": 49.0,
+      "x": 34.45,
+      "z": 29.91
+    },
+    {
+      "name": "Bridge",
+      "group": "superstructure",
+      "t": 41.8,
+      "x": 36.37,
+      "z": 32.51
+    },
+    {
+      "name": "Director",
+      "group": "superstructure",
+      "t": 9.3,
+      "x": 36.07,
+      "z": 35.11
+    },
+    {
+      "name": "Funnel 1",
+      "group": "superstructure",
+      "t": 105.7,
+      "x": 18.59,
+      "z": 32.71
+    },
+    {
+      "name": "Mount S1S",
+      "group": "armament",
+      "t": 16.8,
+      "x": -151.04,
+      "z": 25.16
+    },
+    {
+      "name": "Magazine S1S",
+      "group": "armament",
+      "t": 21.0,
+      "x": -151.04,
+      "z": 4.6
+    },
+    {
+      "name": "Barbette S1S",
+      "group": "armour",
+      "t": 15.5,
+      "x": -151.04,
+      "z": 13.81
+    },
+    {
+      "name": "Mount S1P",
+      "group": "armament",
+      "t": 16.8,
+      "x": -151.04,
+      "z": 25.16
+    },
+    {
+      "name": "Magazine S1P",
+      "group": "armament",
+      "t": 21.0,
+      "x": -151.04,
+      "z": 4.6
+    },
+    {
+      "name": "Barbette S1P",
+      "group": "armour",
+      "t": 15.5,
+      "x": -151.04,
+      "z": 13.81
+    },
+    {
+      "name": "Mount S2S",
+      "group": "armament",
+      "t": 16.8,
+      "x": -83.32,
+      "z": 25.16
+    },
+    {
+      "name": "Magazine S2S",
+      "group": "armament",
+      "t": 21.0,
+      "x": -83.32,
+      "z": 4.6
+    },
+    {
+      "name": "Barbette S2S",
+      "group": "armour",
+      "t": 15.5,
+      "x": -83.32,
+      "z": 13.81
+    },
+    {
+      "name": "Mount S2P",
+      "group": "armament",
+      "t": 16.8,
+      "x": -83.32,
+      "z": 25.16
+    },
+    {
+      "name": "Magazine S2P",
+      "group": "armament",
+      "t": 21.0,
+      "x": -83.32,
+      "z": 4.6
+    },
+    {
+      "name": "Barbette S2P",
+      "group": "armour",
+      "t": 15.5,
+      "x": -83.32,
+      "z": 13.81
+    },
+    {
+      "name": "Mount S3S",
+      "group": "armament",
+      "t": 16.8,
+      "x": -117.18,
+      "z": 25.16
+    },
+    {
+      "name": "Magazine S3S",
+      "group": "armament",
+      "t": 21.0,
+      "x": -117.18,
+      "z": 4.6
+    },
+    {
+      "name": "Barbette S3S",
+      "group": "armour",
+      "t": 15.5,
+      "x": -117.18,
+      "z": 13.81
+    },
+    {
+      "name": "Mount S3P",
+      "group": "armament",
+      "t": 16.8,
+      "x": -117.18,
+      "z": 25.16
+    },
+    {
+      "name": "Magazine S3P",
+      "group": "armament",
+      "t": 21.0,
+      "x": -117.18,
+      "z": 4.6
+    },
+    {
+      "name": "Barbette S3P",
+      "group": "armour",
+      "t": 15.5,
+      "x": -117.18,
+      "z": 13.81
+    },
+    {
+      "name": "Mount S4S",
+      "group": "armament",
+      "t": 16.8,
+      "x": -49.47,
+      "z": 25.16
+    },
+    {
+      "name": "Magazine S4S",
+      "group": "armament",
+      "t": 21.0,
+      "x": -49.47,
+      "z": 4.6
+    },
+    {
+      "name": "Barbette S4S",
+      "group": "armour",
+      "t": 15.5,
+      "x": -49.47,
+      "z": 13.81
+    },
+    {
+      "name": "Mount S4P",
+      "group": "armament",
+      "t": 16.8,
+      "x": -49.47,
+      "z": 25.16
+    },
+    {
+      "name": "Magazine S4P",
+      "group": "armament",
+      "t": 21.0,
+      "x": -49.47,
+      "z": 4.6
+    },
+    {
+      "name": "Barbette S4P",
+      "group": "armour",
+      "t": 15.5,
+      "x": -49.47,
+      "z": 13.81
+    },
+    {
+      "name": "Belt armour",
+      "group": "armour",
+      "t": 664.3,
+      "x": 3.02,
+      "z": 8.66
+    },
+    {
+      "name": "Bulkheads",
+      "group": "armour",
+      "t": 197.9,
+      "x": 3.02,
+      "z": 9.2
+    },
+    {
+      "name": "Deck armour",
+      "group": "armour",
+      "t": 1554.3,
+      "x": 3.02,
+      "z": 15.91
+    },
+    {
+      "name": "Flight deck",
+      "group": "hull",
+      "t": 5186.7,
+      "x": -7.55,
+      "z": 26.01
+    },
+    {
+      "name": "Flight deck armour",
+      "group": "armour",
+      "t": 4580.5,
+      "x": -7.55,
+      "z": 26.01
+    },
+    {
+      "name": "Hangar structure",
+      "group": "hull",
+      "t": 2198.8,
+      "x": -12.08,
+      "z": 22.21
+    },
+    {
+      "name": "Elevators",
+      "group": "aviation",
+      "t": 212,
+      "x": -12.08,
+      "z": 25.01
+    },
+    {
+      "name": "Arresting gear",
+      "group": "aviation",
+      "t": 60,
+      "x": -112.19,
+      "z": 25.01
+    },
+    {
+      "name": "Catapults",
+      "group": "aviation",
+      "t": 240,
+      "x": 90.6,
+      "z": 25.01
+    },
+    {
+      "name": "Equipment, outfit, crew & stores",
+      "group": "misc",
+      "t": 5777.7,
+      "x": 0.0,
+      "z": 9.2
+    },
+    {
+      "name": "Air group",
+      "group": "aviation",
+      "t": 1275,
+      "x": -12.08,
+      "z": 23.01
+    },
+    {
+      "name": "Aviation ordnance",
+      "group": "aviation",
+      "t": 765.0,
+      "x": 46.64,
+      "z": 4.6
+    },
+    {
+      "name": "Fuel",
+      "group": "fuel",
+      "t": 7439.2,
+      "x": 0.0,
+      "z": 3.31
+    },
+    {
+      "name": "Aviation fuel",
+      "group": "fuel",
+      "t": 1530.0,
+      "x": -43.62,
+      "z": 2.76
+    }
+  ]
+}

@@ -1,0 +1,203 @@
+"""
+Shared geometry: the SAME functions produce the sprite outlines and the hitboxes,
+so a shell that hits a polygon here hits the same pixels in the sprite.
+
+All coordinates are metres. Turret shapes are in turret-local space: pivot at (0, 0),
+barrels pointing +x. To place a turret shape in ship space, rotate it by the turret's current
+angle (clockwise, 0 = ahead) and translate it to the mount position.
+"""
+from __future__ import annotations
+
+import math
+
+
+# ---------------------------------------------------------------------------
+# primitives
+# ---------------------------------------------------------------------------
+def rrect_clamped(x0, y0, x1, y1, rf=0.0, rb=0.0):
+    """Clamp corner radii exactly the way the SVG renderer does."""
+    h = (y1 - y0) / 2
+    half_len = (x1 - x0) / 2
+    return min(rf, h, half_len), min(rb, h, half_len)
+
+
+def rrect_polygon(x0, y0, x1, y1, rf=0.0, rb=0.0, seg=8):
+    """Rounded rectangle (front corners radius rf at +x, back corners rb at -x) as a polygon."""
+    rf, rb = rrect_clamped(x0, y0, x1, y1, rf, rb)
+    pts = []
+
+    def arc(cx, cy, r, a0, a1):
+        if r <= 1e-9:
+            pts.append((cx, cy))
+            return
+        for i in range(seg + 1):
+            a = math.radians(a0 + (a1 - a0) * i / seg)
+            pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+
+    # clockwise on screen (y down): top edge -> front -> bottom edge -> back
+    arc(x1 - rf, y0 + rf, rf, -90, 0)
+    arc(x1 - rf, y1 - rf, rf, 0, 90)
+    arc(x0 + rb, y1 - rb, rb, 90, 180)
+    arc(x0 + rb, y0 + rb, rb, 180, 270)
+    return pts
+
+
+def circle_polygon(cx, cy, r, seg=32):
+    return [(cx + r * math.cos(2 * math.pi * i / seg), cy + r * math.sin(2 * math.pi * i / seg)) for i in range(seg)]
+
+
+def rotate_translate(pts, deg, tx, ty):
+    c, s = math.cos(math.radians(deg)), math.sin(math.radians(deg))
+    return [(tx + x * c - y * s, ty + x * s + y * c) for x, y in pts]
+
+
+def point_in_polygon(x, y, pts):
+    inside = False
+    n = len(pts)
+    for i in range(n):
+        x1, y1 = pts[i]
+        x2, y2 = pts[(i + 1) % n]
+        if (y1 > y) != (y2 > y):
+            if x < x1 + (y - y1) * (x2 - x1) / (y2 - y1):
+                inside = not inside
+    return inside
+
+
+# ---------------------------------------------------------------------------
+# turret types generated from gun parameters
+# ---------------------------------------------------------------------------
+def make_turret_type(calibre_mm: float, calibre_length: float, barrels: int, kind: str = "auto") -> tuple[str, dict]:
+    """Size a turret from its guns. Returns (type_id, type_dict) usable by the renderer."""
+    cal = calibre_mm / 1000.0
+    spacing = max(cal * 6.5, 0.9 + cal * 3.0) if barrels > 1 else 0.0
+    width = (barrels - 1) * spacing + cal * 15.0 + 1.5
+    r = width / 1.7
+    if kind == "auto":   # light guns (under 76 mm) are open mounts
+        kind = "bb" if calibre_mm >= 150 else "dp" if calibre_mm >= 76 else "open"
+    tid = f"t{barrels}x{round(calibre_mm)}L{round(calibre_length)}{'' if kind in ('bb', 'dp') else '_' + kind}"
+    return tid, dict(desc=f"{barrels} x {calibre_mm:g}mm/{calibre_length:g}", shape=kind, r=round(r, 3),
+                     barrels=barrels, barrel_len=round(cal * calibre_length, 3),
+                     barrel_w=round(max(cal * 2.3, 0.18), 3), spacing=round(spacing, 3),
+                     calibre_mm=calibre_mm, calibre_length=calibre_length,
+                     **({"centered": True, "barbette": False} if kind == "torp" else {}),
+                     **({"barbette": False} if kind == "open" else {}))
+
+
+def make_torpedo_type(tubes: int, fixed: bool = False) -> tuple[str, dict]:
+    if fixed:   # fixed deck tubes (MTBs): aimed by steering the boat; the body is the cradle
+        return f"tube{tubes}x533", dict(desc=f"{tubes} x 533mm fixed torpedo tube{'s' if tubes > 1 else ''}",
+                                        shape="tube", r=0.55, barrels=tubes, barrel_len=7.2, barrel_w=0.55,
+                                        spacing=0.75, centered=True, barbette=False, fixed_tube=True)
+    return f"torp{tubes}x533", dict(desc=f"{tubes} x 533mm torpedo tubes", shape="torp", r=1.9,
+                                     barrels=tubes, barrel_len=7.6, barrel_w=0.55, spacing=0.66,
+                                     centered=True, barbette=False)
+
+
+BARREL_ROOT = {"bb": 0.5, "dp": 0.3, "open": -0.3}
+
+
+def turret_shapes(t: dict) -> dict:
+    """Polygons (turret-local) for the turret body, extra parts and each barrel."""
+    r = t["r"]
+    n, bl, bw, sp = t["barrels"], t["barrel_len"], t["barrel_w"], t["spacing"]
+    shape = t.get("shape", "bb")
+    out = {"body": [], "parts": [], "barrels": []}
+
+    def barrel_polys(x0):
+        res = []
+        for i in range(n):
+            y = (i - (n - 1) / 2) * sp
+            xe = x0 + bl
+            res.append([(x0, y - bw * 0.62), (xe, y - bw / 2), (xe, y + bw / 2), (x0, y + bw * 0.62)])
+        return res
+
+    if shape == "bb":
+        R = 1.1 * r
+        half = 0.85 * r
+        cx = -0.55 * r + math.sqrt(R * R - half * half)
+        a0 = math.degrees(math.atan2(half, -0.55 * r - cx))
+        pts = [(0.85 * r, -0.5 * r), (0.85 * r, 0.5 * r), (0.4 * r, 0.85 * r)]
+        seg = 16
+        for i in range(seg + 1):
+            a = math.radians(a0 + (360 - 2 * a0) * i / seg)
+            pts.append((cx + R * math.cos(a), R * math.sin(a)))
+        pts.append((0.4 * r, -0.85 * r))
+        out["body"] = pts
+        out["parts"] = [[(-0.66 * r, -1.02 * r), (-0.48 * r, -1.02 * r), (-0.48 * r, 1.02 * r), (-0.66 * r, 1.02 * r)]]
+        out["barrels"] = barrel_polys(BARREL_ROOT["bb"] * r)
+    elif shape == "dp":
+        out["body"] = rrect_polygon(-0.95 * r, -0.72 * r, 0.75 * r, 0.72 * r, 0.42 * r, 0.6 * r)
+        out["barrels"] = barrel_polys(BARREL_ROOT["dp"] * r)
+    elif shape == "open":
+        out["body"] = circle_polygon(0, 0, r)
+        out["barrels"] = barrel_polys(BARREL_ROOT["open"] * r)
+    elif shape == "torp":
+        out["body"] = circle_polygon(0, 0, r)
+        for i in range(n):
+            y = (i - (n - 1) / 2) * sp
+            out["barrels"].append(rrect_polygon(-bl / 2, y - bw / 2, bl / 2, y + bw / 2, bw / 2, bw / 2, seg=4))
+        ty = (n - 1) / 2 * sp + bw / 2
+        out["parts"] = [
+            [(-bl / 2 - 0.2, -ty - 0.2), (-bl / 2 + 0.7, -ty - 0.2), (-bl / 2 + 0.7, ty + 0.2), (-bl / 2 - 0.2, ty + 0.2)],
+            rrect_polygon(-r * 0.4, -ty - 0.9, r * 0.4, -ty + 0.1, 0.25, 0.25, seg=3),  # trainer's cab
+        ]
+    elif shape == "tube":
+        w = (n - 1) * sp + bw
+        out["body"] = rrect_polygon(-bl / 2 + 0.6, -w / 2 - 0.15, bl / 2 - 1.2, w / 2 + 0.15, 0.1, 0.1, seg=2)
+        for i in range(n):
+            y = (i - (n - 1) / 2) * sp
+            out["barrels"].append(rrect_polygon(-bl / 2, y - bw / 2, bl / 2, y + bw / 2, bw / 2, 0.05, seg=4))
+    else:
+        raise ValueError(shape)
+    return out
+
+
+def turret_reach(t: dict) -> float:
+    """Max distance of any part of the turret from its pivot (for sprite canvas sizing)."""
+    sh = turret_shapes(t)
+    pts = sh["body"] + [p for poly in sh["parts"] + sh["barrels"] for p in poly]
+    return max(math.hypot(x, y) for x, y in pts)
+
+
+def turret_height(t: dict) -> float:
+    """Roof height of a turret above its base, metres."""
+    return {"bb": 0.42, "dp": 0.55, "open": 0.9, "torp": 0.5, "tube": 1.6}[t.get("shape", "bb")] * t["r"]
+
+
+def polygon_area(pts):
+    return abs(sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1]))) / 2
+
+
+def polygon_y_span(pts, x):
+    """(min y, max y) where the vertical line at x crosses the polygon, or None if it misses."""
+    ys = []
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1]):
+        if (x0 <= x <= x1 or x1 <= x <= x0) and x0 != x1:
+            ys.append(y0 + (x - x0) * (y1 - y0) / (x1 - x0))
+    return (min(ys), max(ys)) if ys else None
+
+
+def sector_polygon(cx, cy, R, a0, a1, step=10.0):
+    """Pie slice of radius R from bearing a0 to a1 (degrees clockwise from +x; a1 > a0, ship-local)."""
+    n = max(2, int(math.ceil((a1 - a0) / step)) + 1)
+    pts = [(cx, cy)] if a1 - a0 < 360 else []
+    for i in range(n):
+        a = math.radians(a0 + (a1 - a0) * i / (n - 1))
+        pts.append((cx + R * math.cos(a), cy + R * math.sin(a)))
+    return pts
+
+
+def _segments_cross(p, q, r, s):
+    def orient(a, b, c):
+        return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+    d1, d2, d3, d4 = orient(r, s, p), orient(r, s, q), orient(p, q, r), orient(p, q, s)
+    return (d1 > 0) != (d2 > 0) and (d3 > 0) != (d4 > 0)
+
+
+def polygons_intersect(a, b):
+    """True if two simple polygons overlap (edges cross, or one lies inside the other)."""
+    for i in range(len(a)):
+        for j in range(len(b)):
+            if _segments_cross(a[i], a[(i + 1) % len(a)], b[j], b[(j + 1) % len(b)]):
+                return True
+    return point_in_polygon(*a[0], b) or point_in_polygon(*b[0], a)

@@ -1,0 +1,219 @@
+{
+  "id": "seaplane_carrier",
+  "name": "Seaplane Carrier",
+  "valid": true,
+  "errors": [],
+  "warnings": [],
+  "inputs": {
+    "id": "seaplane_carrier",
+    "name": "Seaplane Carrier",
+    "type": "AV",
+    "style": "carrier",
+    "hull": {
+      "length": 110,
+      "beam": 13.5,
+      "block_coefficient": 0.55
+    },
+    "speed_kn": 21,
+    "range_nm": 4000,
+    "machinery": {
+      "type": "steam_turbine"
+    },
+    "aviation": {
+      "flight_deck": "none",
+      "aircraft": 5,
+      "aircraft_t": 2.5,
+      "cranes": 2,
+      "catapults": 0
+    },
+    "aa": {
+      "light": 2
+    },
+    "secondary": {
+      "calibre_mm": 76,
+      "calibre_length": 40,
+      "barrels": 1,
+      "count": 2,
+      "where": "ends"
+    }
+  },
+  "results": {
+    "standard_displacement_t": 2949,
+    "full_displacement_t": 3131,
+    "draught_m": 3.74,
+    "depth_m": 8.88,
+    "freeboard_m": 5.14,
+    "power_shp": 8300.0,
+    "fuel_t": 167,
+    "crew": 386,
+    "gm_full_m": 0.79,
+    "gm_light_m": 0.7,
+    "trim_m": 0.21,
+    "lcg_m": -0.96,
+    "lcb_m": -1.32,
+    "layout_shift_m": -4.4,
+    "aircraft": 5,
+    "aircraft_capacity": 9,
+    "hangar_area_m2": 299,
+    "flight_deck": "none"
+  },
+  "weight_groups_t": {
+    "hull": 1477,
+    "machinery": 825,
+    "misc": 322,
+    "superstructure": 234,
+    "fuel": 182,
+    "aviation": 60,
+    "armament": 25,
+    "armour": 6
+  },
+  "weights": [
+    {
+      "name": "Hull structure",
+      "group": "hull",
+      "t": 1476.9,
+      "x": -1.1,
+      "z": 4.44
+    },
+    {
+      "name": "Machinery",
+      "group": "machinery",
+      "t": 825.1,
+      "x": 3.85,
+      "z": 2.84
+    },
+    {
+      "name": "Hangar",
+      "group": "superstructure",
+      "t": 95.8,
+      "x": -22.0,
+      "z": 10.18
+    },
+    {
+      "name": "Hangar roof",
+      "group": "superstructure",
+      "t": 95.8,
+      "x": -22.0,
+      "z": 12.78
+    },
+    {
+      "name": "Bridge base",
+      "group": "superstructure",
+      "t": 16.6,
+      "x": 18.15,
+      "z": 10.18
+    },
+    {
+      "name": "Bridge",
+      "group": "superstructure",
+      "t": 12.0,
+      "x": 18.73,
+      "z": 12.78
+    },
+    {
+      "name": "Bridge upper",
+      "group": "superstructure",
+      "t": 7.0,
+      "x": 19.3,
+      "z": 15.38
+    },
+    {
+      "name": "Funnel 1",
+      "group": "superstructure",
+      "t": 6.3,
+      "x": 3.85,
+      "z": 14.28
+    },
+    {
+      "name": "Mount S1",
+      "group": "armament",
+      "t": 7.0,
+      "x": 44.65,
+      "z": 9.61
+    },
+    {
+      "name": "Magazine S1",
+      "group": "armament",
+      "t": 4.5,
+      "x": 44.65,
+      "z": 2.22
+    },
+    {
+      "name": "Mount S2",
+      "group": "armament",
+      "t": 7.0,
+      "x": -35.35,
+      "z": 14.51
+    },
+    {
+      "name": "Magazine S2",
+      "group": "armament",
+      "t": 4.5,
+      "x": -35.35,
+      "z": 2.22
+    },
+    {
+      "name": "Barbette S2",
+      "group": "armour",
+      "t": 5.8,
+      "x": -35.35,
+      "z": 6.66
+    },
+    {
+      "name": "AA1",
+      "group": "armament",
+      "t": 1.0,
+      "x": -22.0,
+      "z": 15.08
+    },
+    {
+      "name": "AA2",
+      "group": "armament",
+      "t": 1.0,
+      "x": -22.0,
+      "z": 15.08
+    },
+    {
+      "name": "Aircraft cranes",
+      "group": "aviation",
+      "t": 40.0,
+      "x": -33.0,
+      "z": 12.88
+    },
+    {
+      "name": "Equipment, outfit, crew & stores",
+      "group": "misc",
+      "t": 322.1,
+      "x": 0.0,
+      "z": 4.44
+    },
+    {
+      "name": "Air group",
+      "group": "aviation",
+      "t": 12.5,
+      "x": -17.6,
+      "z": 10.88
+    },
+    {
+      "name": "Aviation ordnance",
+      "group": "aviation",
+      "t": 7.5,
+      "x": 14.61,
+      "z": 2.22
+    },
+    {
+      "name": "Fuel",
+      "group": "fuel",
+      "t": 167.0,
+      "x": 3.85,
+      "z": 1.6
+    },
+    {
+      "name": "Aviation fuel",
+      "group": "fuel",
+      "t": 15.0,
+      "x": -5.81,
+      "z": 1.33
+    }
+  ]
+}

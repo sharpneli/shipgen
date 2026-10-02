@@ -1,0 +1,361 @@
+{
+  "id": "murica",
+  "name": "Liberty Ship",
+  "valid": true,
+  "errors": [],
+  "warnings": [
+    "Very stiff: GM 9.03 m. Snappy roll, poor gun platform."
+  ],
+  "inputs": {
+    "id": "murica",
+    "name": "Liberty Ship",
+    "type": "AK",
+    "style": "merchant",
+    "hull": {
+      "length": 128,
+      "beam": 27.3,
+      "block_coefficient": 0.74
+    },
+    "speed_kn": 11,
+    "range_nm": 17000,
+    "cargo": {
+      "kind": "dry",
+      "deadweight_t": 8500
+    },
+    "machinery": {
+      "type": "steam_recip",
+      "position": "amidships"
+    },
+    "aa": {
+      "light": 10,
+      "heavy": 10
+    },
+    "secondary": {
+      "calibre_mm": 152,
+      "calibre_length": 38,
+      "barrels": 2,
+      "count": 2,
+      "where": "ends"
+    }
+  },
+  "results": {
+    "standard_displacement_t": 4281,
+    "full_displacement_t": 15444,
+    "draught_m": 5.83,
+    "depth_m": 8.24,
+    "freeboard_m": 2.41,
+    "power_shp": 2800.0,
+    "fuel_t": 2664,
+    "crew": 43,
+    "gm_full_m": 9.03,
+    "gm_light_m": 30.59,
+    "trim_m": 0.0,
+    "lcg_m": 1.54,
+    "lcb_m": 1.54,
+    "layout_shift_m": -0.0,
+    "cargo_t": 8500,
+    "deadweight_t": 11164,
+    "cargo_kind": "dry",
+    "holds": 5,
+    "machinery": "steam_recip",
+    "machinery_position": "amidships"
+  },
+  "weight_groups_t": {
+    "cargo": 8500,
+    "hull": 2878,
+    "fuel": 2664,
+    "machinery": 463,
+    "superstructure": 389,
+    "armament": 294,
+    "misc": 257
+  },
+  "weights": [
+    {
+      "name": "Hull structure",
+      "group": "hull",
+      "t": 2877.7,
+      "x": -1.28,
+      "z": 4.78
+    },
+    {
+      "name": "Machinery",
+      "group": "machinery",
+      "t": 463.4,
+      "x": -4.56,
+      "z": 2.64
+    },
+    {
+      "name": "House",
+      "group": "superstructure",
+      "t": 110.9,
+      "x": -2.32,
+      "z": 11.94
+    },
+    {
+      "name": "Boat deck house",
+      "group": "superstructure",
+      "t": 69.7,
+      "x": -0.54,
+      "z": 14.54
+    },
+    {
+      "name": "Bridge",
+      "group": "superstructure",
+      "t": 42.1,
+      "x": 4.82,
+      "z": 17.14
+    },
+    {
+      "name": "Funnel 1",
+      "group": "superstructure",
+      "t": 6.3,
+      "x": -7.32,
+      "z": 14.34
+    },
+    {
+      "name": "Mount S1",
+      "group": "armament",
+      "t": 25.6,
+      "x": -57.13,
+      "z": 11.57
+    },
+    {
+      "name": "Magazine S1",
+      "group": "armament",
+      "t": 41.1,
+      "x": -57.13,
+      "z": 2.06
+    },
+    {
+      "name": "Mount S2",
+      "group": "armament",
+      "t": 25.6,
+      "x": 55.85,
+      "z": 11.57
+    },
+    {
+      "name": "Magazine S2",
+      "group": "armament",
+      "t": 41.1,
+      "x": 55.85,
+      "z": 2.06
+    },
+    {
+      "name": "Mast 1",
+      "group": "superstructure",
+      "t": 33.6,
+      "x": 24.06,
+      "z": 14.69
+    },
+    {
+      "name": "Mast 2",
+      "group": "superstructure",
+      "t": 33.6,
+      "x": 49.98,
+      "z": 14.69
+    },
+    {
+      "name": "Mast 3",
+      "group": "superstructure",
+      "t": 33.6,
+      "x": -34.11,
+      "z": 14.69
+    },
+    {
+      "name": "Hatch covers",
+      "group": "superstructure",
+      "t": 59.4,
+      "x": 0.0,
+      "z": 9.24
+    },
+    {
+      "name": "AA1",
+      "group": "armament",
+      "t": 15.0,
+      "x": 6.49,
+      "z": 16.84
+    },
+    {
+      "name": "AA2",
+      "group": "armament",
+      "t": 15.0,
+      "x": 6.49,
+      "z": 16.84
+    },
+    {
+      "name": "AA3",
+      "group": "armament",
+      "t": 15.0,
+      "x": -56.32,
+      "z": 11.64
+    },
+    {
+      "name": "AA4",
+      "group": "armament",
+      "t": 15.0,
+      "x": -56.32,
+      "z": 11.64
+    },
+    {
+      "name": "AA5",
+      "group": "armament",
+      "t": 15.0,
+      "x": -28.16,
+      "z": 9.24
+    },
+    {
+      "name": "AA6",
+      "group": "armament",
+      "t": 15.0,
+      "x": -28.16,
+      "z": 9.24
+    },
+    {
+      "name": "AA7",
+      "group": "armament",
+      "t": 15.0,
+      "x": 28.16,
+      "z": 9.24
+    },
+    {
+      "name": "AA8",
+      "group": "armament",
+      "t": 15.0,
+      "x": 28.16,
+      "z": 9.24
+    },
+    {
+      "name": "AA9",
+      "group": "armament",
+      "t": 15.0,
+      "x": -42.24,
+      "z": 9.24
+    },
+    {
+      "name": "AA10",
+      "group": "armament",
+      "t": 15.0,
+      "x": -42.24,
+      "z": 9.24
+    },
+    {
+      "name": "AA11",
+      "group": "armament",
+      "t": 1.0,
+      "x": 0.0,
+      "z": 11.64
+    },
+    {
+      "name": "AA12",
+      "group": "armament",
+      "t": 1.0,
+      "x": 0.0,
+      "z": 11.64
+    },
+    {
+      "name": "AA13",
+      "group": "armament",
+      "t": 1.0,
+      "x": 14.08,
+      "z": 9.24
+    },
+    {
+      "name": "AA14",
+      "group": "armament",
+      "t": 1.0,
+      "x": 14.08,
+      "z": 9.24
+    },
+    {
+      "name": "AA15",
+      "group": "armament",
+      "t": 1.0,
+      "x": -14.08,
+      "z": 11.64
+    },
+    {
+      "name": "AA16",
+      "group": "armament",
+      "t": 1.0,
+      "x": -14.08,
+      "z": 11.64
+    },
+    {
+      "name": "AA17",
+      "group": "armament",
+      "t": 1.0,
+      "x": 42.24,
+      "z": 9.24
+    },
+    {
+      "name": "AA18",
+      "group": "armament",
+      "t": 1.0,
+      "x": 42.24,
+      "z": 9.24
+    },
+    {
+      "name": "AA19",
+      "group": "armament",
+      "t": 1.0,
+      "x": -49.28,
+      "z": 9.24
+    },
+    {
+      "name": "AA20",
+      "group": "armament",
+      "t": 1.0,
+      "x": -49.28,
+      "z": 9.24
+    },
+    {
+      "name": "Equipment, outfit, crew & stores",
+      "group": "misc",
+      "t": 256.8,
+      "x": 0.0,
+      "z": 4.12
+    },
+    {
+      "name": "Fuel",
+      "group": "fuel",
+      "t": 2663.9,
+      "x": -4.56,
+      "z": 1.48
+    },
+    {
+      "name": "Cargo, hold 1",
+      "group": "cargo",
+      "t": 1685.2,
+      "x": 17.2,
+      "z": 3.71
+    },
+    {
+      "name": "Cargo, hold 2",
+      "group": "cargo",
+      "t": 1685.2,
+      "x": 30.91,
+      "z": 3.71
+    },
+    {
+      "name": "Cargo, hold 3",
+      "group": "cargo",
+      "t": 1685.2,
+      "x": 44.62,
+      "z": 3.71
+    },
+    {
+      "name": "Cargo, hold 4",
+      "group": "cargo",
+      "t": 1965.2,
+      "x": -24.79,
+      "z": 3.71
+    },
+    {
+      "name": "Cargo, hold 5",
+      "group": "cargo",
+      "t": 1479.1,
+      "x": -43.44,
+      "z": 3.71
+    }
+  ]
+}

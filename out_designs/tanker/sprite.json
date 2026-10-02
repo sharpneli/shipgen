@@ -1,0 +1,85 @@
+{
+  "id": "tanker",
+  "name": "T2 Tanker",
+  "scale_px_per_m": 10.0,
+  "size_px": [
+    1600,
+    320
+  ],
+  "origin_px": [
+    800.0,
+    160.0
+  ],
+  "orientation": "bow points +x (right); angles clockwise, 0 = ahead",
+  "layer_order": [
+    "hull_base",
+    "turrets (ascending z)",
+    "hull_upper"
+  ],
+  "layers": {
+    "base": "hull_base.png",
+    "upper": "hull_upper.png",
+    "base_mips": "hull_base_mips.png",
+    "upper_mips": "hull_upper_mips.png"
+  },
+  "turret_types": {},
+  "mips": {
+    "levels": 5,
+    "scale_px_per_m": [
+      10.0,
+      5.0,
+      2.5,
+      1.25,
+      0.625,
+      0.3125
+    ],
+    "rule": "each layer has <name>_mips.png with level k at mip_rects[k] = [x, y, w, h]; within level k, size, origin_px, pivot_px and mount px are the level-0 values / 2^k"
+  },
+  "shadow": {
+    "height_map": "height.png",
+    "height_step_m": 0.25,
+    "deck_m": 2.67,
+    "max_height_m": 24.91,
+    "note": "height map grey value x height_step_m = metres above the waterline (0 = sea); mount top_m is the turret roof above the waterline; see shadow.py",
+    "height_map_mips": "height_mips.png"
+  },
+  "mounts": [],
+  "mip_rects": [
+    [
+      0,
+      0,
+      1600,
+      320
+    ],
+    [
+      1600,
+      0,
+      800,
+      160
+    ],
+    [
+      1600,
+      160,
+      400,
+      80
+    ],
+    [
+      2000,
+      160,
+      200,
+      40
+    ],
+    [
+      2000,
+      200,
+      100,
+      20
+    ],
+    [
+      2100,
+      200,
+      50,
+      10
+    ]
+  ]
+}

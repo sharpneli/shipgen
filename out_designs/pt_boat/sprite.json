@@ -1,0 +1,299 @@
+{
+  "id": "pt_boat",
+  "name": "PT Boat",
+  "scale_px_per_m": 10.0,
+  "size_px": [
+    320,
+    128
+  ],
+  "origin_px": [
+    160.0,
+    64.0
+  ],
+  "orientation": "bow points +x (right); angles clockwise, 0 = ahead",
+  "layer_order": [
+    "hull_base",
+    "turrets (ascending z)",
+    "hull_upper"
+  ],
+  "layers": {
+    "base": "hull_base.png",
+    "upper": "hull_upper.png",
+    "base_mips": "hull_base_mips.png",
+    "upper_mips": "hull_upper_mips.png"
+  },
+  "turret_types": {
+    "tube1x533": {
+      "file": "turrets/tube1x533.png",
+      "size_px": [
+        128,
+        128
+      ],
+      "pivot_px": [
+        64.0,
+        64.0
+      ],
+      "desc": "1 x 533mm fixed torpedo tube",
+      "mips_file": "turrets/tube1x533_mips.png",
+      "mip_rects": [
+        [
+          0,
+          0,
+          128,
+          128
+        ],
+        [
+          128,
+          0,
+          64,
+          64
+        ],
+        [
+          128,
+          64,
+          32,
+          32
+        ],
+        [
+          160,
+          64,
+          16,
+          16
+        ],
+        [
+          160,
+          80,
+          8,
+          8
+        ],
+        [
+          168,
+          80,
+          4,
+          4
+        ]
+      ]
+    },
+    "t1x40L56_open": {
+      "file": "turrets/t1x40L56_open.png",
+      "size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32.0,
+        32.0
+      ],
+      "desc": "1 x 40mm/56",
+      "mips_file": "turrets/t1x40L56_open_mips.png",
+      "mip_rects": [
+        [
+          0,
+          0,
+          64,
+          64
+        ],
+        [
+          64,
+          0,
+          32,
+          32
+        ],
+        [
+          64,
+          32,
+          16,
+          16
+        ],
+        [
+          80,
+          32,
+          8,
+          8
+        ],
+        [
+          80,
+          40,
+          4,
+          4
+        ],
+        [
+          84,
+          40,
+          2,
+          2
+        ]
+      ]
+    }
+  },
+  "mips": {
+    "levels": 5,
+    "scale_px_per_m": [
+      10.0,
+      5.0,
+      2.5,
+      1.25,
+      0.625,
+      0.3125
+    ],
+    "rule": "each layer has <name>_mips.png with level k at mip_rects[k] = [x, y, w, h]; within level k, size, origin_px, pivot_px and mount px are the level-0 values / 2^k"
+  },
+  "shadow": {
+    "height_map": "height.png",
+    "height_step_m": 0.25,
+    "deck_m": 1.78,
+    "max_height_m": 7.88,
+    "note": "height map grey value x height_step_m = metres above the waterline (0 = sea); mount top_m is the turret roof above the waterline; see shadow.py",
+    "height_map_mips": "height_mips.png"
+  },
+  "mounts": [
+    {
+      "id": "T1S",
+      "kind": "torpedo",
+      "type": "tube1x533",
+      "pos_m": [
+        -0.4136000000000002,
+        2.3580157206769843
+      ],
+      "px": [
+        155.864,
+        87.58015720676984
+      ],
+      "rest_deg": 5.0,
+      "arcs_deg": [
+        [
+          4.0,
+          6.0
+        ]
+      ],
+      "z": 1,
+      "top_m": 2.86
+    },
+    {
+      "id": "T1P",
+      "kind": "torpedo",
+      "type": "tube1x533",
+      "pos_m": [
+        -0.4136000000000002,
+        -2.3580157206769843
+      ],
+      "px": [
+        155.864,
+        40.41984279323016
+      ],
+      "rest_deg": -5.0,
+      "arcs_deg": [
+        [
+          354.0,
+          356.0
+        ]
+      ],
+      "z": 1,
+      "top_m": 2.86
+    },
+    {
+      "id": "T2S",
+      "kind": "torpedo",
+      "type": "tube1x533",
+      "pos_m": [
+        -8.4136,
+        2.6211220920098004
+      ],
+      "px": [
+        75.86399999999999,
+        90.211220920098
+      ],
+      "rest_deg": 5.0,
+      "arcs_deg": [
+        [
+          4.0,
+          6.0
+        ]
+      ],
+      "z": 1,
+      "top_m": 2.86
+    },
+    {
+      "id": "T2P",
+      "kind": "torpedo",
+      "type": "tube1x533",
+      "pos_m": [
+        -8.4136,
+        -2.6211220920098004
+      ],
+      "px": [
+        75.86399999999999,
+        37.788779079902
+      ],
+      "rest_deg": -5.0,
+      "arcs_deg": [
+        [
+          354.0,
+          356.0
+        ]
+      ],
+      "z": 1,
+      "top_m": 2.86
+    },
+    {
+      "id": "Y",
+      "kind": "main",
+      "type": "t1x40L56_open",
+      "pos_m": [
+        -9.364999999999998,
+        0.0
+      ],
+      "px": [
+        66.35000000000002,
+        64.0
+      ],
+      "rest_deg": -180.0,
+      "arcs_deg": [
+        [
+          45.0,
+          315.0
+        ]
+      ],
+      "z": 1,
+      "top_m": 3.09
+    }
+  ],
+  "mip_rects": [
+    [
+      0,
+      0,
+      320,
+      128
+    ],
+    [
+      320,
+      0,
+      160,
+      64
+    ],
+    [
+      320,
+      64,
+      80,
+      32
+    ],
+    [
+      400,
+      64,
+      40,
+      16
+    ],
+    [
+      400,
+      80,
+      20,
+      8
+    ],
+    [
+      420,
+      80,
+      10,
+      4
+    ]
+  ]
+}

@@ -1,0 +1,354 @@
+{
+  "id": "escort_carrier",
+  "name": "Escort Carrier",
+  "valid": true,
+  "errors": [],
+  "warnings": [
+    "Top-heavy: GM 0.66 m (want at least 0.70 m)."
+  ],
+  "inputs": {
+    "id": "escort_carrier",
+    "name": "Escort Carrier",
+    "type": "CVE",
+    "style": "carrier",
+    "hull": {
+      "length": 150,
+      "beam": 19.9,
+      "block_coefficient": 0.62
+    },
+    "speed_kn": 19,
+    "range_nm": 10000,
+    "machinery": {
+      "type": "steam_recip"
+    },
+    "aviation": {
+      "flight_deck": "axial",
+      "aircraft": 28,
+      "aircraft_t": 5,
+      "elevators": 2,
+      "deck_edge_elevators": 0,
+      "catapults": 1,
+      "number": "73"
+    },
+    "aa": {
+      "heavy": 4,
+      "light": 20
+    }
+  },
+  "results": {
+    "standard_displacement_t": 9091,
+    "full_displacement_t": 10271,
+    "draught_m": 5.41,
+    "depth_m": 11.51,
+    "freeboard_m": 6.1,
+    "power_shp": 12200.0,
+    "fuel_t": 1011,
+    "crew": 1052,
+    "gm_full_m": 0.66,
+    "gm_light_m": 0.31,
+    "trim_m": -0.0,
+    "lcg_m": -1.8,
+    "lcb_m": -1.8,
+    "layout_shift_m": 5.85,
+    "aircraft": 28,
+    "aircraft_capacity": 42,
+    "hangar_area_m2": 1719,
+    "flight_deck": "axial",
+    "flight_deck_m": [
+      148.5,
+      23.9
+    ],
+    "flight_deck_height_m": 13.7
+  },
+  "weight_groups_t": {
+    "hull": 5584,
+    "machinery": 2041,
+    "fuel": 1179,
+    "misc": 975,
+    "aviation": 340,
+    "armament": 80,
+    "superstructure": 70
+  },
+  "weights": [
+    {
+      "name": "Hull structure",
+      "group": "hull",
+      "t": 3849.6,
+      "x": -1.5,
+      "z": 5.76
+    },
+    {
+      "name": "Machinery",
+      "group": "machinery",
+      "t": 2041.5,
+      "x": -0.15,
+      "z": 3.68
+    },
+    {
+      "name": "Island",
+      "group": "superstructure",
+      "t": 31.5,
+      "x": 13.35,
+      "z": 20.41
+    },
+    {
+      "name": "Island upper",
+      "group": "superstructure",
+      "t": 17.6,
+      "x": 15.69,
+      "z": 23.01
+    },
+    {
+      "name": "Bridge",
+      "group": "superstructure",
+      "t": 15.0,
+      "x": 16.92,
+      "z": 25.61
+    },
+    {
+      "name": "Funnel 1",
+      "group": "superstructure",
+      "t": 6.3,
+      "x": 8.19,
+      "z": 24.51
+    },
+    {
+      "name": "AA1",
+      "group": "armament",
+      "t": 15.0,
+      "x": -72.0,
+      "z": 17.71
+    },
+    {
+      "name": "AA2",
+      "group": "armament",
+      "t": 15.0,
+      "x": -72.0,
+      "z": 17.71
+    },
+    {
+      "name": "AA3",
+      "group": "armament",
+      "t": 15.0,
+      "x": -7.25,
+      "z": 17.71
+    },
+    {
+      "name": "AA4",
+      "group": "armament",
+      "t": 15.0,
+      "x": -7.25,
+      "z": 17.71
+    },
+    {
+      "name": "AA5",
+      "group": "armament",
+      "t": 1.0,
+      "x": -39.62,
+      "z": 17.71
+    },
+    {
+      "name": "AA6",
+      "group": "armament",
+      "t": 1.0,
+      "x": -39.62,
+      "z": 17.71
+    },
+    {
+      "name": "AA7",
+      "group": "armament",
+      "t": 1.0,
+      "x": 25.12,
+      "z": 17.71
+    },
+    {
+      "name": "AA8",
+      "group": "armament",
+      "t": 1.0,
+      "x": 25.12,
+      "z": 17.71
+    },
+    {
+      "name": "AA9",
+      "group": "armament",
+      "t": 1.0,
+      "x": -55.81,
+      "z": 17.71
+    },
+    {
+      "name": "AA10",
+      "group": "armament",
+      "t": 1.0,
+      "x": -55.81,
+      "z": 17.71
+    },
+    {
+      "name": "AA11",
+      "group": "armament",
+      "t": 1.0,
+      "x": 8.94,
+      "z": 17.71
+    },
+    {
+      "name": "AA12",
+      "group": "armament",
+      "t": 1.0,
+      "x": 8.94,
+      "z": 17.71
+    },
+    {
+      "name": "AA13",
+      "group": "armament",
+      "t": 1.0,
+      "x": -23.44,
+      "z": 17.71
+    },
+    {
+      "name": "AA14",
+      "group": "armament",
+      "t": 1.0,
+      "x": -23.44,
+      "z": 17.71
+    },
+    {
+      "name": "AA15",
+      "group": "armament",
+      "t": 1.0,
+      "x": 41.31,
+      "z": 17.71
+    },
+    {
+      "name": "AA16",
+      "group": "armament",
+      "t": 1.0,
+      "x": 41.31,
+      "z": 17.71
+    },
+    {
+      "name": "AA17",
+      "group": "armament",
+      "t": 1.0,
+      "x": -63.91,
+      "z": 17.71
+    },
+    {
+      "name": "AA18",
+      "group": "armament",
+      "t": 1.0,
+      "x": -63.91,
+      "z": 17.71
+    },
+    {
+      "name": "AA19",
+      "group": "armament",
+      "t": 1.0,
+      "x": 0.84,
+      "z": 17.71
+    },
+    {
+      "name": "AA20",
+      "group": "armament",
+      "t": 1.0,
+      "x": 0.84,
+      "z": 17.71
+    },
+    {
+      "name": "AA21",
+      "group": "armament",
+      "t": 1.0,
+      "x": -31.53,
+      "z": 17.71
+    },
+    {
+      "name": "AA22",
+      "group": "armament",
+      "t": 1.0,
+      "x": -31.53,
+      "z": 17.71
+    },
+    {
+      "name": "AA23",
+      "group": "armament",
+      "t": 1.0,
+      "x": 33.22,
+      "z": 17.71
+    },
+    {
+      "name": "AA24",
+      "group": "armament",
+      "t": 1.0,
+      "x": 33.22,
+      "z": 17.71
+    },
+    {
+      "name": "Flight deck",
+      "group": "hull",
+      "t": 1184.4,
+      "x": -3.75,
+      "z": 19.11
+    },
+    {
+      "name": "Hangar structure",
+      "group": "hull",
+      "t": 550.2,
+      "x": -6.0,
+      "z": 15.31
+    },
+    {
+      "name": "Elevators",
+      "group": "aviation",
+      "t": 46,
+      "x": -6.0,
+      "z": 18.11
+    },
+    {
+      "name": "Arresting gear",
+      "group": "aviation",
+      "t": 40,
+      "x": -55.73,
+      "z": 18.11
+    },
+    {
+      "name": "Catapults",
+      "group": "aviation",
+      "t": 30,
+      "x": 45.0,
+      "z": 18.11
+    },
+    {
+      "name": "Equipment, outfit, crew & stores",
+      "group": "misc",
+      "t": 975.4,
+      "x": 0.0,
+      "z": 5.76
+    },
+    {
+      "name": "Air group",
+      "group": "aviation",
+      "t": 140,
+      "x": -6.0,
+      "z": 16.11
+    },
+    {
+      "name": "Aviation ordnance",
+      "group": "aviation",
+      "t": 84.0,
+      "x": 13.6,
+      "z": 2.88
+    },
+    {
+      "name": "Fuel",
+      "group": "fuel",
+      "t": 1011.5,
+      "x": -0.15,
+      "z": 2.07
+    },
+    {
+      "name": "Aviation fuel",
+      "group": "fuel",
+      "t": 168.0,
+      "x": -12.4,
+      "z": 1.73
+    }
+  ]
+}
