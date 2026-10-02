@@ -16,7 +16,6 @@ class Warship(Style):
     WING_TURRETS = True
     SECONDARY_LIST = True    # several secondary batteries, each on deck or in casemates (layout.py)
     CASEMATES = True
-    LIMITS = {("hull", "length"): (50, 1000)}
 
     def build_layout(self, design, shp, depth, shift=0.0):
         return build_layout(design, shp, depth, shift)

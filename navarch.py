@@ -214,13 +214,14 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
     tun = {**TUNING, **style.tuning(design)}
     L = design["hull"]["length"]
     B = design["hull"]["beam"]
-    cb = design["hull"].get("block_coefficient", 0.55)
+    cb = design["hull"]["block_coefficient"]
     V = design["speed_kn"]
     rng = design.get("range_nm", 6000)
     geo = geo or {}
     res = Result()
 
     disp = 200.0 * L * B * cb * 0.04  # initial guess
+    own = [Weight(**w.__dict__) for w in placed] if placed is not None else None   # z is set on these below
     for _ in range(60):
         T = disp / (SEAWATER * L * B * cb)
         D = T + design_freeboard(L, tun)
@@ -233,7 +234,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         if placed is None:
             items += rough_payload(design, D) + style.rough_payload(design, D)
         else:
-            items += [Weight(**{**w.__dict__}) for w in placed]
+            items += own
         # armour that depends on draught / depth
         items += armour_weights(design, L, B, T, D, geo)
         items += style.structure_weights(design, L, B, T, D, geo, tun)
@@ -256,7 +257,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
     else:   # every tonne added needs more hull to float it, which adds more tonnes: no design exists
         res.errors.append(f"The weights never settle: the ship needs a bigger hull to carry its load, which "
                           f"needs a bigger hull again (still growing at {full:,.0f} t). Lighten the armour or "
-                          "armament, or enlarge the hull.")
+                          "armament.")
 
     items += std_load
     items.append(Weight("Fuel", "fuel", fuel, x=geo.get("machinery_x", -0.02 * L), z_rel=("frac", 0.18)))
@@ -301,7 +302,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
     tb_max = tun.get("tb_max", 0.48)
     if TB > tb_max:
         res.errors.append(f"Hull overloaded: draught {res.draught:.1f} m is {TB:.2f} x beam (max {tb_max}). "
-                          "Widen or lengthen the hull, or carry less.")
+                          "Carry less.")
     elif TB > tb_max - 0.08:
         res.warnings.append(f"Deep draught ({res.draught:.1f} m, {TB:.2f} x beam): the hull is heavily loaded.")
     if L / B < tun.get("lb_warn", 4.5):
@@ -310,7 +311,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         res.warnings.append(f"Very slender hull (L/B {L / B:.1f}): weak structure and poor stability.")
     gmin = res.gm_full
     if gmin <= 0:
-        res.errors.append(f"Unstable: GM {gmin:.2f} m. The ship would capsize. Lower the weight high up or widen the hull.")
+        res.errors.append(f"Unstable: GM {gmin:.2f} m. The ship would capsize. Lower the weight high up.")
     elif gmin < 0.035 * B:
         res.warnings.append(f"Top-heavy: GM {gmin:.2f} m (want at least {0.035 * B:.2f} m).")
     if res.gm_light <= 0 < gmin:

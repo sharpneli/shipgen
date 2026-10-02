@@ -43,6 +43,13 @@ def _fp_rect(x0, y0, x1, y1):
     return ("r", x0, y0, x1, y1)
 
 
+def _bbox(fp):
+    """Bounding box (x0, y0, x1, y1) of a circle or rect footprint."""
+    if fp[0] == "c":
+        return fp[1] - fp[3], fp[2] - fp[3], fp[1] + fp[3], fp[2] + fp[3]
+    return fp[1], fp[2], fp[3], fp[4]
+
+
 def _overlap(a, b, margin=0.0):
     if a[0] == "c" and b[0] == "c":
         return math.hypot(a[1] - b[1], a[2] - b[2]) < a[3] + b[3] + margin
@@ -68,9 +75,23 @@ class Layout:
         self.sponsons = []      # platforms outboard of a flight deck: dict(id, points, base, top)
         self.sweeps = []        # main turrets' barrel sweep zones: dict(owner, polys, axis)
         self.conning_tower = None   # armoured warships: dict(x, y, r, top), inside the bridge (not drawn)
+        self.short = set()      # what the hull lacks for everything to fit: "length" and/or "beam" (sizing)
+
+    def fail(self, need, msg):
+        """Something doesn't fit: an error, and what more of (need: "length", "beam" or None) would fix it."""
+        self.errors.append(msg)
+        if need:
+            self.short.add(need)
 
     def free(self, fp, margin=0.4, ignore=()):
-        return not any(_overlap(fp, o[0], margin) for o in self.footprints if o[3] not in ignore)
+        x0, y0, x1, y1 = _bbox(fp)
+        x0, y0, x1, y1 = x0 - margin, y0 - margin, x1 + margin, y1 + margin
+        for o in self.footprints:
+            b = _bbox(o[0])
+            if b[0] < x1 and x0 < b[2] and b[1] < y1 and y0 < b[3] and o[3] not in ignore \
+                    and _overlap(fp, o[0], margin):
+                return False
+        return True
 
     def occupy(self, fp, base, top, owner):
         self.footprints.append((fp, base, top, owner))
@@ -156,7 +177,7 @@ def block_top(b):
 
 def hull_spec(design):
     h = design["hull"]
-    cb = h.get("block_coefficient", 0.55)
+    cb = h["block_coefficient"]
     return dict(length=h["length"], beam=h["beam"],
                 bow=dict(taper=min(0.42, max(0.25, 0.30 + (0.58 - cb) * 0.6)), power=1.6),
                 stern=dict(taper=0.18, transom=min(0.6, max(0.35, 0.45 + (0.55 - cb) * 0.6))))
@@ -288,9 +309,9 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
     lower_x = [x for got, bt in zip(placed, bats) if not bt[4] for x in got]
     for got, (sec, n, t_id, t, upper) in zip(placed, bats):
         if len(got) < n:
-            lay.errors.append(f"Only {len(got)} of {n} {sec['calibre_mm']:g} mm {'upper ' if upper else ''}casemates "
-                              f"per side fit {'on deck' if upper else 'in the hull sides'}. Use fewer or smaller guns, "
-                              "or lengthen the hull.")
+            lay.fail("length", f"Only {len(got)} of {n} {sec['calibre_mm']:g} mm {'upper ' if upper else ''}casemates "
+                               f"per side fit {'on deck' if upper else 'in the hull sides'}. "
+                               "Use fewer or smaller guns.")
         arm, rc = sec.get("armour_mm", 25), t["r"]
         for i, x in enumerate(got):
             if upper:
@@ -430,8 +451,8 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
 
     need_hw = reach + 0.6
     if tm and need_hw > B / 2:
-        lay.errors.append(f"Main turrets are {2 * reach:.1f} m across; the {B:g} m beam cannot carry them "
-                          f"(needs about {2 * need_hw:.1f} m). Widen the hull or use fewer or smaller guns.")
+        lay.fail("beam", f"Main turrets are {2 * reach:.1f} m across; the {B:g} m beam cannot carry them "
+                         f"(needs about {2 * need_hw:.1f} m). Use fewer or smaller guns.")
 
     def fits(x):
         if need_hw > B / 2:      # cannot fit anywhere: already reported, don't push the guns inward
@@ -470,6 +491,7 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
     deficit = M_req - (mid_fwd - mid_aft)
     bow_c, st_c = bow_pref, st_pref
     if deficit > 0:
+        lay.short.add("length")   # sizing wants the preferred clearances: room to shift for balance
         sb, ss = bow_pref - bow_min, st_pref - st_min
         take = min(deficit, sb + ss)
         if sb + ss > 0:
@@ -478,10 +500,10 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
         fore, aft, mid_fwd, mid_aft = arrangement(bow_c, st_c, 0.0)
         deficit = M_req - (mid_fwd - mid_aft)
         if deficit > 0.5:
-            lay.errors.append(
-                f"Not enough length amidships: boilers and engines for {shp / 1000:.0f}k shp need about "
+            lay.fail(
+                "length", f"Not enough length amidships: boilers and engines for {shp / 1000:.0f}k shp need about "
                 f"{M_req:.0f} m between the turret groups, but only {mid_fwd - mid_aft:.0f} m is free. "
-                f"Lengthen the hull by about {deficit:.0f} m, reduce speed, or remove a turret.")
+                "Reduce speed or remove a turret.")
 
     # how far the whole arrangement may shift for balance
     def shift_ok(sh):
@@ -565,15 +587,15 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
     y_w = min(hull.half_width(fz0 + (fz1 - fz0) * k / 20) for k in range(21)) - reach - 0.6
     wings_w = wing_widths(y_w) if nw else {}
     if nw and not echelon and y_w < reach + 0.25:
-        lay.errors.append(f"Wing turrets are {2 * reach:.1f} m across: a pair cannot stand abreast on this beam "
-                          f"(needs about {4 * reach + 1.7:.1f} m). Widen the hull or set \"echelon\": true.")
+        lay.fail("beam", f"Wing turrets are {2 * reach:.1f} m across: a pair cannot stand abreast on this beam "
+                         f"(needs about {4 * reach + 1.7:.1f} m). Set \"echelon\": true or use smaller guns.")
     elif nw and y_w <= 0.5:
-        lay.errors.append(f"Hull too narrow for wing turrets even in echelon: they need about "
-                          f"{2 * reach + 2.2:.1f} m of beam amidships.")
+        lay.fail("beam", f"Hull too narrow for wing turrets even in echelon: they need about "
+                         f"{2 * reach + 2.2:.1f} m of beam amidships.")
     if fz1 - fz0 < nfun * (fl + 1.0) + nm * s_mid + sum(wings_w.values()):
         what = [f"{nm} midships turret(s)"] * bool(nm) + [f"{nw} wing turret pair(s)"] * bool(nw)
-        lay.errors.append(f"No room for {nfun} funnel(s){' and ' + ' and '.join(what) if what else ''} between "
-                          "the bridge and the aft control position.")
+        lay.fail("length", f"No room for {nfun} funnel(s){' and ' + ' and '.join(what) if what else ''} between "
+                           "the bridge and the aft control position.")
     pitch = (fz1 - fz0 - nm * s_mid - sum(wings_w.values())) / nfun
     tp_ = design.get("torpedoes") or {}
     pitch_cap = fl + 4.0
@@ -697,8 +719,8 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
         fid = f"Funnel {i + 1}"
         fp = _fp_rect(fx - fl / 2, -fw / 2, fx + fl / 2, fw / 2)
         if not lay.clear(fp, fun_top) or not lay.free(fp, 0.0):
-            lay.errors.append(f"{fid} would stand in a turret's sweep or against the bridge: lengthen the hull or "
-                              "use fewer funnels or midships turrets.")
+            lay.fail("length", f"{fid} would stand in a turret's sweep or against the bridge: use fewer funnels "
+                               "or midships turrets.")
         funnels.append(dict(id=fid, x=fx, y=0.0, l=fl, w=fw, pipes=2 if fw > 4 else 1))
         lay.occupy(fp, 0, fun_top, fid)
         lay.weights.append(Weight(fid, "superstructure", fl * fw * 0.9, x=fx, z_rel=("deck", fun_top / 2)))
@@ -730,15 +752,15 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
         xs_probe = [x_lo + (x_hi - x_lo) * k / 20 for k in range(21)]
         outer = min(hull.half_width(x) for x in xs_probe) - rs_reach - 0.6
         if outer < inner:
-            lay.errors.append(f"Hull too narrow for {cal} secondary mounts: they need about "
-                              f"{2 * (inner + rs_reach + 0.6):.1f} m of beam amidships.")
+            lay.fail("beam", f"Hull too narrow for {cal} secondary mounts: they need about "
+                             f"{2 * (inner + rs_reach + 0.6):.1f} m of beam amidships.")
         y_s = max(inner, inner + 0.55 * (outer - inner))
         pitch_s = 2.1 * rs_reach + 1.0
         if x_hi <= x_lo:
-            lay.errors.append("No room amidships for the secondary battery.")
+            lay.fail("length", "No room amidships for the secondary battery.")
         elif first and nsec > 1 and (x_hi - x_lo) / (nsec - 1) < pitch_s:
-            lay.errors.append(f"{nsec} secondary mounts per side do not fit in {x_hi - x_lo:.0f} m amidships "
-                              f"(max {int((x_hi - x_lo) / pitch_s) + 1}).")
+            lay.fail("length", f"{nsec} secondary mounts per side do not fit in {x_hi - x_lo:.0f} m amidships "
+                               f"(max {int((x_hi - x_lo) / pitch_s) + 1}).")
         step = min((x_hi - x_lo) / max(nsec - 1, 1), 2.2 * rs + 4.0)
         c = (x_lo + x_hi) / 2
         sxs = [c + (i - (nsec - 1) / 2) * step if nsec > 1 else c for i in range(nsec)]
@@ -759,13 +781,13 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
                     break
             if len(sxs) < nsec:
                 where = "beside the wing turrets" if first else "amidships beside the other secondaries"
-                lay.errors.append(f"Only {len(sxs)} of {nsec} {'' if first else cal + ' '}secondary mounts per side "
-                                  f"fit {where}.")
+                lay.fail("length", f"Only {len(sxs)} of {nsec} {'' if first else cal + ' '}secondary mounts per side "
+                                   f"fit {where}.")
             sxs.sort()
         for i, sx in enumerate(sxs):
             if not lay.clear(_fp_circle(sx, y_s, rs_reach), sec_base + ths):
-                lay.errors.append(f"Secondary mounts {pre}{i + 1} would stand in a main turret's sweep: lengthen the "
-                                  "hull or use fewer secondaries.")
+                lay.fail("length", f"Secondary mounts {pre}{i + 1} would stand in a main turret's sweep: use fewer "
+                                   "secondaries.")
             for side in (1, -1):
                 mid = f"{pre}{i + 1}{'S' if side > 0 else 'P'}"
                 mounts.append(dict(id=mid, kind="secondary", type=ts_id, t=ts, x=sx, y=side * y_s, level=0,
@@ -836,7 +858,7 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
                                                   z_rel=("deck", 1)))
                         placed += 1
         if placed < ntp:
-            lay.errors.append(f"Only {placed} of {ntp} torpedo mounts fit on deck.")
+            lay.fail("length", f"Only {placed} of {ntp} torpedo mounts fit on deck.")
 
     # ---------------- AA ----------------
     aa_out = []
@@ -858,6 +880,7 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
                 cands.append((x, yy, 0.0))
             x -= 0.5
         cands.sort(key=lambda c: (abs(c[0] - mach_c) / L + (0.0 if c[2] else 0.15)))
+        aa_fps = [_fp_circle(a["x"], a["y"], AA_CFG[a["type"]][0]) for a in aa_out]   # spaced from each other
         for cx, cy, base in cands:
             if placed >= count:
                 break
@@ -872,9 +895,9 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
             if not all(lay.free(fp, 0.4, ignore=("Deckhouse",) if base else ()) and lay.clear(fp, base + 2.0)
                        for fp in use):
                 continue
-            aa_ids = {a["id"] for a in aa_out}
-            if not all(not _overlap(fp, o[0], spacing) for fp in use for o in lay.footprints if o[3] in aa_ids):
+            if any(_overlap(fp, o, spacing) for fp in use for o in aa_fps):
                 continue
+            aa_fps += use
             for k, fp in enumerate(use):
                 y = fp[2]
                 aid = f"AA{len(aa_out) + 1}"
@@ -886,7 +909,7 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
                                           z_rel=("deck", base + 1.0)))
                 placed += 1
         if placed < count:
-            lay.errors.append(f"Only {placed} of {count} {'heavy' if kind == 'quad40' else 'light'} AA mounts fit.")
+            lay.fail("length", f"Only {placed} of {count} {'heavy' if kind == 'quad40' else 'light'} AA mounts fit.")
 
     place_aa("quad40", aa_req.get("heavy", 0))
     place_aa("single20", aa_req.get("light", 0))

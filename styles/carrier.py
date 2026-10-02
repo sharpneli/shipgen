@@ -182,6 +182,8 @@ class Carrier(Style):
               ("aviation", "deck_edge_elevators"): (0, 4), ("aviation", "catapults"): (0, 4),
               ("aviation", "cranes"): (0, 4), ("armour", "flight_deck_mm"): (0, 100)}
 
+    SIZE = {**Style.SIZE, "lb_max": 9.5}
+
     def validate(self, design):
         kind = aviation(design)["flight_deck"]
         return super().validate(design) + guns_are_secondaries(self, design) + (
@@ -287,9 +289,9 @@ def _common(design, shp, shift):
 
 def _check_capacity(lay, av, dp):
     if av["aircraft"] > dp["capacity"]:
-        lay.errors.append(f"Air group of {av['aircraft']} does not fit: the hangar and deck park hold about "
-                          f"{dp['capacity']} aircraft of {av['aircraft_t']:g} t. Lengthen or widen the hull, add a "
-                          "hangar deck, or carry fewer or smaller aircraft.")
+        lay.fail("length", f"Air group of {av['aircraft']} does not fit: the hangar and deck park hold about "
+                           f"{dp['capacity']} aircraft of {av['aircraft_t']:g} t. Add a hangar deck, or carry fewer or "
+                           "smaller aircraft.")
 
 
 def _funnel_size(shp, n, max_w):
@@ -405,7 +407,7 @@ def _flight_deck_layout(design, shp, depth, shift):
                                                  (ex - lee / 2, y_out)], base=fd_h - 1.0, top=fd_h))
         placed += 1
     if placed < av["deck_edge_elevators"]:
-        lay.errors.append(f"Only {placed} of {av['deck_edge_elevators']} deck-edge elevators fit.")
+        lay.fail("length", f"Only {placed} of {av['deck_edge_elevators']} deck-edge elevators fit.")
 
     # ---------------- sponsons: secondaries, torpedo mounts and AA outboard of the deck edges ----------------
     xs = [dp["x0"] + 6 + v * (dp["x1"] - dp["tap"] - 10 - dp["x0"]) for v in _vdc(64)]
@@ -487,7 +489,7 @@ def _seaplane_layout(design, shp, depth, shift):
     fw, fl = _funnel_size(shp, nfun, 0.3 * B)
     room = bx0 - hx1 - 2.0
     if room < nfun * (fl + 1.0):
-        lay.errors.append(f"No room for {nfun} funnel(s) between the bridge and the hangar.")
+        lay.fail("length", f"No room for {nfun} funnel(s) between the bridge and the hangar.")
     for i in range(nfun):
         fx = hx1 + 1.0 + (i + 0.5) * room / nfun
         funnels.append(dict(id=f"Funnel {i + 1}", x=fx, y=0.0, l=fl, w=fw, pipes=2 if fw > 4 else 1))

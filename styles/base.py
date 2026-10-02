@@ -8,7 +8,7 @@ from __future__ import annotations
 # and armour are deliberately wide (silly designs may look stupid or fail the physics, but they run); hull form
 # and speed stay within the range where the weight, power and stability formulas mean something.
 COMMON_LIMITS = {
-    ("hull", "length"): (30, 1000), ("hull", "beam"): (5, 100), ("hull", "block_coefficient"): (0.42, 0.68),
+    ("hull", "block_coefficient"): (0.42, 0.68),
     ("speed_kn",): (8, 42), ("range_nm",): (1000, 25000),
     ("main", "calibre_mm"): (1, 2000), ("main", "calibre_length"): (1, 200), ("main", "barrels"): (1, 20),
     ("main", "fore"): (0, 40), ("main", "aft"): (0, 40), ("main", "mid"): (0, 40),
@@ -24,6 +24,12 @@ COMMON_LIMITS = {
 class Style:
     name = "base"
     LIMITS: dict = {}
+    DEFAULT_CB = 0.55   # block coefficient when the design gives none
+    # Sizing (shipdesign.size): the hull is the shortest of `length` (min, max) metres that fits everything and is
+    # at least as slender as its speed asks (slender: shipdesign.min_length), and as narrow as allowed by:
+    # everything fitting across it, GM at least gm_frac x beam, draught at most tb x beam, and length at most
+    # lb_max x beam. beam_max caps it.
+    SIZE = dict(length=(30.0, 1000.0), beam_max=100.0, gm_frac=0.06, tb=0.36, lb_max=10.5, slender=True)
 
     def limits(self):
         return {**COMMON_LIMITS, **self.LIMITS}
@@ -33,6 +39,8 @@ class Style:
         from navarch import MACHINERY
         mt = self.machinery_type(design)
         errs = [] if mt in MACHINERY else [f"machinery.type = {mt!r}: use {', '.join(MACHINERY)}"]
+        errs += [f"hull.{k}: the designer works out the hull's size from what it carries; remove it"
+                 for k in ("length", "beam") if k in (design.get("hull") or {})]
         if isinstance(design.get("secondary"), list) and not self.SECONDARY_LIST:
             errs.append(f"secondary: the {self.name} style takes one secondary battery, not a list")
         sec = design.get("secondary") or []

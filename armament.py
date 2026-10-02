@@ -78,11 +78,11 @@ def gun_line(lay, mounts, turret_types, gun, kind, names, x_start, step_dir, y, 
         base = deck_h(x) + level * (th + 1.0)
         mid = turret_name(names, i)
         if not lay.free(_fp_circle(x, y, reach), 0.4, ignore):
-            lay.errors.append(f"{label} mount {mid} ({gun['calibre_mm']:g} mm) does not fit at {x:.0f} m: "
-                              "the deck is taken there. Use fewer or smaller guns, or lengthen the hull.")
+            lay.fail("length", f"{label} mount {mid} ({gun['calibre_mm']:g} mm) does not fit at {x:.0f} m: "
+                               "the deck is taken there. Use fewer or smaller guns.")
             continue
         if abs(y) + reach > lay.hull.half_width(x) + 0.2 and not lay.on_deck(x, y):
-            lay.errors.append(f"{label} mount {mid} ({gun['calibre_mm']:g} mm) is too wide for the hull at {x:.0f} m.")
+            lay.fail("beam", f"{label} mount {mid} ({gun['calibre_mm']:g} mm) is too wide for the hull at {x:.0f} m.")
             continue
         stow = (rest + 180) % 360     # flush: stowed pointing away from the stepped turret ahead of it
         add_mount(lay, mounts, kind, t_id, t, mid, x, y, base, stow if flush else rest, z=1 + level, level=level,
@@ -119,7 +119,7 @@ def side_pairs(lay, mounts, turret_types, kind, t_id, t, per_side, cands, prefix
                       armour_mm=armour_mm, depth=depth)
         placed.append(x)
     if len(placed) < per_side:
-        lay.errors.append(f"Only {len(placed)} of {per_side} {label.lower()} mounts per side fit.")
+        lay.fail("length", f"Only {len(placed)} of {per_side} {label.lower()} mounts per side fit.")
     return len(placed)
 
 
@@ -149,7 +149,7 @@ def place_batteries(lay, mounts, turret_types, design, end_lines, side_slots, de
         n_end = b["count"] if b["where"] == "ends" else b["count"] % 2
         n_side = 0 if b["where"] == "ends" else b["count"] // 2
         if n_end and not end_lines:
-            lay.errors.append(f"No end positions for {n_end} {b['calibre_mm']:g} mm mount(s): give them in pairs.")
+            lay.fail(None, f"No end positions for {n_end} {b['calibre_mm']:g} mm mount(s): give them in pairs.")
             n_end = 0
         made = 0
         for i, (_, d, y, rest, deck_h, ign) in enumerate(end_lines):
@@ -189,7 +189,7 @@ def fixed_tube_pairs(lay, mounts, turret_types, tp, xs, y_of_x, base=0.2, toe_de
             add_mount(lay, mounts, "torpedo", t_id, t, f"T{placed}{'S' if side > 0 else 'P'}", x, side * y, base,
                       side * toe_deg, z=1)
     if placed < want:
-        lay.errors.append(f"Only {placed} of {want} pairs of torpedo tubes fit along the sides.")
+        lay.fail("length", f"Only {placed} of {want} pairs of torpedo tubes fit along the sides.")
     return placed
 
 
@@ -200,6 +200,7 @@ def place_aa(lay, aa_out, kind, count, cands, spacing=None, ignore=()):
     rr = AA_CFG[kind][0]
     spacing = spacing if spacing is not None else (3.0 if kind == "quad40" else 2.2)
     placed = 0
+    aa_fps = [_fp_circle(a["x"], a["y"], AA_CFG[a["type"]][0]) for a in aa_out]   # spaced from each other
     for c in cands:
         cx, cy, base = c[:3]
         if placed >= count:
@@ -215,9 +216,9 @@ def place_aa(lay, aa_out, kind, count, cands, spacing=None, ignore=()):
             continue
         if not all(lay.free(fp, 0.4, ignore) for fp in fps):
             continue
-        aa_ids = {a["id"] for a in aa_out}
-        if not all(not _overlap(fp, o[0], spacing) for fp in fps for o in lay.footprints if o[3] in aa_ids):
+        if any(_overlap(fp, o, spacing) for fp in fps for o in aa_fps):
             continue
+        aa_fps += fps
         for fp in fps:
             y = fp[2]
             aid = f"AA{len(aa_out) + 1}"
@@ -227,7 +228,7 @@ def place_aa(lay, aa_out, kind, count, cands, spacing=None, ignore=()):
             lay.weights.append(Weight(aid, "armament", TUNING["aa_t"][kind], x=fp[1], z_rel=("deck", base + 1.0)))
             placed += 1
     if placed < count:
-        lay.errors.append(f"Only {placed} of {count} {'heavy' if kind == 'quad40' else 'light'} AA mounts fit.")
+        lay.fail("length", f"Only {placed} of {count} {'heavy' if kind == 'quad40' else 'light'} AA mounts fit.")
     return placed
 
 

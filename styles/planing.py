@@ -34,7 +34,9 @@ def planing_hull_spec(design):
 class Planing(Style):
     name = "planing"
     DEFAULT_MACHINERY = "petrol"
-    LIMITS = {("hull", "length"): (10, 60), ("hull", "beam"): (2.5, 12), ("hull", "block_coefficient"): (0.35, 0.6),
+    DEFAULT_CB = 0.45
+    SIZE = dict(length=(8.0, 60.0), beam_max=12.0, gm_frac=0.06, tb=1.0, lb_max=4.5, slender=False)
+    LIMITS = {("hull", "block_coefficient"): (0.35, 0.6),
               ("speed_kn",): (15, 60), ("range_nm",): (100, 3000)}
 
     def tuning(self, design):

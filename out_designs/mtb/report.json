@@ -10,8 +10,6 @@
     "type": "MTB",
     "style": "planing",
     "hull": {
-      "length": 21.3,
-      "beam": 5.0,
       "block_coefficient": 0.45
     },
     "speed_kn": 39,
@@ -35,109 +33,112 @@
     }
   },
   "results": {
-    "standard_displacement_t": 35,
-    "full_displacement_t": 44,
-    "draught_m": 0.89,
-    "depth_m": 2.55,
-    "freeboard_m": 1.66,
-    "power_shp": 3000.0,
+    "length_m": 22.5,
+    "beam_m": 5.0,
+    "block_coefficient": 0.45,
+    "standard_displacement_t": 37,
+    "full_displacement_t": 46,
+    "draught_m": 0.88,
+    "depth_m": 2.59,
+    "freeboard_m": 1.71,
+    "power_shp": 3200.0,
     "fuel_t": 9,
     "crew": 11,
     "gm_full_m": 0.83,
     "gm_light_m": 0.94,
-    "trim_m": -0.01,
-    "lcg_m": -2.36,
-    "lcb_m": -2.34,
-    "layout_shift_m": 0.22,
-    "volumetric_froude": 3.43,
+    "trim_m": 0.0,
+    "lcg_m": -2.47,
+    "lcb_m": -2.48,
+    "layout_shift_m": 0.04,
+    "volumetric_froude": 3.4,
     "power_to_weight_hp_per_t": 69.3,
     "power_model": "planing placeholder"
   },
   "weight_groups_t": {
-    "hull": 16,
+    "hull": 17,
     "fuel": 9,
     "armament": 7,
     "machinery": 7,
-    "misc": 3,
+    "misc": 4,
     "superstructure": 1
   },
   "weights": [
     {
       "name": "Hull structure",
       "group": "hull",
-      "t": 16.3,
-      "x": -0.21,
-      "z": 1.48
+      "t": 17.5,
+      "x": -0.23,
+      "z": 1.5
     },
     {
       "name": "Machinery",
       "group": "machinery",
-      "t": 6.7,
-      "x": -5.33,
-      "z": 0.82
+      "t": 7.0,
+      "x": -5.62,
+      "z": 0.83
     },
     {
       "name": "Charthouse",
       "group": "superstructure",
       "t": 1.0,
-      "x": 2.56,
-      "z": 3.85
+      "x": 2.52,
+      "z": 3.89
     },
     {
       "name": "T1S",
       "group": "armament",
       "t": 2.6,
-      "x": -2.38,
-      "z": 3.25
+      "x": -2.47,
+      "z": 3.29
     },
     {
       "name": "T1P",
       "group": "armament",
       "t": 2.6,
-      "x": -2.38,
-      "z": 3.25
+      "x": -2.47,
+      "z": 3.29
     },
     {
       "name": "Mount Y",
       "group": "armament",
       "t": 0.1,
-      "x": -7.99,
-      "z": 3.22
+      "x": -8.59,
+      "z": 3.27
     },
     {
       "name": "Magazine Y",
       "group": "armament",
       "t": 0.1,
-      "x": -7.99,
-      "z": 0.64
+      "x": -8.59,
+      "z": 0.65
     },
     {
       "name": "AA1",
       "group": "armament",
       "t": 1.0,
-      "x": -1.06,
-      "z": 3.75
+      "x": -1.13,
+      "z": 3.79
     },
     {
       "name": "AA2",
       "group": "armament",
       "t": 1.0,
-      "x": -4.79,
-      "z": 3.75
+      "x": -5.06,
+      "z": 3.79
     },
     {
       "name": "Equipment, outfit, crew & stores",
       "group": "misc",
-      "t": 3.5,
+      "t": 3.7,
       "x": 0.0,
-      "z": 1.27
+      "z": 1.3
     },
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 8.7,
-      "x": -5.33,
-      "z": 0.46
+      "t": 9.1,
+      "x": -5.62,
+      "z": 0.47
     }
   ]
 }

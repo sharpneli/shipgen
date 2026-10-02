@@ -27,6 +27,18 @@ RAISED_H = 2.4      # forecastle, bridge deck and poop stand this far above the 
 
 
 
+STOWAGE = {"dry": 1.4, "tanker": 1.25}   # m3 of hold per tonne of cargo (dry: general cargo, bale; tanker: oil)
+DOUBLE_BOTTOM = 1.2                       # m under the holds
+
+
+def hold_volume(hull, holds, depth):
+    """Volume of the holds below the main deck: plan area times depth above the double bottom, times 0.9 for the
+    bilges."""
+    area = sum((h1 - h0) / 8 * sum(2 * hull.half_width(h0 + (h1 - h0) * (k + 0.5) / 8) for k in range(8))
+               for h0, h1 in holds)
+    return 0.9 * area * max(0.0, depth - DOUBLE_BOTTOM)
+
+
 def cargo(design):
     return {"kind": "dry", "deadweight_t": 0.0, **(design.get("cargo") or {})}
 
@@ -73,7 +85,7 @@ def stow(C, holds, ctx, fill=1.5):
 
 def merchant_hull_spec(design):
     h = design["hull"]
-    cb = h.get("block_coefficient", 0.72)
+    cb = h["block_coefficient"]
     return dict(length=h["length"], beam=h["beam"],
                 bow=dict(taper=clamp(0.42 - 0.3 * cb, 0.15, 0.3), power=2.0),
                 stern=dict(taper=0.15, transom=0.3))
@@ -86,6 +98,8 @@ class Merchant(Style):
               ("cargo", "deadweight_t"): (0, 80000)}
 
     DEFAULT_MACHINERY = "steam_recip"
+    DEFAULT_CB = 0.72
+    SIZE = {**Style.SIZE, "gm_frac": 0.04, "tb": 0.46, "lb_max": 8.0}
 
     def validate(self, design):
         errs = super().validate(design) + guns_are_secondaries(self, design)
@@ -284,7 +298,14 @@ def _layout(design, shp, depth, shift):
         for x0, x1 in ((-L / 2 + poop_len, bx0), (bx1, L / 2 - fc_len)):
             fittings.append(dict(x=(x0 + x1) / 2, y=0.0, l=x1 - x0, w=1.2, color="fitting", r=0.2))
     if not holds:
-        lay.errors.append("No room for cargo: the forecastle, midships house and poop fill the hull. Lengthen it.")
+        lay.fail("length", "No room for cargo: the forecastle, midships house and poop fill the hull.")
+    elif cg["deadweight_t"]:
+        vol = hold_volume(hull, holds, depth)
+        need = cg["deadweight_t"] * STOWAGE[cg["kind"]]
+        lay.geo["hold_volume"] = vol
+        if vol < need:
+            lay.fail("length", f"The {'tanks' if tanker else 'holds'} take about {vol:,.0f} m3, but "
+                               f"{cg['deadweight_t']:,.0f} t of cargo needs about {need:,.0f} m3. Carry less cargo.")
     hatch_t = sum(h["l"] * h["w"] for h in hatches) * 0.12
     if hatch_t:
         lay.weights.append(Weight("Hatch covers", "superstructure", hatch_t, x=0.0, z_rel=("deck", 1.0)))

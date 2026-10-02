@@ -56,9 +56,137 @@ def validate(design, limits=True):
     return errs + style.validate(design)
 
 
-def solve(design, iterations=6):
-    """Rough solve -> layout -> solve -> shift to balance; repeat until stable. Returns the internal
-    (layout, navarch.Result); build() turns them into the published dict."""
+def min_length(disp_t, v_kn):
+    """The shortest hull a displacement ship of disp_t tonnes gets for v_kn knots: slenderness L / volume^(1/3)
+    rises with the volumetric Froude number Fn∇, from 5.25 for slow ships (Liberty, Mikasa) to 8.2 for
+    destroyers (Fletcher). Fitted to 16 real ships 1900-1945; within about 5% of most."""
+    root = (disp_t / navarch.SEAWATER) ** (1 / 3)
+    fnv = navarch.volumetric_froude(disp_t, v_kn)
+    return max(5.25, min(8.2, 5.25 + 5.0 * (fnv - 0.55))) * root
+
+
+def with_hull(design, L, B):
+    """The design with a hull of L x B metres (and the style's block coefficient if it gives none)."""
+    hull = design.get("hull") or {}
+    cb = hull.get("block_coefficient", styles.get(design).DEFAULT_CB)
+    return {**design, "hull": {**hull, "length": L, "beam": B, "block_coefficient": cb}}
+
+
+def beam_needed(design, L, B, weights, geo):
+    """The narrowest beam (at least B) for a hull of length L carrying `weights` (placed, from a layout): GM at
+    least SIZE gm_frac x beam, draught at most tb x beam, and length at most lb_max x beam."""
+    size = styles.get(design).SIZE
+    b_max = size["beam_max"]
+    lo = max(B, L / size["lb_max"])
+
+    def ok(b):
+        r = navarch.solve(with_hull(design, L, b), weights, geo)
+        return r.gm_full >= size["gm_frac"] * b and r.draught <= size["tb"] * b
+
+    if ok(lo):
+        return lo
+    hi = lo
+    while hi < b_max:          # bracket: widen by steps of 15%
+        lo, hi = hi, min(b_max, hi * 1.15)
+        if ok(hi):
+            break
+    else:
+        return b_max
+    while hi - lo > 0.05 * max(1.0, lo / 10):     # to about half a percent
+        mid = (lo + hi) / 2
+        lo, hi = (lo, mid) if ok(mid) else (mid, hi)
+    return hi
+
+
+def fit(design, L, B=0.0):
+    """Does everything fit on a hull of length L? Returns (fits, beam): the beam is the narrowest that carries
+    the load (beam_needed) and has room across for what the layout places."""
+    build_layout = styles.get(design).build_layout
+    b_max = styles.get(design).SIZE["beam_max"]
+    B = max(B, L / styles.get(design).SIZE["lb_max"])
+    slender = styles.get(design).SIZE["slender"]
+    for _ in range(12):
+        d = with_hull(design, L, B)
+        r = navarch.solve(d)
+        lay = build_layout(d, r.power_shp, r.depth, 0.0)
+        B2 = beam_needed(design, L, B, lay.weights, lay.geo)
+        if "beam" in lay.short and B < b_max:
+            B2 = max(B2, B * 1.05)
+        if B2 <= B * 1.005:
+            break
+        B = min(B2, b_max)
+    long_enough = not slender or L >= min_length(r.full, design["speed_kn"])
+    return "length" not in lay.short and long_enough, B
+
+
+def size(design, hint=None):
+    """The hull for a design that gives none: the shortest that fits everything at the layout's comfortable
+    clearances (searched on a half-metre grid), and the narrowest beam that carries it (fit). Returns (L, B).
+    hint: the length of a similar design (the same one before a small change) to start the search from."""
+    l_min, l_max = styles.get(design).SIZE["length"]
+    snap = lambda v: max(l_min, min(l_max, round(v * 2) / 2))
+    if hint:
+        L, step = snap(hint), 1.03
+    else:   # first guess from the displacement of the contents on a hull of typical proportions
+        L, step = 100.0, 1.15
+        for _ in range(3):
+            r = navarch.solve(with_hull(design, L, L / 7.5))
+            L = snap(5.0 * r.full ** (1 / 3))
+    cache = {}
+
+    def ok(L):
+        if L not in cache:
+            cache[L] = fit(design, L)
+        return cache[L][0]
+
+    lo = hi = None   # longest that fails, shortest that fits
+    if ok(L):
+        hi = L
+        while hi > l_min:
+            L = snap(min(hi - 0.5, hi / step))
+            if not ok(L):
+                lo = L
+                break
+            hi = L
+    else:
+        lo = L
+        while lo < l_max:
+            L = snap(max(lo + 0.5, lo * step))
+            if ok(L):
+                hi = L
+                break
+            lo = L
+    if hi is None:            # nothing fits even the longest hull: take it, its errors say what doesn't fit
+        hi = l_max
+    while lo is not None and hi - lo > max(0.5, 0.004 * hi):
+        mid = snap((lo + hi) / 2)
+        if mid in (lo, hi):
+            break
+        if ok(mid):
+            hi = mid
+        else:
+            lo = mid
+    return hi, round((cache.get(hi) or fit(design, hi))[1], 2)
+
+
+def solve(design, iterations=6, hint=None):
+    """Size the hull (size), then lay it out and balance it (balance). Returns the internal (layout, navarch.Result,
+    sized design); build() turns them into the published dict."""
+    L, B = size(design, hint)
+    l_max, b_max = styles.get(design).SIZE["length"][1], styles.get(design).SIZE["beam_max"]
+    for _ in range(6):   # the balanced layout may still come up short of what the search found: grow a step
+        lay, r, sized = balance(with_hull(design, L, B), iterations)
+        if not lay.short or (L >= l_max and B >= b_max):
+            break
+        if "beam" in lay.short:
+            B = min(b_max, round(B * 1.03, 2))
+        if "length" in lay.short:
+            L = min(l_max, max(L + 0.5, round(L * 1.01 * 2) / 2))
+    return lay, r, sized
+
+
+def balance(design, iterations=6):
+    """Rough solve -> layout -> solve -> shift to balance; repeat until stable."""
     build_layout = styles.get(design).build_layout
     r = navarch.solve(design)
     shift = 0.0
@@ -76,22 +204,25 @@ def solve(design, iterations=6):
     lay = build_layout(design, r.power_shp, r.depth, shift)
     r = navarch.solve(design, lay.weights, lay.geo)
     assign_arcs(lay)
-    return lay, r
+    return lay, r, design
 
 
-def report_dict(design, lay, r):
+def report_dict(design, lay, r, sized):
+    """design: the player's input (echoed in "inputs"); sized: the same with the hull the designer chose."""
+    h = sized["hull"]
     return dict(
         id=design["id"], name=design.get("name", design["id"]), valid=not (lay.errors or r.errors),
         errors=lay.errors + r.errors, warnings=lay.warnings + r.warnings,
         inputs=design,
         results=dict(
+            length_m=h["length"], beam_m=h["beam"], block_coefficient=h["block_coefficient"],
             standard_displacement_t=round(r.std), full_displacement_t=round(r.full),
             draught_m=round(r.draught, 2), depth_m=round(r.depth, 2), freeboard_m=round(r.freeboard, 2),
             power_shp=round(r.power_shp, -2), fuel_t=round(r.fuel), crew=r.crew,
             gm_full_m=round(r.gm_full, 2), gm_light_m=round(r.gm_light, 2),
             trim_m=round(r.trim_m, 2), lcg_m=round(r.lcg, 2), lcb_m=round(r.lcb, 2),
             layout_shift_m=round(lay.geo["shift"], 2),
-            **styles.get(design).results(design, lay, r),
+            **styles.get(design).results(sized, lay, r),
         ),
         weight_groups_t={k: round(v) for k, v in sorted(r.groups.items(), key=lambda kv: -kv[1])},
         weights=[dict(name=w.name, group=w.group, t=round(w.w, 1), x=round(w.x, 2), z=round(w.z, 2))
@@ -135,14 +266,17 @@ def height_columns(lay, deck_m):
     return items
 
 
-def build(design):
-    """Design the ship: the published, plain-data result (see the module docstring). Call validate() first."""
-    lay, r = solve(design)
+def build(design, hint=None):
+    """Design the ship: the published, plain-data result (see the module docstring). Call validate() first.
+    hint: the hull length (report results length_m) of the previous build when the player has changed one
+    knob. The search starts there, which makes it several times faster; the result is the same either way, up
+    to the search's half-percent tolerance."""
+    lay, r, sized = solve(design, hint=hint)
     deck_m = max(r.freeboard, 0.1)    # an unsolvable design can come out with no freeboard at all
-    hitboxes = export_hitboxes(lay, design, r)
+    hitboxes = export_hitboxes(lay, sized, r)
     return dict(
         design=design,
-        report=report_dict(design, lay, r),
+        report=report_dict(design, lay, r, sized),
         hitboxes=hitboxes,
         render=dict(
             spec=copy.deepcopy(lay.spec),
@@ -150,6 +284,6 @@ def build(design):
             mounts=[dict(id=m["id"], kind=m["kind"], rest=m["rest"], arcs=m["arcs"], top=m["top"],
                          **({"mount": "casemate"} if m.get("casemate") else {})) for m in lay.mounts],
             columns=height_columns(lay, deck_m),
-            summary=styles.get(design).summary(design, lay, r),
+            summary=styles.get(design).summary(sized, lay, r),
         ),
     )

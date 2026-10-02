@@ -34,7 +34,9 @@ design JSON (player input: counts, calibres, armour, speed, look)
 design.py      the command line: validate, shipdesign.build, write report.json and hitboxes.json, render
 ```
 - Use the design side alone (a game's designer UI): `ship = shipdesign.build(design)` gives the report and hitboxes
-  in milliseconds, and `render.render_ship(ship, ...)` can run later, elsewhere, or from the same dict loaded
+  in about 5–170 ms (sizing the hull is most of it). After a small change, pass the previous result's length,
+  `shipdesign.build(design, hint=ship["report"]["results"]["length_m"])`, to make it about twice as fast with the
+  same result. `render.render_ship(ship, ...)` can run later, elsewhere, or from the same dict loaded `render.render_ship(ship, ...)` can run later, elsewhere, or from the same dict loaded
   from JSON.
 - The rules that keep the halves apart: nothing on the design side imports the renderer, PIL, cairosvg or numpy;
   the renderer imports no design-side module (only `geometry` and `looks`); and the renderer reads nothing but
@@ -44,7 +46,7 @@ design.py      the command line: validate, shipdesign.build, write report.json a
 ```json
 {
   "id": "battleship", "name": "Fast Battleship", "type": "BB", "look": "standard",
-  "hull": {"length": 262, "beam": 33, "block_coefficient": 0.59},
+  "hull": {"block_coefficient": 0.59},
   "speed_kn": 33, "range_nm": 15000,
   "armour": {"belt_mm": 307, "deck_mm": 152, "turret_mm": 432},
   "main": {"calibre_mm": 406, "calibre_length": 50, "barrels": 3, "fore": 2, "aft": 1},
@@ -54,6 +56,21 @@ design.py      the command line: validate, shipdesign.build, write report.json a
   "funnels": null
 }
 ```
+The design gives no size. The designer works out the hull from what it carries (`shipdesign.size`), and hitting a tonnage or length target is the player's job, by trading the inputs off. `hull.block_coefficient` (the hull form) is optional, with a default per style.
+- **Length:** the shortest hull, on a half-metre grid, that meets two rules:
+  - Everything fits, at the layout's comfortable clearances. Warship end groups keep their preferred bow and stern room, which leaves room to shift for trim. Each layout failure is tagged with whether more length or more beam fixes it (`Layout.fail`).
+  - It is at least as slender as its speed asks (`shipdesign.min_length`). Slenderness, length over the cube root of the underwater volume, rises with the volumetric Froude number from 5.25 (Liberty, Mikasa) to 8.2 (Fletcher). The rule is fitted to 16 real ships and lands within about 5% for most. Planing craft skip it.
+- **Beam:** the narrowest that meets all of these:
+  - everything fits across the hull
+  - GM is at least `gm_frac` × beam
+  - draught is at most `tb` × beam
+  - length is at most `lb_max` × beam
+  
+  The values are per style, in `Style.SIZE`. Warships use 0.06, 0.36 and 10.5; merchants 0.04, 0.46 and 8.
+- Merchants also need hold volume for their cargo: 1.4 m³/t dry, 1.25 m³/t oil (`styles.merchant.STOWAGE`).
+- Results: the report gives `length_m`, `beam_m` and `block_coefficient`. Most realistic designs land within 2–10% of the real ship's length.
+- An error that says something doesn't fit means the largest hull (`Style.SIZE`: 1,000 × 100 m, planing craft 60 × 12 m) still can't carry it.
+
 `main` options:
 - `"mid": n` (warship style only) puts n centreline turrets amidships, between the funnels. Lion has a Q turret; Gangut has two amidships.
 - `"superfire"` sets how many turrets of each end group step up: `true` (default, all), `false` (none, so each group has one end turret and flush turrets behind it), or `{"fore": 2}`. A flush turret behind a stepped one (Nelson's X) fires to the sides only.
@@ -73,7 +90,7 @@ design.py      the command line: validate, shipdesign.build, write report.json a
 - Battery mount ids are `S1S`/`S1P`, ... for the first battery, then `SB...`, `SC...`. Casemate guns carry `"mount": "casemate"` in `hitboxes.json` and `sprite.json`.
 - Examples: `mikasa.json` (152 + 76 mm casemates in both tiers), `victory_1944.json` (a ship of the line: 152 mm lower and 120 mm upper casemates, no main battery), `connecticut.json` (178 + 76 mm casemates; its 203 mm wing turrets need a second main battery, still to come), `nassau_casemates.json` (Nassau's 150 + 88 mm in casemates, so all of them fit), `kongo.json` (152 mm casemates and 76 mm on deck).
 
-Limits are generous on purpose: the game's designer enforces the gameplay limits, and the generator only keeps its input sane (`styles.base.COMMON_LIMITS`). Guns can be 1–2000 mm with 1–20 barrels, armour up to 2 m, and torpedo, secondary and AA counts are in the hundreds. Hull form and speed stay within the range where the physics formulas mean something. Hulls go up to 1,000 × 100 m, and each turret group (`fore`, `aft`, `mid`) can hold up to 40 turrets, named A, B, C, A4, A5, ... (and Q, P, R, S, Q5, ... amidships). Silly designs are allowed; the physics decides whether they're valid. For example, twenty 305 mm Q turrets need about 650 m of middle section and a wide beam.
+Limits are generous on purpose: the game's designer enforces the gameplay limits, and the generator only keeps its input sane (`styles.base.COMMON_LIMITS`). Guns can be 1–2000 mm with 1–20 barrels, armour up to 2 m, and torpedo, secondary and AA counts are in the hundreds. Hull form and speed stay within the range where the physics formulas mean something. Each turret group (`fore`, `aft`, `mid`) can hold up to 40 turrets, named A, B, C, A4, A5, ... (and Q, P, R, S, Q5, ... amidships). Silly designs are allowed; the physics decides whether they're valid, and the designer simply makes the hull as big as they need. For example, Gangut's twenty 305 mm Q turrets come out on a 986 m hull.
 
 The player never enters tonnage or positions. The allowed ranges are `styles.base.COMMON_LIMITS` plus each style's `LIMITS`.
 
@@ -129,7 +146,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
 - To add a look: add an entry to `looks.LOOKS`. A new turret drawing also needs a branch in `shipgen.look_turret_body`.
 
 ## Outputs (out_designs/<id>/)
-- `report.json`: valid flag, errors, warnings, displacement (std/full), draught, power, fuel, crew, GM, trim, and the weight list with x/z. Carriers add aircraft and capacity, flight deck size and height; merchants add cargo, deadweight and hold count.
+- `report.json`: valid flag, errors, warnings, the hull's length, beam and block coefficient, displacement (std/full), draught, power, fuel, crew, GM, trim, and the weight list with x/z. Carriers add aircraft and capacity, flight deck size and height; merchants add cargo, deadweight and hold count.
 - `hitboxes.json`: all values in metres, ship-local (origin = sprite centre, +x bow, +y starboard). It describes the ship for the game's damage model (where things are, what armours them, what links to what), never what a hit does.
   - Heights (`base`/`top`/`z`) are metres above the main deck, negative below it. On a carrier the main deck is the hangar deck.
   - `vertical`: `keel`, `waterline` and `armour_deck` (null on a ship without belt or deck armour) on that height scale, plus `draught`, `depth` and `freeboard` (full load).

@@ -30,7 +30,14 @@ doesn't: the decisions behind the current design, how to work safely here, and w
 - **French "floating hotel" pre-dreadnoughts** with many different calibres: several main and intermediate batteries, often in wing turrets. The layout will need more than one main or secondary battery.
 - A refactor of the whole design physics (engine models etc.). It should make the physics configurable by period, so engine efficiency and similar values can change over time.
 - Research to replace the planing power placeholder (`navarch.planing_power`). It's one function by design.
-- **Size from contents (next, before damage steps 2–3):** the player stops entering the hull length. They enter turret counts, armour and so on, and the designer works out how big the ship must be. Hitting a tonnage or length target is the player's job, done by trading values off.
+- **Size from contents (done; README "Design input"):** designs give no length or beam (`hull.length` and `hull.beam` are now validation errors). The designer works out the hull from what it carries, and hitting a tonnage or length target is the player's job.
+  - The rules and their default values (`Style.SIZE`, `shipdesign.min_length`, merchant `STOWAGE`) are internal for now. The user will add parameters to control them later (engine efficiency etc.), probably alongside the period physics refactor.
+  - Calibration: most realistic designs land within 2–10% of the real ship's length.
+  - Known quirks:
+    - Beams come out a little narrow on pre-dreadnoughts (Mikasa 19.9 m against 23.2 m real), because the GM target of 0.06 × beam is met.
+    - Nassau comes out long and narrow (172 × 24 m, real 146 × 27 m), because the search finds the shortest length at the narrowest beam that works, and wing turrets can trade beam for length.
+    - The `hint` makes a knob change about twice as fast.
+  - A designer UI should show length, beam and displacement prominently, since they're now outputs.
 - **Damage model data (`research/`; `warship-damage-research.md` is the synthesis, §13 the wish list).** shipgen emits only the physical model (hitboxes per system, armour, links). What a hit does is the game's business.
   - Step 1 (done): `vertical` heights, the `armour` section, turret face/side/rear/roof, barbettes down to the armour deck, block roles, the conning tower, and one magazine per mount with links.
   - Step 2: a compartment grid, with main bulkheads every ~0.055 L snapped to barbettes, magazines, machinery rooms and the citadel ends. Cells are port, centre and starboard, and bottom, below the armour deck and between decks. Each has a volume, a permeability, its contents and its neighbours. Also split the machinery into boiler and engine rooms, and add shafts, propellers and rudders. Use fewer cells for small craft.
@@ -42,14 +49,15 @@ doesn't: the decisions behind the current design, how to work safely here, and w
 - **Git:** the repo is on GitHub (`git@github.com:sharpneli/shipgen.git`, branch `main`). Pushing over SSH works with the user's key. Commit or push only when the user asks.
 - Dependencies are `pip install cairosvg pillow numpy`. The system Python lacks them; use the venv at `~/.venv` (`~/.venv/bin/python design.py ...`).
 - **Checking the boundary:** `python3 -c "import shipdesign, json; shipdesign.build(json.load(open('designs/battleship.json')))"` must work with the system Python (no PIL, cairosvg or numpy), and importing `render` must not load `shipdesign`, `navarch`, `layout`, `styles`, `hitbox` or `armament` (check `sys.modules`).
-- **Speed:** `shipdesign.build` takes about 1–30 ms per ship. `Layout.clear` was the hotspot (exact polygon tests); `geometry.polygons_intersect` now rejects by bounding box first. `render_ship(previews=False)` takes about 0.5 s; the previews (numpy shadow march), the sheet and the debug overlay are most of the ~3 s full render.
+- **Speed:** `shipdesign.build` takes about 5–170 ms per ship, and a silly design up to 0.5 s. The size search runs the layout around 10–25 times, and each run takes 0.2–9 ms. A `hint` (the previous length) halves that. `Layout.free` and `geometry.polygons_intersect` reject by bounding box first, and AA spacing checks only the AA footprints. `render_ship(previews=False)` takes about 0.5 s; the previews (numpy shadow march), the sheet and the debug overlay are most of the ~3 s full render.
 - **Checking a look change:** render a design in every look and confirm `hitboxes.json`, `sprite.json` and `report.json` (except its `inputs` echo) are identical across looks. `standard` must stay byte-identical to the old sprites.
 - **Regression method used throughout:** copy `out_designs/` aside, regenerate, and `diff -r`. Unrelated designs should stay byte-identical; expected changes should be limited to the designs you meant to change. The hand-authored fleet (`python shipgen.py --out <dir>`) has stayed byte-identical through all the changes, so keep it that way.
 - Run `python verify.py out_designs/*` after every change. It does pixel checks of sprites against hitboxes.
 - A turret-sweep checker existed only in the previous session's scratch folder. It rebuilds each main turret's sweep and tests it against taller blocks and funnels. Folding it into `verify.py` would be a good addition.
 - The user edits files in `designs/` themselves. Never overwrite their designs. As of the end of this session:
-  - `destroyer.json` has `calibre_mm: 1270`, probably a deliberate silly test.
+  - `destroyer.json` has `calibre_mm: 1270`, probably a deliberate silly test. Sized, it comes out at 418 m and 163k t.
   - `murica.json` has block coefficient 0.34 (needs `--no-limits`).
+  - The user asked for `length` and `beam` to be removed from every design. That was done on 2026-10-02, and nothing else in the designs was touched.
 - Output folders are named after the design's `id`, not its file name. Duplicate ids overwrite each other; this already happened once.
 
 ## Known gaps and ideas

@@ -61,7 +61,8 @@ def main():
         with open(os.path.join(out_dir, "hitboxes.json"), "w") as fh:
             json.dump(ship["hitboxes"], fh, indent=1)
         res = rep["results"]
-        print(f"{design['id']:>14}: {'OK ' if rep['valid'] else 'BAD'} std {res['standard_displacement_t']:>6,} t "
+        print(f"{design['id']:>14}: {'OK ' if rep['valid'] else 'BAD'} {res['length_m']:>5.1f} x {res['beam_m']:>4.1f} m  "
+              f"std {res['standard_displacement_t']:>6,} t "
               f"full {res['full_displacement_t']:>6,} t  T {res['draught_m']:>5} m  {res['power_shp']:>9,.0f} shp  "
               f"GM {res['gm_full_m']:>5}  trim {res['trim_m']:+.2f}  shift {res['layout_shift_m']:+.1f}")
         for e in rep["errors"]:

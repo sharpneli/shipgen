@@ -243,7 +243,7 @@ def sheet(ship, design, rest, stbd, S, path):
     lines = [
         f"{rep['name']}  ({'VALID' if rep['valid'] else 'INVALID'})"
         + (f"   look: {looks.look_name(design)}" if looks.look_name(design) != looks.DEFAULT_LOOK else ""),
-        f"{L:.0f} x {B:.1f} m, Cb {design['hull'].get('block_coefficient', 0.55)}   "
+        f"{L:.0f} x {B:.1f} m, Cb {res['block_coefficient']}   "
         f"std {res['standard_displacement_t']:,} t   full {res['full_displacement_t']:,} t",
         f"draught {res['draught_m']} m   freeboard {res['freeboard_m']} m   {design['speed_kn']} kn "
         f"needs {res['power_shp']:,.0f} shp   range {design.get('range_nm', 0):,} nm (fuel {res['fuel_t']:,} t)",
