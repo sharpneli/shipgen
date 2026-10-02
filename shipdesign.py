@@ -187,21 +187,32 @@ def solve(design, iterations=6, hint=None):
 
 
 def balance(design, iterations=6):
-    """Rough solve -> layout -> solve -> shift to balance; repeat until stable."""
+    """Rough solve -> layout -> solve -> shift to balance; repeat until stable. The layout can jump as things
+    move (a gun takes another slot), so once the moment changes sign the shift is bisected between the last two,
+    and the best balanced shift seen is used."""
     build_layout = styles.get(design).build_layout
     r = navarch.solve(design)
     shift = 0.0
     lay = None
-    for _ in range(iterations):
+    best = None                # (|moment|, shift)
+    bracket = []               # (shift, moment) on each side of balance
+    for _ in range(iterations + 4):
         lay = build_layout(design, r, shift)
         r = navarch.solve(design, lay.weights, lay.geo)
+        shift = lay.geo["shift"]
         moment = sum(w.w * (w.x - r.lcb) for w in r.weights)
         movable = sum(w.w for w in r.weights if w.group not in ("hull", "misc"))
-        new_shift = max(lay.shift_range[0], min(lay.shift_range[1], lay.geo["shift"] - moment / movable))
+        if best is None or abs(moment) < best[0]:
+            best = (abs(moment), shift)
+        bracket = [b for b in bracket if (b[1] > 0) != (moment > 0)][-1:] + [(shift, moment)]
+        if len(bracket) == 2:        # balance lies between two shifts: bisect
+            new_shift = (bracket[0][0] + bracket[1][0]) / 2
+        else:
+            new_shift = max(lay.shift_range[0], min(lay.shift_range[1], shift - moment / movable))
         if abs(new_shift - shift) < 0.05:
-            shift = new_shift
             break
         shift = new_shift
+    shift = best[1]
     lay = build_layout(design, r, shift)
     r = navarch.solve(design, lay.weights, lay.geo)
     assign_arcs(lay)

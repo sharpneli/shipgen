@@ -71,7 +71,7 @@ SMOKE_K = {"coal_natural": 4.0, "coal": 3.0, "oil": 1.5, "oil_heated": 1.0, "die
 # a mature-ish 1940 high-pressure geared turbine plant (plant-templates.md, ST7 1940): the default tech
 DEFAULT_TECH = {
     "name": "High-pressure geared turbines (1940)", "fuel": "oil", "weight_kg_per_kw": 35.2, "stress_floor": 0.5,
-    "sfc_g_per_kwh": 349, "density_t_per_m3": 0.42, "unit_max_mw": 42.8,
+    "sfc_g_per_kwh": 349, "density_t_per_m3": 0.34, "unit_max_mw": 42.8,
     "unit": {"mw": 30, "height_m": 5.0, "width_m": 5.0, "length_m": 8},
     "boiler_fraction": 0.5, "crew_k": 10, "part_load": "GTB",
     "draught": {"system": "forced", "velocity_m_s": 14.0, "reach_m": 27.0, "gas_temp_k": 450, "air_fuel_ratio": 15},
@@ -178,8 +178,11 @@ def double_bottom(depth):
 
 def space(p, shp, w_avail, h_avail):
     """The machinery space for an inside width w_avail and a height h_avail (inner bottom to the bounding
-    deck): its length, split into boiler and engine rooms, and how the units fit. A plant taller than h_avail
-    protrudes above it (the layout covers that with a casing); one with no row of units across is infeasible."""
+    deck): its length, split into boiler and engine rooms, and how the units fit. The plant's volume splits by
+    boiler_fraction. Boiler rooms use the whole height (boilers, drums, fans and uptake trunks reach up to the
+    deck); engine rooms use the units' height plus one flat of auxiliaries above them, so low turbines leave
+    height unused. A plant taller than h_avail protrudes above it (the layout covers that with a casing); one with
+    no row of units across is infeasible."""
     t = p["tech"]
     r = rated(p, shp)
     k = (r["unit_mw"] / t["unit"]["mw"]) ** (1 / 3)        # units scale with the cube root of their power
@@ -192,12 +195,14 @@ def space(p, shp, w_avail, h_avail):
     used = rows * pitch
     w_eff = (used + 0.5 * (w_side - used)) * (2 if split else 1)
     volume = r["weight_t"] / r["density"]
-    length = volume / max(w_eff, 0.5) / h_eff
-    length *= 1.10 if p["arrangement"] == "unit" else 1.0
-    length = max(length, l_u + 2.0)
     bf = t["boiler_fraction"]
-    return dict(length=length, boilers=length * bf, engines=length * (1 - bf), rows=rows, unit=(l_u, w_u, h_u),
-                protrusion=max(0.0, h_u - h_avail), volume=volume, w_eff=w_eff, h_eff=h_eff, fits=rows > 0)
+    h_boil = max(1.0, h_avail)
+    unit_k = 1.10 if p["arrangement"] == "unit" else 1.0
+    boilers = bf * volume / max(w_eff, 0.5) / h_boil * unit_k
+    engines = max((1 - bf) * volume / max(w_eff, 0.5) / h_eff * unit_k, l_u + 2.0)
+    return dict(length=boilers + engines, boilers=boilers, engines=engines, rows=rows, unit=(l_u, w_u, h_u),
+                protrusion=max(0.0, h_u - h_avail), volume=volume, w_eff=w_eff, h_eff=h_eff, h_boilers=h_boil,
+                fits=rows > 0)
 
 
 def bunkers(p, fuel_t, length, w_avail, h_avail, ship_l, ship_b, cb, depth, draught=0.0, tds=0.0):

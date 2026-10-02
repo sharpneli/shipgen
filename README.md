@@ -60,6 +60,9 @@ design.py      the command line: validate, shipdesign.build, write report.json a
 `machinery` is the propulsion plant (`powerplant.py`, from `research/powerplant-model.md`). There is no year input: `tech` holds the researched technology as numbers, so a navy can have a tech earlier or later than history did. `plant-templates.md` has blocks to copy for every period from 1880 to 1970, and `python plant_templates.py` regenerates them. A design without `tech` gets a 1940 high-pressure turbine plant (merchants: a 1940 oil-fired triple expansion; planing craft: 1940 petrol engines). The other keys are design choices: `stress`, `shafts`, `units_per_shaft`, `transmission`, `arrangement` (`grouped` or alternating `unit`), `centreline_bulkhead`, `bunkers` (`wing` or `ends`) and `wing_bunker_m`. The template's table explains each one. What the plant decides:
 - **Weight, fuel and engineering crew:** from the tech and the stress. Range is computed at cruise speed through the tech's part-load curve.
 - **Machinery length:** the plant's volume, fitted into the room the hull gives it. Across, that's the beam inside the frames, less torpedo protection (`armour.tds_m` per side) and wing bunkers, with units standing in rows. Up, it's the inner bottom to the armour deck.
+  - The volume splits between boiler and engine rooms by `boiler_fraction`.
+  - Boiler rooms use the whole height: boilers, drums, fans and uptake trunks reach the deck.
+  - Engine rooms use only the units' height plus 2.5 m of auxiliaries, so low turbines leave height unused.
   - A unit taller than that pokes through the deck under a casing, which is armoured if the deck is.
   - Coal fills wing bunkers, which run up to the main deck, then end bunkers. Oil fills the double bottom and the torpedo protection's liquid layers, then end tanks. End bunkers and tanks lengthen the machinery block.
 - **Machinery block:** bunkers, boiler rooms and engine rooms in line (`powerplant.segments`). Unit arrangement alternates boiler and engine rooms.
@@ -71,6 +74,7 @@ design.py      the command line: validate, shipdesign.build, write report.json a
   - Midships turrets and echelon wing pairs stand only in gaps between machinery segments next to the boilers. There they stand over their magazines, like Lion's and Kongo's Q turret.
   - More turrets than gaps splits a boiler group, which then needs its own funnel.
   - Engine rooms and bunkers at the ends of the block run on under the bridge, the abreast wing turrets and the aft control.
+  - The forward boiler group may also run on under them, up to 0.85 of the bridge's length (`layout.BRIDGE_OVER_BOILERS`). Its funnels stay on open deck aft of the bridge.
   - This is what makes many centreline turrets hard with early plants (a Gangut).
 - **Smoke:** a bridge, director or aft control standing in a funnel's smoke (`powerplant.smoke_reach`, which is shortest for oil with air heaters) is flagged in its hitbox and warned about.
 The design gives no size. The designer works out the hull from what it carries (`shipdesign.size`), and hitting a tonnage or length target is the player's job, by trading the inputs off. `hull.block_coefficient` (the hull form) is optional, with a default per style.

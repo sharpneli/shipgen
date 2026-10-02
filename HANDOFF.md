@@ -38,16 +38,17 @@ doesn't: the decisions behind the current design, how to work safely here, and w
     - `plant-templates.md`, written by `plant_templates.py`, has example blocks by year for authoring designs.
     - The spec is "not taken 1:1". Ships getting longer and looking different as requirements are added is fine.
   - Departures from the spec:
-    - ST7 and ST8 densities are raised to 0.42 and 0.44, per the spec's own ±20% calibration note.
+    - Boiler rooms use the whole height to the bounding deck. Only engine rooms keep the spec's "unit height + 2.5 m" cap, so low turbines no longer make boiler rooms long. With that, the spec's own densities (ST7 0.34, ST8 0.36) give sensible WWII lengths, so they're unchanged.
+    - The forward boiler group may run on under the bridge (`layout.BRIDGE_OVER_BOILERS`, 0.85 of its length). Its funnels stay on open deck.
     - Funnel casings are drawn at 3× the gas area (`powerplant.CASING`).
     - Coal wing bunkers run up to the main deck.
     - Oil also fills the torpedo protection's liquid layers.
     - Funnels never limit arcs. They compete through sweep reservation instead, since arcs stay fixed.
     - Natural and boost draught plants get funnel tops 25 m above the grates (`layout.STACK_NATURAL`).
-  - **Calibration still open:** early turbine ships (ST5: Dreadnought, Invincible, Kongo, the Lion-like battlecruiser) come out about 30% longer than the real ships. The triple-expansion ships (Nassau, Mikasa, Connecticut) and the WWII ships land within about 10%. ST5's low units cap the whole space's usable height (`h_u + 2.5`), including the boiler rooms. Possible knobs:
-    - a separate, taller limit for the boiler rooms
-    - ST5's density
-    - letting boilers run on under the bridge
+  - **Calibration (as of 2026-10-02):**
+    - Most designs now land within about 10% of the real ships' lengths: Nassau 159.5 m, Mikasa 122.5 m, Connecticut 128 m, the battleship 257 m, the heavy cruiser 200 m, the fleet carrier 245.5 m.
+    - Early turbine ships run 15–20% long: Dreadnought 185 m against 160 m, Invincible 192 m against 172 m, Kongo 257 m against 214 m.
+    - Most of the rest is cruise fuel: early direct turbines are very inefficient at cruise, so Kongo carries 8,800 t, much of it in end bunkers. That's left for the fuel-range tuning the user plans, together with hull width (beam preference).
   - Not done yet:
     - Generator rooms for electric transmission aren't placed separately.
     - The cruise model has no cruising-turbine choice (the template has a "with cruising turbines" variant).

@@ -6,9 +6,7 @@ from the technology tables of research/powerplant-model.md. Edit the tables or t
     python plant_templates.py
 
 Each block is the tech as a navy would have it in that year: values eased by maturity, 1 - (1 - m)^2, with m from
-0 at the tech's introduction to 1 at maturity. ST7 and ST8 densities are raised from the spec's 0.34 and 0.36 to 0.42
-and 0.44, which brings 1935-45 machinery lengths within the spec's +-20% of the old length formula (its section 2
-calibration note).
+0 at the tech's introduction to 1 at maturity. The tables are the spec's (section 3) as given.
 """
 import json
 import re
@@ -19,8 +17,8 @@ T = {
  "ST4": dict(name="Triple expansion, large-tube water-tube boilers", years=(1893, 1910), fuel="coal", sfc=(1050, 930), w=(150, 115), floor=0.45, rho=0.28, umax=(6, 12), ref=(5, 7.5, 4.5, 9), bf=0.55, crew=34, curve="REC", nat=0.7),
  "ST5": dict(name="Direct-drive turbines, water-tube boilers", years=(1905, 1918), fuel="coal", sfc=(950, 800), w=(120, 95), floor=0.35, rho=0.30, umax=(8, 20), ref=(10, 4.5, 4.5, 7), bf=0.6, crew=30, curve="DT", nat=0.8),
  "ST6": dict(name="Geared turbines, oil-fired small-tube boilers", years=(1915, 1930), fuel="oil", sfc=(520, 430), w=(75, 52), floor=0.42, rho=0.32, umax=(15, 35), ref=(15, 4.5, 4.5, 8), bf=0.55, crew=12, curve="GTB"),
- "ST7": dict(name="High-pressure geared turbines", years=(1930, 1945), fuel="oil", sfc=(420, 340), w=(45, 34), floor=0.5, rho=0.42, umax=(25, 45), ref=(30, 5.0, 5.0, 8), bf=0.5, crew=10, curve="GTB"),
- "ST8": dict(name="Very-high-pressure geared turbines (1200 psi)", years=(1937, 1965), fuel="oil", sfc=(340, 300), w=(34, 26), floor=0.55, rho=0.44, umax=(40, 55), ref=(40, 5.0, 5.0, 8), bf=0.45, crew=9, curve="GTB"),
+ "ST7": dict(name="High-pressure geared turbines", years=(1930, 1945), fuel="oil", sfc=(420, 340), w=(45, 34), floor=0.5, rho=0.34, umax=(25, 45), ref=(30, 5.0, 5.0, 8), bf=0.5, crew=10, curve="GTB"),
+ "ST8": dict(name="Very-high-pressure geared turbines (1200 psi)", years=(1937, 1965), fuel="oil", sfc=(340, 300), w=(34, 26), floor=0.55, rho=0.36, umax=(40, 55), ref=(40, 5.0, 5.0, 8), bf=0.45, crew=9, curve="GTB"),
  "PE1": dict(name="Petrol engines", years=(1905, 1945), fuel="petrol", sfc=(340, 290), w=(8.5, 6.5), floor=0.7, rho=0.40, umax=(0.2, 1.1), ref=(1, 1.2, 1.1, 2.5), bf=0.0, crew=3, curve="DSL"),
  "DI1": dict(name="Early marine diesels", years=(1910, 1925), fuel="diesel", sfc=(270, 240), w=(140, 100), floor=0.6, rho=0.42, umax=(0.4, 2), ref=(1, 4.5, 2.5, 7), bf=0.0, crew=6, curve="DSL"),
  "DI2": dict(name="Lightweight double-acting 2-stroke diesels", years=(1928, 1945), fuel="diesel", sfc=(250, 230), w=(50, 38), floor=0.75, rho=0.42, umax=(3, 7), ref=(5, 4.5, 3.5, 10), bf=0.0, crew=5, curve="DSL"),

@@ -261,6 +261,7 @@ def add_machinery_rooms(lay, placed, inner_hw, depth):
 
 
 STACK_NATURAL = 25.0    # m from the grates to the funnel top that natural and boost draught plants want
+BRIDGE_OVER_BOILERS = 0.85   # how much of the bridge (and its gap) the forward boiler group may run on under
 
 
 def plan_funnels(lay, design, res, beam, top, groups=None):
@@ -620,7 +621,18 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             seg_of.insert(at, None)
             widths0.insert(at, None)
     core = [i for i, it in enumerate(seq) if not (it == "W" and not echelon)]   # the plan over the machinery
-    lead_l, trail_l = sum(segs[si][1] for si in lead), sum(segs[si][1] for si in trail)
+    # the forward boiler group may run on under the bridge: most of it, as its funnels must still come up through
+    # open deck aft of the bridge, each with its room (f_min)
+    under_bridge, ub_seg = 0.0, None
+    if core and seq[core[0]] == "F":
+        ub_seg = seg_of[core[0]]
+        f_items = [i for i in range(len(seq)) if seq[i] == "F" and seg_of[i] == ub_seg]
+        ub_l = segs[ub_seg][1]
+        under_bridge = max(0.0, min(ub_l - len(f_items) * f_min, BRIDGE_OVER_BOILERS * (lb + 1.5)))
+        for i in f_items:
+            widths0[i] = max(f_min, (ub_l - under_bridge) / len(f_items))
+    lead_l = sum(segs[si][1] for si in lead) + under_bridge
+    trail_l = sum(segs[si][1] for si in trail)
     w2 = clamp(0.36 * B, 4.5, 12)                   # bridge width
     ends = {-1: w2 / 2, len(seq): 0.14 * B if la else 0.0}
 
@@ -711,11 +723,11 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     if nf:
         bow_pref, bow_min = 0.09 * L + 2.5 * r, 0.06 * L + 1.5 * r
     else:
-        bow_pref, bow_min = 0.14 * L, 0.08 * L
+        bow_pref, bow_min = 0.14 * L, 0.06 * L
     if na:
         st_pref, st_min = 0.08 * L + 2.0 * r, 0.05 * L + 1.0 * r
     else:
-        st_pref, st_min = 0.12 * L, 0.06 * L
+        st_pref, st_min = 0.12 * L, 0.05 * L
 
     def arrangement(bow_c, st_c, sh):
         """Positions for the given clearances and shift."""
@@ -868,6 +880,9 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     # the machinery: each segment of the plan centred under its items (a funnel group may be spaced wider than its
     # boilers), the end segments run on fore and aft of the plan's core
     pos = {si: ((a_ + b_) / 2 - segs[si][1] / 2, (a_ + b_) / 2 + segs[si][1] / 2) for si, (a_, b_) in seg_span.items()}
+    if ub_seg is not None:     # the forward boiler group runs on from the back of its funnels' span under the bridge
+        back = seg_span[ub_seg][1]
+        pos[ub_seg] = (back, back + segs[ub_seg][1])
     x = max([core_front] + [v[1] for v in pos.values()])
     for si in reversed(lead):
         pos[si] = (x, x + segs[si][1])

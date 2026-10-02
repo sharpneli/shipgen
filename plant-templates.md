@@ -217,7 +217,7 @@ Mature geared turbines; high-pressure steam arrives. Light diesels.
 
 **High-pressure geared turbines** (`ST7`)
 ```json
-"tech": {"name": "High-pressure geared turbines (1930)", "fuel": "oil", "weight_kg_per_kw": 45.0, "stress_floor": 0.5, "sfc_g_per_kwh": 420, "density_t_per_m3": 0.42, "unit_max_mw": 25.0, "unit": {"mw": 30, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.5, "crew_k": 10, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 12.0, "reach_m": 20.0, "gas_temp_k": 450, "air_fuel_ratio": 15}}
+"tech": {"name": "High-pressure geared turbines (1930)", "fuel": "oil", "weight_kg_per_kw": 45.0, "stress_floor": 0.5, "sfc_g_per_kwh": 420, "density_t_per_m3": 0.34, "unit_max_mw": 25.0, "unit": {"mw": 30, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.5, "crew_k": 10, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 12.0, "reach_m": 20.0, "gas_temp_k": 450, "air_fuel_ratio": 15}}
 ```
 
 **Light 2-stroke diesels (Deutschland)** (`DI2`)
@@ -241,7 +241,7 @@ High-pressure steam spreads; E-boat diesels.
 
 **High-pressure geared turbines** (`ST7`)
 ```json
-"tech": {"name": "High-pressure geared turbines (1935)", "fuel": "oil", "weight_kg_per_kw": 38.9, "stress_floor": 0.5, "sfc_g_per_kwh": 376, "density_t_per_m3": 0.42, "unit_max_mw": 36.1, "unit": {"mw": 30, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.5, "crew_k": 10, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 13.7, "reach_m": 25.6, "gas_temp_k": 450, "air_fuel_ratio": 15}}
+"tech": {"name": "High-pressure geared turbines (1935)", "fuel": "oil", "weight_kg_per_kw": 38.9, "stress_floor": 0.5, "sfc_g_per_kwh": 376, "density_t_per_m3": 0.34, "unit_max_mw": 36.1, "unit": {"mw": 30, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.5, "crew_k": 10, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 13.7, "reach_m": 25.6, "gas_temp_k": 450, "air_fuel_ratio": 15}}
 ```
 
 **Light 2-stroke diesels** (`DI2`)
@@ -265,12 +265,12 @@ The WWII generation.
 
 **High-pressure geared turbines (Fletcher, KGV, Iowa)** (`ST7`)
 ```json
-"tech": {"name": "High-pressure geared turbines (1940)", "fuel": "oil", "weight_kg_per_kw": 35.2, "stress_floor": 0.5, "sfc_g_per_kwh": 349, "density_t_per_m3": 0.42, "unit_max_mw": 42.8, "unit": {"mw": 30, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.5, "crew_k": 10, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 14.7, "reach_m": 28.9, "gas_temp_k": 450, "air_fuel_ratio": 15}}
+"tech": {"name": "High-pressure geared turbines (1940)", "fuel": "oil", "weight_kg_per_kw": 35.2, "stress_floor": 0.5, "sfc_g_per_kwh": 349, "density_t_per_m3": 0.34, "unit_max_mw": 42.8, "unit": {"mw": 30, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.5, "crew_k": 10, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 14.7, "reach_m": 28.9, "gas_temp_k": 450, "air_fuel_ratio": 15}}
 ```
 
 **Very-high-pressure steam (German Wagner/Benson plants)** (`ST8`)
 ```json
-"tech": {"name": "Very-high-pressure geared turbines (1200 psi) (1940)", "fuel": "oil", "weight_kg_per_kw": 32.4, "stress_floor": 0.55, "sfc_g_per_kwh": 332, "density_t_per_m3": 0.44, "unit_max_mw": 43.0, "unit": {"mw": 40, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.45, "crew_k": 9, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 14.7, "reach_m": 28.9, "gas_temp_k": 450, "air_fuel_ratio": 15}}
+"tech": {"name": "Very-high-pressure geared turbines (1200 psi) (1940)", "fuel": "oil", "weight_kg_per_kw": 32.4, "stress_floor": 0.55, "sfc_g_per_kwh": 332, "density_t_per_m3": 0.36, "unit_max_mw": 43.0, "unit": {"mw": 40, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.45, "crew_k": 9, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 14.7, "reach_m": 28.9, "gas_temp_k": 450, "air_fuel_ratio": 15}}
 ```
 
 **Merchant triple expansion, oil-fired (Liberty)** (`ST4`)
@@ -309,12 +309,12 @@ Mature WWII plants.
 
 **High-pressure geared turbines** (`ST7`)
 ```json
-"tech": {"name": "High-pressure geared turbines (1945)", "fuel": "oil", "weight_kg_per_kw": 34.0, "stress_floor": 0.5, "sfc_g_per_kwh": 340, "density_t_per_m3": 0.42, "unit_max_mw": 45.0, "unit": {"mw": 30, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.5, "crew_k": 10, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 15.0, "reach_m": 30.0, "gas_temp_k": 450, "air_fuel_ratio": 15}}
+"tech": {"name": "High-pressure geared turbines (1945)", "fuel": "oil", "weight_kg_per_kw": 34.0, "stress_floor": 0.5, "sfc_g_per_kwh": 340, "density_t_per_m3": 0.34, "unit_max_mw": 45.0, "unit": {"mw": 30, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.5, "crew_k": 10, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 15.0, "reach_m": 30.0, "gas_temp_k": 450, "air_fuel_ratio": 15}}
 ```
 
 **Very-high-pressure steam** (`ST8`)
 ```json
-"tech": {"name": "Very-high-pressure geared turbines (1200 psi) (1945)", "fuel": "oil", "weight_kg_per_kw": 30.1, "stress_floor": 0.55, "sfc_g_per_kwh": 320, "density_t_per_m3": 0.44, "unit_max_mw": 47.3, "unit": {"mw": 40, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.45, "crew_k": 9, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 15.0, "reach_m": 30.0, "gas_temp_k": 450, "air_fuel_ratio": 15}}
+"tech": {"name": "Very-high-pressure geared turbines (1200 psi) (1945)", "fuel": "oil", "weight_kg_per_kw": 30.1, "stress_floor": 0.55, "sfc_g_per_kwh": 320, "density_t_per_m3": 0.36, "unit_max_mw": 47.3, "unit": {"mw": 40, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.45, "crew_k": 9, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 15.0, "reach_m": 30.0, "gas_temp_k": 450, "air_fuel_ratio": 15}}
 ```
 
 **High-speed diesels** (`DI3`)
@@ -333,7 +333,7 @@ Post-war steam; the first naval gas turbines.
 
 **Very-high-pressure steam** (`ST8`)
 ```json
-"tech": {"name": "Very-high-pressure geared turbines (1200 psi) (1950)", "fuel": "oil", "weight_kg_per_kw": 28.3, "stress_floor": 0.55, "sfc_g_per_kwh": 311, "density_t_per_m3": 0.44, "unit_max_mw": 50.7, "unit": {"mw": 40, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.45, "crew_k": 9, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 15.0, "reach_m": 30.0, "gas_temp_k": 450, "air_fuel_ratio": 15}}
+"tech": {"name": "Very-high-pressure geared turbines (1200 psi) (1950)", "fuel": "oil", "weight_kg_per_kw": 28.3, "stress_floor": 0.55, "sfc_g_per_kwh": 311, "density_t_per_m3": 0.36, "unit_max_mw": 50.7, "unit": {"mw": 40, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.45, "crew_k": 9, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 15.0, "reach_m": 30.0, "gas_temp_k": 450, "air_fuel_ratio": 15}}
 ```
 
 **Early gas turbines (boost)** (`GT1`)
@@ -352,7 +352,7 @@ Post-war steam; the first naval gas turbines.
 
 **Very-high-pressure steam** (`ST8`)
 ```json
-"tech": {"name": "Very-high-pressure geared turbines (1200 psi) (1960)", "fuel": "oil", "weight_kg_per_kw": 26.3, "stress_floor": 0.55, "sfc_g_per_kwh": 301, "density_t_per_m3": 0.44, "unit_max_mw": 54.5, "unit": {"mw": 40, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.45, "crew_k": 9, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 15.0, "reach_m": 30.0, "gas_temp_k": 450, "air_fuel_ratio": 15}}
+"tech": {"name": "Very-high-pressure geared turbines (1200 psi) (1960)", "fuel": "oil", "weight_kg_per_kw": 26.3, "stress_floor": 0.55, "sfc_g_per_kwh": 301, "density_t_per_m3": 0.36, "unit_max_mw": 54.5, "unit": {"mw": 40, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.45, "crew_k": 9, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 15.0, "reach_m": 30.0, "gas_temp_k": 450, "air_fuel_ratio": 15}}
 ```
 
 **Early gas turbines** (`GT1`)
@@ -376,7 +376,7 @@ Aero-derived gas turbines and medium-speed diesels.
 
 **Very-high-pressure steam** (`ST8`)
 ```json
-"tech": {"name": "Very-high-pressure geared turbines (1200 psi) (1970)", "fuel": "oil", "weight_kg_per_kw": 26.0, "stress_floor": 0.55, "sfc_g_per_kwh": 300, "density_t_per_m3": 0.44, "unit_max_mw": 55.0, "unit": {"mw": 40, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.45, "crew_k": 9, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 15.0, "reach_m": 30.0, "gas_temp_k": 450, "air_fuel_ratio": 15}}
+"tech": {"name": "Very-high-pressure geared turbines (1200 psi) (1970)", "fuel": "oil", "weight_kg_per_kw": 26.0, "stress_floor": 0.55, "sfc_g_per_kwh": 300, "density_t_per_m3": 0.36, "unit_max_mw": 55.0, "unit": {"mw": 40, "height_m": 5.0, "width_m": 5.0, "length_m": 8}, "boiler_fraction": 0.45, "crew_k": 9, "part_load": "GTB", "draught": {"system": "forced", "velocity_m_s": 15.0, "reach_m": 30.0, "gas_temp_k": 450, "air_fuel_ratio": 15}}
 ```
 
 **Marinised aero gas turbines (Olympus, Tyne)** (`GT2`)
