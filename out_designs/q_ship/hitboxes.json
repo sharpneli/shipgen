@@ -1,10 +1,18 @@
 {
  "units": "metres",
  "frame": "ship-local: origin = ship centre = sprite centre, +x toward bow, +y toward starboard; angles clockwise from dead ahead",
- "heights": "base/top are metres above the main deck",
+ "heights": "base/top/z are metres above the main deck (negative = below it)",
  "turret_local": "turret 'local' polygons are in turret space (pivot at 0,0, barrels along +x); rotate by the current turret angle, then add (x, y)",
  "length": 95,
  "beam": 13.4,
+ "vertical": {
+  "keel": -6.54,
+  "waterline": -2.05,
+  "armour_deck": null,
+  "draught": 4.49,
+  "depth": 6.54,
+  "freeboard": 2.05
+ },
  "hull": [
   [
    -47.5,
@@ -2071,6 +2079,7 @@
    2.01
   ]
  ],
+ "armour": {},
  "components": [
   {
    "id": "S1",
@@ -2258,16 +2267,24 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 0,
+    "side": 0,
+    "rear": 0,
+    "roof": 0
+   },
+   "barbette": "S1 barbette"
   },
   {
    "id": "S1 barbette",
    "kind": "barbette",
+   "mount": "S1",
    "shape": "circle",
    "x": -43.343,
    "y": 0.0,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.05,
    "top": 2.7,
    "armour_mm": 0
   },
@@ -2457,16 +2474,24 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 0,
+    "side": 0,
+    "rear": 0,
+    "roof": 0
+   },
+   "barbette": "S2 barbette"
   },
   {
    "id": "S2 barbette",
    "kind": "barbette",
+   "mount": "S2",
    "shape": "circle",
    "x": -36.423,
    "y": 0.0,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.05,
    "top": 0.3,
    "armour_mm": 0
   },
@@ -2656,16 +2681,24 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 0,
+    "side": 0,
+    "rear": 0,
+    "roof": 0
+   },
+   "barbette": "S3 barbette"
   },
   {
    "id": "S3 barbette",
    "kind": "barbette",
+   "mount": "S3",
    "shape": "circle",
    "x": 42.393,
    "y": 0.0,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.05,
    "top": 2.7,
    "armour_mm": 0
   },
@@ -2855,16 +2888,24 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 0,
+    "side": 0,
+    "rear": 0,
+    "roof": 0
+   },
+   "barbette": "SB1S barbette"
   },
   {
    "id": "SB1S barbette",
    "kind": "barbette",
+   "mount": "SB1S",
    "shape": "circle",
    "x": -41.8,
    "y": 3.609,
    "r": 1.475,
-   "base": -3.0,
+   "base": -2.05,
    "top": 2.7,
    "armour_mm": 0
   },
@@ -3054,22 +3095,31 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 0,
+    "side": 0,
+    "rear": 0,
+    "roof": 0
+   },
+   "barbette": "SB1P barbette"
   },
   {
    "id": "SB1P barbette",
    "kind": "barbette",
+   "mount": "SB1P",
    "shape": "circle",
    "x": -41.8,
    "y": -3.609,
    "r": 1.475,
-   "base": -3.0,
+   "base": -2.05,
    "top": 2.7,
    "armour_mm": 0
   },
   {
    "id": "House",
    "kind": "superstructure",
+   "role": "deckhouse",
    "shape": "polygon",
    "points": [
     [
@@ -3231,6 +3281,7 @@
   {
    "id": "Boat deck house",
    "kind": "superstructure",
+   "role": "deckhouse",
    "shape": "polygon",
    "points": [
     [
@@ -3392,6 +3443,7 @@
   {
    "id": "Bridge",
    "kind": "superstructure",
+   "role": "bridge",
    "shape": "polygon",
    "points": [
     [
@@ -9707,6 +9759,8 @@
  ],
  "compartments": [
   {
+   "base": -6.54,
+   "top": 0.0,
    "id": "Hold 1",
    "kind": "hold",
    "x0": 8.292,
@@ -9714,6 +9768,8 @@
    "half_width": 5.695
   },
   {
+   "base": -6.54,
+   "top": 0.0,
    "id": "Hold 2",
    "kind": "hold",
    "x0": 18.178,
@@ -9721,6 +9777,8 @@
    "half_width": 5.695
   },
   {
+   "base": -6.54,
+   "top": 0.0,
    "id": "Hold 3",
    "kind": "hold",
    "x0": 28.064,
@@ -9728,6 +9786,8 @@
    "half_width": 5.695
   },
   {
+   "base": -6.54,
+   "top": 0.0,
    "id": "Hold 4",
    "kind": "hold",
    "x0": -25.496,
@@ -9735,6 +9795,8 @@
    "half_width": 5.695
   },
   {
+   "base": -6.54,
+   "top": 0.0,
    "id": "Hold 5",
    "kind": "hold",
    "x0": -38.9,
@@ -9742,6 +9804,8 @@
    "half_width": 5.695
   },
   {
+   "base": -6.54,
+   "top": 0.0,
    "id": "Machinery",
    "kind": "machinery",
    "x0": -10.092,
@@ -9749,6 +9813,8 @@
    "half_width": 5.695
   },
   {
+   "base": -6.54,
+   "top": 0.0,
    "id": "Steering gear",
    "kind": "steering",
    "x0": -45.6,

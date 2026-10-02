@@ -130,15 +130,29 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
 
 ## Outputs (out_designs/<id>/)
 - `report.json`: valid flag, errors, warnings, displacement (std/full), draught, power, fuel, crew, GM, trim, and the weight list with x/z. Carriers add aircraft and capacity, flight deck size and height; merchants add cargo, deadweight and hold count.
-- `hitboxes.json`: all values in metres, ship-local (origin = sprite centre, +x bow, +y starboard).
+- `hitboxes.json`: all values in metres, ship-local (origin = sprite centre, +x bow, +y starboard). It describes the ship for the game's damage model (where things are, what armours them, what links to what), never what a hit does.
+  - Heights (`base`/`top`/`z`) are metres above the main deck, negative below it. On a carrier the main deck is the hangar deck.
+  - `vertical`: `keel`, `waterline` and `armour_deck` (null on a ship without belt or deck armour) on that height scale, plus `draught`, `depth` and `freeboard` (full load).
   - `hull`: the hull outline polygon.
+  - `armour`: present only for the armour the ship has (`navarch.armour_geometry`, the same geometry its weights come from).
+    - `belt`: `thickness_mm`, `x0`/`x1` (the citadel), `bottom`/`top`. Centred on the waterline.
+    - `deck`: `thickness_mm`, `x0`/`x1`, `z`. It sits on top of the belt (2.5 m below the main deck on a ship without one).
+    - `bulkheads`: the citadel's forward and aft ends: `x`, `thickness_mm`, `bottom`/`top`.
   - `components`:
-    - Turrets: `local` body/parts/barrels polygons (rotate them by the turret angle, then add x, y), `broadphase_r`, `arcs_deg`, `rest_deg`, `armour_mm`, base/top heights.
-    - Barbettes, superstructure and funnels: polygons with heights.
+    - Turrets: `local` body/parts/barrels polygons (rotate them by the turret angle, then add x, y), `broadphase_r`, `arcs_deg`, `rest_deg`, base/top heights.
+      - `armour_mm` is the face. `armour` splits it into `face`/`side`/`rear`/`roof` (`hitbox.TURRET_*` ratios).
+      - Gun mounts link to their `barbette` (a component) and their `magazine` (a compartment). The barbette links back with `mount` and reaches down to the armour deck.
+    - Superstructure: polygons with heights and a `role`: `bridge`, `director`, `aft_control`, `island`, `hangar`, `casemate` or `deckhouse` (`hitbox.BLOCK_ROLES`). Funnels: polygons with heights.
+    - `conning_tower`: a circle inside the bridge's front on warships with a belt, armoured like the belt. It isn't drawn.
     - Decks: `flight_deck`, and `deck` for raised forecastles, bridge decks and poops. `sponson`: gun and AA platforms, and deck-edge elevators. All are polygons with heights.
     - AA: circles.
-  - Heights (`base`/`top`) are metres above the main deck. On a carrier that's the hangar deck.
-  - `compartments`: citadel (belt/deck mm), magazines, machinery, steering gear. Carriers add hangar, aviation magazines and aviation fuel; merchants add `hold` or `cargo_tank` per hold.
+  - `compartments`: boxes `x0`/`x1`, `half_width` about `y` (0 if absent), `base`/`top`. They reach from the keel up to the armour deck, or the main deck on an unarmoured ship. Kinds:
+    - All ships: machinery and steering gear (`steering`).
+    - Warships and carriers: citadel (belt/deck mm).
+    - Warships: one `magazine` per gun mount (`mount` links back). An off-centre mount's magazine stays inside the inner hull on its own side.
+    - Planing craft: crew space and fuel tanks.
+    - Carriers: hangar (above the hangar deck), aviation magazines and aviation fuel.
+    - Merchants: `hold` or `cargo_tank` per hold.
 - `sprite.json`: layers, origin_px, mount px positions, rest angles, arcs and z order.
 - `hull_base.png`, `turrets/*.png`, `hull_upper.png`, each with an SVG alongside. Level 0 is `--scale` px/m (default 10). No shadows are baked in.
 - `height.png`: greyscale height map on the same canvas. Grey × `height_step_m` (0.25) = metres above the waterline, and 0 = sea. Its mips use a 2×2 max filter, not an average, so a tall column never shrinks.

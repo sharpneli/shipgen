@@ -2,7 +2,8 @@
 hitbox: fixed firing arcs, and hitbox export.
 
 Hitboxes use the layout's components: exact shapes in ship-local metres plus base and top heights
-above the main deck.
+above the main deck. They describe the ship only (where things are, what armours them, what links to what);
+what a hit does is the game's business.
 
 Firing arcs are fixed by the kind of mount, not computed from what stands around it, so the player only
 picks counts and calibres. Every arc is centred on the mount's rest bearing (degrees clockwise from ahead):
@@ -17,6 +18,8 @@ picks counts and calibres. Every arc is centred on the mount's rest bearing (deg
 """
 from __future__ import annotations
 
+import re
+
 from geometry import rrect_polygon, turret_shapes, turret_reach, _wrap180, angle_allowed, nearest_allowed  # noqa: F401
 from geometry import AA_CFG
 
@@ -26,6 +29,21 @@ ARC_BEAM = 65.0
 ARC_CASEMATE = 60.0
 ARC_TORPEDO = 60.0
 ARC_FIXED = 1.0
+
+# Turret armour other than the face (the design's turret_mm), as fractions of the face. Roughly Iowa, KGV and
+# Bismarck: sides 0.56-0.69, rear 0.5-0.9, roof 0.4-0.43.
+TURRET_SIDE, TURRET_REAR, TURRET_ROOF = 0.55, 0.5, 0.4
+BARBETTE = 0.8   # barbette armour, fraction of the turret face (as navarch weighs it)
+
+# What a superstructure block is for, by its id with any trailing number and side letter removed.
+BLOCK_ROLES = {
+    "Bridge": "bridge", "Bridge upper": "bridge", "Bridge base": "bridge", "Charthouse": "bridge",
+    "Main director": "director", "Aft director": "director", "Director": "director",
+    "Aft control": "aft_control",
+    "Island": "island", "Island upper": "island",
+    "Hangar": "hangar", "Hangar roof": "hangar",
+    "Casemate housing": "casemate",
+}
 
 
 def _arc(centre, half):
@@ -62,16 +80,28 @@ def assign_arcs(lay):
         sm["rest"] = by_id[sm["id"]]["rest"]
 
 
-def export_hitboxes(lay, design):
+def block_role(bid):
+    """A superstructure block's role (BLOCK_ROLES); anything else is a deckhouse."""
+    return BLOCK_ROLES.get(re.sub(r"\s*\d+[SP]?$", "", bid), "deckhouse")
+
+
+def export_hitboxes(lay, design, res):
+    """hitboxes.json. Heights are metres above the main deck; res (navarch.Result) places the keel, the
+    waterline and the armour."""
     from layout import block_base, block_top
+    from navarch import armour_geometry
+    D, T = res.depth, res.draught
+    rz = lambda z: round(z - D, 2)        # metres above the keel -> above the main deck
+    ag = armour_geometry(design, lay.hull.L, T, D, lay.geo)
+    armoured = ag["belt_mm"] > 0 or ag["deck_mm"] > 0
     armour = design.get("armour", {})
     sec = design.get("secondary") or {}
     sec_arm = sec.get("armour_mm", 25) if isinstance(sec, dict) else 25
+    r3 = lambda pts: [[round(x, 3), round(y, 3)] for x, y in pts]
     comps = []
     for m in lay.mounts:
         t = m["t"]
         sh = turret_shapes(t)
-        r3 = lambda pts: [[round(x, 3), round(y, 3)] for x, y in pts]
         arm = m["armour_mm"] if "armour_mm" in m else (
             armour.get("turret_mm", 0) if m["kind"] == "main" else (sec_arm if m["kind"] == "secondary" else 0))
         comps.append(dict(
@@ -81,20 +111,31 @@ def export_hitboxes(lay, design):
             rotating=m.get("fixed") is None, rest_deg=m["rest"], arcs_deg=m["arcs"],
             local={"body": r3(sh["body"]), "parts": [r3(p) for p in sh["parts"]],
                    "barrels": [r3(p) for p in sh["barrels"]]}))
+        if m["kind"] in ("main", "secondary"):
+            comps[-1]["armour"] = dict(face=arm, side=round(TURRET_SIDE * arm), rear=round(TURRET_REAR * arm),
+                                       roof=round(TURRET_ROOF * arm))
+        if m.get("magazine"):
+            comps[-1]["magazine"] = m["magazine"]
         if m.get("casemate"):   # in the hull side, below the main deck
             comps[-1]["mount"] = "casemate"
-        if t.get("barbette", True):
-            comps.append(dict(id=f"{m['id']} barbette", kind="barbette", shape="circle",
+        if t.get("barbette", True):   # from the armour deck up to the turret
+            comps[-1]["barbette"] = f"{m['id']} barbette"
+            comps.append(dict(id=f"{m['id']} barbette", kind="barbette", mount=m["id"], shape="circle",
                               x=round(m["x"], 3), y=round(m["y"], 3), r=round(t["r"] * 0.95, 3),
-                              base=-3.0, top=round(m["base"], 2),
-                              armour_mm=round(0.8 * arm)))
+                              base=min(rz(ag["deck_z"]), round(m["base"], 2)), top=round(m["base"], 2),
+                              armour_mm=round(BARBETTE * arm)))
     for b in lay.blocks:
         pts = rrect_polygon(b["x0"], b["y"] - b["w"] / 2, b["x1"], b["y"] + b["w"] / 2, b["rf"], b["rb"])
-        comps.append(dict(id=b["id"], kind="superstructure", shape="polygon",
+        comps.append(dict(id=b["id"], kind="superstructure", role=block_role(b["id"]), shape="polygon",
                           points=[[round(x, 3), round(y, 3)] for x, y in pts],
                           rrect=dict(x0=round(b["x0"], 3), x1=round(b["x1"], 3), y0=round(b["y"] - b["w"] / 2, 3),
                                      y1=round(b["y"] + b["w"] / 2, 3), rf=round(b["rf"], 3), rb=round(b["rb"], 3)),
                           base=round(block_base(b), 2), top=round(block_top(b), 2)))
+    ct = lay.conning_tower
+    if ct:
+        comps.append(dict(id="Conning tower", kind="conning_tower", shape="circle", x=round(ct["x"], 3),
+                          y=round(ct["y"], 3), r=round(ct["r"], 3), base=0.0, top=round(ct["top"], 2),
+                          armour_mm=ag["belt_mm"]))
     for f in lay.funnels:
         pts = rrect_polygon(f["x"] - f["l"] / 2, f["y"] - f["w"] / 2, f["x"] + f["l"] / 2, f["y"] + f["w"] / 2,
                             f["w"] / 2, f["w"] / 2)
@@ -108,16 +149,35 @@ def export_hitboxes(lay, design):
     for a in lay.aa:
         comps.append(dict(id=a["id"], kind="aa", type=a["type"], shape="circle", x=round(a["x"], 3),
                           y=round(a["y"], 3), r=AA_CFG[a["type"]][0], base=a["base"], top=a["base"] + 2.0))
+    # compartments reach from the keel up to the armour deck, or the main deck on an unarmoured ship
+    below = rz(ag["deck_z"]) if armoured else 0.0
+    compartments = []
+    for c in lay.compartments:
+        c = {"base": -round(D, 2), "top": below, **c}
+        compartments.append({k: (round(v, 3) if isinstance(v, float) else v) for k, v in c.items()})
+    arm_out = {}
+    if ag["belt_mm"] > 0:
+        arm_out["belt"] = dict(thickness_mm=ag["belt_mm"], x0=round(ag["x0"], 3), x1=round(ag["x1"], 3),
+                               bottom=rz(ag["belt_bottom"]), top=rz(ag["belt_top"]))
+        arm_out["bulkheads"] = [dict(id=f"{end} bulkhead", x=round(x, 3), thickness_mm=round(ag["bulkhead_mm"]),
+                                     bottom=rz(ag["bulkhead_bottom"]), top=rz(ag["deck_z"]))
+                                for end, x in (("Forward", ag["x1"]), ("Aft", ag["x0"]))]
+    if ag["deck_mm"] > 0:
+        arm_out["deck"] = dict(thickness_mm=ag["deck_mm"], x0=round(ag["x0"], 3), x1=round(ag["x1"], 3),
+                               z=rz(ag["deck_z"]))
     return dict(
         units="metres",
         frame="ship-local: origin = ship centre = sprite centre, +x toward bow, +y toward starboard; "
               "angles clockwise from dead ahead",
-        heights="base/top are metres above the main deck",
+        heights="base/top/z are metres above the main deck (negative = below it)",
         turret_local="turret 'local' polygons are in turret space (pivot at 0,0, barrels along +x); "
                      "rotate by the current turret angle, then add (x, y)",
         length=lay.hull.L, beam=lay.hull.B,
+        vertical=dict(keel=-round(D, 2), waterline=-round(D - T, 2),
+                      armour_deck=rz(ag["deck_z"]) if armoured else None,
+                      draught=round(T, 2), depth=round(D, 2), freeboard=round(D - T, 2)),
         hull=[[round(x, 3), round(y, 3)] for x, y in lay.hull.points()],
+        armour=arm_out,
         components=comps,
-        compartments=[{k: (round(v, 3) if isinstance(v, float) else v) for k, v in c.items()}
-                      for c in lay.compartments],
+        compartments=compartments,
     )

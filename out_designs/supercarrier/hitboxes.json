@@ -1,10 +1,18 @@
 {
  "units": "metres",
  "frame": "ship-local: origin = ship centre = sprite centre, +x toward bow, +y toward starboard; angles clockwise from dead ahead",
- "heights": "base/top are metres above the main deck",
+ "heights": "base/top/z are metres above the main deck (negative = below it)",
  "turret_local": "turret 'local' polygons are in turret space (pivot at 0,0, barrels along +x); rotate by the current turret angle, then add (x, y)",
  "length": 302,
  "beam": 39.5,
+ "vertical": {
+  "keel": -18.41,
+  "waterline": -9.75,
+  "armour_deck": -7.25,
+  "draught": 8.66,
+  "depth": 18.41,
+  "freeboard": 9.75
+ },
  "hull": [
   [
    -151.0,
@@ -2079,6 +2087,37 @@
    8.295
   ]
  ],
+ "armour": {
+  "belt": {
+   "thickness_mm": 76,
+   "x0": -52.677,
+   "x1": 58.717,
+   "bottom": -12.25,
+   "top": -7.25
+  },
+  "bulkheads": [
+   {
+    "id": "Forward bulkhead",
+    "x": 58.717,
+    "thickness_mm": 46,
+    "bottom": -14.25,
+    "top": -7.25
+   },
+   {
+    "id": "Aft bulkhead",
+    "x": -52.677,
+    "thickness_mm": 46,
+    "bottom": -14.25,
+    "top": -7.25
+   }
+  ],
+  "deck": {
+   "thickness_mm": 50,
+   "x0": -52.677,
+   "x1": 58.717,
+   "z": -7.25
+  }
+ },
  "components": [
   {
    "id": "S1S",
@@ -2266,16 +2305,24 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "barbette": "S1S barbette"
   },
   {
    "id": "S1S barbette",
    "kind": "barbette",
+   "mount": "S1S",
    "shape": "circle",
    "x": -151.04,
    "y": 26.003,
    "r": 1.903,
-   "base": -3.0,
+   "base": -7.25,
    "top": 6.2,
    "armour_mm": 20
   },
@@ -2465,16 +2512,24 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "barbette": "S1P barbette"
   },
   {
    "id": "S1P barbette",
    "kind": "barbette",
+   "mount": "S1P",
    "shape": "circle",
    "x": -151.04,
    "y": -26.003,
    "r": 1.903,
-   "base": -3.0,
+   "base": -7.25,
    "top": 6.2,
    "armour_mm": 20
   },
@@ -2664,16 +2719,24 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "barbette": "S2S barbette"
   },
   {
    "id": "S2S barbette",
    "kind": "barbette",
+   "mount": "S2S",
    "shape": "circle",
    "x": -83.325,
    "y": 26.003,
    "r": 1.903,
-   "base": -3.0,
+   "base": -7.25,
    "top": 6.2,
    "armour_mm": 20
   },
@@ -2863,16 +2926,24 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "barbette": "S2P barbette"
   },
   {
    "id": "S2P barbette",
    "kind": "barbette",
+   "mount": "S2P",
    "shape": "circle",
    "x": -83.325,
    "y": -28.405,
    "r": 1.903,
-   "base": -3.0,
+   "base": -7.25,
    "top": 6.2,
    "armour_mm": 20
   },
@@ -3062,16 +3133,24 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "barbette": "S3S barbette"
   },
   {
    "id": "S3S barbette",
    "kind": "barbette",
+   "mount": "S3S",
    "shape": "circle",
    "x": -117.182,
    "y": 26.003,
    "r": 1.903,
-   "base": -3.0,
+   "base": -7.25,
    "top": 6.2,
    "armour_mm": 20
   },
@@ -3261,16 +3340,24 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "barbette": "S3P barbette"
   },
   {
    "id": "S3P barbette",
    "kind": "barbette",
+   "mount": "S3P",
    "shape": "circle",
    "x": -117.182,
    "y": -26.003,
    "r": 1.903,
-   "base": -3.0,
+   "base": -7.25,
    "top": 6.2,
    "armour_mm": 20
   },
@@ -3460,16 +3547,24 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "barbette": "S4S barbette"
   },
   {
    "id": "S4S barbette",
    "kind": "barbette",
+   "mount": "S4S",
    "shape": "circle",
    "x": -49.467,
    "y": 26.003,
    "r": 1.903,
-   "base": -3.0,
+   "base": -7.25,
    "top": 6.2,
    "armour_mm": 20
   },
@@ -3659,22 +3754,31 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "barbette": "S4P barbette"
   },
   {
    "id": "S4P barbette",
    "kind": "barbette",
+   "mount": "S4P",
    "shape": "circle",
    "x": -49.467,
    "y": -33.768,
    "r": 1.903,
-   "base": -3.0,
+   "base": -7.25,
    "top": 6.2,
    "armour_mm": 20
   },
   {
    "id": "Island",
    "kind": "superstructure",
+   "role": "island",
    "shape": "polygon",
    "points": [
     [
@@ -3836,6 +3940,7 @@
   {
    "id": "Island upper",
    "kind": "superstructure",
+   "role": "island",
    "shape": "polygon",
    "points": [
     [
@@ -3997,6 +4102,7 @@
   {
    "id": "Bridge",
    "kind": "superstructure",
+   "role": "bridge",
    "shape": "polygon",
    "points": [
     [
@@ -4158,6 +4264,7 @@
   {
    "id": "Director",
    "kind": "superstructure",
+   "role": "director",
    "shape": "polygon",
    "points": [
     [
@@ -4825,6 +4932,8 @@
  ],
  "compartments": [
   {
+   "base": -18.41,
+   "top": -7.25,
    "id": "Citadel",
    "kind": "citadel",
    "x0": -52.677,
@@ -4834,6 +4943,8 @@
    "deck_mm": 50
   },
   {
+   "base": 0.0,
+   "top": 5.6,
    "id": "Hangar",
    "kind": "hangar",
    "x0": -120.8,
@@ -4841,6 +4952,8 @@
    "half_width": 15.8
   },
   {
+   "base": -18.41,
+   "top": -7.25,
    "id": "Machinery",
    "kind": "machinery",
    "x0": -34.557,
@@ -4848,6 +4961,8 @@
    "half_width": 15.8
   },
   {
+   "base": -18.41,
+   "top": -7.25,
    "id": "Aviation magazines",
    "kind": "magazine",
    "x0": 34.557,
@@ -4855,6 +4970,8 @@
    "half_width": 15.8
   },
   {
+   "base": -18.41,
+   "top": -7.25,
    "id": "Aviation fuel",
    "kind": "fuel_tank",
    "x0": -52.677,
@@ -4862,6 +4979,8 @@
    "half_width": 15.8
   },
   {
+   "base": -18.41,
+   "top": -7.25,
    "id": "Steering gear",
    "kind": "steering",
    "x0": -141.94,

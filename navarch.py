@@ -329,22 +329,37 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
     return res
 
 
-def armour_weights(design, L, B, T, D, geo):
+def armour_geometry(design, L, T, D, geo):
+    """Where the armour is: the one source for its weights and its hitboxes. Heights in metres above the keel.
+    The belt is centred on the waterline (kept between keel and main deck); the armour deck sits on top of it
+    (flat, all-or-nothing style), or 2.5 m below the main deck (never under the waterline) on a ship without a
+    belt. The citadel's transverse bulkheads close the belt ends, from the armour deck down 1.4 belt heights,
+    at 0.6 of the belt thickness."""
     a = design.get("armour", {})
     belt, deck = a.get("belt_mm", 0), a.get("deck_mm", 0)
-    cx0, cx1 = geo.get("citadel", (-0.3 * L, 0.3 * L))
-    lc = cx1 - cx0
-    xc = (cx0 + cx1) / 2
+    x0, x1 = geo.get("citadel", (-0.3 * L, 0.3 * L))
+    h = TUNING["belt_h_a"] * T + TUNING["belt_h_b"]
+    bot, top = max(0.0, T - h / 2), min(D, T + h / 2)
+    deck_z = top if belt > 0 else min(D, max(T, D - 2.5))
+    return dict(x0=x0, x1=x1, belt_mm=belt, deck_mm=deck, belt_bottom=bot, belt_top=top, deck_z=deck_z,
+                bulkhead_mm=0.6 * belt, bulkhead_bottom=max(0.0, deck_z - 1.4 * (top - bot)))
+
+
+def armour_weights(design, L, B, T, D, geo):
+    g = armour_geometry(design, L, T, D, geo)
+    lc = g["x1"] - g["x0"]
+    xc = (g["x0"] + g["x1"]) / 2
     out = []
-    if belt > 0:
-        h = TUNING["belt_h_a"] * T + TUNING["belt_h_b"]
-        out.append(Weight("Belt armour", "armour", 2 * lc * h * belt / 1000 * STEEL, x=xc,
-                          z_rel=("frac", T / D if D else 0.5)))
-        out.append(Weight("Bulkheads", "armour", 2 * B * h * 1.4 * 0.6 * belt / 1000 * STEEL, x=xc,
-                          z_rel=("frac", 0.5)))
-    if deck > 0:
-        out.append(Weight("Deck armour", "armour", lc * B * 0.9 * deck / 1000 * STEEL, x=xc,
-                          z_rel=("deck", -2.5)))
+    if g["belt_mm"] > 0:
+        h = g["belt_top"] - g["belt_bottom"]
+        hb = g["deck_z"] - g["bulkhead_bottom"]
+        out.append(Weight("Belt armour", "armour", 2 * lc * h * g["belt_mm"] / 1000 * STEEL, x=xc,
+                          z_rel=("frac", (g["belt_top"] + g["belt_bottom"]) / 2 / D if D else 0.5)))
+        out.append(Weight("Bulkheads", "armour", 2 * B * hb * g["bulkhead_mm"] / 1000 * STEEL, x=xc,
+                          z_rel=("frac", (g["deck_z"] + g["bulkhead_bottom"]) / 2 / D if D else 0.5)))
+    if g["deck_mm"] > 0:
+        out.append(Weight("Deck armour", "armour", lc * B * 0.9 * g["deck_mm"] / 1000 * STEEL, x=xc,
+                          z_rel=("deck", g["deck_z"] - D)))
     return out
 
 

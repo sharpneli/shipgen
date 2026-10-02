@@ -299,6 +299,7 @@ def _funnel_size(shp, n, max_w):
 
 def _compartments(lay, design, hull, mach, hangar, extra=()):
     armour = design.get("armour") or {}
+    av = aviation(design)
     L, B = hull.L, hull.B
     m0, m1 = mach
     cit = (m0 - 0.06 * L, m1 + 0.08 * L)
@@ -310,7 +311,8 @@ def _compartments(lay, design, hull, mach, hangar, extra=()):
     lay.compartments += [
         dict(id="Citadel", kind="citadel", x0=cit[0], x1=cit[1], half_width=inner_hw,
              belt_mm=armour.get("belt_mm", 0), deck_mm=armour.get("deck_mm", 0)),
-        dict(id="Hangar", kind="hangar", x0=hx0, x1=hx1, half_width=hhw),
+        dict(id="Hangar", kind="hangar", x0=hx0, x1=hx1, half_width=hhw, base=0.0,
+             top=2 * LEVEL_H if av["flight_deck"] == "none" else HANGAR_H * av["hangar_decks"]),
         dict(id="Machinery", kind="machinery", x0=m0, x1=m1, half_width=inner_hw),
         dict(id="Aviation magazines", kind="magazine", x0=m1, x1=cit[1], half_width=inner_hw),
         dict(id="Aviation fuel", kind="fuel_tank", x0=cit[0], x1=m0, half_width=inner_hw),

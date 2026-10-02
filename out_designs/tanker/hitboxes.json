@@ -1,10 +1,18 @@
 {
  "units": "metres",
  "frame": "ship-local: origin = ship centre = sprite centre, +x toward bow, +y toward starboard; angles clockwise from dead ahead",
- "heights": "base/top are metres above the main deck",
+ "heights": "base/top/z are metres above the main deck (negative = below it)",
  "turret_local": "turret 'local' polygons are in turret space (pivot at 0,0, barrels along +x); rotate by the current turret angle, then add (x, y)",
  "length": 152,
  "beam": 20.7,
+ "vertical": {
+  "keel": -11.94,
+  "waterline": -2.67,
+  "armour_deck": null,
+  "draught": 9.27,
+  "depth": 11.94,
+  "freeboard": 2.67
+ },
  "hull": [
   [
    -76.0,
@@ -2079,10 +2087,12 @@
    3.105
   ]
  ],
+ "armour": {},
  "components": [
   {
    "id": "House",
    "kind": "superstructure",
+   "role": "deckhouse",
    "shape": "polygon",
    "points": [
     [
@@ -2244,6 +2254,7 @@
   {
    "id": "Bridge",
    "kind": "superstructure",
+   "role": "bridge",
    "shape": "polygon",
    "points": [
     [
@@ -2405,6 +2416,7 @@
   {
    "id": "Engine house",
    "kind": "superstructure",
+   "role": "deckhouse",
    "shape": "polygon",
    "points": [
     [
@@ -2566,6 +2578,7 @@
   {
    "id": "Engine house upper",
    "kind": "superstructure",
+   "role": "deckhouse",
    "shape": "polygon",
    "points": [
     [
@@ -8923,6 +8936,8 @@
  ],
  "compartments": [
   {
+   "base": -11.94,
+   "top": 0.0,
    "id": "Tank 1",
    "kind": "cargo_tank",
    "x0": 20.76,
@@ -8930,6 +8945,8 @@
    "half_width": 8.797
   },
   {
+   "base": -11.94,
+   "top": 0.0,
    "id": "Tank 2",
    "kind": "cargo_tank",
    "x0": 34.28,
@@ -8937,6 +8954,8 @@
    "half_width": 8.797
   },
   {
+   "base": -11.94,
+   "top": 0.0,
    "id": "Tank 3",
    "kind": "cargo_tank",
    "x0": 47.8,
@@ -8944,6 +8963,8 @@
    "half_width": 8.797
   },
   {
+   "base": -11.94,
+   "top": 0.0,
    "id": "Tank 4",
    "kind": "cargo_tank",
    "x0": -9.307,
@@ -8951,6 +8972,8 @@
    "half_width": 8.797
   },
   {
+   "base": -11.94,
+   "top": 0.0,
    "id": "Tank 5",
    "kind": "cargo_tank",
    "x0": -22.175,
@@ -8958,6 +8981,8 @@
    "half_width": 8.797
   },
   {
+   "base": -11.94,
+   "top": 0.0,
    "id": "Tank 6",
    "kind": "cargo_tank",
    "x0": -35.042,
@@ -8965,6 +8990,8 @@
    "half_width": 8.797
   },
   {
+   "base": -11.94,
+   "top": 0.0,
    "id": "Tank 7",
    "kind": "cargo_tank",
    "x0": -47.909,
@@ -8972,6 +8999,8 @@
    "half_width": 8.797
   },
   {
+   "base": -11.94,
+   "top": 0.0,
    "id": "Machinery",
    "kind": "machinery",
    "x0": -72.2,
@@ -8979,6 +9008,8 @@
    "half_width": 8.797
   },
   {
+   "base": -11.94,
+   "top": 0.0,
    "id": "Steering gear",
    "kind": "steering",
    "x0": -72.96,

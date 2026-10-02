@@ -1,10 +1,18 @@
 {
  "units": "metres",
  "frame": "ship-local: origin = ship centre = sprite centre, +x toward bow, +y toward starboard; angles clockwise from dead ahead",
- "heights": "base/top are metres above the main deck",
+ "heights": "base/top/z are metres above the main deck (negative = below it)",
  "turret_local": "turret 'local' polygons are in turret space (pivot at 0,0, barrels along +x); rotate by the current turret angle, then add (x, y)",
  "length": 110,
  "beam": 13.5,
+ "vertical": {
+  "keel": -8.88,
+  "waterline": -5.14,
+  "armour_deck": null,
+  "draught": 3.74,
+  "depth": 8.88,
+  "freeboard": 5.14
+ },
  "hull": [
   [
    -55.0,
@@ -2071,6 +2079,7 @@
    3.038
   ]
  ],
+ "armour": {},
  "components": [
   {
    "id": "S1",
@@ -2258,16 +2267,24 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "barbette": "S1 barbette"
   },
   {
    "id": "S1 barbette",
    "kind": "barbette",
+   "mount": "S1",
    "shape": "circle",
    "x": 44.647,
    "y": 0.0,
    "r": 1.475,
-   "base": -3.0,
+   "base": -2.5,
    "top": 0.3,
    "armour_mm": 20
   },
@@ -2457,22 +2474,31 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "barbette": "S2 barbette"
   },
   {
    "id": "S2 barbette",
    "kind": "barbette",
+   "mount": "S2",
    "shape": "circle",
    "x": -35.347,
    "y": 0.0,
    "r": 1.475,
-   "base": -3.0,
+   "base": -2.5,
    "top": 5.2,
    "armour_mm": 20
   },
   {
    "id": "Hangar",
    "kind": "superstructure",
+   "role": "hangar",
    "shape": "polygon",
    "points": [
     [
@@ -2634,6 +2660,7 @@
   {
    "id": "Hangar roof",
    "kind": "superstructure",
+   "role": "hangar",
    "shape": "polygon",
    "points": [
     [
@@ -2795,6 +2822,7 @@
   {
    "id": "Bridge base",
    "kind": "superstructure",
+   "role": "bridge",
    "shape": "polygon",
    "points": [
     [
@@ -2956,6 +2984,7 @@
   {
    "id": "Bridge",
    "kind": "superstructure",
+   "role": "bridge",
    "shape": "polygon",
    "points": [
     [
@@ -3117,6 +3146,7 @@
   {
    "id": "Bridge upper",
    "kind": "superstructure",
+   "role": "bridge",
    "shape": "polygon",
    "points": [
     [
@@ -3453,6 +3483,8 @@
  ],
  "compartments": [
   {
+   "base": -8.88,
+   "top": 0.0,
    "id": "Citadel",
    "kind": "citadel",
    "x0": -9.109,
@@ -3462,6 +3494,8 @@
    "deck_mm": 0
   },
   {
+   "base": 0.0,
+   "top": 5.2,
    "id": "Hangar",
    "kind": "hangar",
    "x0": -37.4,
@@ -3469,6 +3503,8 @@
    "half_width": 4.86
   },
   {
+   "base": -8.88,
+   "top": 0.0,
    "id": "Machinery",
    "kind": "machinery",
    "x0": -2.509,
@@ -3476,6 +3512,8 @@
    "half_width": 5.4
   },
   {
+   "base": -8.88,
+   "top": 0.0,
    "id": "Aviation magazines",
    "kind": "magazine",
    "x0": 10.209,
@@ -3483,6 +3521,8 @@
    "half_width": 5.4
   },
   {
+   "base": -8.88,
+   "top": 0.0,
    "id": "Aviation fuel",
    "kind": "fuel_tank",
    "x0": -9.109,
@@ -3490,6 +3530,8 @@
    "half_width": 5.4
   },
   {
+   "base": -8.88,
+   "top": 0.0,
    "id": "Steering gear",
    "kind": "steering",
    "x0": -51.7,

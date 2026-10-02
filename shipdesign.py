@@ -139,7 +139,7 @@ def build(design):
     """Design the ship: the published, plain-data result (see the module docstring). Call validate() first."""
     lay, r = solve(design)
     deck_m = max(r.freeboard, 0.1)    # an unsolvable design can come out with no freeboard at all
-    hitboxes = export_hitboxes(lay, design)
+    hitboxes = export_hitboxes(lay, design, r)
     return dict(
         design=design,
         report=report_dict(design, lay, r),

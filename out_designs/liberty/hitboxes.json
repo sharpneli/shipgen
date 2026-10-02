@@ -1,10 +1,18 @@
 {
  "units": "metres",
  "frame": "ship-local: origin = ship centre = sprite centre, +x toward bow, +y toward starboard; angles clockwise from dead ahead",
- "heights": "base/top are metres above the main deck",
+ "heights": "base/top/z are metres above the main deck (negative = below it)",
  "turret_local": "turret 'local' polygons are in turret space (pivot at 0,0, barrels along +x); rotate by the current turret angle, then add (x, y)",
  "length": 128,
  "beam": 17.3,
+ "vertical": {
+  "keel": -10.75,
+  "waterline": -2.41,
+  "armour_deck": null,
+  "draught": 8.34,
+  "depth": 10.75,
+  "freeboard": 2.41
+ },
  "hull": [
   [
    -64.0,
@@ -2079,6 +2087,7 @@
    2.595
   ]
  ],
+ "armour": {},
  "components": [
   {
    "id": "S1",
@@ -2266,22 +2275,31 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 0,
+    "side": 0,
+    "rear": 0,
+    "roof": 0
+   },
+   "barbette": "S1 barbette"
   },
   {
    "id": "S1 barbette",
    "kind": "barbette",
+   "mount": "S1",
    "shape": "circle",
    "x": -58.797,
    "y": 0.0,
    "r": 1.903,
-   "base": -3.0,
+   "base": -2.41,
    "top": 2.7,
    "armour_mm": 0
   },
   {
    "id": "House",
    "kind": "superstructure",
+   "role": "deckhouse",
    "shape": "polygon",
    "points": [
     [
@@ -2443,6 +2461,7 @@
   {
    "id": "Boat deck house",
    "kind": "superstructure",
+   "role": "deckhouse",
    "shape": "polygon",
    "points": [
     [
@@ -2604,6 +2623,7 @@
   {
    "id": "Bridge",
    "kind": "superstructure",
+   "role": "bridge",
    "shape": "polygon",
    "points": [
     [
@@ -9025,6 +9045,8 @@
  ],
  "compartments": [
   {
+   "base": -10.75,
+   "top": 0.0,
    "id": "Hold 1",
    "kind": "hold",
    "x0": 9.84,
@@ -9032,6 +9054,8 @@
    "half_width": 7.353
   },
   {
+   "base": -10.75,
+   "top": 0.0,
    "id": "Hold 2",
    "kind": "hold",
    "x0": 23.72,
@@ -9039,6 +9063,8 @@
    "half_width": 7.353
   },
   {
+   "base": -10.75,
+   "top": 0.0,
    "id": "Hold 3",
    "kind": "hold",
    "x0": 37.6,
@@ -9046,6 +9072,8 @@
    "half_width": 7.353
   },
   {
+   "base": -10.75,
+   "top": 0.0,
    "id": "Hold 4",
    "kind": "hold",
    "x0": -33.86,
@@ -9053,6 +9081,8 @@
    "half_width": 7.353
   },
   {
+   "base": -10.75,
+   "top": 0.0,
    "id": "Hold 5",
    "kind": "hold",
    "x0": -52.76,
@@ -9060,6 +9090,8 @@
    "half_width": 7.353
   },
   {
+   "base": -10.75,
+   "top": 0.0,
    "id": "Machinery",
    "kind": "machinery",
    "x0": -12.96,
@@ -9067,6 +9099,8 @@
    "half_width": 7.353
   },
   {
+   "base": -10.75,
+   "top": 0.0,
    "id": "Steering gear",
    "kind": "steering",
    "x0": -61.44,

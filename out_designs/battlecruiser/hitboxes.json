@@ -1,10 +1,18 @@
 {
  "units": "metres",
  "frame": "ship-local: origin = ship centre = sprite centre, +x toward bow, +y toward starboard; angles clockwise from dead ahead",
- "heights": "base/top are metres above the main deck",
+ "heights": "base/top/z are metres above the main deck (negative = below it)",
  "turret_local": "turret 'local' polygons are in turret space (pivot at 0,0, barrels along +x); rotate by the current turret angle, then add (x, y)",
  "length": 210,
  "beam": 27,
+ "vertical": {
+  "keel": -14.91,
+  "waterline": -5.28,
+  "armour_deck": -2.64,
+  "draught": 9.63,
+  "depth": 14.91,
+  "freeboard": 5.28
+ },
  "hull": [
   [
    -105.0,
@@ -2079,6 +2087,37 @@
    5.994
   ]
  ],
+ "armour": {
+  "belt": {
+   "thickness_mm": 229,
+   "x0": -69.413,
+   "x1": 66.497,
+   "bottom": -7.92,
+   "top": -2.64
+  },
+  "bulkheads": [
+   {
+    "id": "Forward bulkhead",
+    "x": 66.497,
+    "thickness_mm": 137,
+    "bottom": -10.04,
+    "top": -2.64
+   },
+   {
+    "id": "Aft bulkhead",
+    "x": -69.413,
+    "thickness_mm": 137,
+    "bottom": -10.04,
+    "top": -2.64
+   }
+  ],
+  "deck": {
+   "thickness_mm": 64,
+   "x0": -69.413,
+   "x1": 66.497,
+   "z": -2.64
+  }
+ },
  "components": [
   {
    "id": "A",
@@ -2243,16 +2282,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 229,
+    "side": 126,
+    "rear": 114,
+    "roof": 92
+   },
+   "magazine": "Magazine A",
+   "barbette": "A barbette"
   },
   {
    "id": "A barbette",
    "kind": "barbette",
+   "mount": "A",
    "shape": "circle",
    "x": 59.277,
    "y": 0.0,
    "r": 4.959,
-   "base": -3.0,
+   "base": -2.64,
    "top": 1.2,
    "armour_mm": 183
   },
@@ -2419,16 +2467,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 229,
+    "side": 126,
+    "rear": 114,
+    "roof": 92
+   },
+   "magazine": "Magazine B",
+   "barbette": "B barbette"
   },
   {
    "id": "B barbette",
    "kind": "barbette",
+   "mount": "B",
    "shape": "circle",
    "x": 44.793,
    "y": 0.0,
    "r": 4.959,
-   "base": -3.0,
+   "base": -2.64,
    "top": 4.39,
    "armour_mm": 183
   },
@@ -2595,16 +2652,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 229,
+    "side": 126,
+    "rear": 114,
+    "roof": 92
+   },
+   "magazine": "Magazine Y",
+   "barbette": "Y barbette"
   },
   {
    "id": "Y barbette",
    "kind": "barbette",
+   "mount": "Y",
    "shape": "circle",
    "x": -62.193,
    "y": 0.0,
    "r": 4.959,
-   "base": -3.0,
+   "base": -2.64,
    "top": 1.2,
    "armour_mm": 183
   },
@@ -2775,16 +2841,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 229,
+    "side": 126,
+    "rear": 114,
+    "roof": 92
+   },
+   "magazine": "Magazine Q",
+   "barbette": "Q barbette"
   },
   {
    "id": "Q barbette",
    "kind": "barbette",
+   "mount": "Q",
    "shape": "circle",
    "x": -7.23,
    "y": 0.0,
    "r": 4.959,
-   "base": -3.0,
+   "base": -2.64,
    "top": 3.8,
    "armour_mm": 183
   },
@@ -2974,16 +3049,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "magazine": "Magazine S1S",
+   "barbette": "S1S barbette"
   },
   {
    "id": "S1S barbette",
    "kind": "barbette",
+   "mount": "S1S",
    "shape": "circle",
    "x": -34.671,
    "y": 9.951,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.64,
    "top": 2.6,
    "armour_mm": 20
   },
@@ -3173,16 +3257,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "magazine": "Magazine S1P",
+   "barbette": "S1P barbette"
   },
   {
    "id": "S1P barbette",
    "kind": "barbette",
+   "mount": "S1P",
    "shape": "circle",
    "x": -34.671,
    "y": -9.951,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.64,
    "top": 2.6,
    "armour_mm": 20
   },
@@ -3372,16 +3465,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "magazine": "Magazine S2S",
+   "barbette": "S2S barbette"
   },
   {
    "id": "S2S barbette",
    "kind": "barbette",
+   "mount": "S2S",
    "shape": "circle",
    "x": -26.751,
    "y": 9.951,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.64,
    "top": 2.6,
    "armour_mm": 20
   },
@@ -3571,16 +3673,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "magazine": "Magazine S2P",
+   "barbette": "S2P barbette"
   },
   {
    "id": "S2P barbette",
    "kind": "barbette",
+   "mount": "S2P",
    "shape": "circle",
    "x": -26.751,
    "y": -9.951,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.64,
    "top": 2.6,
    "armour_mm": 20
   },
@@ -3770,16 +3881,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "magazine": "Magazine S3S",
+   "barbette": "S3S barbette"
   },
   {
    "id": "S3S barbette",
    "kind": "barbette",
+   "mount": "S3S",
    "shape": "circle",
    "x": -18.83,
    "y": 9.951,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.64,
    "top": 2.6,
    "armour_mm": 20
   },
@@ -3969,16 +4089,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "magazine": "Magazine S3P",
+   "barbette": "S3P barbette"
   },
   {
    "id": "S3P barbette",
    "kind": "barbette",
+   "mount": "S3P",
    "shape": "circle",
    "x": -18.83,
    "y": -9.951,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.64,
    "top": 2.6,
    "armour_mm": 20
   },
@@ -4168,16 +4297,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "magazine": "Magazine S4S",
+   "barbette": "S4S barbette"
   },
   {
    "id": "S4S barbette",
    "kind": "barbette",
+   "mount": "S4S",
    "shape": "circle",
    "x": -10.91,
    "y": 9.951,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.64,
    "top": 2.6,
    "armour_mm": 20
   },
@@ -4367,16 +4505,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "magazine": "Magazine S4P",
+   "barbette": "S4P barbette"
   },
   {
    "id": "S4P barbette",
    "kind": "barbette",
+   "mount": "S4P",
    "shape": "circle",
    "x": -10.91,
    "y": -9.951,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.64,
    "top": 2.6,
    "armour_mm": 20
   },
@@ -4566,16 +4713,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "magazine": "Magazine S5S",
+   "barbette": "S5S barbette"
   },
   {
    "id": "S5S barbette",
    "kind": "barbette",
+   "mount": "S5S",
    "shape": "circle",
    "x": -2.989,
    "y": 9.951,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.64,
    "top": 2.6,
    "armour_mm": 20
   },
@@ -4765,16 +4921,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "magazine": "Magazine S5P",
+   "barbette": "S5P barbette"
   },
   {
    "id": "S5P barbette",
    "kind": "barbette",
+   "mount": "S5P",
    "shape": "circle",
    "x": -2.989,
    "y": -9.951,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.64,
    "top": 2.6,
    "armour_mm": 20
   },
@@ -4964,16 +5129,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "magazine": "Magazine S6S",
+   "barbette": "S6S barbette"
   },
   {
    "id": "S6S barbette",
    "kind": "barbette",
+   "mount": "S6S",
    "shape": "circle",
    "x": 4.931,
    "y": 9.951,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.64,
    "top": 2.6,
    "armour_mm": 20
   },
@@ -5163,16 +5337,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "magazine": "Magazine S6P",
+   "barbette": "S6P barbette"
   },
   {
    "id": "S6P barbette",
    "kind": "barbette",
+   "mount": "S6P",
    "shape": "circle",
    "x": 4.931,
    "y": -9.951,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.64,
    "top": 2.6,
    "armour_mm": 20
   },
@@ -5362,16 +5545,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "magazine": "Magazine S7S",
+   "barbette": "S7S barbette"
   },
   {
    "id": "S7S barbette",
    "kind": "barbette",
+   "mount": "S7S",
    "shape": "circle",
    "x": 12.851,
    "y": 9.951,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.64,
    "top": 2.6,
    "armour_mm": 20
   },
@@ -5561,16 +5753,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "magazine": "Magazine S7P",
+   "barbette": "S7P barbette"
   },
   {
    "id": "S7P barbette",
    "kind": "barbette",
+   "mount": "S7P",
    "shape": "circle",
    "x": 12.851,
    "y": -9.951,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.64,
    "top": 2.6,
    "armour_mm": 20
   },
@@ -5760,16 +5961,25 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "magazine": "Magazine S8S",
+   "barbette": "S8S barbette"
   },
   {
    "id": "S8S barbette",
    "kind": "barbette",
+   "mount": "S8S",
    "shape": "circle",
    "x": 20.772,
    "y": 9.951,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.64,
    "top": 2.6,
    "armour_mm": 20
   },
@@ -5959,22 +6169,32 @@
       ]
      ]
     ]
-   }
+   },
+   "armour": {
+    "face": 25,
+    "side": 14,
+    "rear": 12,
+    "roof": 10
+   },
+   "magazine": "Magazine S8P",
+   "barbette": "S8P barbette"
   },
   {
    "id": "S8P barbette",
    "kind": "barbette",
+   "mount": "S8P",
    "shape": "circle",
    "x": 20.772,
    "y": -9.951,
    "r": 1.693,
-   "base": -3.0,
+   "base": -2.64,
    "top": 2.6,
    "armour_mm": 20
   },
   {
    "id": "Deckhouse",
    "kind": "superstructure",
+   "role": "deckhouse",
    "shape": "polygon",
    "points": [
     [
@@ -6136,6 +6356,7 @@
   {
    "id": "Bridge",
    "kind": "superstructure",
+   "role": "bridge",
    "shape": "polygon",
    "points": [
     [
@@ -6297,6 +6518,7 @@
   {
    "id": "Bridge upper",
    "kind": "superstructure",
+   "role": "bridge",
    "shape": "polygon",
    "points": [
     [
@@ -6458,6 +6680,7 @@
   {
    "id": "Main director",
    "kind": "superstructure",
+   "role": "director",
    "shape": "polygon",
    "points": [
     [
@@ -6619,6 +6842,7 @@
   {
    "id": "Aft control",
    "kind": "superstructure",
+   "role": "aft_control",
    "shape": "polygon",
    "points": [
     [
@@ -6780,6 +7004,7 @@
   {
    "id": "Aft director",
    "kind": "superstructure",
+   "role": "director",
    "shape": "polygon",
    "points": [
     [
@@ -6937,6 +7162,17 @@
    },
    "base": 5.2,
    "top": 7.8
+  },
+  {
+   "id": "Conning tower",
+   "kind": "conning_tower",
+   "shape": "circle",
+   "x": 30.881,
+   "y": 0.0,
+   "r": 2.7,
+   "base": 0.0,
+   "top": 5.2,
+   "armour_mm": 229
   },
   {
    "id": "Funnel 1",
@@ -7400,6 +7636,8 @@
  ],
  "compartments": [
   {
+   "base": -14.91,
+   "top": -2.64,
    "id": "Citadel",
    "kind": "citadel",
    "x0": -69.413,
@@ -7409,27 +7647,224 @@
    "deck_mm": 64
   },
   {
-   "id": "Forward magazines",
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine A",
    "kind": "magazine",
-   "x0": 39.573,
+   "mount": "A",
+   "x0": 54.057,
    "x1": 64.497,
-   "half_width": 10.8
+   "half_width": 5.22
   },
   {
-   "id": "Midships magazines",
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine B",
    "kind": "magazine",
-   "x0": -12.45,
-   "x1": -2.01,
-   "half_width": 10.8
+   "mount": "B",
+   "x0": 39.573,
+   "x1": 50.013,
+   "half_width": 5.22
   },
   {
-   "id": "Aft magazines",
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine Y",
    "kind": "magazine",
+   "mount": "Y",
    "x0": -67.413,
    "x1": -56.973,
-   "half_width": 10.8
+   "half_width": 5.22
   },
   {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine Q",
+   "kind": "magazine",
+   "mount": "Q",
+   "x0": -12.45,
+   "x1": -2.01,
+   "half_width": 5.22
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine S1S",
+   "kind": "magazine",
+   "mount": "S1S",
+   "x0": -36.453,
+   "x1": -32.889,
+   "half_width": 1.782,
+   "y": 9.018
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine S1P",
+   "kind": "magazine",
+   "mount": "S1P",
+   "x0": -36.453,
+   "x1": -32.889,
+   "half_width": 1.782,
+   "y": -9.018
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine S2S",
+   "kind": "magazine",
+   "mount": "S2S",
+   "x0": -28.533,
+   "x1": -24.969,
+   "half_width": 1.782,
+   "y": 9.018
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine S2P",
+   "kind": "magazine",
+   "mount": "S2P",
+   "x0": -28.533,
+   "x1": -24.969,
+   "half_width": 1.782,
+   "y": -9.018
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine S3S",
+   "kind": "magazine",
+   "mount": "S3S",
+   "x0": -20.612,
+   "x1": -17.048,
+   "half_width": 1.782,
+   "y": 9.018
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine S3P",
+   "kind": "magazine",
+   "mount": "S3P",
+   "x0": -20.612,
+   "x1": -17.048,
+   "half_width": 1.782,
+   "y": -9.018
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine S4S",
+   "kind": "magazine",
+   "mount": "S4S",
+   "x0": -12.692,
+   "x1": -9.128,
+   "half_width": 1.782,
+   "y": 9.018
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine S4P",
+   "kind": "magazine",
+   "mount": "S4P",
+   "x0": -12.692,
+   "x1": -9.128,
+   "half_width": 1.782,
+   "y": -9.018
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine S5S",
+   "kind": "magazine",
+   "mount": "S5S",
+   "x0": -4.771,
+   "x1": -1.207,
+   "half_width": 1.782,
+   "y": 9.018
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine S5P",
+   "kind": "magazine",
+   "mount": "S5P",
+   "x0": -4.771,
+   "x1": -1.207,
+   "half_width": 1.782,
+   "y": -9.018
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine S6S",
+   "kind": "magazine",
+   "mount": "S6S",
+   "x0": 3.149,
+   "x1": 6.713,
+   "half_width": 1.782,
+   "y": 9.018
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine S6P",
+   "kind": "magazine",
+   "mount": "S6P",
+   "x0": 3.149,
+   "x1": 6.713,
+   "half_width": 1.782,
+   "y": -9.018
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine S7S",
+   "kind": "magazine",
+   "mount": "S7S",
+   "x0": 11.069,
+   "x1": 14.633,
+   "half_width": 1.782,
+   "y": 9.018
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine S7P",
+   "kind": "magazine",
+   "mount": "S7P",
+   "x0": 11.069,
+   "x1": 14.633,
+   "half_width": 1.782,
+   "y": -9.018
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine S8S",
+   "kind": "magazine",
+   "mount": "S8S",
+   "x0": 18.99,
+   "x1": 22.554,
+   "half_width": 1.782,
+   "y": 9.018
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
+   "id": "Magazine S8P",
+   "kind": "magazine",
+   "mount": "S8P",
+   "x0": 18.99,
+   "x1": 22.554,
+   "half_width": 1.782,
+   "y": -9.018
+  },
+  {
+   "base": -14.91,
+   "top": -2.64,
    "id": "Machinery",
    "kind": "machinery",
    "x0": -30.278,
@@ -7437,6 +7872,8 @@
    "half_width": 10.8
   },
   {
+   "base": -14.91,
+   "top": -2.64,
    "id": "Steering gear",
    "kind": "steering",
    "x0": -98.7,

@@ -1,10 +1,18 @@
 {
  "units": "metres",
  "frame": "ship-local: origin = ship centre = sprite centre, +x toward bow, +y toward starboard; angles clockwise from dead ahead",
- "heights": "base/top are metres above the main deck",
+ "heights": "base/top/z are metres above the main deck (negative = below it)",
  "turret_local": "turret 'local' polygons are in turret space (pivot at 0,0, barrels along +x); rotate by the current turret angle, then add (x, y)",
  "length": 24.4,
  "beam": 6.3,
+ "vertical": {
+  "keel": -2.8,
+  "waterline": -1.78,
+  "armour_deck": null,
+  "draught": 1.02,
+  "depth": 2.8,
+  "freeboard": 1.78
+ },
  "hull": [
   [
    -12.2,
@@ -2047,6 +2055,7 @@
    2.898
   ]
  ],
+ "armour": {},
  "components": [
   {
    "id": "T1S",
@@ -2842,11 +2851,18 @@
       ]
      ]
     ]
+   },
+   "armour": {
+    "face": 0,
+    "side": 0,
+    "rear": 0,
+    "roof": 0
    }
   },
   {
    "id": "Charthouse",
    "kind": "superstructure",
+   "role": "bridge",
    "shape": "polygon",
    "points": [
     [
@@ -3041,6 +3057,8 @@
  ],
  "compartments": [
   {
+   "base": -2.8,
+   "top": 0.0,
    "id": "Crew space",
    "kind": "crew",
    "x0": 6.344,
@@ -3048,6 +3066,8 @@
    "half_width": 2.52
   },
   {
+   "base": -2.8,
+   "top": 0.0,
    "id": "Fuel tanks",
    "kind": "fuel_tank",
    "x0": -1.952,
@@ -3055,6 +3075,8 @@
    "half_width": 2.52
   },
   {
+   "base": -2.8,
+   "top": 0.0,
    "id": "Engine room",
    "kind": "machinery",
    "x0": -10.248,
@@ -3062,6 +3084,8 @@
    "half_width": 2.52
   },
   {
+   "base": -2.8,
+   "top": 0.0,
    "id": "Tiller flat",
    "kind": "steering",
    "x0": -12.2,

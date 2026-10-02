@@ -176,7 +176,8 @@ def render_ship(ship, out_dir, S, mips=0, look=None, previews=True):
 
 
 KIND_COL = {"main": (255, 80, 80), "secondary": (255, 170, 60), "torpedo": (90, 200, 255), "barbette": (255, 255, 255),
-            "superstructure": (120, 255, 120), "funnel": (230, 120, 255), "aa": (255, 240, 80)}
+            "superstructure": (120, 255, 120), "funnel": (230, 120, 255), "aa": (255, 240, 80),
+            "conning_tower": (255, 120, 200)}
 
 
 def debug_overlay(img, hb, S, ox, oy):
@@ -196,8 +197,8 @@ def debug_overlay(img, hb, S, ox, oy):
         else:
             d.line(P(c["points"] + c["points"][:1]), fill=col, width=1)
     for c in hb["compartments"]:
-        x0, x1, hw = c["x0"], c["x1"], c["half_width"]
-        d.rectangle([ox + x0 * S, oy - hw * S, ox + x1 * S, oy + hw * S], outline=(255, 255, 255, 90))
+        x0, x1, hw, cy = c["x0"], c["x1"], c["half_width"], c.get("y", 0.0)
+        d.rectangle([ox + x0 * S, oy + (cy - hw) * S, ox + x1 * S, oy + (cy + hw) * S], outline=(255, 255, 255, 90))
     return im
 
 

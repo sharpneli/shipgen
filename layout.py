@@ -67,6 +67,7 @@ class Layout:
         self.decks = []         # raised decks and flight decks: dict(id, kind, points, base, top)
         self.sponsons = []      # platforms outboard of a flight deck: dict(id, points, base, top)
         self.sweeps = []        # main turrets' barrel sweep zones: dict(owner, polys, axis)
+        self.conning_tower = None   # armoured warships: dict(x, y, r, top), inside the bridge (not drawn)
 
     def free(self, fp, margin=0.4, ignore=()):
         return not any(_overlap(fp, o[0], margin) for o in self.footprints if o[3] not in ignore)
@@ -121,6 +122,26 @@ def add_block(lay, blocks, bid, x0, x1, w, level, rf, rb, y=0.0, z0=0.0, layer=N
     lay.weights.append(Weight(bid, "superstructure", (x1 - x0) * w * t_per_m2,
                               x=(x0 + x1) / 2, z_rel=("deck", (block_base(b) + block_top(b)) / 2)))
     return b
+
+
+def add_magazines(lay, mounts, inner_hw):
+    """One magazine per gun mount, below it in the hold, linked both ways (m["magazine"], the magazine's
+    "mount"). It spans the mount's diameter fore and aft. An off-centre mount's magazine stays inside the
+    inner hull (half-width inner_hw) on its own side."""
+    for m in mounts:
+        if m["kind"] not in ("main", "secondary"):
+            continue
+        r = m["t"]["r"]
+        if abs(m["y"]) < 0.5:
+            hw, y = min(r, inner_hw), 0.0
+        else:
+            hw = min(r, inner_hw / 2)
+            y = math.copysign(min(max(abs(m["y"]), hw), inner_hw - hw), m["y"])
+        m["magazine"] = f"Magazine {m['id']}"
+        c = dict(id=m["magazine"], kind="magazine", mount=m["id"], x0=m["x"] - r, x1=m["x"] + r, half_width=hw)
+        if y:
+            c["y"] = y
+        lay.compartments.append(c)
 
 
 # ---------------------------------------------------------------------------
@@ -661,6 +682,9 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
     # bridge tower
     add_block("Bridge", bx0, bx1, w2, 2, 0.42 * w2, 1.0)
     add_block("Bridge upper", bx0 + 0.1 * lb, bx1 - 0.06 * lb, 0.78 * w2, 3, 0.36 * w2, 1.0)
+    if armour.get("belt_mm", 0) > 0:   # inside the bridge's rounded front, as tall as the bridge
+        ct_r = min(max(0.1 * B, 1.25), 4.0, 0.4 * w2)
+        lay.conning_tower = dict(x=max(bx1 - 0.42 * w2, bx0 + ct_r), y=0.0, r=ct_r, top=2 * LEVEL_H)
     if 4 in tower_levels:
         add_block("Main director", bx0 + 0.35 * lb, bx1 - 0.2 * lb, 0.5 * w2, 4, 0.25 * w2, 0.25 * w2)
     # aft control
@@ -896,13 +920,7 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
     inner_hw = 0.8 * B / 2
     lay.compartments.append(dict(id="Citadel", kind="citadel", x0=cit[0], x1=cit[1], half_width=inner_hw,
                                  belt_mm=armour.get("belt_mm", 0), deck_mm=armour.get("deck_mm", 0)))
-    mid_xs = [m["x"] for m in mounts if m.get("midships")]
-    wing_xs = [m["x"] for m in mounts if m.get("wing")]
-    for gname, xs in (("Forward magazines", fore), ("Midships magazines", mid_xs), ("Wing magazines", wing_xs),
-                      ("Aft magazines", aft)):
-        if xs:
-            lay.compartments.append(dict(id=gname, kind="magazine", x0=min(xs) - r, x1=max(xs) + r,
-                                         half_width=inner_hw))
+    add_magazines(lay, mounts, inner_hw)
     m0, m1 = lay.geo["machinery"]
     lay.compartments.append(dict(id="Machinery", kind="machinery", x0=m0, x1=m1, half_width=inner_hw))
     lay.compartments.append(dict(id="Steering gear", kind="steering", x0=-L / 2 + 0.03 * L, x1=-L / 2 + 0.08 * L,
