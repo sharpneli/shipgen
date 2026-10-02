@@ -16,6 +16,7 @@ import os
 
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
+import hitview
 import looks
 import shadow
 from geometry import nearest_allowed, rotate_translate
@@ -171,6 +172,7 @@ def render_ship(ship, out_dir, S, mips=0, look=None, previews=True):
     hb = ship["hitboxes"]
     debug = debug_overlay(composite(base_p, upper_p, turret_pngs, meta, rest_angle), hb, S, ox, oy)
     debug.save(os.path.join(out_dir, "debug_hitboxes.png"))
+    hitview.render_views(ship, out_dir)
     sheet(ship, design, rest, stbd, S, os.path.join(out_dir, "sheet.png"))
     return meta
 

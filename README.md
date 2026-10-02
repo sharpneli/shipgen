@@ -27,6 +27,7 @@ design JSON (player input: counts, calibres, armour, speed, look)
    ▼  RENDER SIDE: reads only `ship`                           (~0.5 s game assets, ~3 s with previews)
    render.py      render_ship(ship, out_dir, scale, mips, look=None, previews=True)
    ├─ looks.py     every colour, turret drawing and silhouette (by the design's "look")
+   ├─ hitview.py   debug views of the hitbox model in 3D (hitbox_*.png)
    ├─ shipgen.py   SVG/PNG drawing (hull_base, turrets, hull_upper)
    └─ shadow.py    rasterises the height-map columns; the reference shadow renderer
 
@@ -209,7 +210,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
   - `components`:
     - Turrets: `local` body/parts/barrels polygons (rotate them by the turret angle, then add x, y), `broadphase_r`, `arcs_deg`, `rest_deg`, base/top heights.
       - `armour_mm` is the face. `armour` splits it into `face`/`side`/`rear`/`roof` (`hitbox.TURRET_*` ratios).
-      - Gun mounts link to their `barbette` (a component) and their `magazine` (a compartment). The barbette links back with `mount` and reaches down to the armour deck.
+      - Gun mounts link to their `barbette` (a component) and their `magazine` (a compartment). The barbette links back with `mount` and reaches down to the armour deck. A mount on a sponson or a flight deck has only a 1 m pedestal on its platform.
     - Superstructure: polygons with heights and a `role`: `bridge`, `director`, `aft_control`, `island`, `hangar`, `casemate` or `deckhouse` (`hitbox.BLOCK_ROLES`). A control position in a funnel's smoke lists those funnels in `smoke`.
     - Funnels: polygons with heights. `boiler_rooms` lists the rooms each one serves. An `uptake` component runs from the top of the boilers up to the funnel's base, with the same footprint and links.
     - `casing`: over machinery taller than its space, from the bounding deck up, with `armour_mm`.
@@ -236,6 +237,9 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
   - Within level k, sizes, `origin_px`, `pivot_px` and mount `px` are the level-0 values / 2^k.
   - The levels touch each other with no gap. Slice them into real GPU mip levels, or clamp UVs to each rect if you sample the packed image directly.
 - `preview_*.png`, `sheet.png`: stats, firing-arc diagram and previews, shadowed with the sun at bearing 240°, elevation 50°. `debug_hitboxes.png`: hitboxes drawn over the sprite.
+- `hitbox_bow.png`, `hitbox_quarter.png`, `hitbox_side.png`, `hitbox_internal.png` (`hitview.py`, debug only): the hitbox model in 3D, with every hitbox extruded from its base to its top.
+  - Views: from the starboard bow, the port quarter, a side elevation, and an internal view that shows only compartments, barbettes, uptakes and armour inside the hull's edges.
+  - The hull is translucent and the waterline is drawn in blue. Colours are by kind, with a legend.
 
 ## Conventions
 - Bow → +x. Angles run clockwise from dead ahead (90 = starboard). Arcs are `[start, end]` intervals, clockwise; `end` may exceed 360.

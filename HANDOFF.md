@@ -94,6 +94,9 @@ doesn't: the decisions behind the current design, how to work safely here, and w
 - **Checking a look change:** render a design in every look and confirm `hitboxes.json`, `sprite.json` and `report.json` (except its `inputs` echo) are identical across looks. `standard` must stay byte-identical to the old sprites.
 - **Regression method used throughout:** copy `out_designs/` aside, regenerate, and `diff -r`. Unrelated designs should stay byte-identical; expected changes should be limited to the designs you meant to change. The hand-authored fleet (`python shipgen.py --out <dir>`) has stayed byte-identical through all the changes, so keep it that way.
 - Run `python verify.py out_designs/*` after every change. It does pixel checks of sprites against hitboxes.
+- **Look at the 3D hitbox views** (`hitbox_*.png`, `hitview.py`) after hitbox changes. They caught compartments sticking out of the hull and barbettes hanging under sponsons.
+  - The export now clips every compartment box to the hull's width.
+  - Barbettes reach the armour deck only for mounts inside the hull and below any flight deck.
 - A turret-sweep checker existed only in the previous session's scratch folder. It rebuilds each main turret's sweep and tests it against taller blocks and funnels. Folding it into `verify.py` would be a good addition.
 - The user edits files in `designs/` themselves. Never overwrite their designs. As of the end of this session:
   - `destroyer.json` has `calibre_mm: 1270`, probably a deliberate silly test. Sized, it comes out at 418 m and 163k t.

@@ -283,10 +283,20 @@ def _accommodation(lay, n, res):
     if not zones:
         return
     base = (plan["top"] - res.depth) if plan.get("armoured") else -(res.depth - res.draught)
-    total = sum(b - a for _, a, b in zones)
+    # each zone in slices no longer than about 0.06 L, each as wide as the hull is over its whole length, so the
+    # zones follow the bow and stern
+    cells = []
+    for zid, a, b in zones:
+        k = max(1, math.ceil((b - a) / (0.06 * L) - 1e-9))
+        for i in range(k):
+            x0, x1 = a + (b - a) * i / k, a + (b - a) * (i + 1) / k
+            hw = min(0.4 * B, min(lay.hull.half_width(x0 + (x1 - x0) * j / 4) for j in range(5)) - 0.5)
+            if hw > 0.5:
+                cells.append(dict(id=f"{zid} {i + 1}" if k > 1 else zid, x0=x0, x1=x1, half_width=hw))
+    total = sum((c["x1"] - c["x0"]) * c["half_width"] for c in cells)
     left = n
-    for k, (zid, a, b) in enumerate(zones):
-        men = left if k == len(zones) - 1 else round(n * (b - a) / total)
+    for k, c in enumerate(cells):
+        men = left if k == len(cells) - 1 else round(n * (c["x1"] - c["x0"]) * c["half_width"] / total)
         left -= men
-        lay.compartments.append(dict(id=zid, kind="accommodation", x0=a, x1=b, half_width=0.4 * B, base=base,
-                                     top=0.0, crew=men))
+        lay.compartments.append(dict(id=c["id"], kind="accommodation", x0=c["x0"], x1=c["x1"],
+                                     half_width=c["half_width"], base=base, top=0.0, crew=men))

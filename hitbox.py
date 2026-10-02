@@ -18,6 +18,7 @@ picks counts and calibres. Every arc is centred on the mount's rest bearing (deg
 """
 from __future__ import annotations
 
+import math
 import re
 
 from geometry import rrect_polygon, turret_shapes, turret_reach, _wrap180, angle_allowed, nearest_allowed  # noqa: F401
@@ -124,6 +125,7 @@ def export_hitboxes(lay, design, res):
     sec = design.get("secondary") or {}
     sec_arm = sec.get("armour_mm", 25) if isinstance(sec, dict) else 25
     r3 = lambda pts: [[round(x, 3), round(y, 3)] for x, y in pts]
+    fd_base = min([dk["base"] for dk in lay.decks if dk["kind"] == "flight_deck"] + [1e9])
     comps = []
     for m in lay.mounts:
         t = m["t"]
@@ -144,12 +146,16 @@ def export_hitboxes(lay, design, res):
             comps[-1]["magazine"] = m["magazine"]
         if m.get("casemate"):   # in the hull side, below the main deck
             comps[-1]["mount"] = "casemate"
-        if t.get("barbette", True):   # from the armour deck up to the turret
+        if t.get("barbette", True):
+            # from the armour deck up to the turret, for a mount standing in the hull; a mount on a sponson or a
+            # flight deck has only a pedestal on its platform
+            in_hull = abs(m["y"]) + 0.95 * t["r"] <= lay.hull.half_width(m["x"]) and m["base"] < fd_base
             comps[-1]["barbette"] = f"{m['id']} barbette"
             comps.append(dict(id=f"{m['id']} barbette", kind="barbette", mount=m["id"], shape="circle",
                               x=round(m["x"], 3), y=round(m["y"], 3), r=round(t["r"] * 0.95, 3),
-                              base=min(rz(ag["deck_z"]), round(m["base"], 2)), top=round(m["base"], 2),
-                              armour_mm=round(BARBETTE * arm)))
+                              base=(min(rz(ag["deck_z"]), round(m["base"], 2)) if in_hull
+                                    else round(m["base"] - 1.0, 2)),
+                              top=round(m["base"], 2), armour_mm=round(BARBETTE * arm)))
     for b in lay.blocks:
         pts = rrect_polygon(b["x0"], b["y"] - b["w"] / 2, b["x1"], b["y"] + b["w"] / 2, b["rf"], b["rb"])
         smoke = getattr(lay, "smoke", {}).get(b["id"])
@@ -193,6 +199,13 @@ def export_hitboxes(lay, design, res):
     compartments = []
     for c in lay.compartments:
         c = {"base": -round(D, 2), "top": below, **c}
+        # keep every box inside the hull: no wider than the hull's narrowest section over its length
+        room = max(0.25, min(lay.hull.half_width(c["x0"] + (c["x1"] - c["x0"]) * j / 6) for j in range(7)) - 0.3)
+        y = c.get("y", 0.0)
+        if abs(y) + c["half_width"] > room:
+            c["half_width"] = min(c["half_width"], room)
+            if y:      # an off-centre box moves inboard just enough
+                c["y"] = math.copysign(min(abs(y), room - c["half_width"]), y)
         compartments.append({k: (round(v, 3) if isinstance(v, float) else v) for k, v in c.items()})
     arm_out = {}
     if ag["belt_mm"] > 0:
