@@ -9,9 +9,9 @@ from a few angles. Render side: reads nothing but the ship dict (its "hitboxes")
     hitview.render_subdivision(ship, out_dir) ->  hitbox_cells.png: every tier in plan, keel tier at the bottom,
                                                  cells coloured by their room's kind, with the bulkheads
 
-The hull is translucent in the outside views, so the rooms show through; the internal view draws only the rooms
-(less the quarters, stores, double bottom and torpedo protection that fill the rest), the armour and the hull's
-edges. Approximate by design: intersecting prisms may sort wrongly.
+The hull is translucent in the outside views, so the rooms show through; the internal view draws only the rooms,
+the armour and the hull's edges. The quarters, stores, double bottom and torpedo protection that fill the rest of
+the hull are faint (FILLER), so the rooms show through them; the citadel's armoured ends are dark slabs. Approximate by design: intersecting prisms may sort wrongly.
 """
 from __future__ import annotations
 
@@ -31,12 +31,12 @@ KIND = {   # fill RGB, alpha
     "flight_deck": ((130, 140, 150), 200),
     "belt": ((60, 70, 90), 255), "armour_deck": ((60, 70, 90), 110),
     "boiler_room": ((240, 140, 40), 235), "engine_room": ((190, 70, 40), 235), "bunker": ((70, 60, 55), 235),
-    "magazine": ((230, 40, 40), 240), "accommodation": ((110, 180, 235), 200), "steering": ((160, 90, 200), 235),
+    "magazine": ((230, 40, 40), 240), "accommodation": ((110, 180, 235), 55), "steering": ((160, 90, 200), 235),
     "hold": ((200, 170, 110), 200), "cargo_tank": ((150, 120, 70), 200), "fuel_tank": ((90, 80, 60), 220),
-    "hangar_bay": ((200, 200, 210), 120), "stores": ((150, 150, 120), 200), "double_bottom": ((80, 95, 110), 200),
-    "tds": ((90, 140, 160), 200),
+    "hangar_bay": ((200, 200, 210), 120), "stores": ((150, 150, 120), 55), "double_bottom": ((80, 95, 110), 40),
+    "tds": ((90, 140, 160), 45), "armoured_bulkhead": ((60, 70, 90), 255),
 }
-FILLER = ("accommodation", "stores", "double_bottom", "tds")   # left out of the internal view: they fill the hull
+FILLER = ("accommodation", "stores", "double_bottom", "tds")   # fill the hull: drawn faint, so the rooms show through
 LIGHT = (-0.35, -0.45, 0.82)      # from forward, port and above
 VIEWS = [   # file, camera bearing (clockwise from ahead), elevation, what
     ("hitbox_bow.png", 35.0, 28.0, "outside"),
@@ -81,8 +81,6 @@ def prisms(hb, what):
             out.append((kind, [tuple(p) for p in c["points"]], c["base"], c["top"]))
     kinds = {r["id"]: r["kind"] for r in hb.get("rooms", [])}
     for c in hb.get("cells", []):
-        if kinds[c["room"]] in FILLER:
-            continue
         out.append((kinds[c["room"]], cell_outline(hull, c), c["base"], c["top"]))
     arm = hb.get("armour", {})
     if "belt" in arm:
@@ -93,6 +91,11 @@ def prisms(hb, what):
             outer = [(x, side * (w + 0.15)) for x, w in zip(xs, hw)]
             inner = [(x, side * (w - 0.25)) for x, w in zip(xs, hw)][::-1]
             out.append(("belt", outer + inner, b["bottom"], b["top"]))
+    for bh in hb.get("bulkheads", []):       # the citadel's armoured ends, across the hull
+        if bh.get("kind") == "armoured":
+            hw = _half_width(hull, bh["x"]) - 0.2
+            out.append(("armoured_bulkhead", [(bh["x"] - 0.15, -hw), (bh["x"] + 0.15, -hw), (bh["x"] + 0.15, hw),
+                                              (bh["x"] - 0.15, hw)], bh["armour_bottom"], bh["armour_top"]))
     if "deck" in arm and what == "internal":
         d = arm["deck"]
         xs = [d["x0"] + (d["x1"] - d["x0"]) * k / 12 for k in range(13)]
@@ -182,7 +185,7 @@ def render_view(hb, az, el, what, width=1800, title=""):
             continue
         shade = 0.5 + 0.5 * max(0.0, (nrm[0] * lx + nrm[1] * ly + nrm[2] * lz) / ln)
         col = tuple(int(c * shade) for c in rgb) + (alpha,)
-        edge = tuple(int(c * shade * 0.6) for c in rgb) + (min(255, alpha + 60),)
+        edge = tuple(int(c * shade * 0.6) for c in rgb) + (min(255, alpha + (20 if kind in FILLER else 60)),)
         d.polygon([proj(p) for p in pts], fill=col, outline=None if kind == "hull" else edge)
     if what == "internal":     # the hull's edges: deck and keel outlines and the stem and stern posts
         keel = hb.get("vertical", {}).get("keel", -5.0)

@@ -106,6 +106,36 @@ doesn't: the decisions behind the current design, how to work safely here, and w
   - **Buoyancy:** the user hasn't decided how realistic it should be. It will likely be a grid, but it must not drive a full simulation of the ship's motion. Flooding only makes the ship settle: a deeper draught costs speed and puts more of the belt under water.
   - Known simplifications: carrier and merchant guns have no magazines yet. The barbette weight (`navarch.mount_weights`, 0.45 × depth) doesn't match the barbette hitbox, which reaches down to the armour deck.
 
+## Next steps (proposed 2026-10-02, in this order; the user hasn't confirmed the order yet)
+1. **Hull cross-section shape.** Every height uses the deck outline now, so double-bottom and hold cells are as wide as the main deck. Give the hull sections that narrow toward the keel, from the block coefficient (full amidships, sharp at the ends).
+   - That fixes cell bounds and volumes, torpedo protection depth, belt coverage, hit lookup near the bottom, and the 3D views.
+   - Sloped (turtleback) decks need it, so do it before the armour-scheme work.
+2. **Propulsion train.** Add shafts from each engine room through shaft alleys to the propellers, and rudders over the steering gear, as components that run through cells. This completes damage step 2 and gives the game its weak spots aft: a jammed rudder, wrecked shaft glands, a flooded shaft alley.
+3. **What sits in and passes through each cell:**
+   - Each cell lists the barbettes, uptakes and casings that pass through it: the flash path from a turret to its magazine, and the leak path through the uptakes.
+   - Double-bottom contents: oil or water, by tonnage.
+   - Magazines for carrier and merchant guns.
+   - Clean up the remaining shared cells.
+4. **Armour schemes on the deck list.** These are design inputs, so agree the knobs with the user first.
+   - Several armour decks with their own thickness and extent, such as a thin deck over the quarters and a thick one over the magazines.
+   - Turtleback or sloped decks, after step 1.
+   - All-or-nothing versus incremental schemes.
+   - Belt height and taper.
+5. **Links and flags (damage step 3), best done with the period physics refactor:**
+   - engine room to shaft
+   - generators to fore and aft power networks
+   - grouped versus alternating machinery
+   - fuel type
+   - bottom layers
+   - riveted or welded construction
+
+   The refactor also fixes the light pre-dreadnoughts and the long early-turbine ships.
+
+Housekeeping, whenever convenient:
+- Fold the turret-sweep checker into `verify.py`.
+- Draw the armour deck in the 3D views from the new `decks` list, not from `armour.deck`.
+- Watch the destroyer's section count (19 against 12–16 in the research).
+
 ## How to work here
 - **Git:** the repo is on GitHub (`git@github.com:sharpneli/shipgen.git`, branch `main`). Pushing over SSH works with the user's key. Commit or push only when the user asks.
 - Dependencies are `pip install cairosvg pillow numpy`. The system Python lacks them; use the venv at `~/.venv` (`~/.venv/bin/python design.py ...`).
@@ -117,6 +147,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
 - Run `python verify.py out_designs/*` after every change. It does pixel checks of sprites against hitboxes.
 - **Look at the 3D hitbox views** (`hitbox_*.png`, `hitview.py`) after hitbox changes. They caught compartments sticking out of the hull and barbettes hanging under sponsons.
   - Cells reach the hull's widest point over their section; the views clip them to the hull outline.
+  - The 3D views draw every cell. The space-filling rooms (quarters, stores, double bottom, torpedo protection; `hitview.FILLER`) are faint, so the user can see the whole state at a glance: coal wing bunkers outside the machinery, and the citadel's length from the belt and its armoured end bulkheads (dark slabs).
   - `hitbox_cells.png` shows every tier of the subdivision in plan. `verify.py` checks the subdivision: one owning room per cell, points in the hull in exactly one cell, mutual neighbours, and magazine links.
   - Barbettes reach the armour deck only for mounts inside the hull and below any flight deck.
 - A turret-sweep checker existed only in the previous session's scratch folder. It rebuilds each main turret's sweep and tests it against taller blocks and funnels. Folding it into `verify.py` would be a good addition.
