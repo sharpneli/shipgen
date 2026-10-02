@@ -37,11 +37,23 @@
         "hotel_fraction": 0.05,
         "cpo_fraction": 0.08,
         "tolerance_days": 30
-      }
+      },
+      "endurance_days": 13,
+      "distiller": true,
+      "buffer_days": 5,
+      "water_l_per_day": 15,
+      "berth_ratio": 1.0,
+      "officer_fraction": 0.08
     },
     "machinery": {
       "stress": 0.3,
       "shafts": 4,
+      "units_per_shaft": 1,
+      "transmission": "mechanical",
+      "arrangement": "grouped",
+      "centreline_bulkhead": false,
+      "bunkers": "wing",
+      "wing_bunker_m": 2.0,
       "tech": {
         "name": "Direct-drive turbines, water-tube boilers (1910)",
         "fuel": "coal",

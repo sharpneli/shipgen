@@ -8,11 +8,12 @@
     },
     "speed_kn": 11,
     "range_nm": 17000,
+    "crew": {"standard": {"name": "Cold-war bunks with lockers and lounges", "sleep_rating_m2": 1.9, "sleep_cpo_m2": 3.5, "sleep_officer_m2": 7.5, "mess_seats_per_man": 0.3, "galley_k": 0.35, "galley_min_m2": 6.0, "sanitary_m2": 0.35, "sickbay_beds_per_man": 0.012, "welfare_m2": 0.15, "services_k": 0.08, "passage_factor": 1.25, "deck_height_m": 2.6, "provisions_m3_per_day": 0.01, "water_l_per_day": 120, "hotel_fraction": 0.07, "cpo_fraction": 0.08, "tolerance_days": 120}, "endurance_days": 65, "distiller": true, "buffer_days": 5, "water_l_per_day": 120, "berth_ratio": 1.0, "officer_fraction": 0.08},
     "cargo": {
         "kind": "dry",
         "deadweight_t": 8500
     },
-    "machinery": {"position": "amidships", "shafts": 1, "tech": {"name": "Triple expansion, large-tube water-tube boilers, oil-fired (1940)", "fuel": "oil", "weight_kg_per_kw": 103.5, "stress_floor": 0.45, "sfc_g_per_kwh": 660, "density_t_per_m3": 0.28, "unit_max_mw": 12.0, "unit": {"mw": 5, "height_m": 7.5, "width_m": 4.5, "length_m": 9}, "boiler_fraction": 0.55, "crew_k": 15.3, "part_load": "REC", "draught": {"system": "forced", "velocity_m_s": 14.0, "reach_m": 20.0, "gas_temp_k": 570, "air_fuel_ratio": 15}}},
+    "machinery": {"position": "amidships", "shafts": 1, "stress": 0.0, "units_per_shaft": 1, "transmission": "mechanical", "arrangement": "grouped", "centreline_bulkhead": false, "bunkers": "ends", "wing_bunker_m": 2.0, "tech": {"name": "Triple expansion, large-tube water-tube boilers, oil-fired (1940)", "fuel": "oil", "weight_kg_per_kw": 103.5, "stress_floor": 0.45, "sfc_g_per_kwh": 660, "density_t_per_m3": 0.28, "unit_max_mw": 12.0, "unit": {"mw": 5, "height_m": 7.5, "width_m": 4.5, "length_m": 9}, "boiler_fraction": 0.55, "crew_k": 15.3, "part_load": "REC", "draught": {"system": "forced", "velocity_m_s": 14.0, "reach_m": 20.0, "gas_temp_k": 570, "air_fuel_ratio": 15}}},
     "aa": {
         "light": 10,
         "heavy": 10
