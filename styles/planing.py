@@ -46,7 +46,7 @@ class Planing(Style):
 
     def tuning(self, design):
         return dict(super().tuning(design), power_model="planing", hull_k=0.06, freeboard_a=0.04,
-                    freeboard_b=0.8, misc_frac=0.10, cruise_kn=25.0, lcb_frac=-0.11, gm_stiff_frac=0.5,
+                    freeboard_b=0.8, misc_frac=0.07, cruise_kn=25.0, lcb_frac=-0.11, gm_stiff_frac=0.5,
                     fn_warn=99.0, lb_warn=2.8, trim_tol_frac=0.025, trim_warn_frac=0.01)
 
     def build_layout(self, design, res, shift=0.0):
@@ -59,8 +59,7 @@ class Planing(Style):
                     "or too slow to rise onto the plane, so the power is spent pushing water."]
         return []
 
-    def crew(self, design, std):
-        return round(3 + 0.22 * std)
+    CREW_STANDARD = "H0"     # sleep at station
 
     def results(self, design, lay, r):
         return dict(volumetric_froude=round(volumetric_froude(r.full, design["speed_kn"]), 2),
@@ -156,7 +155,7 @@ def _layout(design, res, shift):
 
     inner_hw = 0.8 * B / 2
     lay.compartments += [
-        dict(id="Crew space", kind="crew", x0=cx1, x1=L / 2 - 0.08 * L, half_width=inner_hw),
+        dict(id="Crew space", kind="accommodation", x0=cx1, x1=L / 2 - 0.08 * L, half_width=inner_hw),
         dict(id="Fuel tanks", kind="fuel_tank", x0=m1, x1=cx0 + 0.05 * L, half_width=inner_hw),
         dict(id="Engine room", kind="engine_room", x0=m0, x1=m1, half_width=inner_hw),
         dict(id="Tiller flat", kind="steering", x0=-L / 2, x1=m0, half_width=0.6 * B / 2)]

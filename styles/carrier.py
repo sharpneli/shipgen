@@ -193,7 +193,7 @@ class Carrier(Style):
     def tuning(self, design):
         # the main deck is the hangar deck, well above a warship's main deck, so the hull's own centre of
         # gravity sits lower in that depth
-        return dict(super().tuning(design), freeboard_a=0.024, freeboard_b=2.5, misc_frac=0.11, hull_z_frac=0.5,
+        return dict(super().tuning(design), freeboard_a=0.024, freeboard_b=2.5, misc_frac=0.075, hull_z_frac=0.5,
                     flight_deck_t_per_m2=0.34, hangar_t_per_m2=0.32)
 
     def build_layout(self, design, res, shift=0.0):
@@ -250,9 +250,9 @@ class Carrier(Style):
                         z_rel=("frac", 0.25))],
                 [Weight("Aviation fuel", "fuel", 1.2 * n * m, x=geo.get("avgas_x", -0.25 * L), z_rel=("frac", 0.15))])
 
-    def crew(self, design, std):
+    def crew_extra(self, design):
         av = aviation(design)
-        return round(1.1 * std ** 0.72 + av["aircraft"] * (6 + 0.75 * av["aircraft_t"]))
+        return {"air_group": round(av["aircraft"] * (6 + 0.75 * av["aircraft_t"]))}
 
     def results(self, design, lay, r):
         av, dp = aviation(design), deck_plan(design)

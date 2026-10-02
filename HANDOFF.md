@@ -53,7 +53,22 @@ doesn't: the decisions behind the current design, how to work safely here, and w
     - Generator rooms for electric transmission aren't placed separately.
     - The cruise model has no cruising-turbine choice (the template has a "with cruising turbines" variant).
     - Fuel tonnage drives bunker length, but coal's protective value isn't modelled (that's the game's).
-  - **Next: crew.** The user is writing a crew model (a separate file) that will add the physical space for crew quarters. The plant already gives engineering crew (`plant.crew`, `crew_k × MW^0.75`), but total crew is still the old per-style formula and doesn't include it yet.
+- **Crew (done; `crew.py`, `research/crew-space-model.md`, README "Design input").** The user's decisions:
+  - Standards are numbers in the design. The six spec standards are only template blocks (`crew-templates.md`). In the game a slider sets them, and the crew's mood is simulated smoothly from what the ship has.
+  - `endurance_days` is its own input. A ship may loiter far longer than its fuel range (a tender). Shorter than the range is silly but only warns.
+  - Crew lives in any empty volume, hull or superstructure. At this scale, too narrow for real people is fine.
+  - Implementation:
+    - The complement is departmental: plant, guns, deck and command, air group, then hotel.
+    - Volume is checked against `crew.USABLE` × empty volume. Shortfall is a "length" need, so the hull grows.
+    - Crew, provisions and water are explicit weights. `misc_frac` was cut to compensate: warship 0.055, carrier 0.075, merchant 0.03, planing 0.07.
+    - Accommodation compartments are added fore and aft.
+  - Era designs now carry H1 hammocks (pre-1925 warships, the Q-ship, victory_1944).
+  - Calibration (as of 2026-10-02):
+    - Complements: battleship 1,821 (Iowa about 1,920 as designed), Dreadnought 873, Mikasa 836, Liberty 81 (41 crew + 25 gunners).
+    - Lengths barely move, except where crew space binds: Mikasa 133 m (real 131.7 m), the Fletcher-like destroyer 132.5 m (114 m; it carries the wartime 326 men).
+    - Small craft are overmanned: PT boat 31 men against about 17, MTB 20 against 13. They come out 5–6 m long. The spec's petrol `crew_k` (3) and the small-gun crews are the knobs.
+  - Left game-side: comfort, fatigue and morale (report `crew` carries the inputs), and the damage hooks (fire load, off-watch casualties, sickbay).
+  - Later: hotel electrical load and distiller energy (no generator plant yet), and accommodation spilling into a grown superstructure as an alternative to length.
 - Remaining physics refactor: the rest of the weight model by period (hull, armour quality and so on) and the parameters the user plans for sizing (hull form, beam preference).
 - Research to replace the planing power placeholder (`navarch.planing_power`). It's one function by design.
 - **Size from contents (done; README "Design input"):** designs give no length or beam (`hull.length` and `hull.beam` are now validation errors). The designer works out the hull from what it carries, and hitting a tonnage or length target is the player's job.

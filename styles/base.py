@@ -38,7 +38,8 @@ class Style:
     def validate(self, design) -> list[str]:
         """Checks beyond the numeric limits."""
         import powerplant
-        errs = powerplant.validate(design, self.DEFAULT_TECH)
+        import crew
+        errs = powerplant.validate(design, self.DEFAULT_TECH) + crew.validate(design, self.CREW_STANDARD)
         if "type" in (design.get("machinery") or {}):
             errs.append("machinery.type is gone: give the plant's technology as machinery.tech "
                         "(plant-templates.md has examples by year)")
@@ -99,8 +100,12 @@ class Style:
         """Extra warnings once the weights are solved."""
         return []
 
-    def crew(self, design, std) -> int:
-        return round(1.1 * std ** 0.72)
+    CREW_STANDARD = "H2"    # crew.STANDARDS block when the design gives no crew.standard
+    CREW_DECK_K = 0.8       # deck and command crew = CREW_DECK_K x standard displacement^0.5 (crew.deck_crew)
+
+    def crew_extra(self, design) -> dict:
+        """Departments beyond engineering, weapons and deck (crew.complement): {name: men}."""
+        return {}
 
     def results(self, design, lay, r) -> dict:
         """Extra report values."""

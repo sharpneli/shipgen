@@ -54,9 +54,29 @@ design.py      the command line: validate, shipdesign.build, write report.json a
   "torpedoes": {"mounts": 0, "tubes": 5},
   "aa": {"heavy": 20, "light": 30},
   "machinery": {"stress": 0.4, "shafts": 4, "tech": {...}},
+  "crew": {"standard": {...}, "endurance_days": 45, "distiller": true},
   "funnels": null
 }
 ```
+`crew` sets how the crew lives (`crew.py`, from `research/crew-space-model.md`).
+- `standard` is the habitability standard as numbers: net areas per head, shared spaces, headroom, water and provisions rates, and the hotel fraction.
+  - `crew-templates.md` has six reference blocks, H0 (sleep at station) to H5 (single cabins). `python crew_templates.py` regenerates it.
+  - The game rates comfort from the numbers smoothly, with no tiers.
+  - The default standard is H2 for warships and carriers, H3 for merchants and H0 for planing craft.
+- `endurance_days` is the provisions carried. It defaults to the fuel's range at cruise speed. A ship may carry more, like a tender that loiters; a shorter value only warns.
+- `distiller`, `water_l_per_day`, `berth_ratio` and `officer_fraction` are optional.
+
+The complement is built from what the ship carries:
+- **Engineering:** the plant's crew.
+- **Weapons:** each gun mount gets barrels × (0.5 + 0.09 per mm of calibre) + 0.02 per mm, which counts its handling rooms. That's about 120 for a 16-inch triple and 26 for a 5-inch twin. Torpedo mounts and AA count too.
+- **Deck and command:** 0.8 × √(standard displacement), tapering below 1,000 t. Merchants use 0.3.
+- **Air group:** carriers only.
+- **Hotel crew:** the standard's fraction of the total.
+
+The crew lives wherever the ship has empty volume (`crew.crew_space`):
+- **The volume:** the hull from the inner bottom to the main deck, plus the superstructure, less the machinery, magazines, bunkers, holds, tanks and torpedo protection.
+- **The crew's share:** `crew.USABLE` (0.65) of what's left. That share has to hold the quarters, the provisions and any water the double bottom can't take after the fuel. Too little room makes the hull grow.
+- **Weights:** crew, provisions and water are real weights. `misc_frac` no longer includes them.
 `machinery` is the propulsion plant (`powerplant.py`, from `research/powerplant-model.md`). There is no year input: `tech` holds the researched technology as numbers, so a navy can have a tech earlier or later than history did. `plant-templates.md` has blocks to copy for every period from 1880 to 1970, and `python plant_templates.py` regenerates them. A design without `tech` gets a 1940 high-pressure turbine plant (merchants: a 1940 oil-fired triple expansion; planing craft: 1940 petrol engines). The other keys are design choices: `stress`, `shafts`, `units_per_shaft`, `transmission`, `arrangement` (`grouped` or alternating `unit`), `centreline_bulkhead`, `bunkers` (`wing` or `ends`) and `wing_bunker_m`. The template's table explains each one. What the plant decides:
 - **Weight, fuel and engineering crew:** from the tech and the stress. Range is computed at cruise speed through the tech's part-load curve.
 - **Machinery length:** the plant's volume, fitted into the room the hull gives it. Across, that's the beam inside the frames, less torpedo protection (`armour.tds_m` per side) and wing bunkers, with units standing in rows. Up, it's the inner bottom to the armour deck.
@@ -168,6 +188,10 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
 
 ## Outputs (out_designs/<id>/)
 - `report.json`: valid flag, errors, warnings, the hull's length, beam and block coefficient, displacement (std/full), draught, power, fuel, crew, GM, trim, and the weight list with x/z. Carriers add aircraft and capacity, flight deck size and height; merchants add cargo, deadweight and hold count.
+  - `crew`: the complement by department, with officers, CPOs, ratings and hotel crew. Also:
+    - volumes: living, provisions, water (and how much of it is in the double bottom), distiller output
+    - space: needed against usable
+    - the comfort inputs: sleeping area per man against the standard's, headroom against deck height, berth ratio, sickbay beds, tolerance days, endurance against fuel range
   - `plant`: the plant's static numbers for the game (`powerplant.published`), and how it sits in the hull:
     - power: rated and continuous kW, overload headroom, shafts and units
     - fuel: fuel rate and the part-load curve
@@ -202,6 +226,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
     - Planing craft: crew space and fuel tanks.
     - Carriers: hangar (above the hangar deck), aviation magazines and aviation fuel.
     - Merchants: `hold` or `cargo_tank` per hold.
+    - `accommodation`: the empty hull fore and aft of the citadel, from the armour deck (the waterline if unarmoured) to the main deck, each with its share of the `crew`. Planing craft have their crew space.
 - `sprite.json`: layers, origin_px, mount px positions, rest angles, arcs and z order.
 - `hull_base.png`, `turrets/*.png`, `hull_upper.png`, each with an SVG alongside. Level 0 is `--scale` px/m (default 10). No shadows are baked in.
 - `height.png`: greyscale height map on the same canvas. Grey × `height_step_m` (0.25) = metres above the waterline, and 0 = sea. Its mips use a 2×2 max filter, not an average, so a tall column never shrinks.

@@ -29,7 +29,8 @@ TUNING = dict(
     admiralty_a=111.0,      # admiralty coefficient C = a * Fn^-b * (form corrections)
     admiralty_b=0.69,
     cruise_kn=15.0,         # range is at min(cruise_kn, 0.6 x speed); the plant (powerplant.py) sets weight and fuel
-    misc_frac=0.08,         # equipment, outfit, electrics, stores, crew, as a fraction of std displacement
+    misc_frac=0.055,        # equipment, outfit and electrics, as a fraction of std displacement (crew, provisions
+                            # and water are weighed by crew.py)
     superstructure_t_per_m2=0.32,
     gun_k=1.6e-6,           # gun tube mass t = gun_k * cal_mm^3 * (L/50)
     mount_k=2.0,            # turret machinery mass = mount_k * guns
@@ -65,7 +66,7 @@ class Result:
     freeboard: float = 0.0
     power_shp: float = 0.0
     fuel: float = 0.0
-    crew: int = 0
+    cruise_kn: float = 0.0     # range is computed at this speed
     plant: dict = field(default_factory=dict)       # powerplant.spec of the design
     plant_rated: dict = field(default_factory=dict)  # powerplant.rated at power_shp
     gm_full: float = 0.0
@@ -234,7 +235,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
     res.std, res.full, res.fuel = std, full, fuel
     res.draught, res.depth, res.freeboard = full / (SEAWATER * L * B * cb), D, D - full / (SEAWATER * L * B * cb)
     res.power_shp = shp
-    res.crew = style.crew(design, std)
+    res.cruise_kn = vc
     res.plant, res.plant_rated = plant, powerplant.rated(plant, shp)
     res.weights = items
     groups = {}

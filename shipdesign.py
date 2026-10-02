@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import copy
 
+import crew
 import navarch
 import styles
 from geometry import AA_CFG, rrect_polygon
@@ -99,17 +100,24 @@ def beam_needed(design, L, B, weights, geo):
     return hi
 
 
+def lay_out(design, r, shift=0.0):
+    """The style's layout for the solved weights r, then crewed (crew.apply: complement, space, weights)."""
+    style = styles.get(design)
+    lay = style.build_layout(design, r, shift)
+    crew.apply(lay, design, r, style)
+    return lay
+
+
 def fit(design, L, B=0.0):
     """Does everything fit on a hull of length L? Returns (fits, beam): the beam is the narrowest that carries
     the load (beam_needed) and has room across for what the layout places."""
-    build_layout = styles.get(design).build_layout
     b_max = styles.get(design).SIZE["beam_max"]
     B = max(B, L / styles.get(design).SIZE["lb_max"])
     slender = styles.get(design).SIZE["slender"]
     for _ in range(12):
         d = with_hull(design, L, B)
         r = navarch.solve(d)
-        lay = build_layout(d, r, 0.0)
+        lay = lay_out(d, r, 0.0)
         B2 = beam_needed(design, L, B, lay.weights, lay.geo)
         if "beam" in lay.short and B < b_max:
             B2 = max(B2, B * 1.05)
@@ -190,14 +198,13 @@ def balance(design, iterations=6):
     """Rough solve -> layout -> solve -> shift to balance; repeat until stable. The layout can jump as things
     move (a gun takes another slot), so once the moment changes sign the shift is bisected between the last two,
     and the best balanced shift seen is used."""
-    build_layout = styles.get(design).build_layout
     r = navarch.solve(design)
     shift = 0.0
     lay = None
     best = None                # (|moment|, shift)
     bracket = []               # (shift, moment) on each side of balance
     for _ in range(iterations + 4):
-        lay = build_layout(design, r, shift)
+        lay = lay_out(design, r, shift)
         r = navarch.solve(design, lay.weights, lay.geo)
         shift = lay.geo["shift"]
         moment = sum(w.w * (w.x - r.lcb) for w in r.weights)
@@ -213,7 +220,7 @@ def balance(design, iterations=6):
             break
         shift = new_shift
     shift = best[1]
-    lay = build_layout(design, r, shift)
+    lay = lay_out(design, r, shift)
     r = navarch.solve(design, lay.weights, lay.geo)
     assign_arcs(lay)
     assign_smoke(lay, r)
@@ -249,13 +256,14 @@ def report_dict(design, lay, r, sized):
             length_m=h["length"], beam_m=h["beam"], block_coefficient=h["block_coefficient"],
             standard_displacement_t=round(r.std), full_displacement_t=round(r.full),
             draught_m=round(r.draught, 2), depth_m=round(r.depth, 2), freeboard_m=round(r.freeboard, 2),
-            power_shp=round(r.power_shp, -2), fuel_t=round(r.fuel), crew=r.crew,
+            power_shp=round(r.power_shp, -2), fuel_t=round(r.fuel), crew=lay.crew["complement"],
             gm_full_m=round(r.gm_full, 2), gm_light_m=round(r.gm_light, 2),
             trim_m=round(r.trim_m, 2), lcg_m=round(r.lcg, 2), lcb_m=round(r.lcb, 2),
             layout_shift_m=round(lay.geo["shift"], 2),
             **styles.get(design).results(sized, lay, r),
         ),
         plant=plant_report(lay, r),
+        crew=lay.crew,
         weight_groups_t={k: round(v) for k, v in sorted(r.groups.items(), key=lambda kv: -kv[1])},
         weights=[dict(name=w.name, group=w.group, t=round(w.w, 1), x=round(w.x, 2), z=round(w.z, 2))
                  for w in r.weights],

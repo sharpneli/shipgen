@@ -3,11 +3,11 @@
   "name": "Motor Torpedo Boat",
   "scale_px_per_m": 10.0,
   "size_px": [
-    320,
+    384,
     128
   ],
   "origin_px": [
-    160.0,
+    192.0,
     64.0
   ],
   "orientation": "bow points +x (right); angles clockwise, 0 = ahead",
@@ -141,8 +141,8 @@
   "shadow": {
     "height_map": "height.png",
     "height_step_m": 0.25,
-    "deck_m": 1.71,
-    "max_height_m": 7.81,
+    "deck_m": 1.91,
+    "max_height_m": 8.01,
     "note": "height map grey value x height_step_m = metres above the waterline (0 = sea); mount top_m is the turret roof above the waterline; see shadow.py",
     "height_map_mips": "height_mips.png"
   },
@@ -152,12 +152,12 @@
       "kind": "torpedo",
       "type": "tube1x533",
       "pos_m": [
-        -2.6149999999999998,
-        2.075
+        -0.529850136642748,
+        2.3754108865220473
       ],
       "px": [
-        133.85,
-        84.75
+        186.70149863357253,
+        87.75410886522047
       ],
       "rest_deg": 5.0,
       "arcs_deg": [
@@ -167,19 +167,19 @@
         ]
       ],
       "z": 1,
-      "top_m": 2.79
+      "top_m": 2.99
     },
     {
       "id": "T1P",
       "kind": "torpedo",
       "type": "tube1x533",
       "pos_m": [
-        -2.6149999999999998,
-        -2.075
+        -0.529850136642748,
+        -2.3754108865220473
       ],
       "px": [
-        133.85,
-        43.25
+        186.70149863357253,
+        40.24589113477953
       ],
       "rest_deg": -5.0,
       "arcs_deg": [
@@ -189,18 +189,18 @@
         ]
       ],
       "z": 1,
-      "top_m": 2.79
+      "top_m": 2.99
     },
     {
       "id": "Y",
       "kind": "main",
       "type": "t1x20L70_open",
       "pos_m": [
-        -8.591000000000001,
+        -11.091000000000001,
         0.0
       ],
       "px": [
-        74.08999999999999,
+        81.08999999999999,
         64.0
       ],
       "rest_deg": -180.0,
@@ -211,44 +211,44 @@
         ]
       ],
       "z": 1,
-      "top_m": 2.86
+      "top_m": 3.06
     }
   ],
   "mip_rects": [
     [
       0,
       0,
-      320,
+      384,
       128
     ],
     [
-      320,
+      384,
       0,
-      160,
+      192,
       64
     ],
     [
-      320,
+      384,
       64,
-      80,
+      96,
       32
     ],
     [
-      400,
+      480,
       64,
-      40,
+      48,
       16
     ],
     [
-      400,
+      480,
       80,
-      20,
+      24,
       8
     ],
     [
-      420,
+      504,
       80,
-      10,
+      12,
       4
     ]
   ]
