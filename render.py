@@ -147,7 +147,8 @@ def render_ship(ship, out_dir, S, mips=0, look=None, previews=True):
         lm = by_id[m["id"]]
         meta["mounts"].append(dict(id=m["id"], kind=lm["kind"], type=m["type"], pos_m=[m["x"], m["y"]],
                                    px=[ox + m["x"] * S, oy + m["y"] * S], rest_deg=lm["rest"],
-                                   arcs_deg=lm["arcs"], z=m["z"], top_m=round(deck_m + lm["top"], 2)))
+                                   arcs_deg=lm["arcs"], z=m["z"], top_m=round(deck_m + lm["top"], 2),
+                                   **({"mount": lm["mount"]} if "mount" in lm else {})))
     meta["layers"]["base_mips"] = write_mips(out_dir, "hull_base.png", mips)["file"]
     meta["layers"]["upper_mips"] = write_mips(out_dir, "hull_upper.png", mips)["file"]
     meta["shadow"]["height_map_mips"] = write_mips(out_dir, "height.png", mips, height=True)["file"]

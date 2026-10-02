@@ -11,6 +11,7 @@ picks counts and calibres. Every arc is centred on the mount's rest bearing (deg
     behind a superfiring one, or an amidships turret               +-ARC_BEAM about each beam
     side mounts: secondaries, sponson guns, side torpedo mounts,
     wing turrets (which stow fore-and-aft, at the edge of the arc) +-ARC_SIDE   (bow to stern, own side)
+    casemate guns, in the hull side                               +-ARC_CASEMATE about their beam
     centreline trainable torpedo mounts                           +-ARC_TORPEDO about each beam
     fixed tubes (MTBs; the boat aims them)                        +-ARC_FIXED about their bearing
 """
@@ -22,6 +23,7 @@ from geometry import AA_CFG
 ARC_END = 135.0
 ARC_SIDE = 90.0
 ARC_BEAM = 65.0
+ARC_CASEMATE = 60.0
 ARC_TORPEDO = 60.0
 ARC_FIXED = 1.0
 
@@ -35,6 +37,8 @@ def _arc(centre, half):
 def mount_arcs(m):
     if m.get("fixed") is not None:
         return [_arc(m["fixed"], ARC_FIXED)]
+    if m.get("casemate"):
+        return [_arc(m["rest"], ARC_CASEMATE)]
     if m.get("wing"):
         return [_arc(90.0 if m["y"] > 0 else 270.0, ARC_SIDE)]
     if m.get("arc_role") == "beam":
@@ -77,6 +81,8 @@ def export_hitboxes(lay, design):
             rotating=m.get("fixed") is None, rest_deg=m["rest"], arcs_deg=m["arcs"],
             local={"body": r3(sh["body"]), "parts": [r3(p) for p in sh["parts"]],
                    "barrels": [r3(p) for p in sh["barrels"]]}))
+        if m.get("casemate"):   # in the hull side, below the main deck
+            comps[-1]["mount"] = "casemate"
         if t.get("barbette", True):
             comps.append(dict(id=f"{m['id']} barbette", kind="barbette", shape="circle",
                               x=round(m["x"], 3), y=round(m["y"], 3), r=round(t["r"] * 0.95, 3),

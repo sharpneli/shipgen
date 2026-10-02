@@ -129,12 +129,14 @@ def make_turret_type(calibre_mm: float, calibre_length: float, barrels: int, kin
     if kind == "auto":   # light guns (under 76 mm) are open mounts
         kind = "bb" if calibre_mm >= 150 else "dp" if calibre_mm >= 76 else "open"
     tid = f"t{barrels}x{round(calibre_mm)}L{round(calibre_length)}{'' if kind in ('bb', 'dp') else '_' + kind}"
+    # a casemate gun in the hull side: r is the casemate's half-width (spacing, weights), as for a turret of the same
+    # guns; only a round port shield and the barrels show outboard of the hull (turret_shapes)
     return tid, dict(desc=f"{barrels} x {calibre_mm:g}mm/{calibre_length:g}", shape=kind, r=round(r, 3),
                      barrels=barrels, barrel_len=round(cal * calibre_length, 3),
                      barrel_w=round(max(cal * 2.3, 0.18), 3), spacing=round(spacing, 3),
                      calibre_mm=calibre_mm, calibre_length=calibre_length,
                      **({"centered": True, "barbette": False} if kind == "torp" else {}),
-                     **({"barbette": False} if kind == "open" else {}))
+                     **({"barbette": False} if kind in ("open", "casemate") else {}))
 
 
 def make_torpedo_type(tubes: int, fixed: bool = False) -> tuple[str, dict]:
@@ -147,7 +149,8 @@ def make_torpedo_type(tubes: int, fixed: bool = False) -> tuple[str, dict]:
                                      centered=True, barbette=False)
 
 
-BARREL_ROOT = {"bb": 0.5, "dp": 0.3, "open": -0.3}
+BARREL_ROOT = {"bb": 0.5, "dp": 0.3, "open": -0.3, "casemate": 0.0}
+CASEMATE_SHIELD = 0.55  # a casemate gun's round port shield, in units of its casemate half-width r
 
 
 def turret_shapes(t: dict) -> dict:
@@ -185,6 +188,9 @@ def turret_shapes(t: dict) -> dict:
     elif shape == "open":
         out["body"] = circle_polygon(0, 0, r)
         out["barrels"] = barrel_polys(BARREL_ROOT["open"] * r)
+    elif shape == "casemate":   # pivot at the hull side: the shield bulges out of it, the barrels point outboard
+        out["body"] = circle_polygon(0, 0, CASEMATE_SHIELD * r)
+        out["barrels"] = barrel_polys(BARREL_ROOT["casemate"] * r)
     elif shape == "torp":
         out["body"] = circle_polygon(0, 0, r)
         for i in range(n):
@@ -215,7 +221,7 @@ def turret_reach(t: dict) -> float:
 
 def turret_height(t: dict) -> float:
     """Roof height of a turret above its base, metres."""
-    return {"bb": 0.42, "dp": 0.55, "open": 0.9, "torp": 0.5, "tube": 1.6}[t.get("shape", "bb")] * t["r"]
+    return {"bb": 0.42, "dp": 0.55, "open": 0.9, "torp": 0.5, "tube": 1.6, "casemate": 0.42}[t.get("shape", "bb")] * t["r"]
 
 
 def polygon_area(pts):

@@ -22,7 +22,11 @@ doesn't: the decisions behind the current design, how to work safely here, and w
 ## Planned by the user
 - **The game spans about 1890 to 1970:** pre-dreadnoughts, through the dreadnought era, to early modern ships. Defaults and new features should cover that whole range.
 - **More looks** (`looks.py`). Four nations and the period look `victorian` are done; more will follow.
-- **Pre-dreadnoughts with lots of casemated guns.** The secondaries need a casemate mount type in the hull side, not only deck mounts. This would also fix Nassau-like ships, which can fit only 3 of their 6 secondaries per side on the deckhouse beside the wing turrets.
+- **Casemates (done):** warship `secondary` may be a list of batteries, each `"mount": "deck"` or `"casemate"`. Casemates are guns in the hull side, ±60° about the beam. Examples: `mikasa`, `connecticut`, `nassau_casemates`, `kongo`. Open items:
+  - The pre-dreadnoughts come out light (Mikasa 11.3k std against 15.1k t real). The weight model is calibrated on WWII ships; the physics refactor by period should fix this.
+  - There's only one casemate tier, in the hull side. Upper-deck casemates in the superstructure sides (Mikasa's four, the two-storey British ones) aren't supported yet.
+  - Connecticut's 203 mm wing turrets need a second main battery, which ties into the French "floating hotels" below.
+  - verify.py flags the 88 mm casemates at the ends of `nassau_casemates` at 0.846 at one 37° angle. It's rasterisation of a 2 px barrel; the other angles score 0.89–0.96.
 - **French "floating hotel" pre-dreadnoughts** with many different calibres: several main and intermediate batteries, often in wing turrets. The layout will need more than one main or secondary battery.
 - A refactor of the whole design physics (engine models etc.). It should make the physics configurable by period, so engine efficiency and similar values can change over time.
 - Research to replace the planing power placeholder (`navarch.planing_power`). It's one function by design.

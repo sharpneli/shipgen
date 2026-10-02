@@ -63,6 +63,12 @@ design.py      the command line: validate, shipdesign.build, write report.json a
   - Wing turrets stow fore-and-aft toward the nearer end of the ship. Secondaries fill the spots the wing turrets leave free.
 - Examples: `gangut.json` (1 + 2 amidships + 1, all flush), `dreadnought.json` (A, wing pair, X, Y), `nassau.json` (hexagonal), `invincible.json` (echelon), `battlecruiser.json` (Lion-style Q turret), `all_forward_flush.json` (all-forward with a flush third turret).
 
+`secondary` (warship style) is one battery or a list of batteries, each with its own calibre, `per_side` and `armour_mm`, and `"mount"`:
+- `"deck"` (the default): turrets or open mounts on the deckhouse amidships. The first deck battery spreads evenly along it; later ones take the free spots nearest amidships.
+- `"casemate"`: single guns in the hull side, one level below the main deck (base −2.6 m, top 0). Only a round port shield and the barrels show, outboard of the hull. Each battery takes the free places nearest amidships, in list order, so list the battery you want amidships first. Casemates stay where the hull is at least 85% of its full beam (`layout.CASEMATE_BEAM`), clear of the main barbettes and of each other. They space out at a comfortable pitch if every casemate fits that way, otherwise closer.
+- Battery mount ids are `S1S`/`S1P`, ... for the first battery, then `SB...`, `SC...`. Casemate guns carry `"mount": "casemate"` in `hitboxes.json` and `sprite.json`.
+- Examples: `mikasa.json` (152 + 76 mm casemates), `connecticut.json` (178 + 76 mm casemates; its 203 mm wing turrets need a second main battery, still to come), `nassau_casemates.json` (Nassau's 150 + 88 mm in casemates, so all of them fit), `kongo.json` (152 mm casemates and 76 mm on deck).
+
 Limits are generous on purpose: the game's designer enforces the gameplay limits, and the generator only keeps its input sane (`styles.base.COMMON_LIMITS`). Guns can be 1–2000 mm with 1–20 barrels, armour up to 2 m, and torpedo, secondary and AA counts are in the hundreds. Hull form and speed stay within the range where the physics formulas mean something. Hulls go up to 1,000 × 100 m, and each turret group (`fore`, `aft`, `mid`) can hold up to 40 turrets, named A, B, C, A4, A5, ... (and Q, P, R, S, Q5, ... amidships). Silly designs are allowed; the physics decides whether they're valid. For example, twenty 305 mm Q turrets need about 650 m of middle section and a wide beam.
 
 The player never enters tonnage or positions. The allowed ranges are `styles.base.COMMON_LIMITS` plus each style's `LIMITS`.
@@ -145,6 +151,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
   - Centreline guns of a forward or aft group, including superfiring and carrier island-line guns: ±135°.
   - Centreline guns with a turret ahead of them (amidships turrets, flush turrets behind a superfiring one): ±65° about each beam. They stow fore-and-aft like real ships, pointing away from the nearest other centreline turret. Their rest bearing is therefore outside their arcs: train them out before firing. Every other mount rests inside its arcs.
   - Side mounts (secondaries, sponson guns, side torpedo mounts, wing turrets): ±90°, bow to stern on their own side. Wing turrets rest fore-and-aft, at the edge of that arc.
+  - Casemate guns: ±60° about their beam (`ARC_CASEMATE`), resting abeam.
   - Centreline torpedo mounts: ±60° about each beam.
   - Fixed tubes: ±1° about their bearing.
   - Nothing on deck limits an arc. Instead, the warship layout places the main turrets first, and each reserves its sweep zone: a sector as long as its barrels, covering its arcs plus the turn from its stowed bearing to the starboard arc, so one side is always free for switching sides. Everything placed afterwards that stands taller than that turret's guns keeps out of the zone: bridge, aft control, funnels, masts, deckhouse, boats, secondaries, torpedo mounts and AA. The bridge and aft control step back, the deckhouse ends are trimmed, and the space needed is budgeted up front (a stowed turret's barrels, and the gap a side-firing turret needs beside its neighbours).
@@ -176,6 +183,10 @@ The sun is dynamic, so the game casts the shadows. `shadow.py`'s docstring has t
   | `gangut` (Gangut-like) | 20.4k std, 38.9k shp | 23.3k normal, 42k shp |
   | `dreadnought` (HMS Dreadnought-like, 21 kn) | 17.4k std, 26.7k shp | 18.1k normal, 23k shp |
   | `nassau` (Nassau-like, 19.5 kn) | 17.1k std, 21.8k shp | 18.6k normal, 22k ihp |
+  | `nassau_casemates` (casemated secondaries) | 18.3k std, 22.7k shp | 18.6k normal, 22k ihp |
+  | `mikasa` (Mikasa-like, 18 kn, `steam_recip`) | 11.3k std, 12.6k shp | 15.1k normal, 15k ihp |
+  | `connecticut` (Connecticut-like, no 8" turrets, `steam_recip`) | 13.8k std, 13.8k shp | 16.0k normal, 16.5k ihp |
+  | `kongo` (Kongo as built, 27.5 kn) | 29.2k std, 87.2k shp | 27.5k normal, 64k shp |
   | `invincible` (Invincible-like, 25.5 kn) | 16.9k std, 48.1k shp | 17.3k normal, 41k shp |
   | `battlecruiser` (Lion-like, 28 kn) | 28.9k std, 90.6k shp | 26.3k normal; ~92k shp for 28 kn on trials |
   | `mtb` (Vosper 70 ft-like) | 35 / 44 t, 3,000 hp at 39 kn | ~47 t, 3,750 hp |

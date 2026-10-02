@@ -35,6 +35,13 @@ class Style:
         errs = [] if mt in MACHINERY else [f"machinery.type = {mt!r}: use {', '.join(MACHINERY)}"]
         if isinstance(design.get("secondary"), list) and not self.SECONDARY_LIST:
             errs.append(f"secondary: the {self.name} style takes one secondary battery, not a list")
+        sec = design.get("secondary") or []
+        for b in (sec if isinstance(sec, list) else [sec]):
+            mount = b.get("mount", "deck")
+            if mount not in ("deck", "casemate"):
+                errs.append(f"secondary.mount = {mount!r}: use deck or casemate")
+            elif mount == "casemate" and not self.CASEMATES:
+                errs.append(f"secondary.mount: the {self.name} style has no casemates")
         main = design.get("main") or {}
         if main.get("mid") and not self.MIDSHIPS_TURRETS:
             errs.append(f"main.mid: the {self.name} style has no midships turrets")
@@ -52,6 +59,7 @@ class Style:
     MIDSHIPS_TURRETS = False    # does the layout support main["mid"]
     WING_TURRETS = False        # does the layout support main["wing"] (pairs) and main["echelon"]
     SECONDARY_LIST = False      # may "secondary" be a list of batteries with count/where (armament.batteries)
+    CASEMATES = False           # may a secondary battery be "mount": "casemate" (guns in the hull side)
 
     def machinery_type(self, design):
         return (design.get("machinery") or {}).get("type", self.DEFAULT_MACHINERY)

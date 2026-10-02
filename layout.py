@@ -29,6 +29,7 @@ from hitbox import ARC_BEAM
 from geometry import Hull, AA_CFG
 
 LEVEL_H = 2.6  # height of one superstructure level, metres
+CASEMATE_BEAM = 0.85   # casemates stand where the hull is at least this fraction of its full beam
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +148,78 @@ def clamp(v, lo, hi):
 def turret_name(letters, i):
     """A, B, C, then A4, A5, ... (letters[0] plus the turret's number in its group)."""
     return letters[i] if i < len(letters) else f"{letters[0]}{i + 1}"
+
+
+def battery_prefix(k):
+    """Mount id prefix of the k-th secondary battery: S, SB, SC, ..."""
+    return "S" if k == 0 else f"S{chr(ord('A') + k)}" if k < 26 else f"S{k + 1}-"
+
+
+def place_casemates(lay, mounts, turret_types, secs, hull, depth):
+    """The casemate batteries (secs entries with "mount": "casemate"): single guns in the hull side, one level below
+    the main deck. Each pivots on the hull side, so only its round port shield and barrels show, outboard. Nothing
+    on deck stands in their way: only the hull's shape (they stay where the hull is at least CASEMATE_BEAM of its
+    full width), the main barbettes going down through the hull, and each other. The batteries fill in order, each
+    taking the free places nearest amidships: all at a comfortable pitch if every gun fits so, else closer."""
+    from geometry import CASEMATE_SHIELD
+    bats = []
+    for sec in secs:
+        n = sec.get("per_side", sec.get("count", 0) // 2)
+        if sec.get("mount") == "casemate" and n:
+            t_id, t = make_turret_type(sec["calibre_mm"], sec["calibre_length"], sec["barrels"], kind="casemate")
+            turret_types[t_id] = t
+            bats.append((sec, n, t_id, t))
+    if not bats:
+        return
+    B = hull.B
+    barbettes = [m for m in mounts if m["kind"] == "main" and m["t"].get("barbette", True)]
+
+    def below_deck_ok(x, rc):
+        hw = hull.half_width(x)
+        if hw < CASEMATE_BEAM * B / 2 or hw - 2 * rc < 0.5:
+            return False
+        boxes = [_fp_rect(x - rc, hw - 2 * rc, x + rc, hw), _fp_rect(x - rc, -hw, x + rc, -hw + 2 * rc)]
+        return not any(_overlap(bx, _fp_circle(m["x"], m["y"], 0.95 * m["t"]["r"]), 0.3)
+                       for bx in boxes for m in barbettes)
+
+    xs = [0.5 * k for k in range(int(-hull.L), int(hull.L) + 1)]
+    elig = [x for x in xs if hull.half_width(x) >= CASEMATE_BEAM * B / 2]
+    c = (min(elig) + max(elig)) / 2 if elig else 0.0
+    xs.sort(key=lambda x: abs(x - c))
+
+    def attempt(pref):
+        half = (lambda r: 1.1 * r + 2.0) if pref else (lambda r: 1.05 * r + 0.5)   # half the pitch
+        taken, out = [], []
+        for sec, n, t_id, t in bats:
+            h = half(t["r"])
+            got = []
+            for x in xs:
+                if len(got) >= n:
+                    break
+                if all(abs(x - xo) >= h + ho for xo, ho in taken) and below_deck_ok(x, t["r"]):
+                    got.append(x)
+                    taken.append((x, h))
+            out.append(sorted(got))
+        return out
+
+    placed = attempt(True)
+    if any(len(got) < n for got, (_, n, _, _) in zip(placed, bats)):
+        placed = attempt(False)
+    for got, (sec, n, t_id, t) in zip(placed, bats):
+        if len(got) < n:
+            lay.errors.append(f"Only {len(got)} of {n} {sec['calibre_mm']:g} mm casemates per side fit in the hull "
+                              "sides. Use fewer or smaller guns, or lengthen the hull.")
+        arm = sec.get("armour_mm", 25)
+        for i, x in enumerate(got):
+            for side in (1, -1):
+                mid = f"{sec['prefix']}{i + 1}{'S' if side > 0 else 'P'}"
+                y = side * hull.half_width(x)
+                mounts.append(dict(id=mid, kind="secondary", type=t_id, t=t, x=x, y=y, level=0, base=-LEVEL_H,
+                                   top=0.0, rest=90 * side, z=0, armour_mm=arm, casemate=True))
+                lay.occupy(_fp_circle(x, y, CASEMATE_SHIELD * t["r"]), -LEVEL_H, 0.0, mid)
+                tw, _, aw = mount_weights(t, arm, depth, 0)
+                lay.weights += [Weight(f"Mount {mid}", "armament", tw, x=x, z_rel=("deck", -LEVEL_H / 2)),
+                                Weight(f"Magazine {mid}", "armament", aw, x=x, z_rel=("frac", 0.3))]
 
 
 def stepped_counts(main):
@@ -527,12 +600,19 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
         lay.occupy(fp, 0, fun_top, fid)
         lay.weights.append(Weight(fid, "superstructure", fl * fw * 0.9, x=fx, z_rel=("deck", fun_top / 2)))
 
-    # ---------------- secondaries ----------------
-    sec = design.get("secondary") or {}
-    nsec = sec.get("per_side", 0)
+    # ---------------- secondaries on deck ----------------
+    # one battery or a list; deck batteries stand on the deckhouse amidships (the first spread evenly, the rest in
+    # the free spots nearest amidships), casemate batteries go in the hull sides once the deckhouse is laid out
+    secs = design.get("secondary") or []
+    secs = [{**b, "prefix": battery_prefix(k)} for k, b in enumerate(secs if isinstance(secs, list) else [secs])]
     dh_w = 0.62 * B
     sec_base = LEVEL_H if wide else 0.0
-    if nsec:
+    first = True
+    for sec in secs:
+        nsec = sec.get("per_side", sec.get("count", 0) // 2)
+        if sec.get("mount", "deck") != "deck" or not nsec:
+            continue
+        pre, cal = sec["prefix"], f"{sec['calibre_mm']:g} mm"
         ts_id, ts = make_turret_type(sec["calibre_mm"], sec["calibre_length"], sec["barrels"])
         turret_types[ts_id] = ts
         rs = ts["r"]
@@ -547,21 +627,21 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
         xs_probe = [x_lo + (x_hi - x_lo) * k / 20 for k in range(21)]
         outer = min(hull.half_width(x) for x in xs_probe) - rs_reach - 0.6
         if outer < inner:
-            lay.errors.append(f"Hull too narrow for {sec['calibre_mm']:g} mm secondary mounts: they need about "
+            lay.errors.append(f"Hull too narrow for {cal} secondary mounts: they need about "
                               f"{2 * (inner + rs_reach + 0.6):.1f} m of beam amidships.")
         y_s = max(inner, inner + 0.55 * (outer - inner))
         pitch_s = 2.1 * rs_reach + 1.0
         if x_hi <= x_lo:
             lay.errors.append("No room amidships for the secondary battery.")
-        elif nsec > 1 and (x_hi - x_lo) / (nsec - 1) < pitch_s:
+        elif first and nsec > 1 and (x_hi - x_lo) / (nsec - 1) < pitch_s:
             lay.errors.append(f"{nsec} secondary mounts per side do not fit in {x_hi - x_lo:.0f} m amidships "
                               f"(max {int((x_hi - x_lo) / pitch_s) + 1}).")
         step = min((x_hi - x_lo) / max(nsec - 1, 1), 2.2 * rs + 4.0)
         c = (x_lo + x_hi) / 2
         sxs = [c + (i - (nsec - 1) / 2) * step if nsec > 1 else c for i in range(nsec)]
-        if nw:
-            # wing turrets break up the middle: take the free spots nearest amidships, at the preferred pitch if
-            # they fit, else the minimum
+        if nw or not first:
+            # wing turrets (or the batteries placed before) break up the middle: take the free spots nearest
+            # amidships, at the preferred pitch if they fit, else the minimum
             def spot_ok(x):
                 fps = [_fp_circle(x, s * y_s, rs_reach) for s in (1, -1)]
                 return all(lay.free(fp, 0.4) and lay.clear(fp, sec_base + ths) for fp in fps)
@@ -575,23 +655,26 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
                 if len(sxs) == nsec:
                     break
             if len(sxs) < nsec:
-                lay.errors.append(f"Only {len(sxs)} of {nsec} secondary mounts per side fit beside the wing turrets.")
+                where = "beside the wing turrets" if first else "amidships beside the other secondaries"
+                lay.errors.append(f"Only {len(sxs)} of {nsec} {'' if first else cal + ' '}secondary mounts per side "
+                                  f"fit {where}.")
             sxs.sort()
         for i, sx in enumerate(sxs):
             if not lay.clear(_fp_circle(sx, y_s, rs_reach), sec_base + ths):
-                lay.errors.append(f"Secondary mounts S{i + 1} would stand in a main turret's sweep: lengthen the "
+                lay.errors.append(f"Secondary mounts {pre}{i + 1} would stand in a main turret's sweep: lengthen the "
                                   "hull or use fewer secondaries.")
             for side in (1, -1):
-                mid = f"S{i + 1}{'S' if side > 0 else 'P'}"
+                mid = f"{pre}{i + 1}{'S' if side > 0 else 'P'}"
                 mounts.append(dict(id=mid, kind="secondary", type=ts_id, t=ts, x=sx, y=side * y_s, level=0,
                                    base=sec_base, top=sec_base + ths,
-                                   rest=90 * side, z=3))
+                                   rest=90 * side, z=3, armour_mm=sec.get("armour_mm", 25)))
                 lay.occupy(_fp_circle(sx, side * y_s, rs_reach), sec_base, sec_base + ths, mid)
                 tw, _, aw = mount_weights(ts, sec.get("armour_mm", 25), depth, 0)
                 lay.weights += [Weight(f"Mount {mid}", "armament", tw, x=sx, z_rel=("deck", sec_base + ths / 2)),
                                 Weight(f"Magazine {mid}", "armament", aw, x=sx, z_rel=("frac", 0.3))]
         if wide:
-            dh_w = 2 * (y_s + rs_reach + 0.6)
+            dh_w = max(dh_w, 2 * (y_s + rs_reach + 0.6)) if not first else 2 * (y_s + rs_reach + 0.6)
+        first = False
     if wide:
         if nw:   # wing turrets stand on the deckhouse
             dh_w = max(dh_w, 2 * (y_w + reach + 0.6))
@@ -602,6 +685,9 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
     # the deckhouse is under everything else in the middle; secondaries stand on it
     lay.footprints = [fp for fp in lay.footprints if fp[3] != "Deckhouse"] + \
                      [(_fp_rect(dh["x0"], -dh_w / 2, dh["x1"], dh_w / 2), 0, LEVEL_H, "Deckhouse")]
+
+    # ---------------- casemates: guns in the hull side, below the main deck ----------------
+    place_casemates(lay, mounts, turret_types, secs, hull, depth)
 
     # ---------------- torpedo mounts ----------------
     tp = design.get("torpedoes") or {}

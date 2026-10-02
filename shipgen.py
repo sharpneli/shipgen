@@ -34,7 +34,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from fleet import FLEET, TURRET_TYPES
 from looks import DEFAULT_PALETTE
-from geometry import turret_shapes, turret_reach, BARREL_ROOT, rrect_polygon, Hull, AA_CFG
+from geometry import turret_shapes, turret_reach, BARREL_ROOT, CASEMATE_SHIELD, rrect_polygon, Hull, AA_CFG
 
 PAD_M = 3.0  # empty margin around each hull sprite, metres
 
@@ -320,6 +320,10 @@ def ship_extent(spec, hull, scale=None, align=2):
     for key in ("sponsons", "superstructure", "fittings"):
         for it in expand(spec.get(key), hull):
             hw = max(hw, abs(it.get("y", 0)) + it.get("w", 0) / 2)
+    for m in spec.get("turrets", []):   # casemate guns stand on the hull side: keep their barrels on the canvas
+        t = turret_types(spec)[m["type"]]
+        if t.get("shape") == "casemate":
+            hw = max(hw, abs(m.get("y", 0)) + turret_reach(t))
     hx, hy = hull.L / 2 + PAD_M, hw + PAD_M
     if scale:  # snap the canvas to a multiple of `align` px (even at least): origin lands on an exact pixel
         a = align / 2
@@ -687,6 +691,18 @@ def build_turret(t, palette, scale, align=2, shadows=True, look="standard"):
                  f'fill="none" stroke="{body_col}" stroke-width="{f(0.28 * r)}" stroke-linecap="round"/>')
         s.append(f'<rect x="{f(-0.5 * r)}" y="{f(-0.25 * r)}" width="{f(0.6 * r)}" height="{f(0.5 * r)}" '
                  f'fill="{body_col}" {P.stroke(0.6)}/>')
+
+    elif shape == "casemate":   # the port shield on the hull side and the barrels run out through it
+        rc = CASEMATE_SHIELD * r
+        s.append(barrels(BARREL_ROOT["casemate"] * r))
+        s.append(f'<circle r="{f(rc)}" fill="{p["hull"]}" {P.stroke(1.1)}/>')
+        s.append(f'<circle r="{f(rc * 0.72)}" fill="{shade(p["hull"], 1.25)}"/>')
+        s.append(f'<rect x="{f(0.2 * rc)}" y="{f(-(n - 1) / 2 * sp - bw * 0.8)}" width="{f(0.8 * rc)}" '
+                 f'height="{f((n - 1) * sp + bw * 1.6)}" fill="{shade(p["hull"], 0.45)}"/>')
+        for i in range(n):   # the barrels' roots in the gun port
+            y = (i - (n - 1) / 2) * sp
+            s.append(f'<rect x="{f(0.2 * rc)}" y="{f(y - bw * 0.62)}" width="{f(0.8 * rc)}" height="{f(bw * 1.24)}" '
+                     f'fill="{p["barrel"]}"/>')
 
     elif shape == "torp":
         s.append(f'<circle r="{f(r)}" fill="{shade(body_col, 0.85)}" {P.stroke()}/>')

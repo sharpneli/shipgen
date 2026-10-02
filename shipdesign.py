@@ -13,7 +13,8 @@ ship = {
       spec      the drawing spec: hull form, turret types and mounts, superstructure, funnels, masts, boats,
                 AA, fittings, decks
       deck_m    main deck height above the waterline
-      mounts    per mount: id, kind, rest bearing, arcs, roof height above the main deck
+      mounts    per mount: id, kind, rest bearing, arcs, roof height above the main deck, and "mount": "casemate"
+                for a casemate gun (in the hull side)
       columns   the static height-map columns, lowest first: {top (m above the waterline), shape, ...} with
                 shape "hull" (the hull as drawn), "polygon" (points), "rect" (x, y, w, h), "circle" (cx, cy, r)
                 or "ellipse" (cx, cy, rx, ry)
@@ -146,8 +147,8 @@ def build(design):
         render=dict(
             spec=copy.deepcopy(lay.spec),
             deck_m=deck_m,
-            mounts=[dict(id=m["id"], kind=m["kind"], rest=m["rest"], arcs=m["arcs"], top=m["top"])
-                    for m in lay.mounts],
+            mounts=[dict(id=m["id"], kind=m["kind"], rest=m["rest"], arcs=m["arcs"], top=m["top"],
+                         **({"mount": "casemate"} if m.get("casemate") else {})) for m in lay.mounts],
             columns=height_columns(lay, deck_m),
             summary=styles.get(design).summary(design, lay, r),
         ),
