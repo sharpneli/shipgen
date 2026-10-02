@@ -39,12 +39,12 @@ def _grey(h_m):
     return f"rgb({v},{v},{v})"
 
 
-def build_height_svg(lay, deck_m, vb, scale):
+def build_height_svg(lay, deck_m, vb, scale, hull=None):
     """SVG of the static height map. Shapes are drawn lowest first so the taller one wins where they overlap.
     Only columns: a heightfield cannot overhang, so mast yards, derricks and turret barrels are left out.
     A flight deck overhang is drawn as a solid column, which casts the same shadow seen from above."""
     from layout import LEVEL_H, block_top
-    items = [(deck_m, f'<path d="{lay.hull.outline()}"/>')]
+    items = [(deck_m, f'<path d="{(hull or lay.hull).outline()}"/>')]   # hull: as drawn (a look may fill it out)
     for dk in lay.decks + lay.sponsons:
         items.append((deck_m + dk["top"], f'<path d="{poly(dk["points"])}"/>'))
     for ht in lay.spec.get("hatches", []):

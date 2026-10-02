@@ -88,13 +88,14 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
 | look | inspired by | what changes |
 |---|---|---|
 | `standard` (default) | generic | WWII haze grey, teak decks |
-| `brooklyn` | US | deck blue on every horizontal surface, slab-sided boxy turrets with rear rangefinder hoods. Merchants: wartime grey |
-| `kure` | Japan | dark Kure grey, pale hinoki wood, brown linoleum steel decks with brass strips, black-topped funnels, rounded turrets with a long rangefinder across the rear, wooden carrier decks with red stripes. Merchants: black hull, white house |
-| `portsmouth` | UK | light Admiralty grey, pale holystoned teak, white boats, black funnel tops, straight-sided turrets with a round rear. Merchants: tramp colours, buff funnel with a black top |
-| `kiel` | Germany | dark hull and steel decks under light grey upperworks, mid teak, grey funnel caps, faceted turrets with domed cupolas. Merchants: dark hull, black funnel with a red band |
+| `brooklyn` | US | deck blue on every horizontal surface, slab-sided boxy turrets with rear rangefinder hoods, a wide square transom, boxy funnels and superstructure. Merchants: wartime grey |
+| `kure` | Japan | dark Kure grey, pale hinoki wood, brown linoleum steel decks with brass strips, black-topped funnels, rounded turrets with a long rangefinder across the rear, a flared bow, oval funnels, soft rounded superstructure, wooden carrier decks with red stripes. Merchants: black hull, white house |
+| `portsmouth` | UK | light Admiralty grey, pale holystoned teak, white boats, black funnel tops, straight-sided turrets with a round rear, a fuller bow, bridges with round fronts and square backs. Merchants: tramp colours, buff funnel with a black top |
+| `kiel` | Germany | dark hull and steel decks under light grey upperworks, mid teak, grey funnel caps, faceted turrets with domed cupolas, a flared Atlantic bow, chamfered superstructure, capped funnels, pole masts. Merchants: dark hull, black funnel with a red band |
 
 - Looks live in `looks.py`. Each is a palette for all styles, plus overrides per style, plus a turret drawing (`shipgen.look_turret_body`).
 - Only armoured (`bb`) turrets change shape. The drawn outline stays close to the hitbox shape, and `verify.py` checks it like any other sprite.
+- Silhouettes (`shapes` in a look) are drawn only: the bow and stern may be fuller than the layout's hull (never finer, so nothing at the deck edge overhangs), and funnels, superstructure corners and masts change style. Hitboxes keep the layout's shapes. The height map follows the drawn hull, so shadows match the sprite.
 - A design's own `"palette"` still overrides everything.
 - To add a look: add an entry to `looks.LOOKS`. A new turret drawing also needs a branch in `shipgen.look_turret_body`.
 

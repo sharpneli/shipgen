@@ -12,6 +12,13 @@ Each look has:
                PALETTE: a merchant keeps its merchant colours unless the look says otherwise
     turrets    how armoured (bb) turrets are drawn: "standard", "slab", "round", "classic" or "faceted"
                (shipgen.build_turret). The outline stays close to the hitbox shape (geometry.turret_shapes).
+    shapes     silhouette variations, all drawn only (shipgen.look_hull_spec, Painter):
+                 bow_power, bow_flare, transom   a fuller bow, a flared shoulder, a wider transom. Only ever
+                                                 fuller than the layout's hull, so deck-edge fittings stay on deck
+                 funnel   "box", "oval" or "capped" (default: stadium)
+                 blocks   superstructure corners: "boxy", "soft", "bowfront" (round fronts, square backs) or
+                          "chamfer" (default: as laid out)
+                 mast     "pole": no tripod legs
 
 Precedence, lowest first: DEFAULT_PALETTE, look palette, style PALETTE, look by_style, design "palette".
 
@@ -21,7 +28,7 @@ from __future__ import annotations
 
 LOOKS = {
     # the original WWII haze-grey scheme
-    "standard": dict(desc="Haze grey, generic", palette={}, by_style={}, turrets="standard"),
+    "standard": dict(desc="Haze grey, generic", palette={}, by_style={}, turrets="standard", shapes={}),
 
     # US-inspired: Measure 21-style deck blue on every horizontal surface, boxy slab-sided turrets
     "brooklyn": dict(
@@ -36,7 +43,8 @@ LOOKS = {
                                "funnel_band": "#1f1f1f", "boat": "#9aa4ad", "hatch": "#4c5560", "mast": "#2e353c"},
                   "planing": {"hull": "#3f4d3c", "deck": "#4f5d4a", "deck_line": "#262d23",
                               "levels": ["#62705c", "#6f7d68", "#7c8a75", "#8a9782"]}},
-        turrets="slab"),
+        turrets="slab",
+        shapes={"transom": 0.15, "funnel": "box", "blocks": "boxy"}),
 
     # Japan-inspired: dark Kure grey, pale hinoki wood, brown linoleum on steel decks, black-topped funnels,
     # rounded turrets with long rangefinder arms, red and white carrier deck stripes
@@ -54,7 +62,8 @@ LOOKS = {
                                "funnel_band": "#e8e4d8", "hatch": "#4f5446", "mast": "#3a3027"},
                   "planing": {"hull": "#555a5c", "deck": "#6c7173", "deck_line": "#34383a",
                               "levels": ["#767b7c", "#848989", "#929797", "#a0a4a4"]}},
-        turrets="round"),
+        turrets="round",
+        shapes={"bow_flare": 0.08, "funnel": "oval", "blocks": "soft"}),
 
     # UK-inspired: pale Admiralty grey, holystoned teak, white boats, black funnel tops, straight-sided turrets
     # with a rounded rear
@@ -70,7 +79,8 @@ LOOKS = {
                                "funnel_band": "#161616", "hatch": "#5b5f4a", "mast": "#8a6a3e"},
                   "planing": {"hull": "#8a9397", "deck": "#9aa3a7", "deck_line": "#5e676b",
                               "levels": ["#b3bbbe", "#bfc6c9", "#cbd1d3", "#d7dcde"]}},
-        turrets="classic"),
+        turrets="classic",
+        shapes={"bow_power": 0.35, "transom": 0.05, "blocks": "bowfront"}),
 
     # German-inspired: dark grey hull and decks under light grey upperworks, mid teak, grey funnel caps,
     # faceted turrets
@@ -86,7 +96,8 @@ LOOKS = {
                                "funnel_band": "#b3332a", "hatch": "#545a52", "mast": "#33373a"},
                   "planing": {"hull": "#8e9396", "deck": "#9fa4a7", "deck_line": "#5d6265",
                               "levels": ["#b5b9bb", "#c0c4c6", "#cbcfd0", "#d6d9da"]}},
-        turrets="faceted"),
+        turrets="faceted",
+        shapes={"bow_power": 0.2, "bow_flare": 0.04, "funnel": "capped", "blocks": "chamfer", "mast": "pole"}),
 }
 
 DEFAULT_LOOK = "standard"

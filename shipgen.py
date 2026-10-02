@@ -107,6 +107,8 @@ class Hull:
         if u >= 1 - b["taper"]:
             t = min(1.0, (u - (1 - b["taper"])) / b["taper"])
             w = self._end(t, b["power"], b["shape"])
+            if b.get("flare"):   # a flared shoulder: fuller through the middle of the taper, the same tip
+                w = min(1.0, w + b["flare"] * math.sin(math.pi * t) * (1 - t))
         elif u <= s["taper"]:
             t = min(1.0, max(0.0, 1 - u / s["taper"]))
             w = s["transom"] + (1 - s["transom"]) * self._end(t, s["power"], s["shape"])
@@ -162,8 +164,9 @@ def expand(items, hull: Hull):
 # drawing primitives (all return SVG fragments in metres)
 # ----------------------------------------------------------------------------
 class Painter:
-    def __init__(self, palette, scale, shadows=True):
+    def __init__(self, palette, scale, shadows=True, shapes=None):
         self.p = palette
+        self.shapes = shapes or {}   # a look's drawing variations (looks.py)
         self.shadows = shadows  # bake drop shadows in; off when the game casts them from a height map
         # keep outlines at least ~0.6 px wide whatever the scale
         self.sw = max(0.12, 0.6 / scale)
@@ -207,7 +210,16 @@ class Painter:
         x0, x1 = b["x0"], b["x1"]
         y = b.get("y", 0)
         w = b["w"]
-        d = rrect_path(x0, y - w / 2, x1, y + w / 2, b.get("rf", 0.8), b.get("rb", 0.8))
+        rf, rb = b.get("rf", 0.8), b.get("rb", 0.8)
+        mode = self.shapes.get("blocks")
+        if mode == "chamfer":     # cut corners instead of round ones
+            h = w / 2
+            cf, cb = min(rf, h, (x1 - x0) / 2), min(rb, h, (x1 - x0) / 2)
+            d = poly([(x0 + cb, y - h), (x1 - cf, y - h), (x1, y - h + cf), (x1, y + h - cf), (x1 - cf, y + h),
+                      (x0 + cb, y + h), (x0, y + h - cb), (x0, y - h + cb)])
+        else:
+            kf, kb = {"boxy": (0.35, 0.35), "soft": (1.6, 1.4), "bowfront": (1.5, 0.4)}.get(mode, (1.0, 1.0))
+            d = rrect_path(x0, y - w / 2, x1, y + w / 2, rf * kf, rb * kb)
         cols = self.p["levels"]
         col = cols[min(lvl, len(cols)) - 1]
         s = []
@@ -225,9 +237,17 @@ class Painter:
     def funnel(self, fn, clip=None):
         x, y, l, w = fn["x"], fn.get("y", 0), fn["l"], fn["w"]
         p = self.p
-        r = w / 2
+        mode = self.shapes.get("funnel")
+        r = w / 2 if mode != "box" else 0.22 * w
         d = rrect_path(x - l / 2, y - w / 2, x + l / 2, y + w / 2, r, r)
-        inner = rrect_path(x - l / 2 + 0.6, y - w / 2 + 0.6, x + l / 2 - 0.6, y + w / 2 - 0.6, r - 0.6, r - 0.6)
+        inner = rrect_path(x - l / 2 + 0.6, y - w / 2 + 0.6, x + l / 2 - 0.6, y + w / 2 - 0.6, max(0.0, r - 0.6),
+                           max(0.0, r - 0.6))
+        if mode == "oval":       # a smooth superellipse, fuller than an ellipse
+            def sup(a, b_, n=2.6, k=48):
+                return poly([(x + a * math.copysign(abs(math.cos(t)) ** (2 / n), math.cos(t)),
+                              y + b_ * math.copysign(abs(math.sin(t)) ** (2 / n), math.sin(t)))
+                             for t in (2 * math.pi * i / k for i in range(k))])
+            d, inner = sup(l / 2, w / 2), sup(l / 2 - 0.6, w / 2 - 0.6)
         cl = f' clip-path="url(#{clip})"' if clip else ""
         s = [f'<g{cl}><path d="{d}" transform="translate({f(w * 0.3)},{f(w * 0.5)})" fill="#000" fill-opacity="0.25"/></g>'
              if self.shadows else "",
@@ -242,6 +262,9 @@ class Painter:
             cx = x - l / 2 + 0.6 + (l - 1.2) * (i + 0.5) / n
             s.append(f'<ellipse cx="{f(cx)}" cy="{f(y)}" rx="{f((l - 1.2) / n / 2 - 0.25)}" '
                      f'ry="{f(w / 2 - 1.0)}" fill="#0b0d0f"/>')
+        if mode == "capped":     # a cowl cap: a lighter ring standing proud round the top
+            cap = rrect_path(x - l / 2 + 0.35, y - w / 2 + 0.35, x + l / 2 - 0.35, y + w / 2 - 0.35, r - 0.35, r - 0.35)
+            s.append(f'<path d="{cap}" fill="none" stroke="{shade(p["funnel"], 1.25)}" stroke-width="0.45"/>')
         # cap grating highlight
         s.append(f'<path d="{d}" fill="none" stroke="{shade(p["funnel"], 1.3)}" stroke-width="{f(self.sw)}" '
                  f'transform="translate({f(-self.sw * 0.6)},{f(-self.sw * 0.6)})" stroke-opacity="0.6"/>')
@@ -257,7 +280,7 @@ class Painter:
             s.append(f'<line x1="{f(x)}" y1="{f(y)}" x2="{f(bx)}" y2="{f(by)}" stroke="{p["mast"]}" '
                      f'stroke-width="{f(max(self.sw * 1.4, 0.3))}" stroke-linecap="round"/>'
                      f'<circle cx="{f(bx)}" cy="{f(by)}" r="0.3" fill="{p["mast"]}"/>')
-        if m.get("tripod", True):
+        if m.get("tripod", True) and self.shapes.get("mast") != "pole":   # a look may make every mast a pole
             for ang in (150, 210):
                 lx = x + 4.0 * math.cos(math.radians(ang))
                 s.append(f'<line x1="{f(x)}" y1="{f(y)}" x2="{f(lx)}" y2="{f(y + 3.0 * (1 if ang == 150 else -1))}" '
@@ -394,10 +417,22 @@ def vents(spec, hull, P):
     return "".join(out)
 
 
+def look_hull_spec(spec):
+    """The hull as a look draws it (spec["shapes"]: bow_power and transom added, bow_flare). Drawing only, and only
+    ever fuller than the layout's hull, so deck-edge fittings stay on deck; the hitbox keeps the layout's hull."""
+    sh = spec.get("shapes") or {}
+    if not any(sh.get(k) for k in ("bow_power", "bow_flare", "transom")):
+        return spec
+    hull = Hull(spec)
+    bow = {**hull.bow, "power": hull.bow["power"] + sh.get("bow_power", 0.0), "flare": sh.get("bow_flare", 0.0)}
+    stern = {**hull.stern, "transom": min(0.9, hull.stern["transom"] + sh.get("transom", 0.0))}
+    return {**spec, "bow": bow, "stern": stern}
+
+
 def build_hull_layers(spec, scale, align=2, shadows=True):
     pal = {**DEFAULT_PALETTE, **spec.get("palette", {})}
-    P = Painter(pal, scale, shadows)
-    hull = Hull(spec)
+    P = Painter(pal, scale, shadows, spec.get("shapes"))
+    hull = Hull(look_hull_spec(spec))
     hx, hy = ship_extent(spec, hull, scale, align)
     vb = (-hx, -hy, 2 * hx, 2 * hy)
     hull_d = hull.outline()

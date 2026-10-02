@@ -175,6 +175,7 @@ def render_design(design, lay, r, out_dir, S, mips=0):
     spec["palette"] = looks.palette(design, styles.get(design))   # visual only: nothing above depends on it
     pal = {**DEFAULT_PALETTE, **spec["palette"]}
     turret_look = looks.get(design)["turrets"]
+    spec["shapes"] = looks.get(design)["shapes"]
     turret_pngs = {}
     tmeta = {}
     for tid, t in spec["turret_types"].items():
@@ -188,7 +189,7 @@ def render_design(design, lay, r, out_dir, S, mips=0):
     render(base_svg, os.path.join(out_dir, "hull_base.png"), os.path.join(out_dir, "hull_base.svg"))
     render(upper_svg, os.path.join(out_dir, "hull_upper.png"), os.path.join(out_dir, "hull_upper.svg"))
     deck_m = max(r.freeboard, 0.1)    # an unsolvable design can come out with no freeboard at all
-    height_svg, max_h = shadow.build_height_svg(lay, deck_m, vb, S)
+    height_svg, max_h = shadow.build_height_svg(lay, deck_m, vb, S, hull)
     height_p = os.path.join(out_dir, "height.png")
     render(height_svg, height_p)
     shadow.to_height_png(height_p)
