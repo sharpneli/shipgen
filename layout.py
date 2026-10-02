@@ -20,6 +20,7 @@ the renderer spec, the hitboxes and the weight model.
 from __future__ import annotations
 
 import math
+import re
 
 from geometry import (make_turret_type, make_torpedo_type, rrect_polygon, rrect_clamped, circle_polygon,
                       turret_shapes, turret_height, turret_reach, point_in_polygon, polygons_intersect,
@@ -148,24 +149,94 @@ def add_block(lay, blocks, bid, x0, x1, w, level, rf, rb, y=0.0, z0=0.0, layer=N
     return b
 
 
-def add_magazines(lay, mounts, inner_hw):
-    """One magazine per gun mount, below it in the hold, linked both ways (m["magazine"], the magazine's
-    "mount"). It spans the mount's diameter fore and aft. An off-centre mount's magazine stays inside the
-    inner hull (half-width inner_hw) on its own side."""
+MAGAZINE_T_PER_M3 = 0.35   # grouped magazines: tonnes of ammunition per m3 of magazine (racks, handling, passages)
+
+
+def battery_of(mid):
+    """A grouped mount's battery: its id less the number and side ("SB3P" -> "SB", "W1S" -> "W1")."""
+    pre, num = re.match(r"^([A-Z]+?)(\d+)[SP]$", mid).groups()
+    return pre + num if pre == "W" else pre
+
+
+def ammo_m3(t):
+    """Magazine volume for one mount of turret type t in a grouped magazine: its ammunition at MAGAZINE_T_PER_M3."""
+    return mount_weights(t, 0.0, 0.0, 0)[2] / MAGAZINE_T_PER_M3
+
+
+def magazine_plan(design, tm):
+    """The magazines grouped fore and aft of the machinery (warships): the secondaries' (deck and casemate) and
+    the abreast wing turrets'. Each battery sends the forward half of its pairs (rounded up) to the fore group;
+    wing pair k goes to the end of the middle it stands at (even k forward). Returns {"fore"|"aft": [(battery,
+    mounts, magazine m3 per mount)]}."""
+    out = {"fore": [], "aft": []}
+    main = design.get("main") or {}
+    if tm and not main.get("echelon"):
+        for k in range(main.get("wing", 0)):
+            out["fore" if k % 2 == 0 else "aft"].append((f"W{k + 1}", 2, ammo_m3(tm)))
+    secs = design.get("secondary") or []
+    for k, s in enumerate(secs if isinstance(secs, list) else [secs]):
+        n = s.get("per_side", s.get("count", 0) // 2)
+        if not n:
+            continue
+        kind = "casemate" if s.get("mount") == "casemate" else "auto"
+        t = make_turret_type(s["calibre_mm"], s["calibre_length"], s["barrels"], kind=kind)[1]
+        for grp, pairs in (("fore", (n + 1) // 2), ("aft", n // 2)):
+            if pairs:
+                out[grp].append((battery_prefix(k), 2 * pairs, ammo_m3(t)))
+    return out
+
+
+def add_magazines(lay, mounts, inner_hw, groups=None):
+    """Magazines, linked both ways (m["magazine"], the magazine's "mount" or "mounts").
+    End, midships and echelon wing turrets: one per mount, below it on the centreline, spanning its diameter.
+    Grouped mounts (magazine_plan) share one magazine per battery and group, in the machinery block's magazine
+    segments: groups = {"fore"|"aft": (x0, x1)}. Each battery's forward pairs fill the fore group as planned. The
+    magazine weights move with them."""
+    groups = groups or {}
+    plan = lay.geo.get("plant") or {}
+    ghw = plan["width"] / 2 if plan.get("wing_m") else min(inner_hw, plan.get("width", 2 * inner_hw) / 2)
+    batteries = {}
     for m in mounts:
         if m["kind"] not in ("main", "secondary"):
             continue
+        if groups and (m["kind"] == "secondary" or (m.get("wing") and not m.get("echelon"))):
+            batteries.setdefault(battery_of(m["id"]), []).append(m)
+            continue
         r = m["t"]["r"]
-        if abs(m["y"]) < 0.5:
-            hw, y = min(r, inner_hw), 0.0
-        else:
-            hw = min(r, inner_hw / 2)
-            y = math.copysign(min(max(abs(m["y"]), hw), inner_hw - hw), m["y"])
         m["magazine"] = f"Magazine {m['id']}"
-        c = dict(id=m["magazine"], kind="magazine", mount=m["id"], x0=m["x"] - r, x1=m["x"] + r, half_width=hw)
-        if y:
-            c["y"] = y
-        lay.compartments.append(c)
+        lay.compartments.append(dict(id=m["magazine"], kind="magazine", mount=m["id"], x0=m["x"] - r,
+                                     x1=m["x"] + r, half_width=min(r, inner_hw)))
+    rooms = {"fore": [], "aft": []}
+    for bat, ms in batteries.items():
+        pairs = sorted({m["x"] for m in ms}, reverse=True)
+        n_fore = len(pairs) if not bat.startswith("W") else 0
+        if bat.startswith("W"):            # wing pair k stands at the fore end of the middle for even k
+            n_fore = len(pairs) if int(bat[1:]) % 2 == 1 else 0
+        elif "fore" in groups and "aft" in groups:
+            n_fore = (len(pairs) + 1) // 2
+        n_fore = len(pairs) if "aft" not in groups else 0 if "fore" not in groups else n_fore
+        for grp, xs in (("fore", pairs[:n_fore]), ("aft", pairs[n_fore:])):
+            sel = [m for m in ms if m["x"] in xs]
+            if sel:
+                rooms[grp].append((bat, sel, sum(ammo_m3(m["t"]) for m in sel)))
+    for grp, rs in rooms.items():
+        if not rs:
+            continue
+        g0, g1 = groups[grp]
+        tot = sum(a for _, _, a in rs)
+        x = g1
+        for bat, sel, a in rs:            # forward to aft through the segment, by volume
+            l = (g1 - g0) * a / tot
+            rid = f"Magazine {bat} {grp}"
+            lay.compartments.append(dict(id=rid, kind="magazine", mounts=[m["id"] for m in sel], x0=x - l, x1=x,
+                                         half_width=ghw))
+            for m in sel:
+                m["magazine"] = rid
+            names = {f"Magazine {m['id']}" for m in sel}
+            for w in lay.weights:
+                if w.name in names:
+                    w.x = x - l / 2
+            x -= l
 
 
 def plan_machinery(lay, design, res, hull, x=0.0):
@@ -557,6 +628,15 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     t_gaps = [gaps[round((k + 0.5) * len(gaps) / nm - 0.5)] for k in range(nm)] if nm else []
     for g in gaps:
         gap_kind[g] = "T" if g in t_gaps else "W"
+    # the grouped magazines (magazine_plan) stand at the ends of the machinery block, as wide as its space
+    mag_plan = magazine_plan(design, tm)
+    mag_l = {g: sum(n * v_ for _, n, v_ in v) / max(plant["width"] * plant["height"], 1.0)
+             for g, v in mag_plan.items()}
+    if mag_l["fore"] > 0:
+        segs.insert(0, ["magazine", max(1.5, mag_l["fore"])])
+        gap_kind = {g + 1: k for g, k in gap_kind.items()}
+    if mag_l["aft"] > 0:
+        segs.append(["magazine", max(1.5, mag_l["aft"])])
     # funnels: enough for the gas, each within reach of its boilers (powerplant.funnel_plan). Natural and boost
     # draught want a tall stack: at least STACK_NATURAL from the grates to the funnel top.
     fun_top = LEVEL_H * max(tower_levels) + 3.0
@@ -893,8 +973,9 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         x -= segs[si][1]
     mach_placed = [(segs[si][0], pos[si][0], pos[si][1]) for si in range(len(segs))]
     f_seg = [si if si is not None else next((k for k, s in enumerate(segs) if s[0] == "engine"), 0) for si in f_seg]
-    mach_c = (min(p_[1] for p_ in mach_placed) + max(p_[2] for p_ in mach_placed)) / 2
-    lay.geo["machinery"] = (min(p_[1] for p_ in mach_placed), max(p_[2] for p_ in mach_placed))
+    plant_placed = [p_ for p_ in mach_placed if p_[0] != "magazine"]     # the block less its magazines
+    mach_c = (min(p_[1] for p_ in plant_placed) + max(p_[2] for p_ in plant_placed)) / 2
+    lay.geo["machinery"] = (min(p_[1] for p_ in plant_placed), max(p_[2] for p_ in plant_placed))
     lay.geo["machinery_x"] = mach_c
     if nm or nw:
         mid_base = (LEVEL_H if wide else 0.0) + 1.2
@@ -916,7 +997,8 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         for k, pair in enumerate(wings):
             for x, side in pair:
                 fwd = (x == pair[0][0]) if echelon else x >= mach_c
-                main_mount(f"W{k + 1}{'S' if side > 0 else 'P'}", x, side * y_w, 0 if fwd else 180, wing=True)
+                main_mount(f"W{k + 1}{'S' if side > 0 else 'P'}", x, side * y_w, 0 if fwd else 180, wing=True,
+                           **({"echelon": True} if echelon else {}))
 
     # ---------------- superstructure, kept out of the guns' sweeps ----------------
     blocks = []
@@ -1199,8 +1281,14 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     inner_hw = 0.8 * B / 2
     lay.compartments.append(dict(id="Citadel", kind="citadel", x0=cit[0], x1=cit[1], half_width=inner_hw,
                                  belt_mm=armour.get("belt_mm", 0), deck_mm=armour.get("deck_mm", 0)))
-    add_magazines(lay, mounts, inner_hw)
-    add_machinery_rooms(lay, mach_placed, inner_hw, depth)
+    mag_x = [(x0, x1) for kind, x0, x1 in mach_placed if kind == "magazine"]
+    mag_groups = {}
+    if mag_l["fore"] > 0:
+        mag_groups["fore"] = mag_x[0]
+    if mag_l["aft"] > 0:
+        mag_groups["aft"] = mag_x[-1]
+    add_magazines(lay, mounts, inner_hw, mag_groups)
+    add_machinery_rooms(lay, plant_placed, inner_hw, depth)
     lay.compartments.append(dict(id="Steering gear", kind="steering", x0=-L / 2 + 0.03 * L, x1=-L / 2 + 0.08 * L,
                                  half_width=0.5 * B / 2))
 

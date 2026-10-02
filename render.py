@@ -198,9 +198,12 @@ def debug_overlay(img, hb, S, ox, oy):
             d.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], outline=col)
         else:
             d.line(P(c["points"] + c["points"][:1]), fill=col, width=1)
-    for c in hb["compartments"]:
-        x0, x1, hw, cy = c["x0"], c["x1"], c["half_width"], c.get("y", 0.0)
-        d.rectangle([ox + x0 * S, oy + (cy - hw) * S, ox + x1 * S, oy + (cy + hw) * S], outline=(255, 255, 255, 90))
+    for bh in hb.get("bulkheads", []):      # the subdivision: transverse and longitudinal bulkheads
+        if "x" in bh:
+            hw = hitview._half_width([tuple(p) for p in hb["hull"]], bh["x"])
+            d.line([ox + bh["x"] * S, oy - hw * S, ox + bh["x"] * S, oy + hw * S], fill=(255, 255, 255, 90))
+        else:
+            d.line([ox + bh["x0"] * S, oy + bh["y"] * S, ox + bh["x1"] * S, oy + bh["y"] * S], fill=(255, 255, 255, 90))
     return im
 
 

@@ -8,7 +8,7 @@ The design's "style" (warship, carrier, merchant; see styles/) picks the layout 
 
 For each design it writes out_designs/<id>/:
     report.json        inputs, displacement, power, stability, weight breakdown, errors and warnings
-    hitboxes.json      hull polygon, components (turrets with local polygons + firing arcs), compartments
+    hitboxes.json      hull polygon, components (turrets with local polygons + firing arcs), subdivision
     sprite.json        sprite metadata: layers, origin, mount pixel positions, rest angles, arcs, z
     hull_base.png/svg, hull_upper.png/svg, turrets/<type>.png/svg   (no baked shadows)
     height.png         height map for sun shadows (see shadow.py)

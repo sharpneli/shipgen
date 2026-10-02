@@ -221,8 +221,8 @@ def tank_room(lay, design, res):
 
 def apply(lay, design, res, style):
     """Crew the laid-out ship: its complement, the volume the crew needs against the volume the ship has (too
-    little: the hull is short of length), the weights of crew, provisions and water, and accommodation
-    compartments in the empty hull fore and aft of the citadel. Sets lay.crew (report "crew")."""
+    little: the hull is short of length), and the weights of crew, provisions and water.
+    Sets lay.crew (report "crew"); subdivision.build quarters the complement in the hull's free cells."""
     from navarch import Weight
     import powerplant
     c = spec(design, style.CREW_STANDARD)
@@ -252,7 +252,6 @@ def apply(lay, design, res, style):
                     Weight("Provisions", "misc", nd["provisions_m3"] * PROVISIONS_T_PER_M3, x=0.0,
                            z_rel=("frac", 0.4)),
                     Weight("Fresh water", "misc", nd["water_m3"], x=x_mid, z_rel=("frac", 0.05))]
-    _accommodation(lay, n, res)
     lay.crew = dict(complement=n, officers=comp["officers"], cpos=nd["cpos"], ratings=nd["ratings"],
                     departments=comp["departments"], standard=s.get("name", ""),
                     endurance_days=c["endurance_days"], range_days=range_days, distiller=c["distiller"],
@@ -265,38 +264,3 @@ def apply(lay, design, res, style):
                     sleep_standard_m2=s["sleep_rating_m2"], headroom_m=round(nd["headroom_m"], 2),
                     deck_height_m=s["deck_height_m"], sickbay_beds=nd["sickbay_beds"],
                     tolerance_days=s["tolerance_days"])
-
-
-def _accommodation(lay, n, res):
-    """Accommodation compartments in the hull fore and aft of the citadel, between the armour deck (the waterline on
-    an unarmoured ship) and the main deck, each with its share of the crew. A style that has its own crew
-    compartment keeps it."""
-    if any(c["kind"] == "accommodation" for c in lay.compartments):
-        return
-    L, B = lay.hull.L, lay.hull.B
-    plan = lay.geo.get("plant") or {}
-    cit = lay.geo.get("citadel") or lay.geo.get("machinery") or (0.0, 0.0)
-    steer = next((c for c in lay.compartments if c["kind"] == "steering"), None)
-    aft0 = steer["x1"] if steer else -0.42 * L
-    zones = [("Accommodation fore", cit[1], 0.45 * L), ("Accommodation aft", aft0, cit[0])]
-    zones = [(i, a, b) for i, a, b in zones if b - a > 2.0]
-    if not zones:
-        return
-    base = (plan["top"] - res.depth) if plan.get("armoured") else -(res.depth - res.draught)
-    # each zone in slices no longer than about 0.06 L, each as wide as the hull is over its whole length, so the
-    # zones follow the bow and stern
-    cells = []
-    for zid, a, b in zones:
-        k = max(1, math.ceil((b - a) / (0.06 * L) - 1e-9))
-        for i in range(k):
-            x0, x1 = a + (b - a) * i / k, a + (b - a) * (i + 1) / k
-            hw = min(0.4 * B, min(lay.hull.half_width(x0 + (x1 - x0) * j / 4) for j in range(5)) - 0.5)
-            if hw > 0.5:
-                cells.append(dict(id=f"{zid} {i + 1}" if k > 1 else zid, x0=x0, x1=x1, half_width=hw))
-    total = sum((c["x1"] - c["x0"]) * c["half_width"] for c in cells)
-    left = n
-    for k, c in enumerate(cells):
-        men = left if k == len(cells) - 1 else round(n * (c["x1"] - c["x0"]) * c["half_width"] / total)
-        left -= men
-        lay.compartments.append(dict(id=c["id"], kind="accommodation", x0=c["x0"], x1=c["x1"],
-                                     half_width=c["half_width"], base=base, top=0.0, crew=men))

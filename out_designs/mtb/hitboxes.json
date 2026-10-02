@@ -2732,42 +2732,450 @@
    "top": 2.2
   }
  ],
- "compartments": [
+ "decks": [
   {
+   "id": "Main deck",
+   "kind": "main",
+   "z": 0.0
+  }
+ ],
+ "tiers": [
+  {
+   "id": "hold",
    "base": -2.85,
    "top": 0.0,
-   "id": "Crew space",
-   "kind": "accommodation",
-   "x0": 5.205,
-   "x1": 11.55,
-   "half_width": 0.363
+   "below_waterline": false,
+   "floor": "Keel",
+   "ceiling": "Main deck"
+  }
+ ],
+ "sections": [
+  {
+   "id": "1",
+   "x0": 12.375,
+   "x1": 13.75
   },
   {
+   "id": "2",
+   "x0": 9.985,
+   "x1": 12.375
+  },
+  {
+   "id": "3",
+   "x0": 7.595,
+   "x1": 9.985
+  },
+  {
+   "id": "4",
+   "x0": 5.205,
+   "x1": 7.595
+  },
+  {
+   "id": "5",
+   "x0": 2.868,
+   "x1": 5.205
+  },
+  {
+   "id": "6",
+   "x0": 0.53,
+   "x1": 2.868
+  },
+  {
+   "id": "7",
+   "x0": -2.2,
+   "x1": 0.53
+  },
+  {
+   "id": "8",
+   "x0": -11.55,
+   "x1": -2.2
+  },
+  {
+   "id": "9",
+   "x0": -13.75,
+   "x1": -11.55
+  }
+ ],
+ "bulkheads": [
+  {
+   "id": "Bulkhead 1",
+   "kind": "collision",
+   "x": 12.375,
+   "base": -2.85,
+   "top": 0.0
+  },
+  {
+   "id": "Bulkhead 2",
+   "kind": "main",
+   "x": 9.985,
+   "base": -2.85,
+   "top": 0.0
+  },
+  {
+   "id": "Bulkhead 3",
+   "kind": "main",
+   "x": 7.595,
+   "base": -2.85,
+   "top": 0.0
+  },
+  {
+   "id": "Bulkhead 4",
+   "kind": "main",
+   "x": 5.205,
+   "base": -2.85,
+   "top": 0.0
+  },
+  {
+   "id": "Bulkhead 5",
+   "kind": "main",
+   "x": 2.868,
+   "base": -2.85,
+   "top": 0.0
+  },
+  {
+   "id": "Bulkhead 6",
+   "kind": "main",
+   "x": 0.53,
+   "base": -2.85,
+   "top": 0.0
+  },
+  {
+   "id": "Bulkhead 7",
+   "kind": "main",
+   "x": -2.2,
+   "base": -2.85,
+   "top": 0.0
+  },
+  {
+   "id": "Bulkhead 8",
+   "kind": "main",
+   "x": -11.55,
+   "base": -2.85,
+   "top": 0.0
+  }
+ ],
+ "cells": [
+  {
+   "id": "1 hold C",
+   "section": "1",
+   "tier": "hold",
+   "band": "C",
+   "x0": 12.375,
+   "x1": 13.75,
+   "y0": -0.418,
+   "y1": 0.418,
    "base": -2.85,
    "top": 0.0,
-   "id": "Fuel tanks",
-   "kind": "fuel_tank",
+   "volume_m3": 1.6,
+   "below_waterline": false,
+   "room": "Quarters 1",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "2 hold C",
+     "Bulkhead 1"
+    ]
+   ]
+  },
+  {
+   "id": "2 hold C",
+   "section": "2",
+   "tier": "hold",
+   "band": "C",
+   "x0": 9.985,
+   "x1": 12.375,
+   "y0": -1.114,
+   "y1": 1.114,
+   "base": -2.85,
+   "top": 0.0,
+   "volume_m3": 10.5,
+   "below_waterline": false,
+   "crew": 2,
+   "room": "Crew space",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "1 hold C",
+     "Bulkhead 1"
+    ],
+    [
+     "3 hold C",
+     "open"
+    ]
+   ]
+  },
+  {
+   "id": "3 hold C",
+   "section": "3",
+   "tier": "hold",
+   "band": "C",
+   "x0": 7.595,
+   "x1": 9.985,
+   "y0": -1.762,
+   "y1": 1.762,
+   "base": -2.85,
+   "top": 0.0,
+   "volume_m3": 19.6,
+   "below_waterline": false,
+   "crew": 3,
+   "room": "Crew space",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "2 hold C",
+     "open"
+    ],
+    [
+     "4 hold C",
+     "open"
+    ]
+   ]
+  },
+  {
+   "id": "4 hold C",
+   "section": "4",
+   "tier": "hold",
+   "band": "C",
+   "x0": 5.205,
+   "x1": 7.595,
+   "y0": -2.35,
+   "y1": 2.35,
+   "base": -2.85,
+   "top": 0.0,
+   "volume_m3": 28.1,
+   "below_waterline": false,
+   "crew": 4,
+   "room": "Crew space",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "3 hold C",
+     "open"
+    ],
+    [
+     "5 hold C",
+     "Bulkhead 4"
+    ]
+   ]
+  },
+  {
+   "id": "5 hold C",
+   "section": "5",
+   "tier": "hold",
+   "band": "C",
+   "x0": 2.868,
+   "x1": 5.205,
+   "y0": -2.838,
+   "y1": 2.838,
+   "base": -2.85,
+   "top": 0.0,
+   "volume_m3": 34.7,
+   "below_waterline": false,
+   "crew": 5,
+   "room": "Quarters 5",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "4 hold C",
+     "Bulkhead 4"
+    ],
+    [
+     "6 hold C",
+     "Bulkhead 5"
+    ]
+   ]
+  },
+  {
+   "id": "6 hold C",
+   "section": "6",
+   "tier": "hold",
+   "band": "C",
+   "x0": 0.53,
+   "x1": 2.868,
+   "y0": -3.055,
+   "y1": 3.055,
+   "base": -2.85,
+   "top": 0.0,
+   "volume_m3": 39.9,
+   "below_waterline": false,
+   "crew": 6,
+   "room": "Quarters 6",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "5 hold C",
+     "Bulkhead 5"
+    ],
+    [
+     "7 hold C",
+     "Bulkhead 6"
+    ]
+   ]
+  },
+  {
+   "id": "7 hold C",
+   "section": "7",
+   "tier": "hold",
+   "band": "C",
    "x0": -2.2,
    "x1": 0.53,
-   "half_width": 2.444
-  },
-  {
+   "y0": -3.055,
+   "y1": 3.055,
    "base": -2.85,
    "top": 0.0,
-   "id": "Engine room",
-   "kind": "engine_room",
+   "volume_m3": 47.5,
+   "below_waterline": false,
+   "room": "Fuel tanks",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "6 hold C",
+     "Bulkhead 6"
+    ],
+    [
+     "8 hold C",
+     "Bulkhead 7"
+    ]
+   ]
+  },
+  {
+   "id": "8 hold C",
+   "section": "8",
+   "tier": "hold",
+   "band": "C",
    "x0": -11.55,
    "x1": -2.2,
-   "half_width": 2.444
-  },
-  {
+   "y0": -3.055,
+   "y1": 3.055,
    "base": -2.85,
    "top": 0.0,
-   "id": "Tiller flat",
-   "kind": "steering",
+   "volume_m3": 162.8,
+   "below_waterline": false,
+   "room": "Engine room",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "7 hold C",
+     "Bulkhead 7"
+    ],
+    [
+     "9 hold C",
+     "Bulkhead 8"
+    ]
+   ]
+  },
+  {
+   "id": "9 hold C",
+   "section": "9",
+   "tier": "hold",
+   "band": "C",
    "x0": -13.75,
    "x1": -11.55,
-   "half_width": 1.833
+   "y0": -3.055,
+   "y1": 3.055,
+   "base": -2.85,
+   "top": 0.0,
+   "volume_m3": 38.0,
+   "below_waterline": false,
+   "room": "Tiller flat",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "8 hold C",
+     "Bulkhead 8"
+    ]
+   ]
+  }
+ ],
+ "rooms": [
+  {
+   "id": "Quarters 1",
+   "kind": "accommodation",
+   "cells": [
+    "1 hold C"
+   ],
+   "volume_m3": 1.6,
+   "x0": 12.375,
+   "x1": 13.75,
+   "base": -2.85,
+   "top": 0.0
+  },
+  {
+   "id": "Crew space",
+   "kind": "accommodation",
+   "cells": [
+    "2 hold C",
+    "3 hold C",
+    "4 hold C"
+   ],
+   "crew": 9,
+   "volume_m3": 58.2,
+   "x0": 5.205,
+   "x1": 12.375,
+   "base": -2.85,
+   "top": 0.0
+  },
+  {
+   "id": "Quarters 5",
+   "kind": "accommodation",
+   "cells": [
+    "5 hold C"
+   ],
+   "crew": 5,
+   "volume_m3": 34.7,
+   "x0": 2.868,
+   "x1": 5.205,
+   "base": -2.85,
+   "top": 0.0
+  },
+  {
+   "id": "Quarters 6",
+   "kind": "accommodation",
+   "cells": [
+    "6 hold C"
+   ],
+   "crew": 6,
+   "volume_m3": 39.9,
+   "x0": 0.53,
+   "x1": 2.868,
+   "base": -2.85,
+   "top": 0.0
+  },
+  {
+   "id": "Fuel tanks",
+   "kind": "fuel_tank",
+   "cells": [
+    "7 hold C"
+   ],
+   "volume_m3": 47.5,
+   "x0": -2.2,
+   "x1": 0.53,
+   "base": -2.85,
+   "top": 0.0
+  },
+  {
+   "id": "Engine room",
+   "kind": "engine_room",
+   "cells": [
+    "8 hold C"
+   ],
+   "volume_m3": 162.8,
+   "x0": -11.55,
+   "x1": -2.2,
+   "base": -2.85,
+   "top": 0.0
+  },
+  {
+   "id": "Tiller flat",
+   "kind": "steering",
+   "cells": [
+    "9 hold C"
+   ],
+   "volume_m3": 38.0,
+   "x0": -13.75,
+   "x1": -11.55,
+   "base": -2.85,
+   "top": 0.0
   }
  ]
 }

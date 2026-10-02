@@ -24,6 +24,7 @@ import re
 from geometry import rrect_polygon, turret_shapes, turret_reach, _wrap180, angle_allowed, nearest_allowed  # noqa: F401
 from geometry import AA_CFG
 import powerplant
+import subdivision
 
 ARC_END = 135.0
 ARC_SIDE = 90.0
@@ -194,19 +195,13 @@ def export_hitboxes(lay, design, res):
     for a in lay.aa:
         comps.append(dict(id=a["id"], kind="aa", type=a["type"], shape="circle", x=round(a["x"], 3),
                           y=round(a["y"], 3), r=AA_CFG[a["type"]][0], base=a["base"], top=a["base"] + 2.0))
-    # compartments reach from the keel up to the armour deck, or the main deck on an unarmoured ship
-    below = rz(ag["deck_z"]) if armoured else 0.0
-    compartments = []
-    for c in lay.compartments:
-        c = {"base": -round(D, 2), "top": below, **c}
-        # keep every box inside the hull: no wider than the hull's narrowest section over its length
-        room = max(0.25, min(lay.hull.half_width(c["x0"] + (c["x1"] - c["x0"]) * j / 6) for j in range(7)) - 0.3)
-        y = c.get("y", 0.0)
-        if abs(y) + c["half_width"] > room:
-            c["half_width"] = min(c["half_width"], room)
-            if y:      # an off-centre box moves inboard just enough
-                c["y"] = math.copysign(min(abs(y), room - c["half_width"]), y)
-        compartments.append({k: (round(v, 3) if isinstance(v, float) else v) for k, v in c.items()})
+    for c in lay.compartments:     # a carrier's hangar stands above the hangar deck, outside the subdivision
+        if c["kind"] == "hangar":
+            pts = rrect_polygon(c["x0"], -c["half_width"], c["x1"], c["half_width"], 0.0, 0.0)
+            comps.append(dict(id=c["id"], kind="hangar_bay", shape="polygon",
+                              points=[[round(x, 3), round(y, 3)] for x, y in pts], base=round(c["base"], 2),
+                              top=round(c["top"], 2)))
+    sub = subdivision.build(lay, design, res, ag, armoured)
     arm_out = {}
     if ag["belt_mm"] > 0:
         arm_out["belt"] = dict(thickness_mm=ag["belt_mm"], x0=round(ag["x0"], 3), x1=round(ag["x1"], 3),
@@ -231,5 +226,5 @@ def export_hitboxes(lay, design, res):
         hull=[[round(x, 3), round(y, 3)] for x, y in lay.hull.points()],
         armour=arm_out,
         components=comps,
-        compartments=compartments,
+        **sub,
     )

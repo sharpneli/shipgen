@@ -6,8 +6,12 @@ from a few angles. Render side: reads nothing but the ship dict (its "hitboxes")
     hitview.render_views(ship, out_dir)      ->  hitbox_bow.png, hitbox_quarter.png, hitbox_side.png,
                                                  hitbox_internal.png
 
-The hull is translucent in the outside views, so the compartments show through; the internal view draws only the
-compartments, the armour and the hull's edges. Approximate by design: intersecting prisms may sort wrongly.
+    hitview.render_subdivision(ship, out_dir) ->  hitbox_cells.png: every tier in plan, keel tier at the bottom,
+                                                 cells coloured by their room's kind, with the bulkheads
+
+The hull is translucent in the outside views, so the rooms show through; the internal view draws only the rooms
+(less the quarters, stores, double bottom and torpedo protection that fill the rest), the armour and the hull's
+edges. Approximate by design: intersecting prisms may sort wrongly.
 """
 from __future__ import annotations
 
@@ -29,8 +33,10 @@ KIND = {   # fill RGB, alpha
     "boiler_room": ((240, 140, 40), 235), "engine_room": ((190, 70, 40), 235), "bunker": ((70, 60, 55), 235),
     "magazine": ((230, 40, 40), 240), "accommodation": ((110, 180, 235), 200), "steering": ((160, 90, 200), 235),
     "hold": ((200, 170, 110), 200), "cargo_tank": ((150, 120, 70), 200), "fuel_tank": ((90, 80, 60), 220),
-    "hangar": ((200, 200, 210), 120), "citadel": ((0, 0, 0), 0),
+    "hangar_bay": ((200, 200, 210), 120), "stores": ((150, 150, 120), 200), "double_bottom": ((80, 95, 110), 200),
+    "tds": ((90, 140, 160), 200),
 }
+FILLER = ("accommodation", "stores", "double_bottom", "tds")   # left out of the internal view: they fill the hull
 LIGHT = (-0.35, -0.45, 0.82)      # from forward, port and above
 VIEWS = [   # file, camera bearing (clockwise from ahead), elevation, what
     ("hitbox_bow.png", 35.0, 28.0, "outside"),
@@ -73,12 +79,11 @@ def prisms(hb, what):
             out.append((kind, _circle(c["x"], c["y"], c["r"]), c["base"], c["top"]))
         elif "points" in c:
             out.append((kind, [tuple(p) for p in c["points"]], c["base"], c["top"]))
-    for c in hb["compartments"]:
-        if c["kind"] in ("citadel",):
+    kinds = {r["id"]: r["kind"] for r in hb.get("rooms", [])}
+    for c in hb.get("cells", []):
+        if kinds[c["room"]] in FILLER:
             continue
-        y, hw = c.get("y", 0.0), c["half_width"]
-        box = [(c["x0"], y - hw), (c["x1"], y - hw), (c["x1"], y + hw), (c["x0"], y + hw)]
-        out.append((c["kind"], box, c.get("base", keel), c.get("top", 0.0)))
+        out.append((kinds[c["room"]], cell_outline(hull, c), c["base"], c["top"]))
     arm = hb.get("armour", {})
     if "belt" in arm:
         b = arm["belt"]
@@ -94,6 +99,17 @@ def prisms(hb, what):
         pts = [(x, _half_width(hull, x) - 0.2) for x in xs] + [(x, -_half_width(hull, x) + 0.2) for x in xs[::-1]]
         out.append(("armour_deck", pts, d["z"] - 0.15, d["z"]))
     return out
+
+
+def cell_outline(hull, c, n=8):
+    """A cell's footprint: its box clipped to the hull's outline (sampled along x)."""
+    xs = [c["x0"] + (c["x1"] - c["x0"]) * k / n for k in range(n + 1)]
+    hw = [_half_width(hull, x) for x in xs]
+    lo = [(x, max(c["y0"], -w)) for x, w in zip(xs, hw)]
+    hi = [(x, min(c["y1"], w)) for x, w in zip(xs, hw)]
+    pts = [(x, y) for (x, y), (_, y2) in zip(lo, hi) if y < y2] + \
+          [(x, y2) for (x, y), (_, y2) in reversed(list(zip(lo, hi))) if y < y2]
+    return pts
 
 
 def _half_width(hull, x):
@@ -204,6 +220,52 @@ def _legend(d, title, kinds, width):
     return y
 
 
+def render_subdivision(ship, out_dir, width=1800):
+    """hitbox_cells.png: every tier of the subdivision in plan, keel tier at the bottom; cells coloured by their
+    room's kind, outlined, with ids on the bigger ones, and the bulkheads between them."""
+    hb = ship["hitboxes"]
+    if not hb.get("cells"):
+        return
+    hull = [tuple(p) for p in hb["hull"]]
+    L, B = hb["length"], hb["beam"]
+    margin = 40
+    S = (width - 2 * margin) / L
+    row = B * S + 34
+    tiers = list(reversed(hb["tiers"]))
+    height = int(margin + 40 + row * len(tiers) + margin)
+    img = Image.new("RGB", (width, height), (34, 40, 48))
+    d = ImageDraw.Draw(img, "RGBA")
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 11)
+        big = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
+    except OSError:
+        font = big = ImageFont.load_default()
+    kinds = {r["id"]: r["kind"] for r in hb["rooms"]}
+    used = set()
+    for i, t in enumerate(tiers):
+        cy = margin + 40 + row * i + 18 + B * S / 2
+        P = lambda x, y: (margin + (x + L / 2) * S, cy + y * S)
+        d.text((margin, cy - B * S / 2 - 17), f"{t['id']}: {t['base']:g} to {t['top']:g} m"
+               + (" (below the waterline)" if t["below_waterline"] else ""), fill=(220, 225, 230, 255), font=big)
+        d.polygon([P(x, y) for x, y in hull], outline=(200, 210, 220, 255))
+        for c in hb["cells"]:
+            if c["tier"] != t["id"]:
+                continue
+            kind = kinds[c["room"]]
+            used.add(kind)
+            rgb, _ = KIND.get(kind, ((200, 200, 200), 255))
+            pts = cell_outline(hull, c)
+            if len(pts) >= 3:
+                d.polygon([P(x, y) for x, y in pts], fill=rgb + (215,), outline=(20, 24, 30, 255))
+            if (c["x1"] - c["x0"]) * S > 34 and (c["y1"] - c["y0"]) * S > 14:
+                lab = c["section"] + ("+" if c.get("also") else "") + (f" {c['crew']}" if c.get("crew") else "")
+                d.text(P((c["x0"] + c["x1"]) / 2, (c["y0"] + c["y1"]) / 2), lab, fill=(10, 10, 10, 255),
+                       font=font, anchor="mm")
+    _legend(d, f"{ship['design'].get('name', '')}: subdivision, {len(hb['sections'])} sections, {len(hb['cells'])} "
+               "cells (label: section, + shares a room, crew)", sorted(used), width)
+    img.save(os.path.join(out_dir, "hitbox_cells.png"))
+
+
 def render_views(ship, out_dir):
     hb = ship["hitboxes"]
     name = ship["design"].get("name", ship["design"].get("id", ""))
@@ -211,3 +273,4 @@ def render_views(ship, out_dir):
         img = render_view(hb, az, el, what, title=f"{name}: hitboxes, {what}, from {az:g} deg, elevation {el:g} deg")
         if img is not None:
             img.save(os.path.join(out_dir, fname))
+    render_subdivision(ship, out_dir)

@@ -21,13 +21,14 @@ design JSON (player input: counts, calibres, armour, speed, look)
    ├─ navarch.py   weights → displacement, draught, power, fuel, GM, trim   (iterates to a fixed point)
    ├─ layout.py    warship layout + shared layout primitives; balances CG over CB by shifting the arrangement
    ├─ armament.py  style-neutral gun, torpedo and AA placement (used by carrier and merchant)
-   └─ hitbox.py    fixed firing arcs by mount kind; hitbox export
+   ├─ hitbox.py    fixed firing arcs by mount kind; hitbox export
+   └─ subdivision.py  the hull below the main deck as watertight cells, and the rooms that own them
    │
    │  ship = {design, report, hitboxes, render: {spec, deck_m, mounts, columns, summary}}
    ▼  RENDER SIDE: reads only `ship`                           (~0.5 s game assets, ~3 s with previews)
    render.py      render_ship(ship, out_dir, scale, mips, look=None, previews=True)
    ├─ looks.py     every colour, turret drawing and silhouette (by the design's "look")
-   ├─ hitview.py   debug views of the hitbox model in 3D (hitbox_*.png)
+   ├─ hitview.py   debug views of the hitbox model in 3D, and the subdivision in plan (hitbox_*.png)
    ├─ shipgen.py   SVG/PNG drawing (hull_base, turrets, hull_upper)
    └─ shadow.py    rasterises the height-map columns; the reference shadow renderer
 
@@ -78,6 +79,8 @@ The crew lives wherever the ship has empty volume (`crew.crew_space`):
 - **The volume:** the hull from the inner bottom to the main deck, plus the superstructure, less the machinery, magazines, bunkers, holds, tanks and torpedo protection.
 - **The crew's share:** `crew.USABLE` (0.65) of what's left. That share has to hold the quarters, the provisions and any water the double bottom can't take after the fuel. Too little room makes the hull grow.
 - **Weights:** crew, provisions and water are real weights. `misc_frac` no longer includes them.
+- **Where they sleep:** the subdivision spreads the complement by volume over the cells no room claims above the waterline (`Quarters <section>`), and over a planing craft's crew space. A merchant whose holds fill the hull has no quarters below the main deck; its crew lives in the superstructure, which the subdivision doesn't cover.
+
 `machinery` is the propulsion plant (`powerplant.py`, from `research/powerplant-model.md`). There is no year input: `tech` holds the researched technology as numbers, so a navy can have a tech earlier or later than history did. `plant-templates.md` has blocks to copy for every period from 1880 to 1970, and `python plant_templates.py` regenerates them. A design without `tech` gets a 1940 high-pressure turbine plant (merchants: a 1940 oil-fired triple expansion; planing craft: 1940 petrol engines). The other keys are design choices: `stress`, `shafts`, `units_per_shaft`, `transmission`, `arrangement` (`grouped` or alternating `unit`), `centreline_bulkhead`, `bunkers` (`wing` or `ends`) and `wing_bunker_m`. The template's table explains each one. What the plant decides:
 - **Weight, fuel and engineering crew:** from the tech and the stress. Range is computed at cruise speed through the tech's part-load curve.
 - **Machinery length:** the plant's volume, fitted into the room the hull gives it. Across, that's the beam inside the frames, less torpedo protection (`armour.tds_m` per side) and wing bunkers, with units standing in rows. Up, it's the inner bottom to the armour deck.
@@ -130,6 +133,10 @@ The design gives no size. The designer works out the hull from what it carries (
   - Placement: the lower tier fills first, then the upper. Within a tier, each battery takes the free places nearest amidships in list order, so list the battery you want amidships first. The rows centre on the hull's full-width part and move with the balancing shift.
   - Spacing: a comfortable pitch if every gun fits that way. Failing that, the lower guns sit just far enough apart for one upper gun between each pair. Failing that too, closer still.
 - Battery mount ids are `S1S`/`S1P`, ... for the first battery, then `SB...`, `SC...`. Casemate guns carry `"mount": "casemate"` in `hitboxes.json` and `sprite.json`.
+- **Magazines.** End, midships and echelon wing turrets each have a magazine under them. The secondaries (deck and casemate) and abreast wing turrets share grouped magazines at the two ends of the machinery block, as real ships fed them through ammunition passages (`layout.magazine_plan`).
+  - Each battery sends the forward half of its pairs, rounded up, to the fore group. A wing pair's magazine goes to the end of the middle it stands at.
+  - The groups are as wide and tall as the machinery space. They're long enough to stow the mounts' ammunition at `layout.MAGAZINE_T_PER_M3` (0.35 t/m³ gross), so they lengthen the middle a little.
+  - There's one magazine per battery and group (`Magazine SB fore`), with a `mounts` list. The mounts' magazine weights sit there too.
 - Examples: `mikasa.json` (152 + 76 mm casemates in both tiers), `victory_1944.json` (a ship of the line: 152 mm lower and 120 mm upper casemates, no main battery), `connecticut.json` (178 + 76 mm casemates; its 203 mm wing turrets need a second main battery, still to come), `nassau_casemates.json` (Nassau's 150 + 88 mm in casemates, so all of them fit), `kongo.json` (152 mm casemates and 76 mm on deck).
 
 Limits are generous on purpose: the game's designer enforces the gameplay limits, and the generator only keeps its input sane (`styles.base.COMMON_LIMITS`). Guns can be 1–2000 mm with 1–20 barrels, armour up to 2 m, and torpedo, secondary and AA counts are in the hundreds. Hull form and speed stay within the range where the physics formulas mean something. Each turret group (`fore`, `aft`, `mid`) can hold up to 40 turrets, named A, B, C, A4, A5, ... (and Q, P, R, S, Q5, ... amidships). Silly designs are allowed; the physics decides whether they're valid, and the designer simply makes the hull as big as they need. For example, Gangut's twenty 305 mm Q turrets come out on a 986 m hull.
@@ -210,24 +217,51 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
   - `components`:
     - Turrets: `local` body/parts/barrels polygons (rotate them by the turret angle, then add x, y), `broadphase_r`, `arcs_deg`, `rest_deg`, base/top heights.
       - `armour_mm` is the face. `armour` splits it into `face`/`side`/`rear`/`roof` (`hitbox.TURRET_*` ratios).
-      - Gun mounts link to their `barbette` (a component) and their `magazine` (a compartment). The barbette links back with `mount` and reaches down to the armour deck. A mount on a sponson or a flight deck has only a 1 m pedestal on its platform.
+      - Gun mounts link to their `barbette` (a component) and their `magazine` (a room). The barbette links back with `mount` and reaches down to the armour deck. A mount on a sponson or a flight deck has only a 1 m pedestal on its platform.
     - Superstructure: polygons with heights and a `role`: `bridge`, `director`, `aft_control`, `island`, `hangar`, `casemate` or `deckhouse` (`hitbox.BLOCK_ROLES`). A control position in a funnel's smoke lists those funnels in `smoke`.
     - Funnels: polygons with heights. `boiler_rooms` lists the rooms each one serves. An `uptake` component runs from the top of the boilers up to the funnel's base, with the same footprint and links.
     - `casing`: over machinery taller than its space, from the bounding deck up, with `armour_mm`.
     - `conning_tower`: a circle inside the bridge's front on warships with a belt, armoured like the belt. It isn't drawn.
     - Decks: `flight_deck`, and `deck` for raised forecastles, bridge decks and poops. `sponson`: gun and AA platforms, and deck-edge elevators. All are polygons with heights.
     - AA: circles.
-  - `compartments`: boxes `x0`/`x1`, `half_width` about `y` (0 if absent), `base`/`top`. They reach from the keel up to the armour deck, or the main deck on an unarmoured ship. Kinds:
-    - All ships: the machinery as `boiler_room`, `engine_room` and `bunker` (`fuel` is coal, oil, diesel or petrol), and steering gear (`steering`).
-      - Rooms are no longer than about 0.07 L.
-      - Wing bunkers stand beside the machinery from the inner bottom to the main deck, and give their `tonnes`.
-      - Planing craft have a single `engine_room`.
-    - Warships and carriers: citadel (belt/deck mm).
-    - Warships: one `magazine` per gun mount (`mount` links back). An off-centre mount's magazine stays inside the inner hull on its own side.
-    - Planing craft: crew space and fuel tanks.
-    - Carriers: hangar (above the hangar deck), aviation magazines and aviation fuel.
-    - Merchants: `hold` or `cargo_tank` per hold.
-    - `accommodation`: the empty hull fore and aft of the citadel, from the armour deck (the waterline if unarmoured) to the main deck, each with its share of the `crew`. Planing craft have their crew space.
+  - Hangars are `hangar_bay` components: boxes above the hangar deck, outside the subdivision.
+  - **The subdivision** (`subdivision.py`) is the hull below the main deck as a grid of watertight cells, and the rooms that own them. A point inside the hull below the main deck is in exactly one cell, and every cell has exactly one owning room.
+    - `sections`: the hull between transverse bulkheads, `id` numbered from the bow, with `x0`/`x1`.
+      - The stations snap to the ends of the rooms (machinery rooms, magazines, holds, steering), the citadel's ends and a collision bulkhead 0.05 L abaft the bow. Where several rooms end at one place, the station counts for more.
+      - Stations closer than 0.03 L (at most 8 m) merge, and the more important one stays. Gaps longer than 0.07 L get more bulkheads, except inside a single room such as a long hold.
+      - Capital ships come out at 17–21 sections, a destroyer at 19, and a PT boat at 10.
+    - `decks`: `id`, `kind` (`inner_bottom`, `flat` at the waterline, `armour` with `armour_mm` over `x0`/`x1`, `main`) and `z`, keel up.
+      - Decks closer than 1 m merge, and the armour deck stays.
+      - Deck armour that would lie within 1 m of the main deck lies on the main deck.
+      - Planing craft have no inner bottom.
+    - `tiers`: the spaces between decks, keel up: `bottom` (the double bottom), `hold`, any `platform`s, and `between` under the main deck. Each has `base`/`top`, `below_waterline`, and its `floor`/`ceiling` deck ids.
+    - `bulkheads`:
+      - Transverse ones: `x`, `kind` `collision`, `armoured` (the citadel ends of a belted ship, with `armour_mm` from `armour_bottom` to `armour_top`) or `main`. They run from the keel to the main deck.
+      - Longitudinal ones per section: `y`, `side`, `x0`/`x1`, `base`/`top`, and a `kind`:
+        - `wing`: inboard of coal wing bunkers, up to the main deck.
+        - `tds`: inboard of the torpedo protection inside the citadel, up to the armour deck.
+        - `centreline`: through the machinery, when `machinery.centreline_bulkhead` is true.
+    - `cells`: `id` (`"7 hold S"`), `section`, `tier`, and `band` (`P` | `C` | `S`, with the centre split `CP` | `CS` by a centreline bulkhead).
+      - Extent: `x0`/`x1`, `y0`/`y1` (out to the hull's widest point over the section, so clip to the hull outline) and `base`/`top`.
+      - `volume_m3` is the hull's plan inside the box times the height. Below the waterline it's scaled so the underwater cells add up to the displacement volume.
+      - `permeability` comes from the room's kind (`subdivision.PERMEABILITY`; a full coal bunker is 0.4), and `below_waterline` is set from the tier.
+      - The owning `room`, and `also`: the rooms that share this cell because they're too small for one of their own.
+      - Armour and protection: `citadel`, `armour_above_mm` (under the armour deck), `belt_mm` (an outer cell level with the belt) and `tds_m` (a wing cell inside the citadel).
+      - `crew`: the complement spread over the quarters by volume.
+      - `neighbours`: `[cell id, boundary]` pairs. The boundary is the bulkhead or deck id between them, or `"open"` inside one room.
+    - `rooms`: `id`, `kind`, `cells`, `volume_m3` and their extent (`x0`/`x1`, `base`/`top`), plus what the layout gives them:
+      - `fuel` and `tonnes` for bunkers; `mount` or `mounts` for magazines; `crew` for quarters.
+      - `shared: true` marks a room that only shares a cell.
+      - Rooms snap to whole cells: a room owns a cell when it overlaps the cell by at least half the shorter of the two along every axis. Contested cells go by `subdivision.ROOM_PRIORITY` (magazines first, then machinery), then by overlap.
+      - Kinds:
+        - All ships: `boiler_room`, `engine_room` and `bunker` (`fuel` is coal, oil, diesel or petrol), and `steering`.
+        - Warships and carriers: `magazine`. Carriers also have aviation magazines and `fuel_tank` (aviation fuel).
+        - Merchants: `hold` or `cargo_tank`. Planing craft: crew space, fuel tanks and the tiller flat.
+      - Cells no room claims become one room per section and use:
+        - `double_bottom` in the bottom tier
+        - `tds` (`Torpedo protection 7 S`) in a citadel wing cell
+        - `stores` below the waterline
+        - `accommodation` (`Quarters 7`) above it.
 - `sprite.json`: layers, origin_px, mount px positions, rest angles, arcs and z order.
 - `hull_base.png`, `turrets/*.png`, `hull_upper.png`, each with an SVG alongside. Level 0 is `--scale` px/m (default 10). No shadows are baked in.
 - `height.png`: greyscale height map on the same canvas. Grey × `height_step_m` (0.25) = metres above the waterline, and 0 = sea. Its mips use a 2×2 max filter, not an average, so a tall column never shrinks.
@@ -238,7 +272,8 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
   - The levels touch each other with no gap. Slice them into real GPU mip levels, or clamp UVs to each rect if you sample the packed image directly.
 - `preview_*.png`, `sheet.png`: stats, firing-arc diagram and previews, shadowed with the sun at bearing 240°, elevation 50°. `debug_hitboxes.png`: hitboxes drawn over the sprite.
 - `hitbox_bow.png`, `hitbox_quarter.png`, `hitbox_side.png`, `hitbox_internal.png` (`hitview.py`, debug only): the hitbox model in 3D, with every hitbox extruded from its base to its top.
-  - Views: from the starboard bow, the port quarter, a side elevation, and an internal view that shows only compartments, barbettes, uptakes and armour inside the hull's edges.
+  - Views: from the starboard bow, the port quarter, a side elevation, and an internal view that shows only rooms (less the quarters, stores, double bottom and torpedo protection that fill the rest), barbettes, uptakes and armour inside the hull's edges.
+  - `hitbox_cells.png`: every tier of the subdivision in plan, keel tier at the bottom, with cells coloured by their room's kind. Labels give the section, `+` for a shared cell, and the crew.
   - The hull is translucent and the waterline is drawn in blue. Colours are by kind, with a legend.
 
 ## Conventions

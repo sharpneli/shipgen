@@ -61,7 +61,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
     - The complement is departmental: plant, guns, deck and command, air group, then hotel.
     - Volume is checked against `crew.USABLE` × empty volume. Shortfall is a "length" need, so the hull grows.
     - Crew, provisions and water are explicit weights. `misc_frac` was cut to compensate: warship 0.055, carrier 0.075, merchant 0.03, planing 0.07.
-    - Accommodation compartments are added fore and aft.
+    - The subdivision quarters the crew in free cells above the waterline.
   - Era designs now carry H1 hammocks (pre-1925 warships, the Q-ship, victory_1944).
   - Calibration (as of 2026-10-02):
     - Complements: battleship 1,821 (Iowa about 1,920 as designed), Dreadnought 873, Mikasa 836, Liberty 81 (41 crew + 25 gunners).
@@ -81,10 +81,30 @@ doesn't: the decisions behind the current design, how to work safely here, and w
   - A designer UI should show length, beam and displacement prominently, since they're now outputs.
 - **Damage model data (`research/`; `warship-damage-research.md` is the synthesis, §13 the wish list).** shipgen emits only the physical model (hitboxes per system, armour, links). What a hit does is the game's business.
   - Step 1 (done): `vertical` heights, the `armour` section, turret face/side/rear/roof, barbettes down to the armour deck, block roles, the conning tower, and one magazine per mount with links.
-  - Step 2: a compartment grid, with main bulkheads every ~0.055 L snapped to barbettes, magazines, machinery rooms and the citadel ends. Cells are port, centre and starboard, and bottom, below the armour deck and between decks. Each has a volume, a permeability, its contents and its neighbours. Also add shafts, propellers and rudders. Use fewer cells for small craft. The machinery is already split into boiler rooms, engine rooms and bunkers by the powerplant work.
+  - **Step 2, the subdivision grid (done 2026-10-02; `subdivision.py`, README "Outputs").** The hull below the main deck is sections × tiers × bands of cells that tile it. The layout's compartments are rooms snapped to whole cells, and every cell has exactly one owning room. `hitboxes.json` lost its old `compartments` and gained `sections`, `decks`, `tiers`, `bulkheads`, `cells` and `rooms`.
+    - The user's decisions:
+      - **There's no game yet**, so the hitboxes format is free to change. "Go wild": the end goal is a complex designer, so the game only has to care about results like horsepower and top speed.
+      - **Secondary and abreast wing-turret magazines are grouped** at the ends of the machinery block (option b, as on real ships with ammunition passages). They're sized by ammunition weight at 0.35 t/m³ (`layout.MAGAZINE_T_PER_M3`).
+        - A first try at 2r × 2r per mount made Mikasa 27 m longer.
+        - Now lengths move a few metres: Mikasa 129 m (was 133), Kongo 263.5 m (was 257.5), Invincible 194.5 m (was 192), victory_1944 107 m (was 114).
+      - **The extra tier (done): a flat at the waterline.** Tiers are bottom, hold, platform and between, or bottom, hold and between when unarmoured. The user expects more tiers later for armour schemes: turtleback decks, and several armour decks such as thin armour over the quarters and thicker over magazines below them. `subdivision.decks` takes a list of decks, each with optional `armour_mm` and x extent, so more armour decks slot in. Cells already carry `armour_above_mm`. A sloped deck would need cells with sloped bounds, which they don't have yet.
+    - Tuning knobs: `MIN_SECTION` 0.03 L (1–8 m), `MAX_SECTION` 0.07 L, `MIN_TIER` 1 m, `ROOM_PRIORITY` (magazine > machinery > steering = bunkers > holds), `PERMEABILITY`.
+    - Sections:
+      - Capital ships get 17–21, the destroyer 19 (research: 12–16), the PT boat 10 and the MTB 9 (a single tier).
+      - A station where several rooms end counts for more when close stations merge.
+    - Cells: 9–220 per ship. The export adds about 2–9 ms per build.
+    - A room smaller than any cell shares one (`also` on the cell, `shared` on the room). Examples: Mikasa's small casemate magazines inside the main secondary magazine's cell, small end bunkers, and the tanker's steering gear inside its aft engine room. The merchant layout overlaps those two when the engines are aft.
+    - Planing craft have no inner bottom.
+    - Crew is quartered in unclaimed cells above the waterline. `crew._accommodation` is gone.
+    - Still to do:
+      - shafts, propellers and rudders
+      - per-cell lists of what passes through (barbettes, uptakes)
+      - double-bottom contents (oil, water)
+      - TDS layers in detail
+      - carrier and merchant gun magazines
   - Step 3: links and flags, best done with the period refactor: engine room to shaft (uptakes to boiler rooms are done), generators to fore and aft power networks, grouped or alternating machinery, fuel type, centreline bulkhead, torpedo protection depth along the length. Carrier extras: flight-deck segments, lifts, hangar bays, avgas fore and aft.
   - **Buoyancy:** the user hasn't decided how realistic it should be. It will likely be a grid, but it must not drive a full simulation of the ship's motion. Flooding only makes the ship settle: a deeper draught costs speed and puts more of the belt under water.
-  - Known simplifications: magazines of neighbouring mounts may overlap each other and the machinery (the grid will settle that), and carrier and merchant guns have no magazines yet. The barbette weight (`navarch.mount_weights`, 0.45 × depth) doesn't match the barbette hitbox, which reaches down to the armour deck.
+  - Known simplifications: carrier and merchant guns have no magazines yet. The barbette weight (`navarch.mount_weights`, 0.45 × depth) doesn't match the barbette hitbox, which reaches down to the armour deck.
 
 ## How to work here
 - **Git:** the repo is on GitHub (`git@github.com:sharpneli/shipgen.git`, branch `main`). Pushing over SSH works with the user's key. Commit or push only when the user asks.
@@ -92,10 +112,12 @@ doesn't: the decisions behind the current design, how to work safely here, and w
 - **Checking the boundary:** `python3 -c "import shipdesign, json; shipdesign.build(json.load(open('designs/battleship.json')))"` must work with the system Python (no PIL, cairosvg or numpy), and importing `render` must not load `shipdesign`, `navarch`, `layout`, `styles`, `hitbox` or `armament` (check `sys.modules`).
 - **Speed:** `shipdesign.build` takes about 5–350 ms per ship (coal-era warships are the slowest), and a silly design up to 0.5 s. The size search runs the layout around 10–25 times, and each run takes 0.2–9 ms. A `hint` (the previous length) halves that. `Layout.free` and `geometry.polygons_intersect` reject by bounding box first, and AA spacing checks only the AA footprints. `render_ship(previews=False)` takes about 0.5 s; the previews (numpy shadow march), the sheet and the debug overlay are most of the ~3 s full render.
 - **Checking a look change:** render a design in every look and confirm `hitboxes.json`, `sprite.json` and `report.json` (except its `inputs` echo) are identical across looks. `standard` must stay byte-identical to the old sprites.
+- **Always regenerate `out_designs/` after a change** (`~/.venv/bin/python design.py designs/*.json --no-limits`), not just a scratch folder for comparison. The user reads the outputs there, and they're committed with the code.
 - **Regression method used throughout:** copy `out_designs/` aside, regenerate, and `diff -r`. Unrelated designs should stay byte-identical; expected changes should be limited to the designs you meant to change. The hand-authored fleet (`python shipgen.py --out <dir>`) has stayed byte-identical through all the changes, so keep it that way.
 - Run `python verify.py out_designs/*` after every change. It does pixel checks of sprites against hitboxes.
 - **Look at the 3D hitbox views** (`hitbox_*.png`, `hitview.py`) after hitbox changes. They caught compartments sticking out of the hull and barbettes hanging under sponsons.
-  - The export now clips every compartment box to the hull's width.
+  - Cells reach the hull's widest point over their section; the views clip them to the hull outline.
+  - `hitbox_cells.png` shows every tier of the subdivision in plan. `verify.py` checks the subdivision: one owning room per cell, points in the hull in exactly one cell, mutual neighbours, and magazine links.
   - Barbettes reach the armour deck only for mounts inside the hull and below any flight deck.
 - A turret-sweep checker existed only in the previous session's scratch folder. It rebuilds each main turret's sweep and tests it against taller blocks and funnels. Folding it into `verify.py` would be a good addition.
 - The user edits files in `designs/` themselves. Never overwrite their designs. As of the end of this session:

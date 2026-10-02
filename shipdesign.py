@@ -8,7 +8,7 @@ shipdesign: the design side. A player's design (JSON) in, the designed ship out 
 ship = {
   "design":   the input design, unchanged (its "look" is passed through for the renderer, never read here)
   "report":   validity, errors, warnings, displacement, power, stability, weights (report.json)
-  "hitboxes": hull, components with heights and firing arcs, compartments (hitboxes.json)
+  "hitboxes": hull, components with heights and firing arcs, subdivision cells and rooms (hitboxes.json)
   "render":   what the renderer needs to draw the ship, all in ship-local metres:
       spec      the drawing spec: hull form, turret types and mounts, superstructure, funnels, masts, boats,
                 AA, fittings, decks

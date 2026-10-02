@@ -9,9 +9,13 @@ then compared with the hitbox polygons (body + parts + barrels), rotated and pla
 Reports IoU (intersection over union) per mount and angle. Fixed parts are checked too: upper-layer
 blocks and funnels must be fully opaque inside their hitbox polygon, and the hull outline is
 compared against the base layer.
+
+The subdivision is checked too (check_subdivision): every cell has one owning room, points inside the hull below
+the main deck each fall in exactly one cell, neighbours are mutual, and every mount's magazine is a room.
 """
 import json
 import os
+import random
 import sys
 
 from PIL import Image, ImageDraw
@@ -38,6 +42,43 @@ def iou(a, b):
             inter += A and Bv
             uni += A or Bv
     return inter / uni if uni else 1.0
+
+
+def check_subdivision(hb, samples=3000):
+    """Problems with the subdivision ([] if none)."""
+    from hitview import _half_width
+    probs = []
+    cells = {c["id"]: c for c in hb["cells"]}
+    rooms = {r["id"]: r for r in hb["rooms"]}
+    for r in rooms.values():
+        if not r["cells"]:
+            probs.append(f"room {r['id']} has no cell")
+        for cid in r["cells"]:
+            if cid not in cells:
+                probs.append(f"room {r['id']} lists unknown cell {cid}")
+    for c in cells.values():
+        if c["room"] not in rooms or c["id"] not in rooms[c["room"]]["cells"]:
+            probs.append(f"cell {c['id']}: owner {c['room']} doesn't list it")
+        for nid, _ in c["neighbours"]:
+            if nid not in cells or c["id"] not in [n for n, _ in cells[nid]["neighbours"]]:
+                probs.append(f"cell {c['id']}: neighbour {nid} isn't mutual")
+    for comp in hb["components"]:
+        if comp.get("magazine") and comp["magazine"] not in rooms:
+            probs.append(f"{comp['id']}: magazine {comp['magazine']} isn't a room")
+    hull = [tuple(p) for p in hb["hull"]]
+    L, keel = hb["length"], hb["vertical"]["keel"]
+    rng = random.Random(1)
+    bad = 0
+    for _ in range(samples):
+        x = rng.uniform(-L / 2, L / 2)
+        hw = _half_width(hull, x)
+        y, z = rng.uniform(-hw, hw), rng.uniform(keel, 0.0)
+        n = sum(1 for c in cells.values()
+                if c["x0"] <= x < c["x1"] and c["y0"] <= y < c["y1"] and c["base"] <= z < c["top"])
+        bad += n != 1
+    if bad > samples * 0.002:      # points right at the bow tip may miss a zero-volume cell
+        probs.append(f"{bad} of {samples} points inside the hull fall in no cell or several")
+    return probs
 
 
 def check(d):
@@ -97,7 +138,13 @@ def check(d):
     for rid, kind, v in rows:
         flag = "" if v > 0.85 else "   <-- check"
         print(f"   {rid:>16} {kind:>15}  {v:.3f}{flag}")
-    return min(worst, fixed_worst, hull_iou)
+    probs = check_subdivision(hb)
+    shared = [r["id"] for r in hb["rooms"] if r.get("shared")]
+    print(f"   subdivision: {len(hb['sections'])} sections, {len(hb['cells'])} cells, {len(hb['rooms'])} rooms"
+          + (f", sharing a cell: {', '.join(shared)}" if shared else ""))
+    for p in probs[:20]:
+        print(f"   <-- {p}")
+    return min(worst, fixed_worst, hull_iou, 0.0 if probs else 1.0)
 
 
 if __name__ == "__main__":
