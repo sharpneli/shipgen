@@ -238,7 +238,15 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
         g = wing_gap(y, half_of(j, y))
         while 0 <= j < len(seq) and seq[j] == "F":
             j += step
-        return max(g, wing_gap(y, half_of(j, y)))
+        g = max(g, wing_gap(y, half_of(j, y)))
+        # past the bridge (or aft control) stands the end group's inner turret, whose body may cross the
+        # barrels' line when they point ahead (or astern): keep the muzzles short of it
+        if (step < 0 and nf) or (step > 0 and na):
+            flush = flush_f if step < 0 else flush_a
+            beyond = (R_main + 1.0 if flush else r + gap) + (lb + 1.5 if step < 0 else (la + 1.5 if la else 1.0))
+            need = R_main + reach + 0.5 if reach > y - 0.3 else math.sqrt(max(0.0, (2 * reach + 0.5) ** 2 - y * y))
+            g = max(g, need - beyond)
+        return g
 
     def wing_widths(y):
         return {i: wing_side(i, -1, y) + wing_side(i, 1, y) + (wing_stagger(y) if echelon else 0.0)

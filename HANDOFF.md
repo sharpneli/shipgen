@@ -10,7 +10,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
   - Side-firing centreline turrets (flush turrets behind a superfiring one, amidships turrets): ±65° about each beam.
   - Fixed MTB tubes: ±1°.
 - **Side-firing turrets stow fore-and-aft** like real ships, so their rest bearing is outside their arcs. The game trains them out before firing.
-- **Wing turrets** (`main.wing` pairs, `main.echelon`) fire on their own side only and stow fore-and-aft at the edge of that arc. Echelon pairs get no cross-deck arc yet (see the known gaps).
+- **Wing turrets never fire across the deck,** echelon ones included. That's their deliberate limitation. Each fires only on its own side, from dead ahead to dead astern (`main.wing` pairs, `main.echelon`), and stows fore-and-aft at the edge of that arc. Wing turrets forward of amidships can therefore join the forward group's fire: A plus a wing pair gives 3 guns ahead, and A, B plus a pair gives 4. The layout keeps their muzzles short of the end groups' inner turrets.
 - **Warships are built around their guns.** Main turrets are placed first and reserve their barrel sweep (`Layout.reserve_sweep`). Superstructure placed later must keep out of it.
 - **Carriers and merchants have no main battery.** All their guns are secondaries fitted where they suit, and overlap is acceptable. Planing craft still have a main battery; the user hasn't decided whether MTB guns should become secondaries.
 - **The generator is permissive.** Gameplay limits will live in the game's designer UI. `--no-limits` skips the input ranges entirely. Silly designs may look stupid or fail the physics, but they must run.
@@ -42,6 +42,5 @@ doesn't: the decisions behind the current design, how to work safely here, and w
 - **Height map:** columns only, so mast yards, derricks and barrels are left out. It's 8-bit with a 0.25 m step, so anything above 63.75 m clips.
 - **Baked lighting:** the light rim on the upper-left edges of blocks and funnels is still baked in.
 - **No aircraft are drawn** on carriers; the game is assumed to spawn them.
-- **No cross-deck fire for echelon wing turrets.** Real ones (Invincible, Neptune) had a narrow arc across the deck. It's left out because the turret would have to train across the deck, and the layout would need to reserve that path. Options: a fixed ±15° arc about the far beam with a reserved strip, or leave it out for good. Ask the user.
 - **Wing turrets on narrow ships** (beam under 15 m) stand on the main deck, and the small deckhouse under the bridge may overlap them. No real design does this, so it hasn't been handled.
 - **Missing turrets:** a mount that doesn't fit (beam too narrow, deck taken) is left off the drawing and listed as an error, even with `--no-limits`.
