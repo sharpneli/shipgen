@@ -65,9 +65,13 @@ design.py      the command line: validate, shipdesign.build, write report.json a
 
 `secondary` (warship style) is one battery or a list of batteries, each with its own calibre, `per_side` and `armour_mm`, and `"mount"`:
 - `"deck"` (the default): turrets or open mounts on the deckhouse amidships. The first deck battery spreads evenly along it; later ones take the free spots nearest amidships.
-- `"casemate"`: single guns in the hull side, one level below the main deck (base −2.6 m, top 0). Only a round port shield and the barrels show, outboard of the hull. Each battery takes the free places nearest amidships, in list order, so list the battery you want amidships first. Casemates stay where the hull is at least 85% of its full beam (`layout.CASEMATE_BEAM`), clear of the main barbettes and of each other. They space out at a comfortable pitch if every casemate fits that way, otherwise closer.
+- `"casemate"`: single guns at the hull side. Only a round port shield and the barrels show, outboard. Casemates stay where the hull is at least 85% of its full beam (`layout.CASEMATE_BEAM`). Two tiers, set by `"tier"`:
+  - `"lower"` (the default): in the hull side, one level below the main deck (base −2.6 m, top 0). They keep clear of the main barbettes and of each other.
+  - `"upper"`: on the main deck (base 0, top 2.6 m), each in an armoured housing against the deck edge (a level-1 superstructure block). Housings close together join into one gallery. They keep clear of whatever stands on the main deck and of the main turrets' sweeps. The tiers stagger, so the upper guns stand between the lower ones and every gun shows.
+  - Placement: the lower tier fills first, then the upper. Within a tier, each battery takes the free places nearest amidships in list order, so list the battery you want amidships first. The rows centre on the hull's full-width part and move with the balancing shift.
+  - Spacing: a comfortable pitch if every gun fits that way. Failing that, the lower guns sit just far enough apart for one upper gun between each pair. Failing that too, closer still.
 - Battery mount ids are `S1S`/`S1P`, ... for the first battery, then `SB...`, `SC...`. Casemate guns carry `"mount": "casemate"` in `hitboxes.json` and `sprite.json`.
-- Examples: `mikasa.json` (152 + 76 mm casemates), `connecticut.json` (178 + 76 mm casemates; its 203 mm wing turrets need a second main battery, still to come), `nassau_casemates.json` (Nassau's 150 + 88 mm in casemates, so all of them fit), `kongo.json` (152 mm casemates and 76 mm on deck).
+- Examples: `mikasa.json` (152 + 76 mm casemates in both tiers), `victory_1944.json` (a ship of the line: 152 mm lower and 120 mm upper casemates, no main battery), `connecticut.json` (178 + 76 mm casemates; its 203 mm wing turrets need a second main battery, still to come), `nassau_casemates.json` (Nassau's 150 + 88 mm in casemates, so all of them fit), `kongo.json` (152 mm casemates and 76 mm on deck).
 
 Limits are generous on purpose: the game's designer enforces the gameplay limits, and the generator only keeps its input sane (`styles.base.COMMON_LIMITS`). Guns can be 1–2000 mm with 1–20 barrels, armour up to 2 m, and torpedo, secondary and AA counts are in the hundreds. Hull form and speed stay within the range where the physics formulas mean something. Hulls go up to 1,000 × 100 m, and each turret group (`fore`, `aft`, `mid`) can hold up to 40 turrets, named A, B, C, A4, A5, ... (and Q, P, R, S, Q5, ... amidships). Silly designs are allowed; the physics decides whether they're valid. For example, twenty 305 mm Q turrets need about 650 m of middle section and a wide beam.
 
@@ -184,7 +188,7 @@ The sun is dynamic, so the game casts the shadows. `shadow.py`'s docstring has t
   | `dreadnought` (HMS Dreadnought-like, 21 kn) | 17.4k std, 26.7k shp | 18.1k normal, 23k shp |
   | `nassau` (Nassau-like, 19.5 kn) | 17.1k std, 21.8k shp | 18.6k normal, 22k ihp |
   | `nassau_casemates` (casemated secondaries) | 18.3k std, 22.7k shp | 18.6k normal, 22k ihp |
-  | `mikasa` (Mikasa-like, 18 kn, `steam_recip`) | 11.3k std, 12.6k shp | 15.1k normal, 15k ihp |
+  | `mikasa` (Mikasa-like, 18 kn, `steam_recip`) | 11.4k std, 12.6k shp | 15.1k normal, 15k ihp |
   | `connecticut` (Connecticut-like, no 8" turrets, `steam_recip`) | 13.8k std, 13.8k shp | 16.0k normal, 16.5k ihp |
   | `kongo` (Kongo as built, 27.5 kn) | 29.2k std, 87.2k shp | 27.5k normal, 64k shp |
   | `invincible` (Invincible-like, 25.5 kn) | 16.9k std, 48.1k shp | 17.3k normal, 41k shp |

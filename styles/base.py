@@ -42,6 +42,8 @@ class Style:
                 errs.append(f"secondary.mount = {mount!r}: use deck or casemate")
             elif mount == "casemate" and not self.CASEMATES:
                 errs.append(f"secondary.mount: the {self.name} style has no casemates")
+            if b.get("tier", "lower") not in ("lower", "upper"):
+                errs.append(f"secondary.tier = {b['tier']!r}: use lower or upper (casemates only)")
         main = design.get("main") or {}
         if main.get("mid") and not self.MIDSHIPS_TURRETS:
             errs.append(f"main.mid: the {self.name} style has no midships turrets")

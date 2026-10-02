@@ -155,12 +155,18 @@ def battery_prefix(k):
     return "S" if k == 0 else f"S{chr(ord('A') + k)}" if k < 26 else f"S{k + 1}-"
 
 
-def place_casemates(lay, mounts, turret_types, secs, hull, depth):
-    """The casemate batteries (secs entries with "mount": "casemate"): single guns in the hull side, one level below
-    the main deck. Each pivots on the hull side, so only its round port shield and barrels show, outboard. Nothing
-    on deck stands in their way: only the hull's shape (they stay where the hull is at least CASEMATE_BEAM of its
-    full width), the main barbettes going down through the hull, and each other. The batteries fill in order, each
-    taking the free places nearest amidships: all at a comfortable pitch if every gun fits so, else closer."""
+def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
+    """The casemate batteries (secs entries with "mount": "casemate"): single guns at the hull side, each pivoting on
+    it, so only its round port shield and barrels show, outboard. Two tiers ("tier"):
+      lower (default)  in the hull side, one level below the main deck. Nothing on deck stands in their way: only the
+                       hull's shape (they stay where the hull is at least CASEMATE_BEAM of its full width), the main
+                       barbettes going down through the hull, and each other.
+      upper            on the main deck, each in an armoured housing (a level-1 block) against the deck edge; housings
+                       close together join into one gallery. They keep clear of what stands on the main deck, of the
+                       main turrets' sweeps, and of the lower tier's shields: the tiers stagger, so every gun shows.
+    The lower tier fills first, then the upper. Within a tier the batteries fill in list order, each taking the free
+    places nearest amidships: all at a comfortable pitch if every gun fits so, else with the lower guns just far
+    enough apart for an upper gun between each pair, else closer."""
     from geometry import CASEMATE_SHIELD
     bats = []
     for sec in secs:
@@ -168,13 +174,14 @@ def place_casemates(lay, mounts, turret_types, secs, hull, depth):
         if sec.get("mount") == "casemate" and n:
             t_id, t = make_turret_type(sec["calibre_mm"], sec["calibre_length"], sec["barrels"], kind="casemate")
             turret_types[t_id] = t
-            bats.append((sec, n, t_id, t))
+            bats.append((sec, n, t_id, t, sec.get("tier", "lower") == "upper"))
     if not bats:
         return
+    bats.sort(key=lambda bt: bt[4])     # the lower tier first (a stable sort keeps the list order within a tier)
     B = hull.B
     barbettes = [m for m in mounts if m["kind"] == "main" and m["t"].get("barbette", True)]
 
-    def below_deck_ok(x, rc):
+    def lower_ok(x, rc):
         hw = hull.half_width(x)
         if hw < CASEMATE_BEAM * B / 2 or hw - 2 * rc < 0.5:
             return False
@@ -182,44 +189,116 @@ def place_casemates(lay, mounts, turret_types, secs, hull, depth):
         return not any(_overlap(bx, _fp_circle(m["x"], m["y"], 0.95 * m["t"]["r"]), 0.3)
                        for bx in boxes for m in barbettes)
 
+    def housing(x0, x1, rc):
+        """(outer y, depth) of an upper-tier housing from x0 to x1: against the deck edge, inside the hull."""
+        yo = min(hull.half_width(x0 + (x1 - x0) * k / 8) for k in range(9)) - 0.3
+        return yo, 1.6 * rc
+
+    def upper_ok(x, rc):
+        if hull.half_width(x) < CASEMATE_BEAM * B / 2:
+            return False
+        x0, x1 = x - 1.05 * rc, x + 1.05 * rc
+        yo, d = housing(x0, x1, rc)
+        if yo - d < 0.5:
+            return False
+        for side in (1, -1):
+            fp = _fp_rect(x0, yo - d, x1, yo) if side > 0 else _fp_rect(x0, -yo, x1, -yo + d)
+            # what stands on the main deck below the housing's roof blocks it; the deckhouse doesn't (the housing
+            # joins it) and nor does anything below the deck
+            if any(_overlap(fp, o[0], 0.3) for o in lay.footprints
+                   if o[3] != "Deckhouse" and o[1] < LEVEL_H - 0.01 and o[2] > 0.01):
+                return False
+            if not lay.clear(fp, LEVEL_H):
+                return False
+        return True
+
     xs = [0.5 * k for k in range(int(-hull.L), int(hull.L) + 1)]
     elig = [x for x in xs if hull.half_width(x) >= CASEMATE_BEAM * B / 2]
-    c = (min(elig) + max(elig)) / 2 if elig else 0.0
+    # centred on the hull's full-width part, moved with the arrangement's balancing shift
+    c = ((min(elig) + max(elig)) / 2 if elig else 0.0) + lay.geo.get("shift", 0.0)
     xs.sort(key=lambda x: abs(x - c))
+    ok_cache = {}
 
-    def attempt(pref):
-        half = (lambda r: 1.1 * r + 2.0) if pref else (lambda r: 1.05 * r + 0.5)   # half the pitch
-        taken, out = [], []
-        for sec, n, t_id, t in bats:
-            h = half(t["r"])
+    r_up = max([t["r"] for _, _, _, t, up in bats if up], default=0.0)
+
+    def attempt(mode):
+        def half(r, upper):   # half the pitch
+            if mode == "pref":
+                return 1.1 * r + 2.0
+            if mode == "stagger" and not upper:   # room between lower guns for one upper gun's housing
+                return max(1.05 * r + 0.5, 1.05 * r_up + CASEMATE_SHIELD * r + 0.3)
+            return 1.05 * r + 0.5
+        taken = {False: [], True: []}    # per tier: (x, half pitch)
+        shields = []                     # the lower tier's shields: (x, radius)
+        out = []
+        for sec, n, t_id, t, upper in bats:
+            rc = t["r"]
+            h = half(rc, upper)
             got = []
             for x in xs:
                 if len(got) >= n:
                     break
-                if all(abs(x - xo) >= h + ho for xo, ho in taken) and below_deck_ok(x, t["r"]):
+                if not all(abs(x - xo) >= h + ho for xo, ho in taken[upper]):
+                    continue
+                if upper and not all(abs(x - xs_) >= 1.05 * rc + rs_ + 0.3 for xs_, rs_ in shields):
+                    continue
+                key = (x, rc, upper)
+                if key not in ok_cache:
+                    ok_cache[key] = (upper_ok if upper else lower_ok)(x, rc)
+                if ok_cache[key]:
                     got.append(x)
-                    taken.append((x, h))
+                    taken[upper].append((x, h))
+            if not upper:
+                shields += [(x, CASEMATE_SHIELD * rc) for x in got]
             out.append(sorted(got))
         return out
 
-    placed = attempt(True)
-    if any(len(got) < n for got, (_, n, _, _) in zip(placed, bats)):
-        placed = attempt(False)
-    for got, (sec, n, t_id, t) in zip(placed, bats):
+    # comfortable pitch; else lower guns spaced to stagger with the upper tier; else close. Failing all, the most guns
+    best = None
+    for mode in ("pref", "stagger", "min") if r_up else ("pref", "min"):
+        placed = attempt(mode)
+        if all(len(got) >= bt[1] for got, bt in zip(placed, bats)):
+            break
+        if best is None or sum(map(len, placed)) > sum(map(len, best)):
+            best = placed
+    else:
+        placed = best
+    galleries = []    # upper-tier housings: [x0, x1, yo, depth, ids]
+    lower_x = [x for got, bt in zip(placed, bats) if not bt[4] for x in got]
+    for got, (sec, n, t_id, t, upper) in zip(placed, bats):
         if len(got) < n:
-            lay.errors.append(f"Only {len(got)} of {n} {sec['calibre_mm']:g} mm casemates per side fit in the hull "
-                              "sides. Use fewer or smaller guns, or lengthen the hull.")
-        arm = sec.get("armour_mm", 25)
+            lay.errors.append(f"Only {len(got)} of {n} {sec['calibre_mm']:g} mm {'upper ' if upper else ''}casemates "
+                              f"per side fit {'on deck' if upper else 'in the hull sides'}. Use fewer or smaller guns, "
+                              "or lengthen the hull.")
+        arm, rc = sec.get("armour_mm", 25), t["r"]
         for i, x in enumerate(got):
+            if upper:
+                yo, d = housing(x - 1.05 * rc, x + 1.05 * rc, rc)
+                galleries.append([x - 1.05 * rc, x + 1.05 * rc, yo, d])
+            else:
+                yo = hull.half_width(x)
+            base, top = (0.0, LEVEL_H) if upper else (-LEVEL_H, 0.0)
             for side in (1, -1):
                 mid = f"{sec['prefix']}{i + 1}{'S' if side > 0 else 'P'}"
-                y = side * hull.half_width(x)
-                mounts.append(dict(id=mid, kind="secondary", type=t_id, t=t, x=x, y=y, level=0, base=-LEVEL_H,
-                                   top=0.0, rest=90 * side, z=0, armour_mm=arm, casemate=True))
-                lay.occupy(_fp_circle(x, y, CASEMATE_SHIELD * t["r"]), -LEVEL_H, 0.0, mid)
+                mounts.append(dict(id=mid, kind="secondary", type=t_id, t=t, x=x, y=side * yo, level=0, base=base,
+                                   top=top, rest=90 * side, z=0, armour_mm=arm, casemate=True))
+                lay.occupy(_fp_circle(x, side * yo, CASEMATE_SHIELD * rc), base, top, mid)
                 tw, _, aw = mount_weights(t, arm, depth, 0)
-                lay.weights += [Weight(f"Mount {mid}", "armament", tw, x=x, z_rel=("deck", -LEVEL_H / 2)),
+                lay.weights += [Weight(f"Mount {mid}", "armament", tw, x=x, z_rel=("deck", (base + top) / 2)),
                                 Weight(f"Magazine {mid}", "armament", aw, x=x, z_rel=("frac", 0.3))]
+    # housings close together (no lower shield between them) join into one gallery, its outer face the innermost
+    galleries.sort()
+    merged = []
+    for g in galleries:
+        if merged and g[0] - merged[-1][1] < 1.5 and not any(merged[-1][1] <= x <= g[0] for x in lower_x):
+            m = merged[-1]
+            m[1], m[2], m[3] = max(m[1], g[1]), min(m[2], g[2]), max(m[3], g[3])
+        else:
+            merged.append(list(g))
+    for k, (x0, x1, yo, d) in enumerate(merged):
+        for side in (1, -1):
+            add_block(lay, blocks, f"Casemate housing {k + 1}{'S' if side > 0 else 'P'}", x0, x1, d, 1,
+                      0.3, 0.3, y=side * (yo - d / 2))
 
 
 def stepped_counts(main):
@@ -687,7 +766,7 @@ def build_layout(design: dict, shp: float, depth: float, shift: float = 0.0) -> 
                      [(_fp_rect(dh["x0"], -dh_w / 2, dh["x1"], dh_w / 2), 0, LEVEL_H, "Deckhouse")]
 
     # ---------------- casemates: guns in the hull side, below the main deck ----------------
-    place_casemates(lay, mounts, turret_types, secs, hull, depth)
+    place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth)
 
     # ---------------- torpedo mounts ----------------
     tp = design.get("torpedoes") or {}
