@@ -1272,11 +1272,14 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                 lay.occupy(fp, LEVEL_H, LEVEL_H + 1.5, f"Boat{len(boats)}")
 
     # ---------------- citadel & compartments ----------------
+    # the citadel covers the main turrets and the whole machinery block with its grouped magazines (an all-forward
+    # ship's machinery lies aft of every turret)
     main_x = [m["x"] for m in mounts if m["kind"] == "main"]
+    block = (min(p_[1] for p_ in mach_placed), max(p_[2] for p_ in mach_placed))
     if main_x:
-        cit = (min(main_x) - r - 2.0, max(main_x) + r + 2.0)
+        cit = (min(min(main_x) - r - 2.0, block[0]), max(max(main_x) + r + 2.0, block[1]))
     else:
-        cit = lay.geo["machinery"]
+        cit = block
     lay.geo["citadel"] = cit
     inner_hw = 0.8 * B / 2
     lay.compartments.append(dict(id="Citadel", kind="citadel", x0=cit[0], x1=cit[1], half_width=inner_hw,

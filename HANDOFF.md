@@ -135,6 +135,7 @@ Housekeeping, whenever convenient:
 - Fold the turret-sweep checker into `verify.py`.
 - Draw the armour deck in the 3D views from the new `decks` list, not from `armour.deck`.
 - Watch the destroyer's section count (19 against 12–16 in the research).
+- The warship citadel covers the main turrets and the whole machinery block with its grouped magazines (fixed 2026-10-02). Before that, an all-forward ship's machinery lay outside the belt: all_forward went from 27.9k to 34.8k t std. Now its Engine room 2 shares a cell, because the citadel-end bulkhead outranks the room's own end when stations merge.
 
 ## How to work here
 - **Git:** the repo is on GitHub (`git@github.com:sharpneli/shipgen.git`, branch `main`). Pushing over SSH works with the user's key. Commit or push only when the user asks.
