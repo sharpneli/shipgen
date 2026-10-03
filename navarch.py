@@ -39,7 +39,7 @@ TUNING = dict(
     rounds_heavy=100, rounds_medium=200, rounds_light=350,
     torp_mount_t=5.0, torp_tube_t=3.0, torp_t=1.6, torp_fixed_tube_t=1.0,
     aa_t={"quad40": 15.0, "twin40": 7.0, "single20": 1.0},
-    belt_h_a=0.30, belt_h_b=2.4,   # belt height = a*T + b
+    belt_h_a=0.30, belt_h_b=2.4,   # belt height = a*T + b, half below the waterline (when the design gives none)
     lcb_frac=-0.012,        # longitudinal centre of buoyancy, fraction of L (negative = aft)
     planing_rw=0.13,        # planing placeholder: resistance/weight once planing ...
     planing_rw_disp=0.06,   # ... and at Fn∇ = 1
@@ -296,6 +296,10 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         if d["asked"] != d["deck"]:
             res.warnings.append(f"The hull has no {deck_name(d['asked']).lower()} ({res.depth:.1f} m deep): its "
                                 f"{d['mm']} mm deck armour lies on the {deck_name(d['deck']).lower()}.")
+    arm = design.get("armour") or {}
+    if arm.get("belt_mm", 0) > 0 and arm.get("belt_depth_m", 1.0) < 1.0:
+        res.warnings.append(f"The belt reaches only {arm['belt_depth_m']:.1f} m below the waterline: rolling or "
+                            "flooding uncovers the side under it.")
     ub = (design.get("armour") or {}).get("upper_belt") or {}
     if ub.get("mm", 0) > 0 and not any(s["kind"] == "upper" for s in armour_geometry(
             design, L, res.draught, res.depth, geo)["strakes"]):
@@ -366,8 +370,9 @@ def armour_geometry(design, L, T, D, geo):
                 ("full"), or the hull beyond the citadel's fore or aft end ("ends" is a plate at each end)
       main      the main armour deck: the thickest over the citadel (the higher of equals), or None
       roof      the lowest armour deck over the citadel: the machinery and magazines stand under it (None if none)
-      belt      the main belt over the citadel: its armour height (TUNING belt_h) runs from below the waterline,
-                up to the main armour deck when that is higher (kept between keel and main deck)
+      belt      the main belt over the citadel: from armour.belt_depth_m below the full-load waterline to
+                armour.belt_height_m above it, or up to the main armour deck when that is higher (kept between
+                keel and main deck; TUNING belt_h, half below and half above, when the design gives none)
       strakes   the rest of the side armour, each dict(id, kind, extent, mm, tip_mm, x0, x1, bottom, top):
                   end    armour.end_belts: the waterline belt carried on from the citadel to the stem ("fore")
                          or stern ("aft"), at the main belt's depth, up to the thickest armour deck over that end
@@ -396,10 +401,12 @@ def armour_geometry(design, L, T, D, geo):
     over = [d for d in decks if d["extent"] in ("citadel", "full")]      # the plates over the citadel
     main = max(over, key=lambda d: (d["mm"], d["z"]), default=None)
     roof = min(over, key=lambda d: d["z"], default=None)
-    h = TUNING["belt_h_a"] * T + TUNING["belt_h_b"]
-    bot = max(0.0, T - h / 2)
-    band = min(D, T + h / 2)
-    top = min(D, max(T + h / 2, main["z"] if main else 0.0))
+    h0 = TUNING["belt_h_a"] * T + TUNING["belt_h_b"]
+    below, above = a.get("belt_depth_m", h0 / 2), a.get("belt_height_m", h0 / 2)
+    h = below + above
+    bot = max(0.0, T - below)
+    band = min(D, max(bot, T + above))
+    top = min(D, max(band, main["z"] if main else 0.0))
 
     strakes = []
     tops = {"citadel": top if belt > 0 else band}         # where an upper belt starts over each stretch

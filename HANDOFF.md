@@ -143,6 +143,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
     - Dreadnought 22k → 27k t (18.1k), 187.5 m. Its armour is 10k t against about 5k t real, mostly from before: a long citadel, and a 76 mm deck where the real ship had 19–44 mm. Left for the period refactor.
     - Kongo 33.7k → 38.1k t (27.5k), already heavy before.
     - AoN ships got heavier bulkheads (battleship 287 mm, Nelson-like 305 mm): +0.7–1.1k t, +0.5–1 m.
+  - Belt band (same day): `belt_depth_m` and `belt_height_m` replaced the hidden `TUNING belt_h` rule (kept only as the fallback). The designs got the rule's value for their draught, rounded to 0.1 m: ±0.1k t and up to 1 m of length. Still uniform thickness top to bottom. A thinner lower edge (`bottom_mm`, like Iowa's taper) would be the next knob.
   - Not done: a separate armoured box over the steering gear (side armour aft that stops short of the stern). An `aft` deck plate and an aft end belt stand in for it.
 - **Unifying the styles (started 2026-10-03).** The user wants complex systems shared by every style. Only placement (where guns, superstructure and funnels go, hull forms, deck plans) stays per style. Small length changes are fine. Each step is committed and pushed separately, so it can be rolled back.
   1. **Ordnance (done).**
@@ -168,7 +169,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
 4. **Armour schemes on the deck list.** These are design inputs, so agree the knobs with the user first. Several armour decks are done (see above).
    - Turtleback or sloped decks: the user has shelved them; several flat decks stand in for now.
    - All-or-nothing versus incremental schemes: done with the secondary armour (2026-10-03).
-   - Belt height: still `TUNING belt_h`. End-belt taper is done.
+   - Belt height (`belt_depth_m`, `belt_height_m`) and end-belt taper: done.
 5. **Links and flags (damage step 3), best done with the period physics refactor:**
    - engine room to shaft
    - generators to fore and aft power networks

@@ -51,7 +51,7 @@ design.py      the command line: validate, shipdesign.build, write report.json a
   "id": "battleship", "name": "Fast Battleship", "type": "BB", "look": "standard",
   "hull": {"block_coefficient": 0.59},
   "speed_kn": 33, "range_nm": 15000,
-  "armour": {"belt_mm": 307, "bulkhead_mm": 184, "upper_belt": {"mm": 0, "to_deck": 0, "extent": "citadel"},
+  "armour": {"belt_mm": 307, "belt_depth_m": 3.0, "belt_height_m": 3.0, "bulkhead_mm": 287, "upper_belt": {"mm": 0, "to_deck": 0, "extent": "citadel"},
              "end_belts": {"fore": {"mm": 0, "tip_mm": 0}, "aft": {"mm": 0, "tip_mm": 0}},
              "turret_mm": 432, "decks": [{"deck": 1, "mm": 152, "extent": "citadel"}]},
   "main": {"calibre_mm": 406, "calibre_length": 50, "barrels": 3, "fore": 2, "aft": 1},
@@ -67,14 +67,15 @@ design.py      the command line: validate, shipdesign.build, write report.json a
 - **The deck stack:** the hull's decks lie every `navarch.DECK_PITCH` (2.6 m) down from the main deck to the inner bottom. Deck 0 is the main deck (a carrier's hangar deck), deck 1 the second deck, and so on. A deck closer than 1 m to the inner bottom is left out, so the hold is 1–3.6 m tall.
 - **An armour deck** is `{"deck": n, "mm": thickness, "extent": "citadel" | "full" | "fore" | "aft" | "ends"}`. `citadel` covers the citadel, `full` the whole length, and `fore`, `aft` and `ends` (both) the hull beyond the citadel's ends: the protective deck at a pre-dreadnought's ends, or the deck over an all-or-nothing ship's steering gear. List the decks top down. A deck may appear twice only over different stretches (the citadel and its ends, say 76 mm on the second deck amidships and 51 mm on it at the ends). A deck the hull is too shallow for lies on its lowest deck, with a warning; overlapping decks pushed onto the same one add up.
 - **What the decks decide:**
-  - The thickest deck over the citadel is the main armour deck. The higher one wins a tie. The belt (its height a × draught + b, from below the waterline) reaches up to it when it's higher, and the barbettes reach down to it.
+  - The thickest deck over the citadel is the main armour deck. The higher one wins a tie. The belt (its band from `belt_depth_m` below the waterline to `belt_height_m` above it) reaches up to it when it's higher, and the barbettes reach down to it.
   - The lowest deck over the citadel is the roof of the vital spaces: the machinery and the magazines stand under it. A low roof squeezes the machinery, which makes it longer.
   - Each deck weighs its area × thickness. A `full` deck covers the hull's waterplane.
 - `battleship_layered.json` is the battleship with Iowa-style layers: a 38 mm bomb deck on the main deck over the whole length, the 152 mm main armour deck on the second deck, and a 16 mm splinter deck on the third.
 - `armour.deck_mm` is gone, and a design that still has it is rejected.
 
 The side armour is the main belt and up to three secondary pieces. Every design lists them all, with 0 mm for what it lacks:
-- `belt_mm`: the main belt over the citadel, from below the waterline up to the main armour deck.
+- `belt_mm`: the main belt over the citadel.
+- `belt_depth_m` and `belt_height_m`: the belt's band, in metres below and above the full-load waterline. The main belt reaches up to the main armour deck when that's higher, so belt and deck close the box. The end belts share the band. The designs carry 0.15 × draught + 1.2 m each way, the old built-in rule. A belt under 1 m deep warns, because rolling or flooding uncovers the side under it, and the game settles a flooded ship deeper.
 - `bulkhead_mm`: the citadel's transverse ends, closing the belts from 0.4 belt heights under the belt up to the top of the main or upper belt.
 - `upper_belt`: `{"mm", "to_deck", "extent"}`, a strake from the top of the belt below it up to deck `to_deck` (0 the main deck). Over the citadel it starts at the main belt's top; beyond it, at the end belt's top (or the main belt's waterline band if there's none). It has no height, and warns, when the belt already reaches that deck. `extent` takes the deck extents, and `full` is one strake over the citadel and one beyond each end.
 - `end_belts`: `{"fore": {"mm", "tip_mm"}, "aft": {...}}`, the waterline belt carried on from the citadel to the stem and the stern. It's as deep as the main belt and reaches up to the thickest armour deck over that end when that's higher. It is `mm` thick at the citadel and tapers linearly to `tip_mm` at the hull's end.
