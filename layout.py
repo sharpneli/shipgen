@@ -366,19 +366,28 @@ def block_top(b):
     return b.get("z0", 0.0) + LEVEL_H * b["level"]
 
 
-# Warship and carrier planform. The main deck fills DECK_FLARE more of its L x B box than the waterplane
-# (navarch.cwp), since the sides flare out above water. The parallel midbody is MIDBODY_K x (Cb - 0.5) of the
-# length; the rest is BOW_SHARE bow taper and the remainder stern taper, both with one power solved for the fill.
-# At Cb 0.6 this comes close to Dreadnought's deck (fill 0.78 against her 0.76).
-DECK_FLARE, MIDBODY_K, BOW_SHARE, STERN_TRANSOM = 0.08, 1.5, 0.5, 0.1
+# Warship and carrier planform. The main deck fills more of its L x B box than the waterplane (navarch.cwp), since
+# the sides flare out above water: a parallel midbody, then the rest as bow and stern tapers with one power solved
+# for that fill. Big ships are oval (LARGE: at Cb 0.6 close to Dreadnought's deck, fill 0.78 against her 0.76);
+# small ones keep straight sides and a wide transom (SMALL: Fletcher, fill 0.83 at Cb 0.5), blended by the deck's
+# L x B across PLAN_SIZE m². Small ships are short of deck space anyway.
+#   flare: fill above cwp; mid: parallel midbody share of L (LARGE: MIDBODY_K x (Cb - 0.5)); bow_share: the bow's
+#   share of the tapers; transom: the stern's end width over the beam
+LARGE = dict(flare=0.08, bow_share=0.5, transom=0.1)
+SMALL = dict(flare=0.22, mid=0.25, bow_share=0.53, transom=0.75)
+MIDBODY_K = 1.5
+PLAN_SIZE = (1500.0, 4000.0)
 
 
-def planform(cb, flare=DECK_FLARE, midbody_k=MIDBODY_K, bow_share=BOW_SHARE, transom=STERN_TRANSOM):
-    """Bow and stern tapers for a deck whose plan fills cwp(cb) + flare of its L x B box."""
+def planform(cb, size_m2):
+    """Bow and stern tapers for a deck of size_m2 (L x B) whose plan fills cwp(cb) + flare of its box."""
     from navarch import cwp
-    mid = min(0.4, max(0.0, (cb - 0.5) * midbody_k))
-    bt, st = (1 - mid) * bow_share, (1 - mid) * (1 - bow_share)
-    target = min(0.97, cwp(cb) + flare)
+    s = min(1.0, max(0.0, (size_m2 - PLAN_SIZE[0]) / (PLAN_SIZE[1] - PLAN_SIZE[0])))
+    large = {**LARGE, "mid": min(0.4, max(0.0, (cb - 0.5) * MIDBODY_K))}
+    k = {key: SMALL[key] + (large[key] - SMALL[key]) * s for key in SMALL}
+    mid, transom = k["mid"], k["transom"]
+    bt, st = (1 - mid) * k["bow_share"], (1 - mid) * (1 - k["bow_share"])
+    target = min(0.97, cwp(cb) + k["flare"])
 
     def fill(p):
         return mid + bt * Hull.end_fill(p, "pointed") + st * (transom + (1 - transom) * Hull.end_fill(p, "round"))
@@ -392,7 +401,7 @@ def planform(cb, flare=DECK_FLARE, midbody_k=MIDBODY_K, bow_share=BOW_SHARE, tra
 
 def hull_spec(design):
     h = design["hull"]
-    return dict(length=h["length"], beam=h["beam"], **planform(h["block_coefficient"]))
+    return dict(length=h["length"], beam=h["beam"], **planform(h["block_coefficient"], h["length"] * h["beam"]))
 
 
 STEERING = (0.03, 0.08, 0.25)   # the steering gear: from 0.03 to 0.08 L forward of the stern, 0.25 B each side
