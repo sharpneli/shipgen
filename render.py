@@ -5,7 +5,8 @@ map, sprite.json and preview images. It reads nothing but that dict: no layout o
     ship = shipdesign.build(design)
     render.render_ship(ship, "out_designs/<id>", scale=10, mips=5)
 
-The look (colours, turret drawings, silhouettes) comes from the design's "look" (looks.py), or from look=...
+The look (colours, turret drawings, silhouettes) comes from the design's "look", a navy and an era (looks.py), or
+from look=...
 """
 from __future__ import annotations
 
@@ -100,10 +101,11 @@ def composite(base_p, upper_p, turret_pngs, meta, angle_fn, sun=None, height_p=N
 def render_ship(ship, out_dir, S, mips=0, look=None, previews=True):
     """Draw a designed ship (shipdesign.build's dict) into out_dir: sprites, mips, height map, sprite.json and,
     with previews, the shaded previews, debug overlay and sheet (most of the time; the game needs none of them).
-    look overrides the design's own look. Returns sprite.json's dict."""
+    look ({"navy", "era"}, either may be left out) overrides the design's own look key by key, so the game can
+    repaint a design into a later era without touching it. Returns sprite.json's dict."""
     design, rd = ship["design"], ship["render"]
     if look is not None:
-        design = {**design, "look": look}
+        design = {**design, "look": {**looks.look_of(design), **look}}
     os.makedirs(os.path.join(out_dir, "turrets"), exist_ok=True)
     align = 2 ** (mips + 1)
     spec = copy.deepcopy(rd["spec"])
@@ -247,7 +249,7 @@ def sheet(ship, design, rest, stbd, S, path):
     res = rep["results"]
     lines = [
         f"{rep['name']}  ({'VALID' if rep['valid'] else 'INVALID'})"
-        + (f"   look: {looks.look_name(design)}" if looks.look_name(design) != looks.DEFAULT_LOOK else ""),
+        + (f"   look: {looks.look_label(design)}" if looks.look_label(design) else ""),
         f"{L:.0f} x {B:.1f} m, Cb {res['block_coefficient']}   "
         f"std {res['standard_displacement_t']:,} t   full {res['full_displacement_t']:,} t",
         f"draught {res['draught_m']} m   freeboard {res['freeboard_m']} m   {design['speed_kn']} kn "

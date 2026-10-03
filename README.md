@@ -48,7 +48,7 @@ design.py      the command line: validate, shipdesign.build, write report.json a
 ## Design input
 ```json
 {
-  "id": "battleship", "name": "Fast Battleship", "type": "BB", "look": "standard",
+  "id": "battleship", "name": "Fast Battleship", "type": "BB", "look": {"navy": "generic", "era": "wwii"},
   "hull": {"block_coefficient": 0.59},
   "speed_kn": 33, "range_nm": 15000,
   "armour": {"belt_mm": 307, "belt_depth_m": 3.0, "belt_height_m": 3.0, "belt_bottom_mm": 307, "bulkhead_mm": 287, "upper_belt": {"mm": 0, "to_deck": 0, "extent": "citadel"},
@@ -220,22 +220,27 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
 - To add a style: subclass `styles.base.Style` in a new module, give it a `build_layout` (and whichever weight and report hooks it needs), and register it in `styles.STYLES`. The shared building blocks are `layout.add_block`, `Layout.decks` and `Layout.sponsons`, the `armament` helpers (book every mount with `armament.add_mount`), `ordnance.stow` for the magazines, and `layout.finish_layout` for the renderer spec.
 
 ## Looks
-`"look"` sets how the ship is painted and drawn, as a navy of a given nation might build it. It's purely visual: the layout, physics, report results, hitboxes and sprite sizes are identical in every look, so two ships that differ only in look play the same. A look applies to every style (warship, carrier, merchant, planing).
+`"look"` sets how the ship is painted and drawn: `{"navy": "kure", "era": "wwii"}`, as that navy built its ships in that era. It's purely visual: the layout, physics, report results, hitboxes and sprite sizes are identical in every look, so two ships that differ only in look play the same. A look applies to every style (warship, carrier, merchant, planing).
 
-| look | inspired by | what changes |
+- **Two indices.** Looks live in `looks.NAVIES[navy]["eras"][era]`, and `looks.ERAS` lists the eras oldest first. A navy may change anything between eras (paint, turret drawings, bows, funnels), and navies differ freely from each other.
+- **Every pair renders.** A navy with no entry for an era is drawn as `generic` in that era, and the sheet says so ("drawn as generic"). Unknown navy or era names are validation errors. The default is `generic` / `wwii`.
+- **Repainting:** `render_ship(..., look={"era": "victorian"})` overrides the design's look key by key, so the game can redraw a design in a later era (a refit) without changing it.
+- National navies are named after dockyards. Navies: `generic`, `brooklyn` (US), `kure` (Japan), `portsmouth` (UK), `kiel` (Germany). Eras: `victorian`, `wwii`.
+
+| navy / era | inspired by | what changes |
 |---|---|---|
-| `standard` (default) | generic | WWII haze grey, teak decks |
-| `brooklyn` | US | deck blue on every horizontal surface, slab-sided boxy turrets with rear rangefinder hoods, a wide square transom, boxy funnels and superstructure. Merchants: wartime grey |
-| `kure` | Japan | dark Kure grey, pale hinoki wood, brown linoleum steel decks with brass strips, black-topped funnels, rounded turrets with a long rangefinder across the rear, a flared bow, oval funnels, soft rounded superstructure, wooden carrier decks with red stripes. Merchants: black hull, white house |
-| `portsmouth` | UK | light Admiralty grey, pale holystoned teak, white boats, black funnel tops, straight-sided turrets with a round rear, a fuller bow, bridges with round fronts and square backs. Merchants: tramp colours, buff funnel with a black top |
-| `kiel` | Germany | dark hull and steel decks under light grey upperworks, mid teak, grey funnel caps, faceted turrets with domed cupolas, a flared Atlantic bow, chamfered superstructure, capped funnels, pole masts. Merchants: dark hull, black funnel with a red band |
-| `victorian` | the 1890s, any navy | black hull, white upperworks, buff funnels and masts with black tops, holystoned teak (dark corticene on steel decks), black drum turrets with sighting hoods, pole masts with round fighting tops, a full beamy bow. Merchants: black hull, varnished teak deckhouses, red funnel with a black top. Torpedo craft: all black |
+| `generic` / `wwii` (default) | generic | WWII haze grey, teak decks |
+| `brooklyn` / `wwii` | US | deck blue on every horizontal surface, slab-sided boxy turrets with rear rangefinder hoods, a wide square transom, boxy funnels and superstructure. Merchants: wartime grey |
+| `kure` / `wwii` | Japan | dark Kure grey, pale hinoki wood, brown linoleum steel decks with brass strips, black-topped funnels, rounded turrets with a long rangefinder across the rear, a flared bow, oval funnels, soft rounded superstructure, wooden carrier decks with red stripes. Merchants: black hull, white house |
+| `portsmouth` / `wwii` | UK | light Admiralty grey, pale holystoned teak, white boats, black funnel tops, straight-sided turrets with a round rear, a fuller bow, bridges with round fronts and square backs. Merchants: tramp colours, buff funnel with a black top |
+| `kiel` / `wwii` | Germany | dark hull and steel decks under light grey upperworks, mid teak, grey funnel caps, faceted turrets with domed cupolas, a flared Atlantic bow, chamfered superstructure, capped funnels, pole masts. Merchants: dark hull, black funnel with a red band |
+| `generic` / `victorian` | the 1890s, any navy | black hull, white upperworks, buff funnels and masts with black tops, holystoned teak (dark corticene on steel decks), black drum turrets with sighting hoods, pole masts with round fighting tops, a full beamy bow. Merchants: black hull, varnished teak deckhouses, red funnel with a black top. Torpedo craft: all black |
 
-- Looks live in `looks.py`. Each is a palette for all styles, plus overrides per style, plus a turret drawing (`shipgen.look_turret_body`) and silhouette `shapes` (also overridable per style).
+- Each look is a palette for all styles, plus overrides per style, plus a turret drawing (`shipgen.look_turret_body`) and silhouette `shapes` (also overridable per style).
 - Only armoured (`bb`) turrets change shape. The drawn outline stays close to the hitbox shape, and `verify.py` checks it like any other sprite.
 - Silhouettes (`shapes` in a look) are drawn only: the bow and stern may be fuller than the layout's hull (never finer, so nothing at the deck edge overhangs), and funnels, superstructure corners and masts change style. Hitboxes keep the layout's shapes. The height map follows the drawn hull, so shadows match the sprite.
 - A design's own `"palette"` still overrides everything.
-- To add a look: add an entry to `looks.LOOKS`. A new turret drawing also needs a branch in `shipgen.look_turret_body`.
+- To add a look: add an era entry under a navy in `looks.NAVIES` (a new navy goes in `NAVIES`, a new era also in `ERAS`). A new turret drawing also needs a branch in `shipgen.look_turret_body`.
 
 ## Outputs (out_designs/<id>/)
 - `report.json`: valid flag, errors, warnings, the hull's length, beam and block coefficient, displacement (std/full), draught, power, fuel, crew, GM, trim, and the weight list with x/z. Carriers add aircraft and capacity, flight deck size and height; merchants add cargo, deadweight and hold count.
