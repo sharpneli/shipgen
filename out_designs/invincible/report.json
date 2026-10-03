@@ -79,6 +79,22 @@
     },
     "armour": {
       "belt_mm": 152,
+      "bulkhead_mm": 91,
+      "upper_belt": {
+        "mm": 0,
+        "to_deck": 0,
+        "extent": "citadel"
+      },
+      "end_belts": {
+        "fore": {
+          "mm": 0,
+          "tip_mm": 0
+        },
+        "aft": {
+          "mm": 0,
+          "tip_mm": 0
+        }
+      },
       "decks": [
         {
           "deck": 1,
@@ -109,8 +125,8 @@
     "length_m": 193.5,
     "beam_m": 23.82,
     "block_coefficient": 0.56,
-    "standard_displacement_t": 18710,
-    "full_displacement_t": 21228,
+    "standard_displacement_t": 18709,
+    "full_displacement_t": 21227,
     "draught_m": 8.02,
     "depth_m": 13.01,
     "freeboard_m": 4.98,
@@ -127,9 +143,9 @@
   "plant": {
     "name": "Direct-drive turbines, water-tube boilers (1905)",
     "fuel": "coal",
-    "rated_kw": 37497,
+    "rated_kw": 37496,
     "rated_shp": 50280.0,
-    "continuous_kw": 34685,
+    "continuous_kw": 34684,
     "overload_max": 1.075,
     "shafts": 4,
     "units": 8,
@@ -208,7 +224,7 @@
   },
   "weight_groups_t": {
     "hull": 6714,
-    "armour": 4294,
+    "armour": 4293,
     "machinery": 3282,
     "fuel": 2518,
     "armament": 2242,
@@ -219,7 +235,7 @@
     {
       "name": "Hull structure",
       "group": "hull",
-      "t": 6714.4,
+      "t": 6714.2,
       "x": -1.94,
       "z": 7.54
     },
@@ -702,7 +718,7 @@
     {
       "name": "Bulkheads",
       "group": "armour",
-      "t": 229.5,
+      "t": 229.0,
       "x": -3.62,
       "z": 7.06
     },
@@ -716,14 +732,14 @@
     {
       "name": "Equipment, outfit, crew & stores",
       "group": "misc",
-      "t": 1029.1,
+      "t": 1029.0,
       "x": 0.0,
       "z": 6.5
     },
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 2518.2,
+      "t": 2518.1,
       "x": -3.86,
       "z": 2.34
     }

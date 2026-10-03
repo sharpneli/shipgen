@@ -29,7 +29,7 @@ KIND = {   # fill RGB, alpha
     "uptake": ((150, 100, 200), 200), "casing": ((120, 120, 140), 255), "aa": ((235, 220, 70), 255),
     "conning_tower": ((240, 110, 190), 255), "deck": ((150, 175, 150), 255), "sponson": ((140, 150, 160), 255),
     "flight_deck": ((130, 140, 150), 200),
-    "belt": ((60, 70, 90), 255), "armour_deck": ((60, 70, 90), 110),
+    "belt": ((60, 70, 90), 255), "strake": ((135, 145, 165), 255), "armour_deck": ((60, 70, 90), 110),
     "boiler_room": ((240, 140, 40), 235), "engine_room": ((190, 70, 40), 235), "bunker": ((70, 60, 55), 235),
     "magazine": ((230, 40, 40), 240), "accommodation": ((110, 180, 235), 55), "steering": ((160, 90, 200), 235),
     "hold": ((200, 170, 110), 200), "cargo_tank": ((150, 120, 70), 200), "fuel_tank": ((90, 80, 60), 220),
@@ -83,14 +83,14 @@ def prisms(hb, what):
     for c in hb.get("cells", []):
         out.append((kinds[c["room"]], cell_outline(hull, c), c["base"], c["top"]))
     arm = hb.get("armour", {})
-    if "belt" in arm:
-        b = arm["belt"]
-        for side in (1, -1):     # a thin slab just outside the hull side over the citadel
+    slabs = ([("belt", arm["belt"])] if "belt" in arm else []) + [("strake", b) for b in arm.get("strakes", [])]
+    for kind, b in slabs:
+        for side in (1, -1):     # a thin slab just outside the hull side over its stretch
             xs = [b["x0"] + (b["x1"] - b["x0"]) * k / 12 for k in range(13)]
             hw = [_half_width(hull, x) for x in xs]
             outer = [(x, side * (w + 0.15)) for x, w in zip(xs, hw)]
             inner = [(x, side * (w - 0.25)) for x, w in zip(xs, hw)][::-1]
-            out.append(("belt", outer + inner, b["bottom"], b["top"]))
+            out.append((kind, outer + inner, b["bottom"], b["top"]))
     for bh in hb.get("bulkheads", []):       # the citadel's armoured ends, across the hull
         if bh.get("kind") == "armoured":
             hw = _half_width(hull, bh["x"]) - 0.2
@@ -177,7 +177,7 @@ def render_view(hb, az, el, what, width=1800, title=""):
         kind, pts, nrm = t
         if kind == "armour_deck" or (kind == "hull" and nrm[2] > 0.5):
             return 0
-        if kind == "belt" and nrm[1] * pts[0][1] > 0:
+        if kind in ("belt", "strake") and nrm[1] * pts[0][1] > 0:
             return 2
         return 3 if kind == "hull" else 1
     fs.sort(key=lambda t: (layer(t), -sum(dot(p, f) for p in t[1]) / len(t[1])))

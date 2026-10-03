@@ -210,8 +210,14 @@ def export_hitboxes(lay, design, res):
     if ag["belt_mm"] > 0:
         arm_out["belt"] = dict(thickness_mm=ag["belt_mm"], x0=round(ag["x0"], 3), x1=round(ag["x1"], 3),
                                bottom=rz(ag["belt_bottom"]), top=rz(ag["belt_top"]))
+    if ag["strakes"]:
+        arm_out["strakes"] = [dict(id=st["id"], kind=st["kind"], extent=st["extent"], thickness_mm=st["mm"],
+                                   **({"tip_mm": st["tip_mm"]} if st["tip_mm"] != st["mm"] else {}),
+                                   x0=round(st["x0"], 3), x1=round(st["x1"], 3), bottom=rz(st["bottom"]),
+                                   top=rz(st["top"])) for st in ag["strakes"]]
+    if armoured and ag["bulkhead_mm"] > 0:
         arm_out["bulkheads"] = [dict(id=f"{end} bulkhead", x=round(x, 3), thickness_mm=round(ag["bulkhead_mm"]),
-                                     bottom=rz(ag["bulkhead_bottom"]), top=rz(ag["belt_top"]))
+                                     bottom=rz(ag["bulkhead_bottom"]), top=rz(ag["bulkhead_top"]))
                                 for end, x in (("Forward", ag["x1"]), ("Aft", ag["x0"]))]
     if ag["decks"]:
         arm_out["decks"] = [dict(deck=deck_name(d["deck"]), thickness_mm=d["mm"], extent=d["extent"],

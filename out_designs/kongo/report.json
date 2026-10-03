@@ -79,6 +79,22 @@
     },
     "armour": {
       "belt_mm": 203,
+      "bulkhead_mm": 122,
+      "upper_belt": {
+        "mm": 0,
+        "to_deck": 0,
+        "extent": "citadel"
+      },
+      "end_belts": {
+        "fore": {
+          "mm": 0,
+          "tip_mm": 0
+        },
+        "aft": {
+          "mm": 0,
+          "tip_mm": 0
+        }
+      },
       "decks": [
         {
           "deck": 1,
@@ -118,13 +134,13 @@
     "length_m": 259.5,
     "beam_m": 28.15,
     "block_coefficient": 0.56,
-    "standard_displacement_t": 33749,
-    "full_displacement_t": 42614,
+    "standard_displacement_t": 33750,
+    "full_displacement_t": 42616,
     "draught_m": 10.16,
     "depth_m": 16.33,
     "freeboard_m": 6.17,
     "power_shp": 92600.0,
-    "fuel_t": 8865,
+    "fuel_t": 8866,
     "crew": 1467,
     "gm_full_m": 2.15,
     "gm_light_m": 0.95,
@@ -136,14 +152,14 @@
   "plant": {
     "name": "Direct-drive turbines, water-tube boilers, mixed firing (coal, oil spray) (1910)",
     "fuel": "coal",
-    "rated_kw": 69034,
+    "rated_kw": 69035,
     "rated_shp": 92580.0,
-    "continuous_kw": 63856,
+    "continuous_kw": 63858,
     "overload_max": 1.075,
     "shafts": 4,
     "units": 8,
     "unit_mw": 8.63,
-    "weight_t": 4720.3,
+    "weight_t": 4720.5,
     "sfc_g_per_kwh": 877.8,
     "part_load": {
       "curve": "DT",
@@ -217,9 +233,9 @@
   },
   "weight_groups_t": {
     "hull": 13364,
-    "fuel": 8865,
-    "armour": 7472,
-    "machinery": 5043,
+    "fuel": 8866,
+    "armour": 7473,
+    "machinery": 5044,
     "armament": 4148,
     "misc": 2341,
     "superstructure": 1382
@@ -228,14 +244,14 @@
     {
       "name": "Hull structure",
       "group": "hull",
-      "t": 13363.7,
+      "t": 13364.0,
       "x": -2.6,
       "z": 9.47
     },
     {
       "name": "Machinery",
       "group": "machinery",
-      "t": 4720.3,
+      "t": 4720.5,
       "x": -11.0,
       "z": 5.23
     },
@@ -244,7 +260,7 @@
       "group": "armament",
       "t": 534.5,
       "x": 86.62,
-      "z": 18.66
+      "z": 18.67
     },
     {
       "name": "Magazine A",
@@ -277,7 +293,7 @@
     {
       "name": "Barbette B",
       "group": "armour",
-      "t": 490.5,
+      "t": 490.6,
       "x": 71.77,
       "z": 12.25
     },
@@ -286,7 +302,7 @@
       "group": "armament",
       "t": 534.5,
       "x": -93.77,
-      "z": 18.66
+      "z": 18.67
     },
     {
       "name": "Magazine Y",
@@ -307,7 +323,7 @@
       "group": "armament",
       "t": 534.5,
       "x": 0.17,
-      "z": 21.26
+      "z": 21.27
     },
     {
       "name": "Magazine Q",
@@ -851,7 +867,7 @@
     {
       "name": "Bulkheads",
       "group": "armour",
-      "t": 456.2,
+      "t": 457.0,
       "x": -3.58,
       "z": 9.5
     },
@@ -872,7 +888,7 @@
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 8865.5,
+      "t": 8865.7,
       "x": -11.0,
       "z": 2.94
     }

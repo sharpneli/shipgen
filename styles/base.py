@@ -18,8 +18,15 @@ COMMON_LIMITS = {
     ("torpedoes", "mounts"): (0, 40), ("torpedoes", "tubes"): (1, 20),
     ("aa", "heavy"): (0, 500), ("aa", "light"): (0, 500),
     ("armour", "belt_mm"): (0, 2000), ("armour", "turret_mm"): (0, 2000),
-    ("armour", "tds_m"): (0, 20),
+    ("armour", "tds_m"): (0, 20), ("armour", "bulkhead_mm"): (0, 2000),
+    ("armour", "upper_belt", "mm"): (0, 2000),
+    ("armour", "end_belts", "fore", "mm"): (0, 2000), ("armour", "end_belts", "fore", "tip_mm"): (0, 2000),
+    ("armour", "end_belts", "aft", "mm"): (0, 2000), ("armour", "end_belts", "aft", "tip_mm"): (0, 2000),
 }
+
+
+# extents that may share one deck (different stretches of it)
+SHARED_DECK = ({"citadel", "fore"}, {"citadel", "aft"}, {"citadel", "ends"}, {"fore", "aft"})
 
 
 def armour_errors(design) -> list[str]:
@@ -33,7 +40,7 @@ def armour_errors(design) -> list[str]:
     decks = a.get("decks", [])
     if not isinstance(decks, list):
         return errs + ["armour.decks: use a list of armour decks, top down"]
-    last = -1
+    last, prev = -1, None
     for k, d in enumerate(decks):
         if not isinstance(d, dict) or not isinstance(d.get("deck"), int) or d["deck"] < 0:
             errs.append(f"armour.decks[{k}].deck: use a deck number (0 the main deck, 1 the second deck, ...)")
@@ -42,9 +49,28 @@ def armour_errors(design) -> list[str]:
             errs.append(f"armour.decks[{k}].mm: use a thickness of 0 or more")
         if d.get("extent") not in ARMOUR_EXTENTS:
             errs.append(f"armour.decks[{k}].extent = {d.get('extent')!r}: use {' or '.join(ARMOUR_EXTENTS)}")
-        if d["deck"] <= last:
-            errs.append(f"armour.decks[{k}]: list the armour decks top down, one per deck")
-        last = max(last, d["deck"])
+        if d["deck"] < last:
+            errs.append(f"armour.decks[{k}]: list the armour decks top down")
+        elif d["deck"] == last and {d.get("extent"), prev} not in SHARED_DECK:
+            errs.append(f"armour.decks[{k}]: a deck may appear twice only over different stretches (the citadel "
+                        "and its ends)")
+        last, prev = max(last, d["deck"]), d.get("extent")
+    ub = a.get("upper_belt")
+    if ub is not None:
+        if not isinstance(ub, dict):
+            errs.append("armour.upper_belt: use {\"mm\", \"to_deck\", \"extent\"}")
+        else:
+            if not isinstance(ub.get("to_deck", 0), int) or ub.get("to_deck", 0) < 0:
+                errs.append("armour.upper_belt.to_deck: use a deck number (0 the main deck, 1 the second deck, ...)")
+            if ub.get("extent", "citadel") not in ARMOUR_EXTENTS:
+                errs.append(f"armour.upper_belt.extent = {ub.get('extent')!r}: use {' or '.join(ARMOUR_EXTENTS)}")
+    eb = a.get("end_belts")
+    if eb is not None:
+        if not isinstance(eb, dict) or set(eb) - {"fore", "aft"}:
+            errs.append("armour.end_belts: use {\"fore\": {\"mm\", \"tip_mm\"}, \"aft\": {...}}")
+        else:
+            errs += [f"armour.end_belts.{end}: use {{\"mm\", \"tip_mm\"}}" for end, e in eb.items()
+                     if not isinstance(e, dict)]
     return errs
 
 

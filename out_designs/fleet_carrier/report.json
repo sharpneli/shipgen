@@ -80,6 +80,22 @@
     "armour": {
       "tds_m": 4.0,
       "belt_mm": 102,
+      "bulkhead_mm": 61,
+      "upper_belt": {
+        "mm": 0,
+        "to_deck": 0,
+        "extent": "citadel"
+      },
+      "end_belts": {
+        "fore": {
+          "mm": 0,
+          "tip_mm": 0
+        },
+        "aft": {
+          "mm": 0,
+          "tip_mm": 0
+        }
+      },
       "decks": [
         {
           "deck": 2,
@@ -121,8 +137,8 @@
     "length_m": 242.5,
     "beam_m": 30.04,
     "block_coefficient": 0.55,
-    "standard_displacement_t": 31683,
-    "full_displacement_t": 40234,
+    "standard_displacement_t": 31682,
+    "full_displacement_t": 40233,
     "draught_m": 9.8,
     "depth_m": 18.12,
     "freeboard_m": 8.32,
@@ -148,14 +164,14 @@
   "plant": {
     "name": "High-pressure geared turbines (1940)",
     "fuel": "oil",
-    "rated_kw": 136537,
-    "rated_shp": 183100.0,
-    "continuous_kw": 128345,
+    "rated_kw": 136534,
+    "rated_shp": 183090.0,
+    "continuous_kw": 128342,
     "overload_max": 1.09,
     "shafts": 4,
     "units": 4,
     "unit_mw": 34.13,
-    "weight_t": 3844.9,
+    "weight_t": 3844.8,
     "sfc_g_per_kwh": 360.2,
     "part_load": {
       "curve": "GTB",
@@ -229,11 +245,11 @@
     "tolerance_days": 60
   },
   "weight_groups_t": {
-    "hull": 19016,
+    "hull": 19015,
     "fuel": 8551,
     "machinery": 4050,
     "misc": 4026,
-    "armour": 2784,
+    "armour": 2783,
     "aviation": 1050,
     "armament": 565,
     "superstructure": 192
@@ -242,14 +258,14 @@
     {
       "name": "Hull structure",
       "group": "hull",
-      "t": 14781.4,
+      "t": 14781.1,
       "x": -2.43,
       "z": 9.06
     },
     {
       "name": "Machinery",
       "group": "machinery",
-      "t": 3844.9,
+      "t": 3844.8,
       "x": -2.81,
       "z": 5.8
     },
@@ -872,21 +888,21 @@
     {
       "name": "Belt armour",
       "group": "armour",
-      "t": 973.1,
+      "t": 973.0,
       "x": -0.38,
       "z": 10.02
     },
     {
       "name": "Bulkheads",
       "group": "armour",
-      "t": 228.7,
+      "t": 228.0,
       "x": -0.38,
       "z": 8.95
     },
     {
       "name": "Deck armour (third deck)",
       "group": "armour",
-      "t": 1425.6,
+      "t": 1425.5,
       "x": -0.38,
       "z": 12.92
     },
@@ -928,7 +944,7 @@
     {
       "name": "Equipment, outfit, crew & stores",
       "group": "misc",
-      "t": 2311.4,
+      "t": 2311.3,
       "x": 0.0,
       "z": 9.06
     },
@@ -949,7 +965,7 @@
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 7903.0,
+      "t": 7902.8,
       "x": -2.81,
       "z": 3.26
     },

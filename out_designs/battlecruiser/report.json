@@ -78,6 +78,22 @@
     },
     "armour": {
       "belt_mm": 229,
+      "bulkhead_mm": 137,
+      "upper_belt": {
+        "mm": 0,
+        "to_deck": 0,
+        "extent": "citadel"
+      },
+      "end_belts": {
+        "fore": {
+          "mm": 0,
+          "tip_mm": 0
+        },
+        "aft": {
+          "mm": 0,
+          "tip_mm": 0
+        }
+      },
       "decks": [
         {
           "deck": 1,
@@ -107,13 +123,13 @@
     "length_m": 247.5,
     "beam_m": 27.71,
     "block_coefficient": 0.56,
-    "standard_displacement_t": 32770,
-    "full_displacement_t": 38923,
+    "standard_displacement_t": 32767,
+    "full_displacement_t": 38921,
     "draught_m": 9.89,
     "depth_m": 15.84,
     "freeboard_m": 5.95,
     "power_shp": 95400.0,
-    "fuel_t": 6154,
+    "fuel_t": 6153,
     "crew": 1417,
     "gm_full_m": 1.88,
     "gm_light_m": 0.95,
@@ -125,14 +141,14 @@
   "plant": {
     "name": "Direct-drive turbines, water-tube boilers (1910)",
     "fuel": "coal",
-    "rated_kw": 71159,
-    "rated_shp": 95430.0,
-    "continuous_kw": 65822,
+    "rated_kw": 71156,
+    "rated_shp": 95420.0,
+    "continuous_kw": 65819,
     "overload_max": 1.075,
     "shafts": 4,
     "units": 8,
     "unit_mw": 8.89,
-    "weight_t": 5019.4,
+    "weight_t": 5019.1,
     "sfc_g_per_kwh": 891.3,
     "part_load": {
       "curve": "DT",
@@ -205,9 +221,9 @@
     "tolerance_days": 30
   },
   "weight_groups_t": {
-    "hull": 12169,
-    "armour": 8498,
-    "fuel": 6154,
+    "hull": 12168,
+    "armour": 8496,
+    "fuel": 6153,
     "machinery": 5344,
     "armament": 3231,
     "misc": 2212,
@@ -217,14 +233,14 @@
     {
       "name": "Hull structure",
       "group": "hull",
-      "t": 12168.9,
+      "t": 12168.3,
       "x": -2.48,
       "z": 9.19
     },
     {
       "name": "Machinery",
       "group": "machinery",
-      "t": 5019.4,
+      "t": 5019.1,
       "x": -11.19,
       "z": 5.07
     },
@@ -351,13 +367,13 @@
       "name": "Funnel 1",
       "group": "superstructure",
       "t": 40.6,
-      "x": 34.33,
+      "x": 34.32,
       "z": 22.54
     },
     {
       "name": "Uptakes Funnel 1",
       "group": "machinery",
-      "t": 92.1,
+      "t": 92.0,
       "x": 31.04,
       "z": 10.64
     },
@@ -784,7 +800,7 @@
     {
       "name": "Bulkheads",
       "group": "armour",
-      "t": 489.2,
+      "t": 487.8,
       "x": -3.95,
       "z": 9.15
     },
@@ -798,14 +814,14 @@
     {
       "name": "Equipment, outfit, crew & stores",
       "group": "misc",
-      "t": 1802.3,
+      "t": 1802.2,
       "x": 0.0,
       "z": 7.92
     },
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 6153.7,
+      "t": 6153.4,
       "x": -11.19,
       "z": 2.85
     }

@@ -126,7 +126,16 @@ doesn't: the decisions behind the current design, how to work safely here, and w
   - Not done:
     - The merchants' holds still span the full height (the steering gear was lowered later the same day). The carrier aviation magazines and avgas tanks were lowered the same day. The user wants a roughly realistic stack: the hangar under the flight deck, and whatever explodes easily below that. An armour-piercing bomb's fuse should be set off by the armour deck, so it bursts before it reaches the magazine. Their weights moved down with them: carriers' GM rose a few cm, and the escort carrier is 0.5 m longer.
     - **Turtleback (sloped) decks: left out on purpose (user, 2026-10-03).** For simplicity, several flat armour decks are enough for now.
-    - All-or-nothing versus incremental schemes are only expressible through `extent`.
+- **Secondary armour (started 2026-10-03).** The user asked for end belts and upper belts, so that armour schemes from pre-dreadnought to all-or-nothing can all be built.
+  - The knobs (README "Design input"), written out in every design:
+    - `bulkhead_mm` (was fixed at 0.6 × belt; the designs got that value rounded, a few tonnes' change)
+    - `upper_belt` `{mm, to_deck, extent}`
+    - `end_belts` `{fore, aft: {mm, tip_mm}}`, linear taper to the ends
+    - deck extents `fore`, `aft` and `ends`. A deck may appear twice over different stretches.
+  - The main belt stays `belt_mm`, so the hitboxes' `armour.belt` is unchanged. The rest is `armour.strakes`, and a deck with several plates lists `plates`. A cell's `belt_mm` is the thickest strake beside it.
+  - All the geometry lives in `navarch.armour_geometry` (`strakes`, `bulkhead_top`), so the weights and the hitboxes can't disagree.
+  - Only plates over the citadel (`citadel` or `full`) can be the main armour deck or the roof, and only they make a ship "armoured" (its machinery casings and gratings).
+  - Not done: a separate armoured box over the steering gear (side armour aft that stops short of the stern). An `aft` deck plate and an aft end belt stand in for it.
 - **Unifying the styles (started 2026-10-03).** The user wants complex systems shared by every style. Only placement (where guns, superstructure and funnels go, hull forms, deck plans) stays per style. Small length changes are fine. Each step is committed and pushed separately, so it can be rolled back.
   1. **Ordnance (done).**
      - `ordnance.py` turns every style's ammunition into magazines. Every mount is booked through `armament.add_mount`, the warship's included, so its four hand-written copies are gone.
@@ -150,8 +159,8 @@ doesn't: the decisions behind the current design, how to work safely here, and w
    - Clean up the remaining shared cells.
 4. **Armour schemes on the deck list.** These are design inputs, so agree the knobs with the user first. Several armour decks are done (see above).
    - Turtleback or sloped decks: the user has shelved them; several flat decks stand in for now.
-   - All-or-nothing versus incremental schemes.
-   - Belt height and taper.
+   - All-or-nothing versus incremental schemes: done with the secondary armour (2026-10-03).
+   - Belt height: still `TUNING belt_h`. End-belt taper is done.
 5. **Links and flags (damage step 3), best done with the period physics refactor:**
    - engine room to shaft
    - generators to fore and aft power networks

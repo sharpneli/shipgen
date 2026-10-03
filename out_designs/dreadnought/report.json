@@ -82,6 +82,22 @@
     },
     "armour": {
       "belt_mm": 279,
+      "bulkhead_mm": 167,
+      "upper_belt": {
+        "mm": 0,
+        "to_deck": 0,
+        "extent": "citadel"
+      },
+      "end_belts": {
+        "fore": {
+          "mm": 0,
+          "tip_mm": 0
+        },
+        "aft": {
+          "mm": 0,
+          "tip_mm": 0
+        }
+      },
       "decks": [
         {
           "deck": 1,
@@ -112,8 +128,8 @@
     "length_m": 185.5,
     "beam_m": 25.66,
     "block_coefficient": 0.6,
-    "standard_displacement_t": 21997,
-    "full_displacement_t": 26114,
+    "standard_displacement_t": 21995,
+    "full_displacement_t": 26111,
     "draught_m": 8.92,
     "depth_m": 13.76,
     "freeboard_m": 4.84,
@@ -130,14 +146,14 @@
   "plant": {
     "name": "Direct-drive turbines, water-tube boilers (1905)",
     "fuel": "coal",
-    "rated_kw": 22740,
+    "rated_kw": 22739,
     "rated_shp": 30490.0,
-    "continuous_kw": 22058,
+    "continuous_kw": 22057,
     "overload_max": 1.12,
     "shafts": 4,
     "units": 4,
-    "unit_mw": 5.69,
-    "weight_t": 2374.1,
+    "unit_mw": 5.68,
+    "weight_t": 2373.9,
     "sfc_g_per_kwh": 965.2,
     "part_load": {
       "curve": "DT",
@@ -200,7 +216,7 @@
     "water_in_double_bottom_m3": 66,
     "distiller_m3_per_day": 15.7,
     "space_needed_m3": 4130,
-    "space_usable_m3": 15121,
+    "space_usable_m3": 15120,
     "space_free_m3": 23262,
     "sleep_m2_per_man": 1.47,
     "sleep_standard_m2": 1.1,
@@ -211,7 +227,7 @@
   },
   "weight_groups_t": {
     "hull": 7335,
-    "armour": 7036,
+    "armour": 7035,
     "fuel": 4116,
     "armament": 2858,
     "machinery": 2493,
@@ -222,14 +238,14 @@
     {
       "name": "Hull structure",
       "group": "hull",
-      "t": 7335.3,
+      "t": 7334.9,
       "x": -1.85,
       "z": 7.98
     },
     {
       "name": "Machinery",
       "group": "machinery",
-      "t": 2374.1,
+      "t": 2373.9,
       "x": 0.25,
       "z": 4.4
     },
@@ -237,21 +253,21 @@
       "name": "Turret A",
       "group": "armament",
       "t": 381.7,
-      "x": 54.05,
+      "x": 54.04,
       "z": 15.95
     },
     {
       "name": "Magazine A",
       "group": "armament",
       "t": 166.2,
-      "x": 54.05,
+      "x": 54.04,
       "z": 3.48
     },
     {
       "name": "Barbette A",
       "group": "armour",
       "t": 306.9,
-      "x": 54.05,
+      "x": 54.04,
       "z": 10.32
     },
     {
@@ -383,7 +399,7 @@
     {
       "name": "Uptakes Funnel 1",
       "group": "machinery",
-      "t": 34.0,
+      "t": 33.9,
       "x": 15.61,
       "z": 9.24
     },
@@ -398,7 +414,7 @@
       "name": "Funnel 2",
       "group": "superstructure",
       "t": 33.1,
-      "x": 6.21,
+      "x": 6.2,
       "z": 20.46
     },
     {
@@ -426,7 +442,7 @@
       "name": "Magazine S1S",
       "group": "armament",
       "t": 4.5,
-      "x": -36.04,
+      "x": -36.03,
       "z": 2.18
     },
     {
@@ -447,7 +463,7 @@
       "name": "Magazine S1P",
       "group": "armament",
       "t": 4.5,
-      "x": -36.04,
+      "x": -36.03,
       "z": 2.18
     },
     {
@@ -468,7 +484,7 @@
       "name": "Magazine S2S",
       "group": "armament",
       "t": 4.5,
-      "x": -36.04,
+      "x": -36.03,
       "z": 2.18
     },
     {
@@ -489,7 +505,7 @@
       "name": "Magazine S2P",
       "group": "armament",
       "t": 4.5,
-      "x": -36.04,
+      "x": -36.03,
       "z": 2.18
     },
     {
@@ -656,16 +672,16 @@
     {
       "name": "Belt armour",
       "group": "armour",
-      "t": 3038.1,
+      "t": 3037.9,
       "x": -7.53,
       "z": 8.92
     },
     {
       "name": "Bulkheads",
       "group": "armour",
-      "t": 479.3,
+      "t": 478.1,
       "x": -7.53,
-      "z": 7.91
+      "z": 7.9
     },
     {
       "name": "Deck armour (second deck)",
@@ -677,14 +693,14 @@
     {
       "name": "Equipment, outfit, crew & stores",
       "group": "misc",
-      "t": 1209.8,
+      "t": 1209.7,
       "x": 0.0,
       "z": 6.88
     },
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 4116.4,
+      "t": 4116.2,
       "x": 0.25,
       "z": 2.48
     }

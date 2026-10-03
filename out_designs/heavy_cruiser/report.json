@@ -78,6 +78,22 @@
     },
     "armour": {
       "belt_mm": 152,
+      "bulkhead_mm": 91,
+      "upper_belt": {
+        "mm": 0,
+        "to_deck": 0,
+        "extent": "citadel"
+      },
+      "end_belts": {
+        "fore": {
+          "mm": 0,
+          "tip_mm": 0
+        },
+        "aft": {
+          "mm": 0,
+          "tip_mm": 0
+        }
+      },
       "decks": [
         {
           "deck": 1,
@@ -110,7 +126,7 @@
     "beam_m": 22.77,
     "block_coefficient": 0.53,
     "standard_displacement_t": 17044,
-    "full_displacement_t": 19587,
+    "full_displacement_t": 19586,
     "draught_m": 7.98,
     "depth_m": 13.05,
     "freeboard_m": 5.07,
@@ -127,14 +143,14 @@
   "plant": {
     "name": "High-pressure geared turbines (1940)",
     "fuel": "oil",
-    "rated_kw": 87185,
-    "rated_shp": 116920.0,
-    "continuous_kw": 80646,
+    "rated_kw": 87182,
+    "rated_shp": 116910.0,
+    "continuous_kw": 80643,
     "overload_max": 1.075,
     "shafts": 4,
     "units": 4,
     "unit_mw": 21.8,
-    "weight_t": 2301.7,
+    "weight_t": 2301.6,
     "sfc_g_per_kwh": 363.0,
     "part_load": {
       "curve": "GTB",
@@ -208,7 +224,7 @@
   },
   "weight_groups_t": {
     "hull": 6606,
-    "armour": 4269,
+    "armour": 4268,
     "fuel": 2543,
     "machinery": 2362,
     "misc": 1572,
@@ -219,14 +235,14 @@
     {
       "name": "Hull structure",
       "group": "hull",
-      "t": 6606.2,
+      "t": 6606.0,
       "x": -1.99,
       "z": 7.57
     },
     {
       "name": "Machinery",
       "group": "machinery",
-      "t": 2301.7,
+      "t": 2301.6,
       "x": -9.3,
       "z": 4.18
     },
@@ -690,12 +706,12 @@
       "group": "armour",
       "t": 1728.4,
       "x": -2.1,
-      "z": 8.02
+      "z": 8.01
     },
     {
       "name": "Bulkheads",
       "group": "armour",
-      "t": 221.3,
+      "t": 220.8,
       "x": -2.1,
       "z": 7.06
     },
@@ -716,7 +732,7 @@
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 2542.8,
+      "t": 2542.7,
       "x": -9.3,
       "z": 2.35
     }

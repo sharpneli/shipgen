@@ -296,6 +296,11 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         if d["asked"] != d["deck"]:
             res.warnings.append(f"The hull has no {deck_name(d['asked']).lower()} ({res.depth:.1f} m deep): its "
                                 f"{d['mm']} mm deck armour lies on the {deck_name(d['deck']).lower()}.")
+    ub = (design.get("armour") or {}).get("upper_belt") or {}
+    if ub.get("mm", 0) > 0 and not any(s["kind"] == "upper" for s in armour_geometry(
+            design, L, res.draught, res.depth, geo)["strakes"]):
+        res.warnings.append(f"The {ub['mm']} mm upper belt has no height: the belt below it already reaches the "
+                            f"{deck_name(ub.get('to_deck', 0)).lower()}.")
     if fn > tun.get("fn_warn", 0.62):
         res.warnings.append(f"Speed {V} kn is extreme for a {L:.0f} m hull (Froude {fn:.2f}); power is enormous.")
     return res
@@ -305,7 +310,8 @@ DECK_PITCH = 2.6       # m between the hull's decks below the main deck (one sup
 MIN_TIER = 1.0         # a deck closer than this (m) to the inner bottom (the keel on a planing craft) is left out
 DECK_NAMES = ["Main deck", "Second deck", "Third deck", "Fourth deck", "Fifth deck", "Sixth deck", "Seventh deck",
               "Eighth deck", "Ninth deck", "Tenth deck"]
-ARMOUR_EXTENTS = ("citadel", "full")
+ARMOUR_EXTENTS = ("citadel", "full", "fore", "aft", "ends")
+BELT_ENDS = ("fore", "aft")
 
 
 def deck_name(n):
@@ -335,58 +341,127 @@ def armour_decks(design, D):
     return out
 
 
+def extent_spans(extent, L, x0, x1):
+    """An armour extent as [(extent, x0, x1)] pieces: the citadel, the whole hull, or the hull beyond either
+    end of the citadel ("ends" is both)."""
+    return {"citadel": [("citadel", x0, x1)], "full": [("full", -L / 2, L / 2)],
+            "fore": [("fore", x1, L / 2)], "aft": [("aft", -L / 2, x0)],
+            "ends": [("fore", x1, L / 2), ("aft", -L / 2, x0)]}[extent]
+
+
+def belt_mm_at(s, x):
+    """A belt strake's thickness at x: mm at its root (the citadel end), tapering linearly to tip_mm at the
+    hull's end."""
+    if s["tip_mm"] == s["mm"] or s["x1"] - s["x0"] <= 0:
+        return s["mm"]
+    f = (x - s["x0"]) / (s["x1"] - s["x0"])
+    if s["extent"] == "aft":
+        f = 1.0 - f
+    return s["mm"] + (s["tip_mm"] - s["mm"]) * min(1.0, max(0.0, f))
+
+
 def armour_geometry(design, L, T, D, geo):
     """Where the armour is: the one source for its weights and its hitboxes. Heights in metres above the keel.
-      decks     the armour decks (armour_decks) with their x extents: the citadel, or the whole hull ("full")
+      decks     the armour decks (armour_decks) as plates over their x extents: the citadel, the whole hull
+                ("full"), or the hull beyond the citadel's fore or aft end ("ends" is a plate at each end)
       main      the main armour deck: the thickest over the citadel (the higher of equals), or None
       roof      the lowest armour deck over the citadel: the machinery and magazines stand under it (None if none)
-      belt      its armour height (TUNING belt_h) runs from below the waterline, up to the main armour deck when
-                that is higher (kept between keel and main deck)
-      bulkheads the citadel's transverse bulkheads close the belt ends, from the belt top down to 0.4 belt heights
-                below the belt, at 0.6 of the belt thickness."""
-    a = design.get("armour", {})
+      belt      the main belt over the citadel: its armour height (TUNING belt_h) runs from below the waterline,
+                up to the main armour deck when that is higher (kept between keel and main deck)
+      strakes   the rest of the side armour, each dict(id, kind, extent, mm, tip_mm, x0, x1, bottom, top):
+                  end    armour.end_belts: the waterline belt carried on from the citadel to the stem ("fore")
+                         or stern ("aft"), at the main belt's depth, up to the thickest armour deck over that end
+                         when that is higher; mm at the citadel tapering to tip_mm at the hull's end
+                  upper  armour.upper_belt: from the top of the belt below it up to armour.upper_belt.to_deck,
+                         over its extent (one strake per stretch: the citadel, fore and aft)
+      bulkheads the citadel's transverse bulkheads (armour.bulkhead_mm, 0.6 of the belt if not given) close the
+                belts' ends, from the top of the main or upper belt over the citadel down to 0.4 belt heights
+                below the belt."""
+    a = design.get("armour") or {}
     belt = a.get("belt_mm", 0)
     x0, x1 = geo.get("citadel", (-0.3 * L, 0.3 * L))
     decks = []
     for d in armour_decks(design, D):
         if d["mm"] <= 0:
             continue
-        ext = (-L / 2, L / 2) if d["extent"] == "full" else (x0, x1)
-        if decks and decks[-1]["deck"] == d["deck"]:     # pushed onto one deck by a shallow hull: one plate
-            p = decks[-1]
-            p.update(mm=p["mm"] + d["mm"], x0=min(p["x0"], ext[0]), x1=max(p["x1"], ext[1]),
-                     extent="full" if "full" in (p["extent"], d["extent"]) else "citadel")
-            continue
-        decks.append({**d, "x0": ext[0], "x1": ext[1]})
-    main = max(decks, key=lambda d: (d["mm"], d["z"]), default=None)
-    roof = min(decks, key=lambda d: d["z"], default=None)
+        for ext, p0, p1 in extent_spans(d["extent"], L, x0, x1):
+            # pushed onto one deck by a shallow hull: overlapping plates make one
+            p = next((p for p in decks if p["deck"] == d["deck"] and min(p["x1"], p1) - max(p["x0"], p0) > 1e-6),
+                     None)
+            if p:
+                p.update(mm=p["mm"] + d["mm"], x0=min(p["x0"], p0), x1=max(p["x1"], p1),
+                         extent="full" if "full" in (p["extent"], ext) else p["extent"])
+                continue
+            decks.append({**d, "extent": ext, "x0": p0, "x1": p1})
+    over = [d for d in decks if d["extent"] in ("citadel", "full")]      # the plates over the citadel
+    main = max(over, key=lambda d: (d["mm"], d["z"]), default=None)
+    roof = min(over, key=lambda d: d["z"], default=None)
     h = TUNING["belt_h_a"] * T + TUNING["belt_h_b"]
     bot = max(0.0, T - h / 2)
+    band = min(D, T + h / 2)
     top = min(D, max(T + h / 2, main["z"] if main else 0.0))
-    return dict(x0=x0, x1=x1, belt_mm=belt, belt_bottom=bot, belt_top=top, decks=decks,
+
+    strakes = []
+    tops = {"citadel": top if belt > 0 else band}         # where an upper belt starts over each stretch
+    for end in BELT_ENDS:
+        e = (a.get("end_belts") or {}).get(end) or {}
+        tops[end] = band
+        if e.get("mm", 0) <= 0:
+            continue
+        _, s0, s1 = extent_spans(end, L, x0, x1)[0]
+        cover = [d for d in decks if d["x0"] <= (s0 + s1) / 2 <= d["x1"] and d["extent"] in (end, "full")]
+        dk = max(cover, key=lambda d: (d["mm"], d["z"]), default=None)
+        et = min(D, max(band, dk["z"] if dk else 0.0))
+        tops[end] = et
+        if s1 - s0 > 1e-6:
+            strakes.append(dict(id=f"{end.capitalize()} end belt", kind="end", extent=end, mm=e["mm"],
+                                tip_mm=e.get("tip_mm", e["mm"]), x0=s0, x1=s1, bottom=bot, top=et))
+    ub = a.get("upper_belt") or {}
+    if ub.get("mm", 0) > 0:
+        stack = deck_stack(design, D)
+        ut = stack[min(int(ub.get("to_deck", 0)), stack[-1][0])][1]
+        pieces = extent_spans(ub.get("extent", "citadel"), L, x0, x1)
+        if ub.get("extent") == "full":
+            pieces = [("citadel", x0, x1), ("fore", x1, L / 2), ("aft", -L / 2, x0)]
+        for ext, s0, s1 in pieces:
+            if ut > tops[ext] + 0.05 and s1 - s0 > 1e-6:
+                strakes.append(dict(id="Upper belt" if ext == "citadel" else f"Upper belt ({ext})", kind="upper",
+                                    extent=ext, mm=ub["mm"], tip_mm=ub["mm"], x0=s0, x1=s1, bottom=tops[ext],
+                                    top=ut))
+    bh_top = max([top] + [s["top"] for s in strakes if s["kind"] == "upper" and s["extent"] == "citadel"])
+    return dict(x0=x0, x1=x1, belt_mm=belt, belt_bottom=bot, belt_top=top, decks=decks, strakes=strakes,
                 main_z=main["z"] if main else None, roof_z=roof["z"] if roof else None,
-                roof_mm=roof["mm"] if roof else 0, armoured=belt > 0 or bool(decks),
-                bulkhead_mm=0.6 * belt, bulkhead_bottom=max(0.0, bot - 0.4 * h))
+                roof_mm=roof["mm"] if roof else 0, armoured=belt > 0 or bool(over),
+                bulkhead_mm=a.get("bulkhead_mm", 0.6 * belt), bulkhead_bottom=max(0.0, bot - 0.4 * h),
+                bulkhead_top=bh_top)
 
 
 def armour_weights(design, L, B, T, D, geo):
     g = armour_geometry(design, L, T, D, geo)
     lc = g["x1"] - g["x0"]
     xc = (g["x0"] + g["x1"]) / 2
+    zf = lambda lo, hi: ("frac", (lo + hi) / 2 / D if D else 0.5)
     out = []
     if g["belt_mm"] > 0:
         h = g["belt_top"] - g["belt_bottom"]
-        hb = g["belt_top"] - g["bulkhead_bottom"]
         out.append(Weight("Belt armour", "armour", 2 * lc * h * g["belt_mm"] / 1000 * STEEL, x=xc,
-                          z_rel=("frac", (g["belt_top"] + g["belt_bottom"]) / 2 / D if D else 0.5)))
+                          z_rel=zf(g["belt_top"], g["belt_bottom"])))
+    if g["armoured"] and g["bulkhead_mm"] > 0:
+        hb = g["bulkhead_top"] - g["bulkhead_bottom"]
         out.append(Weight("Bulkheads", "armour", 2 * B * hb * g["bulkhead_mm"] / 1000 * STEEL, x=xc,
-                          z_rel=("frac", (g["belt_top"] + g["bulkhead_bottom"]) / 2 / D if D else 0.5)))
+                          z_rel=zf(g["bulkhead_top"], g["bulkhead_bottom"])))
+    for s in g["strakes"]:
+        a, b = (s["mm"], s["tip_mm"]) if s["extent"] != "aft" else (s["tip_mm"], s["mm"])   # thickness at x0, x1
+        f = (a + 2 * b) / (3 * (a + b)) if a + b > 0 else 0.5                             # trapezoid centroid
+        out.append(Weight(s["id"], "armour", 2 * (s["x1"] - s["x0"]) * (s["top"] - s["bottom"]) * (a + b) / 2
+                          / 1000 * STEEL, x=s["x0"] + f * (s["x1"] - s["x0"]), z_rel=zf(s["top"], s["bottom"])))
     cb = design["hull"]["block_coefficient"]
     for d in g["decks"]:
         area = (L * cwp(cb) if d["extent"] == "full" else d["x1"] - d["x0"]) * B * 0.9
-        out.append(Weight(f"Deck armour ({deck_name(d['deck']).lower()})", "armour",
-                          area * d["mm"] / 1000 * STEEL, x=0.0 if d["extent"] == "full" else xc,
-                          z_rel=("deck", d["z"] - D)))
+        name = f"Deck armour ({deck_name(d['deck']).lower()}" + (f", {d['extent']})" if d["extent"] in BELT_ENDS
+                                                                 else ")")
+        out.append(Weight(name, "armour", area * d["mm"] / 1000 * STEEL,
+                          x=0.0 if d["extent"] == "full" else (d["x0"] + d["x1"]) / 2, z_rel=("deck", d["z"] - D)))
     return out
 
 

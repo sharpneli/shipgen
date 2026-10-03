@@ -71,17 +71,20 @@ def _box_overlap(room, cell):
 
 
 def decks(design, D, ag):
-    """The decks, keel up, as heights above the main deck: [dict(id, kind, z, armour_mm?, x0?, x1?)]. The keel,
-    the inner bottom (not on planing craft), then the deck stack (navarch.deck_stack) up to the main deck. An
-    armoured deck carries its armour (navarch.armour_geometry) and the stretch it covers."""
+    """The decks, keel up, as heights above the main deck: [dict(id, kind, z, armour_mm?, x0?, x1?, plates?)]. The
+    keel, the inner bottom (not on planing craft), then the deck stack (navarch.deck_stack) up to the main deck. An
+    armoured deck carries its armour (navarch.armour_geometry) and the stretch it covers; a deck armoured over
+    several stretches (the citadel and its ends) lists them as plates [dict(armour_mm, x0, x1)]."""
     from navarch import deck_stack, deck_name
     from powerplant import double_bottom
     out = [dict(id="Keel", kind="keel", z=-D)]
     if design.get("style") != "planing":
         out.append(dict(id="Inner bottom", kind="inner_bottom", z=-D + double_bottom(D)))
     arm = {}
-    for d in ag["decks"]:
-        arm[d["deck"]] = dict(armour_mm=d["mm"], x0=d["x0"], x1=d["x1"])
+    for d in ag["decks"]:      # the plates on each deck: one is armour_mm over x0..x1, several are listed
+        arm.setdefault(d["deck"], []).append(dict(armour_mm=d["mm"], x0=d["x0"], x1=d["x1"]))
+    arm = {n: ps[0] if len(ps) == 1 else dict(plates=[{k: round(v, 3) for k, v in p.items()} for p in ps])
+           for n, ps in arm.items()}
     for n, z in reversed(deck_stack(design, D)):
         out.append(dict(id=deck_name(n), kind="main" if n == 0 else "deck", deck=n, z=z - D, **arm.get(n, {})))
     return out
@@ -137,6 +140,7 @@ def stations(L, rooms, cit, min_gap, max_gap):
 def build(lay, design, res, ag, armoured):
     """The subdivision of the laid-out ship: dict(decks, tiers, sections, bulkheads, cells, rooms) for
     hitboxes.json. ag is navarch.armour_geometry (heights above the keel)."""
+    from navarch import belt_mm_at
     hull = lay.hull
     L, B = hull.L, hull.B
     D, T = res.depth, res.draught
@@ -158,7 +162,7 @@ def build(lay, design, res, ag, armoured):
                           submerged=sub, floor=lo["id"], ceiling=hi["id"]))
     ib = dks[1]["z"] if has_bottom else -D
     under = (ag["roof_z"] - D) if ag["roof_z"] is not None else 0.0   # rooms' default top: the lowest armour deck
-    adecks = [d for d in reversed(dks) if d.get("armour_mm")]         # armoured decks, top down
+    adecks = [{**d, "z": rz(d["z"])} for d in ag["decks"]]           # armour plates, top down
 
     # ---------------- rooms (the layout's compartments) as boxes ----------------
     rooms = []
@@ -172,7 +176,7 @@ def build(lay, design, res, ag, armoured):
     # ---------------- sections ----------------
     cit = None
     if armoured:
-        cit = (ag["x0"], ag["x1"], "armoured" if ag["belt_mm"] > 0 else "citadel")
+        cit = (ag["x0"], ag["x1"], "armoured" if ag["bulkhead_mm"] > 0 else "citadel")
     elif lay.geo.get("citadel") and design.get("style", "warship") in ("warship", "carrier"):
         cit = (*lay.geo["citadel"], "citadel")
     st = stations(L, rooms, cit, min(MIN_SECTION_MAX_M, max(MIN_SECTION_M, MIN_SECTION * L)), max(MAX_SECTION_M, MAX_SECTION * L))
@@ -186,7 +190,7 @@ def build(lay, design, res, ag, armoured):
                  x=round(s["x"], 3), base=round(-D, 2), top=0.0)
         if s["kind"] == "armoured":
             d.update(armour_mm=round(ag["bulkhead_mm"]), armour_bottom=round(rz(ag["bulkhead_bottom"]), 2),
-                     armour_top=round(rz(ag["belt_top"]), 2))
+                     armour_top=round(rz(ag["bulkhead_top"]), 2))
         tb.append(d)
     assert len(tb) == nbh
 
@@ -201,7 +205,9 @@ def build(lay, design, res, ag, armoured):
         return [hull.half_width(x0 + (x1 - x0) * (j + 0.5) / n) for j in range(n)]
 
     cells, longi = [], []
-    belt = (ag["x0"], ag["x1"], rz(ag["belt_bottom"]), rz(ag["belt_top"]), ag["belt_mm"]) if ag["belt_mm"] > 0 else None
+    belts = ([dict(x0=ag["x0"], x1=ag["x1"], bottom=ag["belt_bottom"], top=ag["belt_top"], mm=ag["belt_mm"],
+                   tip_mm=ag["belt_mm"], extent="citadel")] if ag["belt_mm"] > 0 else []) + ag["strakes"]
+    belts = [{**b, "bottom": rz(b["bottom"]), "top": rz(b["top"])} for b in belts]
     for si, sec in enumerate(sections):
         x0, x1 = sec["x0"], sec["x1"]
         xm = (x0 + x1) / 2
@@ -247,12 +253,14 @@ def build(lay, design, res, ag, armoured):
                          below_waterline=tr["below_waterline"], si=si, ti=ti)
                 if in_cit and armoured:
                     c["citadel"] = True
-                above = [d["armour_mm"] for d in adecks if tr["top"] <= d["z"] + 1e-6 and d["x0"] <= xm <= d["x1"]]
+                above = [d["mm"] for d in adecks if tr["top"] <= d["z"] + 1e-6 and d["x0"] <= xm <= d["x1"]]
                 if above:
                     c["armour_above_mm"] = above
                 outer = band in ("P", "S") or (band == "C") or (band in ("CP", "CS") and not banded)
-                if belt and outer and belt[0] <= xm <= belt[1] and _overlap(belt[2], belt[3], tr["base"], tr["top"]) > 0:
-                    c["belt_mm"] = belt[4]
+                side = [belt_mm_at(b, xm) for b in belts if outer and b["x0"] <= xm <= b["x1"]
+                        and _overlap(b["bottom"], b["top"], tr["base"], tr["top"]) > 0]
+                if side:      # the thickest side armour beside the cell
+                    c["belt_mm"] = round(max(side))
                 if banded and band in ("P", "S") and in_cit and tds > 0:
                     c["tds_m"] = tds
                 cells.append(c)

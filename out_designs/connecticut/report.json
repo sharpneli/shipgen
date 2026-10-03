@@ -79,6 +79,22 @@
     },
     "armour": {
       "belt_mm": 279,
+      "bulkhead_mm": 167,
+      "upper_belt": {
+        "mm": 0,
+        "to_deck": 0,
+        "extent": "citadel"
+      },
+      "end_belts": {
+        "fore": {
+          "mm": 0,
+          "tip_mm": 0
+        },
+        "aft": {
+          "mm": 0,
+          "tip_mm": 0
+        }
+      },
       "decks": [
         {
           "deck": 1,
@@ -119,9 +135,9 @@
     "length_m": 127.0,
     "beam_m": 22.15,
     "block_coefficient": 0.62,
-    "standard_displacement_t": 12135,
-    "full_displacement_t": 13347,
-    "draught_m": 7.47,
+    "standard_displacement_t": 12134,
+    "full_displacement_t": 13345,
+    "draught_m": 7.46,
     "depth_m": 11.25,
     "freeboard_m": 3.79,
     "power_shp": 13500.0,
@@ -137,14 +153,14 @@
   "plant": {
     "name": "Triple expansion, large-tube water-tube boilers (1905)",
     "fuel": "coal",
-    "rated_kw": 10104,
+    "rated_kw": 10103,
     "rated_shp": 13550.0,
     "continuous_kw": 9952,
     "overload_max": 1.135,
     "shafts": 2,
     "units": 2,
     "unit_mw": 5.05,
-    "weight_t": 1126.7,
+    "weight_t": 1126.6,
     "sfc_g_per_kwh": 947.5,
     "part_load": {
       "curve": "REC",
@@ -207,8 +223,8 @@
     "water_in_double_bottom_m3": 65,
     "distiller_m3_per_day": 15.6,
     "space_needed_m3": 4127,
-    "space_usable_m3": 7952,
-    "space_free_m3": 12234,
+    "space_usable_m3": 7951,
+    "space_free_m3": 12233,
     "sleep_m2_per_man": 1.47,
     "sleep_standard_m2": 1.1,
     "headroom_m": 2.3,
@@ -217,7 +233,7 @@
     "tolerance_days": 30
   },
   "weight_groups_t": {
-    "armour": 3770,
+    "armour": 3769,
     "hull": 3545,
     "armament": 2355,
     "fuel": 1211,
@@ -229,14 +245,14 @@
     {
       "name": "Hull structure",
       "group": "hull",
-      "t": 3545.1,
+      "t": 3544.8,
       "x": -1.27,
       "z": 6.53
     },
     {
       "name": "Machinery",
       "group": "machinery",
-      "t": 1126.7,
+      "t": 1126.6,
       "x": -1.5,
       "z": 3.6
     },
@@ -838,14 +854,14 @@
     {
       "name": "Belt armour",
       "group": "armour",
-      "t": 1790.1,
+      "t": 1790.0,
       "x": -1.17,
       "z": 7.47
     },
     {
       "name": "Bulkheads",
       "group": "armour",
-      "t": 378.1,
+      "t": 377.2,
       "x": -1.17,
       "z": 6.54
     },
@@ -866,7 +882,7 @@
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 1211.3,
+      "t": 1211.2,
       "x": -1.5,
       "z": 2.03
     }

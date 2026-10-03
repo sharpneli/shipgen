@@ -78,6 +78,22 @@
     },
     "armour": {
       "belt_mm": 356,
+      "bulkhead_mm": 214,
+      "upper_belt": {
+        "mm": 0,
+        "to_deck": 0,
+        "extent": "citadel"
+      },
+      "end_belts": {
+        "fore": {
+          "mm": 0,
+          "tip_mm": 0
+        },
+        "aft": {
+          "mm": 0,
+          "tip_mm": 0
+        }
+      },
       "decks": [
         {
           "deck": 1,
@@ -109,8 +125,8 @@
     "length_m": 186.5,
     "beam_m": 31.5,
     "block_coefficient": 0.6,
-    "standard_displacement_t": 34941,
-    "full_displacement_t": 38540,
+    "standard_displacement_t": 34943,
+    "full_displacement_t": 38543,
     "draught_m": 10.67,
     "depth_m": 15.52,
     "freeboard_m": 4.86,
@@ -127,14 +143,14 @@
   "plant": {
     "name": "Geared turbines, oil-fired small-tube boilers (1930)",
     "fuel": "oil",
-    "rated_kw": 43267,
+    "rated_kw": 43269,
     "rated_shp": 58020.0,
-    "continuous_kw": 42618,
+    "continuous_kw": 42620,
     "overload_max": 1.135,
     "shafts": 2,
     "units": 2,
     "unit_mw": 21.63,
-    "weight_t": 2119.4,
+    "weight_t": 2119.5,
     "sfc_g_per_kwh": 433.4,
     "part_load": {
       "curve": "GTB",
@@ -197,8 +213,8 @@
     "water_in_double_bottom_m3": 0,
     "distiller_m3_per_day": 78.4,
     "space_needed_m3": 8948,
-    "space_usable_m3": 27574,
-    "space_free_m3": 42422,
+    "space_usable_m3": 27575,
+    "space_free_m3": 42423,
     "sleep_m2_per_man": 1.77,
     "sleep_standard_m2": 1.3,
     "headroom_m": 2.4,
@@ -207,8 +223,8 @@
     "tolerance_days": 60
   },
   "weight_groups_t": {
-    "armour": 12679,
-    "hull": 10214,
+    "armour": 12681,
+    "hull": 10215,
     "armament": 6462,
     "fuel": 3600,
     "misc": 2634,
@@ -219,14 +235,14 @@
     {
       "name": "Hull structure",
       "group": "hull",
-      "t": 10214.4,
+      "t": 10214.9,
       "x": -1.86,
       "z": 9.0
     },
     {
       "name": "Machinery",
       "group": "machinery",
-      "t": 2119.4,
+      "t": 2119.5,
       "x": -41.0,
       "z": 4.97
     },
@@ -247,7 +263,7 @@
     {
       "name": "Barbette A",
       "group": "armour",
-      "t": 804.7,
+      "t": 804.8,
       "x": 47.6,
       "z": 11.64
     },
@@ -268,7 +284,7 @@
     {
       "name": "Barbette B",
       "group": "armour",
-      "t": 1286.1,
+      "t": 1286.2,
       "x": 27.94,
       "z": 11.64
     },
@@ -604,14 +620,14 @@
     {
       "name": "Belt armour",
       "group": "armour",
-      "t": 3681.0,
+      "t": 3681.1,
       "x": -1.64,
       "z": 10.67
     },
     {
       "name": "Bulkheads",
       "group": "armour",
-      "t": 828.2,
+      "t": 829.8,
       "x": -1.64,
       "z": 9.55
     },
@@ -625,14 +641,14 @@
     {
       "name": "Equipment, outfit, crew & stores",
       "group": "misc",
-      "t": 1921.7,
+      "t": 1921.9,
       "x": 0.0,
       "z": 7.76
     },
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 3599.6,
+      "t": 3599.7,
       "x": -41.0,
       "z": 2.79
     }

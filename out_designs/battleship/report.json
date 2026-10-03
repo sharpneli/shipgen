@@ -79,6 +79,22 @@
     "armour": {
       "tds_m": 5.2,
       "belt_mm": 307,
+      "bulkhead_mm": 184,
+      "upper_belt": {
+        "mm": 0,
+        "to_deck": 0,
+        "extent": "citadel"
+      },
+      "end_belts": {
+        "fore": {
+          "mm": 0,
+          "tip_mm": 0
+        },
+        "aft": {
+          "mm": 0,
+          "tip_mm": 0
+        }
+      },
       "decks": [
         {
           "deck": 1,
@@ -110,8 +126,8 @@
     "length_m": 257.0,
     "beam_m": 33.13,
     "block_coefficient": 0.59,
-    "standard_displacement_t": 51578,
-    "full_displacement_t": 59464,
+    "standard_displacement_t": 51577,
+    "full_displacement_t": 59462,
     "draught_m": 11.55,
     "depth_m": 17.67,
     "freeboard_m": 6.13,
@@ -128,14 +144,14 @@
   "plant": {
     "name": "High-pressure geared turbines (1940)",
     "fuel": "oil",
-    "rated_kw": 181645,
+    "rated_kw": 181642,
     "rated_shp": 243590.0,
-    "continuous_kw": 170747,
+    "continuous_kw": 170743,
     "overload_max": 1.09,
     "shafts": 4,
     "units": 8,
     "unit_mw": 22.71,
-    "weight_t": 5115.1,
+    "weight_t": 5115.0,
     "sfc_g_per_kwh": 360.2,
     "part_load": {
       "curve": "GTB",
@@ -209,10 +225,10 @@
   },
   "weight_groups_t": {
     "hull": 16854,
-    "armour": 16725,
+    "armour": 16724,
     "fuel": 7885,
     "armament": 7253,
-    "machinery": 5232,
+    "machinery": 5231,
     "misc": 4190,
     "superstructure": 1325
   },
@@ -220,14 +236,14 @@
     {
       "name": "Hull structure",
       "group": "hull",
-      "t": 16854.5,
+      "t": 16854.2,
       "x": -2.57,
       "z": 10.25
     },
     {
       "name": "Machinery",
       "group": "machinery",
-      "t": 5115.1,
+      "t": 5115.0,
       "x": -15.75,
       "z": 5.66
     },
@@ -347,7 +363,7 @@
       "name": "Gratings Funnel 1",
       "group": "armour",
       "t": 15.1,
-      "x": 16.66,
+      "x": 16.65,
       "z": 15.07
     },
     {
@@ -943,12 +959,12 @@
       "group": "armour",
       "t": 5704.2,
       "x": -5.35,
-      "z": 11.85
+      "z": 11.84
     },
     {
       "name": "Bulkheads",
       "group": "armour",
-      "t": 843.5,
+      "t": 842.6,
       "x": -5.35,
       "z": 10.67
     },
@@ -962,14 +978,14 @@
     {
       "name": "Equipment, outfit, crew & stores",
       "group": "misc",
-      "t": 2836.8,
+      "t": 2836.7,
       "x": 0.0,
       "z": 8.84
     },
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 7885.5,
+      "t": 7885.3,
       "x": -15.75,
       "z": 3.18
     }

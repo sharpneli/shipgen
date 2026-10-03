@@ -51,7 +51,9 @@ design.py      the command line: validate, shipdesign.build, write report.json a
   "id": "battleship", "name": "Fast Battleship", "type": "BB", "look": "standard",
   "hull": {"block_coefficient": 0.59},
   "speed_kn": 33, "range_nm": 15000,
-  "armour": {"belt_mm": 307, "turret_mm": 432, "decks": [{"deck": 1, "mm": 152, "extent": "citadel"}]},
+  "armour": {"belt_mm": 307, "bulkhead_mm": 184, "upper_belt": {"mm": 0, "to_deck": 0, "extent": "citadel"},
+             "end_belts": {"fore": {"mm": 0, "tip_mm": 0}, "aft": {"mm": 0, "tip_mm": 0}},
+             "turret_mm": 432, "decks": [{"deck": 1, "mm": 152, "extent": "citadel"}]},
   "main": {"calibre_mm": 406, "calibre_length": 50, "barrels": 3, "fore": 2, "aft": 1},
   "secondary": {"calibre_mm": 127, "calibre_length": 38, "barrels": 2, "per_side": 5},
   "torpedoes": {"mounts": 0, "tubes": 5},
@@ -63,13 +65,19 @@ design.py      the command line: validate, shipdesign.build, write report.json a
 ```
 `armour` holds the belt, turret and torpedo protection (`tds_m`) values, and `decks`: the armour decks, top down. Every design lists them, even an empty list.
 - **The deck stack:** the hull's decks lie every `navarch.DECK_PITCH` (2.6 m) down from the main deck to the inner bottom. Deck 0 is the main deck (a carrier's hangar deck), deck 1 the second deck, and so on. A deck closer than 1 m to the inner bottom is left out, so the hold is 1–3.6 m tall.
-- **An armour deck** is `{"deck": n, "mm": thickness, "extent": "citadel" | "full"}`. `citadel` covers the citadel, and `full` covers the whole length. Each deck appears once, top down. A deck the hull is too shallow for lies on its lowest deck, with a warning; decks pushed onto the same one add up.
+- **An armour deck** is `{"deck": n, "mm": thickness, "extent": "citadel" | "full" | "fore" | "aft" | "ends"}`. `citadel` covers the citadel, `full` the whole length, and `fore`, `aft` and `ends` (both) the hull beyond the citadel's ends: the protective deck at a pre-dreadnought's ends, or the deck over an all-or-nothing ship's steering gear. List the decks top down. A deck may appear twice only over different stretches (the citadel and its ends, say 76 mm on the second deck amidships and 51 mm on it at the ends). A deck the hull is too shallow for lies on its lowest deck, with a warning; overlapping decks pushed onto the same one add up.
 - **What the decks decide:**
   - The thickest deck over the citadel is the main armour deck. The higher one wins a tie. The belt (its height a × draught + b, from below the waterline) reaches up to it when it's higher, and the barbettes reach down to it.
   - The lowest deck over the citadel is the roof of the vital spaces: the machinery and the magazines stand under it. A low roof squeezes the machinery, which makes it longer.
   - Each deck weighs its area × thickness. A `full` deck covers the hull's waterplane.
 - `battleship_layered.json` is the battleship with Iowa-style layers: a 38 mm bomb deck on the main deck over the whole length, the 152 mm main armour deck on the second deck, and a 16 mm splinter deck on the third.
 - `armour.deck_mm` is gone, and a design that still has it is rejected.
+
+The side armour is the main belt and up to three secondary pieces. Every design lists them all, with 0 mm for what it lacks:
+- `belt_mm`: the main belt over the citadel, from below the waterline up to the main armour deck.
+- `bulkhead_mm`: the citadel's transverse ends, closing the belts from 0.4 belt heights under the belt up to the top of the main or upper belt.
+- `upper_belt`: `{"mm", "to_deck", "extent"}`, a strake from the top of the belt below it up to deck `to_deck` (0 the main deck). Over the citadel it starts at the main belt's top; beyond it, at the end belt's top (or the main belt's waterline band if there's none). It has no height, and warns, when the belt already reaches that deck. `extent` takes the deck extents, and `full` is one strake over the citadel and one beyond each end.
+- `end_belts`: `{"fore": {"mm", "tip_mm"}, "aft": {...}}`, the waterline belt carried on from the citadel to the stem and the stern. It's as deep as the main belt and reaches up to the thickest armour deck over that end when that's higher. It is `mm` thick at the citadel and tapers linearly to `tip_mm` at the hull's end.
 
 `crew` sets how the crew lives (`crew.py`, from `research/crew-space-model.md`).
 - `standard` is the habitability standard as numbers: net areas per head, shared spaces, headroom, water and provisions rates, and the hotel fraction.
@@ -230,6 +238,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
   - `armour`: present only for the armour the ship has (`navarch.armour_geometry`, the same geometry its weights come from).
     - `belt`: `thickness_mm`, `x0`/`x1` (the citadel), `bottom`/`top`. From below the waterline up to the main armour deck, or centred on the waterline if that deck is lower.
     - `decks`: the armour decks, top down: `deck` (its id, such as `Second deck`), `thickness_mm`, `extent`, `x0`/`x1`, `z`, and the flags `main` (the main armour deck) and `roof` (the lowest, over the vital spaces).
+    - `strakes`: the side armour other than the main belt (`armour.upper_belt` and `armour.end_belts`), each with `id`, `kind` (`upper` | `end`), `extent` (`citadel` | `fore` | `aft`), `thickness_mm` (at the citadel end), `tip_mm` (at the hull's end, only when it tapers), `x0`/`x1` and `bottom`/`top`.
     - `bulkheads`: the citadel's forward and aft ends: `x`, `thickness_mm`, `bottom`/`top`.
   - `components`:
     - Turrets: `local` body/parts/barrels polygons (rotate them by the turret angle, then add x, y), `broadphase_r`, `arcs_deg`, `rest_deg`, base/top heights.
@@ -247,10 +256,10 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
       - The stations snap to the ends of the rooms (machinery rooms, magazines, holds, steering), the citadel's ends and a collision bulkhead 0.05 L abaft the bow. Where several rooms end at one place, the station counts for more.
       - Stations closer than 0.03 L (at most 8 m) merge, and the more important one stays. Gaps longer than 0.07 L get more bulkheads, except inside a single room such as a long hold.
       - Capital ships come out at 17–21 sections, a destroyer at 19, and a PT boat at 10.
-    - `decks`: keel up, `id`, `kind` and `z`. The kinds are `inner_bottom` (not on planing craft), then the deck stack (`deck`, numbered in `deck`, up to the `main` deck). An armoured deck has `armour_mm` over `x0`/`x1`.
+    - `decks`: keel up, `id`, `kind` and `z`. The kinds are `inner_bottom` (not on planing craft), then the deck stack (`deck`, numbered in `deck`, up to the `main` deck). An armoured deck has `armour_mm` over `x0`/`x1`; one armoured over several stretches (the citadel and its ends) lists them in `plates` instead, each with `armour_mm`, `x0`/`x1`.
     - `tiers`: the spaces between decks, keel up, each named after the deck it stands on: `bottom` (the double bottom), `hold`, then ..., `third`, and `second` under the main deck. Each has `base`/`top`, `submerged` (the fraction below the waterline), `below_waterline` (all of it), and its `floor`/`ceiling` deck ids.
     - `bulkheads`:
-      - Transverse ones: `x`, `kind` `collision`, `armoured` (the citadel ends of a belted ship, with `armour_mm` from `armour_bottom` to `armour_top`) or `main`. They run from the keel to the main deck.
+      - Transverse ones: `x`, `kind` `collision`, `armoured` (the citadel ends when `armour.bulkhead_mm` is above 0, with `armour_mm` from `armour_bottom` to `armour_top`) or `main`. They run from the keel to the main deck.
       - Longitudinal ones per section: `y`, `side`, `x0`/`x1`, `base`/`top`, and a `kind`:
         - `wing`: inboard of coal wing bunkers, up to the main deck.
         - `tds`: inboard of the torpedo protection inside the citadel, up to the lowest armour deck.
@@ -260,7 +269,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
       - `volume_m3` is the hull's plan inside the box times the height. The part below the waterline is scaled so the underwater parts add up to the displacement volume.
       - `permeability` comes from the room's kind (`subdivision.PERMEABILITY`; a full coal bunker is 0.4), and `below_waterline` is set from the tier (the whole cell is under water).
       - The owning `room`, and `also`: the rooms that share this cell because they're too small for one of their own.
-      - Armour and protection: `citadel`, `armour_above_mm` (the armour decks above the cell, top down, as a list of thicknesses), `belt_mm` (an outer cell level with the belt) and `tds_m` (a wing cell inside the citadel).
+      - Armour and protection: `citadel`, `armour_above_mm` (the armour decks above the cell, top down, as a list of thicknesses), `belt_mm` (an outer cell level with side armour: the thickest belt or strake beside it, at the cell's middle for a tapered one) and `tds_m` (a wing cell inside the citadel).
       - `crew`: the complement spread over the quarters by volume.
       - `neighbours`: `[cell id, boundary]` pairs. The boundary is the bulkhead or deck id between them, or `"open"` inside one room.
     - `rooms`: `id`, `kind`, `cells`, `volume_m3` and their extent (`x0`/`x1`, `base`/`top`), plus what the layout gives them:
