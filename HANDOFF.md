@@ -134,7 +134,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
      - Effects:
        - Warship secondaries now book barbette weights like other styles' mounts (+0.5–1.5% std displacement).
        - MTB +1 m and PT boat +1.5 m: the locker takes crew space, which binds on those boats.
-  2. Superstructure blocks: the warship's local `add_block` becomes the shared `layout.add_block`.
+  2. **Superstructure blocks (done).** The warship's two local `add_block` copies (one never called) were replaced by the shared `layout.add_block`. Outputs are identical.
   3. Finishing the layout: one `finish_layout` for the renderer spec, replacing four copies.
   4. AA: the warship uses `armament.place_aa`, with its own candidate slots.
   5. Steering gear and citadel: one shared `add_steering`, lowered like the magazines.

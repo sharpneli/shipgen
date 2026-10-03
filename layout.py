@@ -19,6 +19,7 @@ the renderer spec, the hitboxes and the weight model.
 """
 from __future__ import annotations
 
+import functools
 import math
 import re
 
@@ -868,21 +869,6 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                 lay.reserve_sweep(m)
 
     # ---------------- middle: bridge, deckhouse, funnels, aft control ----------------
-    blocks = []
-
-    def add_block(bid, x0, x1, w, level, rf, rb, y=0.0, kind="superstructure", layer=None):
-        rf_, rb_ = rrect_clamped(x0, y - w / 2, x1, y + w / 2, rf, rb)
-        b = dict(id=bid, kind=kind, x0=x0, x1=x1, y=y, w=w, level=level, rf=rf_, rb=rb_)
-        if layer:
-            b["layer"] = layer
-        blocks.append(b)
-        top = LEVEL_H * level
-        lay.occupy(_fp_rect(x0, y - w / 2, x1, y + w / 2), top - LEVEL_H, top, bid)
-        lay.weights.append(Weight(bid, "superstructure",
-                                  (x1 - x0) * w * TUNING["superstructure_t_per_m2"], x=(x0 + x1) / 2,
-                                  z_rel=("deck", LEVEL_H * (level - 0.5))))
-        return b
-
     bx1 = mid_fwd
     bx0 = bx1 - lb
 
@@ -969,19 +955,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
 
     # ---------------- superstructure, kept out of the guns' sweeps ----------------
     blocks = []
-
-    def add_block(bid, x0, x1, w, level, rf, rb, y=0.0, kind="superstructure", layer=None):
-        rf_, rb_ = rrect_clamped(x0, y - w / 2, x1, y + w / 2, rf, rb)
-        b = dict(id=bid, kind=kind, x0=x0, x1=x1, y=y, w=w, level=level, rf=rf_, rb=rb_)
-        if layer:
-            b["layer"] = layer
-        blocks.append(b)
-        top = LEVEL_H * level
-        lay.occupy(_fp_rect(x0, y - w / 2, x1, y + w / 2), top - LEVEL_H, top, bid)
-        lay.weights.append(Weight(bid, "superstructure",
-                                  (x1 - x0) * w * TUNING["superstructure_t_per_m2"], x=(x0 + x1) / 2,
-                                  z_rel=("deck", LEVEL_H * (level - 0.5))))
-        return b
+    block = functools.partial(add_block, lay, blocks)      # the shared add_block, on this ship's list
 
     # the bridge tower steps aft, and the aft control forward, until no turret's barrels can reach them
     tower_top = LEVEL_H * max(tower_levels)
@@ -1006,17 +980,17 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         else:
             dh["x0"] += 0.5
     # bridge tower
-    add_block("Bridge", bx0, bx1, w2, 2, 0.42 * w2, 1.0)
-    add_block("Bridge upper", bx0 + 0.1 * lb, bx1 - 0.06 * lb, 0.78 * w2, 3, 0.36 * w2, 1.0)
+    block("Bridge", bx0, bx1, w2, 2, 0.42 * w2, 1.0)
+    block("Bridge upper", bx0 + 0.1 * lb, bx1 - 0.06 * lb, 0.78 * w2, 3, 0.36 * w2, 1.0)
     if armour.get("belt_mm", 0) > 0:   # inside the bridge's rounded front, as tall as the bridge
         ct_r = min(max(0.1 * B, 1.25), 4.0, 0.4 * w2)
         lay.conning_tower = dict(x=max(bx1 - 0.42 * w2, bx0 + ct_r), y=0.0, r=ct_r, top=2 * LEVEL_H)
     if 4 in tower_levels:
-        add_block("Main director", bx0 + 0.35 * lb, bx1 - 0.2 * lb, 0.5 * w2, 4, 0.25 * w2, 0.25 * w2)
+        block("Main director", bx0 + 0.35 * lb, bx1 - 0.2 * lb, 0.5 * w2, 4, 0.25 * w2, 0.25 * w2)
     # aft control
     if la:
-        add_block("Aft control", ax0, ax0 + la, 0.28 * B, 2, 1.0, 0.1 * B)
-        add_block("Aft director", ax0 + 0.25 * la, ax0 + 0.75 * la, 0.17 * B, 3, 0.085 * B, 0.085 * B)
+        block("Aft control", ax0, ax0 + la, 0.28 * B, 2, 1.0, 0.1 * B)
+        block("Aft director", ax0 + 0.25 * la, ax0 + 0.75 * la, 0.17 * B, 3, 0.085 * B, 0.085 * B)
 
     funnels = []
     for i, fx in enumerate(fxs):
@@ -1106,7 +1080,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             dh_w = max(dh_w, 2 * (y_w + reach + 0.6))
         hw_min = min(hull.half_width(dh["x0"]), hull.half_width(dh["x1"]))
         dh_w = min(dh_w, 2 * (hw_min - 0.6))
-    deckhouse = add_block("Deckhouse", dh["x0"], dh["x1"], dh_w, 1, 0.12 * dh_w if wide else 2.0, 0.1 * dh_w if wide else 1.0)
+    deckhouse = block("Deckhouse", dh["x0"], dh["x1"], dh_w, 1, 0.12 * dh_w if wide else 2.0, 0.1 * dh_w if wide else 1.0)
     blocks.insert(0, blocks.pop())  # draw the deckhouse first, under the bridge
     # the deckhouse is under everything else in the middle; secondaries stand on it
     lay.footprints = [fp for fp in lay.footprints if fp[3] != "Deckhouse"] + \
