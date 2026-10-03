@@ -266,6 +266,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
       - Kinds:
         - All ships: `boiler_room`, `engine_room` and `bunker` (`fuel` is coal, oil, diesel or petrol), and `steering`.
         - Warships and carriers: `magazine`. Carriers also have aviation magazines and `fuel_tank` (aviation fuel).
+          - The aviation magazines hold the ordnance (`carrier.ORDNANCE_K`, 0.6 t per tonne of air group, given as `tonnes`). They stand on the inner bottom, only as many decks tall as that needs, so a bomb through the armour deck bursts in the decks above them.
         - Merchants: `hold` or `cargo_tank`. Planing craft: crew space, fuel tanks and the tiller flat.
       - Cells no room claims become one room per section and use:
         - `double_bottom` in the bottom tier

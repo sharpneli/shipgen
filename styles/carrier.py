@@ -23,7 +23,8 @@ import math
 import armament
 from geometry import polygon_area, polygon_y_span
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
-                    boiler_seg, clamp, hull_spec, plan_funnels, plan_machinery, stack_machinery)
+                    boiler_seg, clamp, hull_spec, magazine_span, plan_funnels, plan_machinery,
+                    stack_machinery, MAGAZINE_T_PER_M3)
 from navarch import STEEL, Weight
 from geometry import AA_CFG, Hull
 from styles.base import Style
@@ -246,7 +247,7 @@ class Carrier(Style):
             return [], []
         hx0, hx1, _ = dp["hangar"]
         return ([Weight("Air group", "aviation", n * m, x=(hx0 + hx1) / 2, z_rel=("deck", max(dp["fd_h"] - 3, 2))),
-                 Weight("Aviation ordnance", "aviation", 0.6 * n * m, x=geo.get("magazine_x", 0.2 * L),
+                 Weight("Aviation ordnance", "aviation", ORDNANCE_K * n * m, x=geo.get("magazine_x", 0.2 * L),
                         z_rel=("frac", 0.25))],
                 [Weight("Aviation fuel", "fuel", 1.2 * n * m, x=geo.get("avgas_x", -0.25 * L), z_rel=("frac", 0.15))])
 
@@ -312,6 +313,9 @@ def _machinery_rooms(lay, hull, res):
     add_machinery_rooms(lay, stack_machinery(lay.geo["plant"]["segments"], m1), 0.8 * hull.B / 2, res.depth)
 
 
+ORDNANCE_K = 0.6    # aviation ordnance (bombs, torpedoes, rockets), tonnes per tonne of air group
+
+
 def _compartments(lay, design, hull, mach, hangar, extra=()):
     armour = design.get("armour") or {}
     av = aviation(design)
@@ -323,12 +327,17 @@ def _compartments(lay, design, hull, mach, hangar, extra=()):
     lay.geo["avgas_x"] = m0 - 0.03 * L
     inner_hw = 0.8 * B / 2
     hx0, hx1, hhw = hangar
+    ord_t = ORDNANCE_K * av["aircraft"] * av["aircraft_t"]
     lay.compartments += [
         dict(id="Citadel", kind="citadel", x0=cit[0], x1=cit[1], half_width=inner_hw,
              belt_mm=armour.get("belt_mm", 0)),
         dict(id="Hangar", kind="hangar", x0=hx0, x1=hx1, half_width=hhw, base=0.0,
              top=2 * LEVEL_H if av["flight_deck"] == "none" else HANGAR_H * av["hangar_decks"]),
-        dict(id="Aviation magazines", kind="magazine", x0=m1, x1=cit[1], half_width=inner_hw),
+        # low on the inner bottom, as many decks as the ordnance needs: a bomb through the armour deck bursts in
+        # the decks above it before it reaches them
+        dict(id="Aviation magazines", kind="magazine", x0=m1, x1=cit[1], half_width=inner_hw,
+             tonnes=round(ord_t, 1), **dict(zip(("base", "top"), magazine_span(
+                 lay.geo["plant"], ord_t / MAGAZINE_T_PER_M3 / max(1.0, (cit[1] - m1) * 2 * inner_hw))))),
         dict(id="Aviation fuel", kind="fuel_tank", x0=cit[0], x1=m0, half_width=inner_hw),
         dict(id="Steering gear", kind="steering", x0=-L / 2 + 0.03 * L, x1=-L / 2 + 0.08 * L, half_width=0.5 * B / 2),
         *extra]

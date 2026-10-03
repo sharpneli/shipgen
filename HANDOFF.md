@@ -125,7 +125,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
     - Everything else is within ±2.5 m.
   - New example: `battleship_layered.json`, with a 38 mm full-length bomb deck, the 152 mm second deck and a 16 mm splinter deck on the third. It comes out at 263 m against the battleship's 257 m, because the splinter deck lowers the roof.
   - Not done:
-    - The steering gear, the carrier aviation magazines and the merchants' holds still span the full height.
+    - The steering gear and the merchants' holds still span the full height. The carrier aviation magazines were lowered the same day: the user wants an armour-piercing bomb's fuse set off by the armour deck, so it bursts before it reaches the magazine.
     - **Turtleback (sloped) decks: left out on purpose (user, 2026-10-03).** For simplicity, several flat armour decks are enough for now.
     - All-or-nothing versus incremental schemes are only expressible through `extent`.
 
