@@ -17,13 +17,14 @@ doesn't: the decisions behind the current design, how to work safely here, and w
 - **Looks are visual only** (`"look"` in the design, `looks.py`). The user wants ships of different powers to look different with no gameplay effect: a look may change only the sprite images, never the layout, physics, report results, hitboxes or `sprite.json`. Turret drawings and silhouettes (bow, stern, funnels, superstructure corners, masts) differ by look, but hitboxes always use the layout's shapes. A look's hull may only be fuller than the layout's, never finer, so deck-edge fittings stay on deck. National looks are named after dockyards: `brooklyn` (US), `kure` (Japan), `portsmouth` (UK), `kiel` (Germany). Period looks are named after the period: `victorian`. The default is `standard`. More are planned.
 - **Design and drawing are separate, with a plain-data contract** (`shipdesign.build(design) -> ship` dict; `render.render_ship(ship, ...)`). The user's game calls the design side on every knob change in its designer UI and needs it fast; the preview may lag. Keep the rules: the design side (shipdesign, navarch, layout, armament, hitbox, styles) uses the standard library only and never imports the renderer; the renderer (render, shipgen, shadow, looks) imports no design-side module and reads only the `ship` dict; `geometry.py` is the shared layer. Colours live only in `looks.py`. A physics refactor should change only the design side, and a drawing change only the render side.
 - Shadows come from the height map, not baked in. Mips are packed per layer (`<layer>_mips.png`, rects in `sprite.json`).
+- **No period-based physics (user, 2026-10-03).** Nothing is weighed or limited by era: 10 t of armour weighs 10 t whenever it was designed. Differences between periods come from material science, given in the design as numbers like `machinery.tech`. For armour, a material (wrought iron, compound, Harvey, Krupp cemented, homogeneous, ...) will set its protective value; mass stays thickness × area × density. There are no artificial period limits. Armour schemes such as all-or-nothing or incremental aren't rules here either: the inputs only describe where the armour is, and a separate game system will handle design styles.
 - **Mip atlases are an interchange format only.** The game uploads each level to the GPU separately (Vulkan mip layout is hardware dependent) and never samples the packed image, so the missing gutters don't matter. Large sprites are fine too: the game may drop the biggest mip levels.
 
 ## Planned by the user
 - **The game spans about 1890 to 1970:** pre-dreadnoughts, through the dreadnought era, to early modern ships. Defaults and new features should cover that whole range.
 - **More looks** (`looks.py`). Four nations and the period look `victorian` are done; more will follow.
 - **Casemates (done):** warship `secondary` may be a list of batteries, each `"mount": "deck"` or `"casemate"`. Casemates fire ±60° about the beam and come in two tiers: `"lower"` in the hull side, and `"upper"` in housings on the main deck, staggered between the lower guns. The user is happy with 2 tiers for now and explicitly wants silly builds, such as a WWII-tech ship of the line, to work. Examples: `mikasa`, `connecticut`, `nassau_casemates`, `kongo`, `victory_1944`. Open items:
-  - The pre-dreadnoughts come out light (Mikasa 11.3k std against 15.1k t real). The weight model is calibrated on WWII ships; the physics refactor by period should fix this.
+  - The pre-dreadnoughts came out light (Mikasa 11.3k std against 15.1k t real). The secondary armour brought them closer (Mikasa 12.3k t, Connecticut 14.5k t against 16k t). Any remaining gap is for material and tech inputs (hull construction, plant), never a period factor.
   - Lower and upper guns never stack at the same x (from above, stacked guns would look like one). Stacked British two-storey casemates therefore come out staggered.
   - Connecticut's 203 mm wing turrets need a second main battery, which ties into the French "floating hotels" below.
   - verify.py flags the 88 mm casemates at the ends of `nassau_casemates` at 0.846 at one 37° angle. It's rasterisation of a 2 px barrel; the other angles score 0.89–0.96.
@@ -69,10 +70,12 @@ doesn't: the decisions behind the current design, how to work safely here, and w
     - Small craft are overmanned: PT boat 31 men against about 17, MTB 20 against 13. They come out 5–6 m long. The spec's petrol `crew_k` (3) and the small-gun crews are the knobs.
   - Left game-side: comfort, fatigue and morale (report `crew` carries the inputs), and the damage hooks (fire load, off-watch casualties, sickbay).
   - Later: hotel electrical load and distiller energy (no generator plant yet), and accommodation spilling into a grown superstructure as an alternative to length.
-- Remaining physics refactor: the rest of the weight model by period (hull, armour quality and so on) and the parameters the user plans for sizing (hull form, beam preference).
+- Remaining physics work:
+  - Material inputs, with no period factors (see the decision above): the armour material (its protective value; the mass is unchanged) and the hull construction (riveted or welded, steel grade).
+  - The parameters the user plans for sizing (hull form, beam preference).
 - Research to replace the planing power placeholder (`navarch.planing_power`). It's one function by design.
 - **Size from contents (done; README "Design input"):** designs give no length or beam (`hull.length` and `hull.beam` are now validation errors). The designer works out the hull from what it carries, and hitting a tonnage or length target is the player's job.
-  - The rules and their default values (`Style.SIZE`, `shipdesign.min_length`, merchant `STOWAGE`) are internal for now. The user will add parameters to control them later (engine efficiency etc.), probably alongside the period physics refactor.
+  - The rules and their default values (`Style.SIZE`, `shipdesign.min_length`, merchant `STOWAGE`) are internal for now. The user will add parameters to control them later (engine efficiency etc.), probably alongside the material inputs.
   - Calibration: most realistic designs land within 2–10% of the real ship's length.
   - Known quirks:
     - Beams come out a little narrow on pre-dreadnoughts (Mikasa 19.9 m against 23.2 m real), because the GM target of 0.06 × beam is met.
@@ -101,7 +104,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
       - per-cell lists of what passes through (barbettes, uptakes)
       - double-bottom contents (oil, water)
       - TDS layers in detail
-  - Step 3: links and flags, best done with the period refactor: engine room to shaft (uptakes to boiler rooms are done), generators to fore and aft power networks, grouped or alternating machinery, fuel type, centreline bulkhead, torpedo protection depth along the length. Carrier extras: flight-deck segments, lifts, hangar bays, avgas fore and aft.
+  - Step 3: links and flags, best done alongside the material inputs: engine room to shaft (uptakes to boiler rooms are done), generators to fore and aft power networks, grouped or alternating machinery, fuel type, centreline bulkhead, torpedo protection depth along the length. Carrier extras: flight-deck segments, lifts, hangar bays, avgas fore and aft.
   - **Buoyancy:** the user hasn't decided how realistic it should be. It will likely be a grid, but it must not drive a full simulation of the ship's motion. Flooding only makes the ship settle: a deeper draught costs speed and puts more of the belt under water.
   - Known simplification: the barbette weight (`navarch.mount_weights`, 0.45 × depth) doesn't match the barbette hitbox, which reaches down to the armour deck.
 
@@ -140,7 +143,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
     - Connecticut 12.1k → 14.8k t (16k), 134 × 23 m (139 × 23.4).
     - Nassau 17.7k → 21k t (18.9k).
     - Invincible 18.7k → 20.1k t (17.4k).
-    - Dreadnought 22k → 27k t (18.1k), 187.5 m. Its armour is 10k t against about 5k t real, mostly from before: a long citadel, and a 76 mm deck where the real ship had 19–44 mm. Left for the period refactor.
+    - Dreadnought 22k → 27k t (18.1k), 187.5 m. Its armour is 10k t against about 5k t real, mostly from before: a long citadel, and a 76 mm deck where the real ship had 19–44 mm. Armour mass is physical and won't get a period factor, so any fix belongs in the design (a thinner deck) or the citadel length.
     - Kongo 33.7k → 38.1k t (27.5k), already heavy before.
     - AoN ships got heavier bulkheads (battleship 287 mm, Nelson-like 305 mm): +0.7–1.1k t, +0.5–1 m.
   - Belt band (same day): `belt_depth_m` and `belt_height_m` replaced the hidden `TUNING belt_h` rule (kept only as the fallback). The designs got the rule's value for their draught, rounded to 0.1 m: ±0.1k t and up to 1 m of length. `belt_bottom_mm` (same day) tapers the main belt below the waterline to its lower edge. Mikasa, Connecticut, Dreadnought and the Nassaus have historical tapers (0.2–0.45k t lighter); the rest are uniform. The AoN battleships stay uniform: Iowa's real taper (307 → 41 mm) belongs to a much deeper lower belt than the 3 m band here.
@@ -170,7 +173,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
    - Turtleback or sloped decks: the user has shelved them; several flat decks stand in for now.
    - All-or-nothing versus incremental schemes: done with the secondary armour (2026-10-03).
    - Belt height (`belt_depth_m`, `belt_height_m`) and end-belt taper: done.
-5. **Links and flags (damage step 3), best done with the period physics refactor:**
+5. **Links and flags (damage step 3), best done alongside the material inputs:**
    - engine room to shaft
    - generators to fore and aft power networks
    - grouped versus alternating machinery
@@ -178,7 +181,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
    - bottom layers
    - riveted or welded construction
 
-   The refactor also fixes the light pre-dreadnoughts and the long early-turbine ships.
+   The long early-turbine ships are a plant question (`machinery.tech`, the planned cruise and fuel-range tuning), not a period factor.
 
 Housekeeping, whenever convenient:
 - Fold the turret-sweep checker into `verify.py`.
