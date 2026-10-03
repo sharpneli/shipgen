@@ -20,7 +20,8 @@ design JSON (player input: counts, calibres, armour, speed, look)
    ├─ styles/      the design style: warship, carrier, merchant, planing (limits, tuning, layout, extra weights)
    ├─ navarch.py   weights → displacement, draught, power, fuel, GM, trim   (iterates to a fixed point)
    ├─ layout.py    warship layout + shared layout primitives; balances CG over CB by shifting the arrangement
-   ├─ armament.py  style-neutral gun, torpedo and AA placement (used by carrier and merchant)
+   ├─ armament.py  style-neutral gun, torpedo and AA placement; every style books its mounts with add_mount
+   ├─ ordnance.py  magazines for every style: ammunition (and a carrier's bombs and avgas) stowed low
    ├─ hitbox.py    fixed firing arcs by mount kind; hitbox export
    └─ subdivision.py  the hull below the main deck as watertight cells, and the rooms that own them
    │
@@ -143,13 +144,16 @@ The design gives no size. The designer works out the hull from what it carries (
   - Placement: the lower tier fills first, then the upper. Within a tier, each battery takes the free places nearest amidships in list order, so list the battery you want amidships first. The rows centre on the hull's full-width part and move with the balancing shift.
   - Spacing: a comfortable pitch if every gun fits that way. Failing that, the lower guns sit just far enough apart for one upper gun between each pair. Failing that too, closer still.
 - Battery mount ids are `S1S`/`S1P`, ... for the first battery, then `SB...`, `SC...`. Casemate guns carry `"mount": "casemate"` in `hitboxes.json` and `sprite.json`.
-- **Magazines.** End, midships and echelon wing turrets each have a magazine under them. The secondaries (deck and casemate) and abreast wing turrets share grouped magazines at the two ends of the machinery block, as real ships fed them through ammunition passages (`layout.magazine_plan`).
+- **Magazines** (`ordnance.py`, the same for every style). Every mount books its ammunition with `armament.add_mount`. Each style then names zones where magazines may go, and `ordnance.stow` makes the rooms, links each mount to its magazine and moves the ammunition weight there.
+  - Warships: end, midships and echelon wing turrets each have a magazine under them. The secondaries (deck and casemate) and abreast wing turrets share grouped magazines at the two ends of the machinery block, as real ships fed them through ammunition passages (`layout.magazine_plan`).
   - Each battery sends the forward half of its pairs, rounded up, to the fore group. A wing pair's magazine goes to the end of the middle it stands at.
-  - **Magazines sit low.** They stand on the inner bottom, with their tops on a deck of the stack and never above the lowest armour deck (`layout.magazine_span`). They stow ammunition at `layout.MAGAZINE_T_PER_M3` (0.6 t/m³: shell and powder rooms; the handling rooms and passages are in the deck space above).
+  - **Magazines sit low.** They stand on the inner bottom, with their tops on a deck of the stack and never above the lowest armour deck (`ordnance.span`). They stow ammunition at `ordnance.T_PER_M3` (0.6 t/m³: shell and powder rooms; the handling rooms and passages are in the deck space above). Each zone is as many decks tall as its contents need over its area, and its rooms share its length by volume.
     - A turret's own magazine is its diameter long and rises as many decks as its ammunition needs.
-    - The groups are as wide as the machinery space, `layout.MAGAZINE_TIERS` (2) deck spaces tall, and long enough for their ammunition, so they lengthen the middle a little.
+    - The groups are as wide as the machinery space, planned at `ordnance.TIERS` (2) deck spaces tall, and long enough for their ammunition, so they lengthen the middle a little.
     - The decks above a magazine are free for quarters and stores.
-  - There's one magazine per battery and group (`Magazine SB fore`), with a `mounts` list. The mounts' magazine weights sit there too.
+  - There's one magazine per battery and group (`Magazine SB fore`), with a `mounts` list.
+  - Carriers: one zone forward of the machinery holds the `Aviation magazines` and the `Gun magazines` for all their guns. The avgas zone is abaft the machinery.
+  - Merchants: a `Gun magazine` aft, just forward of the steering gear. Planing craft: an `Ammunition locker` at the forward end of the crew space.
 - Examples: `mikasa.json` (152 + 76 mm casemates in both tiers), `victory_1944.json` (a ship of the line: 152 mm lower and 120 mm upper casemates, no main battery), `connecticut.json` (178 + 76 mm casemates; its 203 mm wing turrets need a second main battery, still to come), `nassau_casemates.json` (Nassau's 150 + 88 mm in casemates, so all of them fit), `kongo.json` (152 mm casemates and 76 mm on deck).
 
 Limits are generous on purpose: the game's designer enforces the gameplay limits, and the generator only keeps its input sane (`styles.base.COMMON_LIMITS`). Guns can be 1–2000 mm with 1–20 barrels, armour up to 2 m, and torpedo, secondary and AA counts are in the hundreds. Hull form and speed stay within the range where the physics formulas mean something. Each turret group (`fore`, `aft`, `mid`) can hold up to 40 turrets, named A, B, C, A4, A5, ... (and Q, P, R, S, Q5, ... amidships). Silly designs are allowed; the physics decides whether they're valid, and the designer simply makes the hull as big as they need. For example, Gangut's twenty 305 mm Q turrets come out on a 986 m hull.
@@ -265,9 +269,9 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
       - Rooms snap to whole cells: a room owns a cell when it overlaps the cell by at least half the shorter of the two along every axis. Contested cells go by `subdivision.ROOM_PRIORITY` (magazines first, then machinery), then by overlap.
       - Kinds:
         - All ships: `boiler_room`, `engine_room` and `bunker` (`fuel` is coal, oil, diesel or petrol), and `steering`.
-        - Warships and carriers: `magazine`. Carriers also have aviation magazines and `fuel_tank` (aviation fuel).
-          - What burns or explodes sits lowest, under the hangar and the armour deck, so a bomb fused by the armour deck bursts in the decks above. Both rooms stand on the inner bottom and are only as many decks tall as their contents need (`tonnes` on the room). Their weights sit at the rooms' heights.
-            - The aviation magazines hold the ordnance (`carrier.ORDNANCE_K`, 0.6 t per tonne of air group, at `layout.MAGAZINE_T_PER_M3`).
+        - Every ship with guns: `magazine` (`tonnes`, and `mount` or `mounts`). Carriers also have aviation magazines and `fuel_tank` (aviation fuel).
+          - What burns or explodes sits lowest, under the hangar and the armour deck, so a bomb fused by the armour deck bursts in the decks above. Both are `ordnance.stow` zones, only as many decks tall as their contents need (`tonnes` on the room). Their weights sit at the rooms' heights.
+            - The aviation magazines hold the ordnance (`carrier.ORDNANCE_K`, 0.6 t per tonne of air group, at `ordnance.T_PER_M3`).
             - The aviation fuel tanks hold the avgas (`carrier.AVGAS_K`, 1.2 t per tonne of air group, at `carrier.AVGAS_T_PER_M3` 0.5 t/m³: petrol with the void and water-filled spaces around the tanks).
         - Merchants: `hold` or `cargo_tank`. Planing craft: crew space, fuel tanks and the tiller flat.
       - Cells no room claims become one room per section and use:

@@ -2274,6 +2274,7 @@
     "rear": 0,
     "roof": 0
    },
+   "magazine": "Gun magazine",
    "barbette": "S1 barbette"
   },
   {
@@ -2481,6 +2482,7 @@
     "rear": 0,
     "roof": 0
    },
+   "magazine": "Gun magazine",
    "barbette": "S2 barbette"
   },
   {
@@ -2688,6 +2690,7 @@
     "rear": 0,
     "roof": 0
    },
+   "magazine": "Gun magazine",
    "barbette": "S3 barbette"
   },
   {
@@ -2895,6 +2898,7 @@
     "rear": 0,
     "roof": 0
    },
+   "magazine": "Gun magazine",
    "barbette": "SB1S barbette"
   },
   {
@@ -3102,6 +3106,7 @@
     "rear": 0,
     "roof": 0
    },
+   "magazine": "Gun magazine",
    "barbette": "SB1P barbette"
   },
   {
@@ -10248,7 +10253,7 @@
    "top": 0.0,
    "volume_m3": 37.4,
    "below_waterline": false,
-   "crew": 7,
+   "crew": 11,
    "room": "Quarters 1",
    "permeability": 0.95,
    "neighbours": [
@@ -10339,7 +10344,7 @@
    "top": 0.0,
    "volume_m3": 98.1,
    "below_waterline": false,
-   "crew": 19,
+   "crew": 29,
    "room": "Quarters 2",
    "permeability": 0.95,
    "neighbours": [
@@ -10724,7 +10729,7 @@
    "top": 0.0,
    "volume_m3": 193.4,
    "below_waterline": false,
-   "crew": 37,
+   "crew": 56,
    "room": "Quarters 6",
    "permeability": 0.95,
    "neighbours": [
@@ -11809,7 +11814,7 @@
    "top": -2.6,
    "volume_m3": 154.3,
    "below_waterline": true,
-   "room": "Stores 14",
+   "room": "Gun magazine",
    "permeability": 0.6,
    "neighbours": [
     [
@@ -11818,7 +11823,7 @@
     ],
     [
      "14 second C",
-     "Second deck"
+     "open"
     ],
     [
      "13 hold C",
@@ -11843,13 +11848,12 @@
    "top": 0.0,
    "volume_m3": 170.7,
    "below_waterline": false,
-   "crew": 33,
-   "room": "Quarters 14",
-   "permeability": 0.95,
+   "room": "Gun magazine",
+   "permeability": 0.6,
    "neighbours": [
     [
      "14 hold C",
-     "Second deck"
+     "open"
     ],
     [
      "13 second C",
@@ -11975,7 +11979,7 @@
    "cells": [
     "1 second C"
    ],
-   "crew": 7,
+   "crew": 11,
    "volume_m3": 37.4,
    "x0": 46.35,
    "x1": 51.5,
@@ -12012,7 +12016,7 @@
    "cells": [
     "2 second C"
    ],
-   "crew": 19,
+   "crew": 29,
    "volume_m3": 98.1,
    "x0": 41.23,
    "x1": 46.35,
@@ -12124,7 +12128,7 @@
    "cells": [
     "6 second C"
    ],
-   "crew": 37,
+   "crew": 56,
    "volume_m3": 193.4,
    "x0": 4.144,
    "x1": 10.144,
@@ -12336,6 +12340,27 @@
    "top": -5.46
   },
   {
+   "id": "Gun magazine",
+   "kind": "magazine",
+   "cells": [
+    "14 hold C",
+    "14 second C"
+   ],
+   "tonnes": 41.6,
+   "mounts": [
+    "S1",
+    "S2",
+    "S3",
+    "SB1S",
+    "SB1P"
+   ],
+   "volume_m3": 325.0,
+   "x0": -45.32,
+   "x1": -39.634,
+   "base": -5.46,
+   "top": 0.0
+  },
+  {
    "id": "Double bottom 14",
    "kind": "double_bottom",
    "cells": [
@@ -12346,31 +12371,6 @@
    "x1": -39.634,
    "base": -6.46,
    "top": -5.46
-  },
-  {
-   "id": "Stores 14",
-   "kind": "stores",
-   "cells": [
-    "14 hold C"
-   ],
-   "volume_m3": 154.3,
-   "x0": -45.32,
-   "x1": -39.634,
-   "base": -5.46,
-   "top": -2.6
-  },
-  {
-   "id": "Quarters 14",
-   "kind": "accommodation",
-   "cells": [
-    "14 second C"
-   ],
-   "crew": 33,
-   "volume_m3": 170.7,
-   "x0": -45.32,
-   "x1": -39.634,
-   "base": -2.6,
-   "top": 0.0
   },
   {
    "id": "Steering gear",

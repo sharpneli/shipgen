@@ -96,38 +96,38 @@
     }
   },
   "results": {
-    "length_m": 32.0,
-    "beam_m": 7.11,
+    "length_m": 33.5,
+    "beam_m": 7.44,
     "block_coefficient": 0.45,
-    "standard_displacement_t": 100,
-    "full_displacement_t": 115,
-    "draught_m": 1.1,
-    "depth_m": 3.18,
-    "freeboard_m": 2.08,
-    "power_shp": 8300.0,
-    "fuel_t": 15,
-    "crew": 31,
-    "gm_full_m": 1.91,
-    "gm_light_m": 2.12,
-    "trim_m": -0.14,
-    "lcg_m": -3.73,
-    "lcb_m": -3.52,
+    "standard_displacement_t": 108,
+    "full_displacement_t": 124,
+    "draught_m": 1.08,
+    "depth_m": 3.22,
+    "freeboard_m": 2.14,
+    "power_shp": 9000.0,
+    "fuel_t": 16,
+    "crew": 32,
+    "gm_full_m": 2.24,
+    "gm_light_m": 2.5,
+    "trim_m": -0.0,
+    "lcg_m": -3.69,
+    "lcb_m": -3.69,
     "layout_shift_m": 0.0,
-    "volumetric_froude": 3.07,
+    "volumetric_froude": 3.03,
     "power_to_weight_hp_per_t": 72.4,
     "power_model": "planing placeholder"
   },
   "plant": {
     "name": "Petrol engines (1940)",
     "fuel": "petrol",
-    "rated_kw": 6218,
-    "rated_shp": 8340.0,
-    "continuous_kw": 5285,
+    "rated_kw": 6696,
+    "rated_shp": 8980.0,
+    "continuous_kw": 5692,
     "overload_max": 1.0,
     "shafts": 3,
-    "units": 6,
-    "unit_mw": 1.04,
-    "weight_t": 28.3,
+    "units": 9,
+    "unit_mw": 0.74,
+    "weight_t": 30.5,
     "sfc_g_per_kwh": 314.3,
     "part_load": {
       "curve": "DSL",
@@ -152,14 +152,14 @@
     "transmission": "mechanical",
     "arrangement": "grouped",
     "crew": 12,
-    "machinery_length_m": 5.3,
+    "machinery_length_m": 5.6,
     "boiler_rooms": 0,
     "engine_rooms": 1,
     "rows": 3,
     "protrusion_m": 0.0,
     "space_m": {
-      "width": 6.54,
-      "height": 2.18
+      "width": 6.84,
+      "height": 2.24
     },
     "wing_bunkers_t": 0,
     "end_bunkers_m": 0.0,
@@ -169,12 +169,12 @@
     "smoke_reach_m": 0.0
   },
   "crew": {
-    "complement": 31,
-    "officers": 2,
+    "complement": 32,
+    "officers": 3,
     "cpos": 0,
     "ratings": 29,
     "departments": {
-      "engineering": 12,
+      "engineering": 13,
       "weapons": 15,
       "deck_and_command": 4,
       "hotel": 0
@@ -184,15 +184,15 @@
     "range_days": 1,
     "distiller": true,
     "berth_ratio": 1.0,
-    "living_m3": 55,
+    "living_m3": 58,
     "provisions_m3": 0,
     "water_m3": 0,
     "water_in_double_bottom_m3": 0,
     "distiller_m3_per_day": 0.3,
-    "space_needed_m3": 55,
-    "space_usable_m3": 68,
-    "space_free_m3": 104,
-    "sleep_m2_per_man": 0.66,
+    "space_needed_m3": 58,
+    "space_usable_m3": 73,
+    "space_free_m3": 113,
+    "sleep_m2_per_man": 0.68,
     "sleep_standard_m2": 0.6,
     "headroom_m": 1.9,
     "deck_height_m": 1.9,
@@ -200,132 +200,132 @@
     "tolerance_days": 2
   },
   "weight_groups_t": {
-    "hull": 43,
-    "machinery": 28,
-    "fuel": 15,
+    "hull": 48,
+    "machinery": 30,
+    "fuel": 16,
     "armament": 15,
-    "misc": 11,
+    "misc": 12,
     "superstructure": 2
   },
   "weights": [
     {
       "name": "Hull structure",
       "group": "hull",
-      "t": 43.4,
-      "x": -0.32,
-      "z": 1.85
+      "t": 48.2,
+      "x": -0.34,
+      "z": 1.87
     },
     {
       "name": "Machinery",
       "group": "machinery",
-      "t": 28.3,
-      "x": -8.0,
-      "z": 1.02
+      "t": 30.5,
+      "x": -8.38,
+      "z": 1.03
     },
     {
       "name": "Charthouse",
       "group": "superstructure",
-      "t": 2.1,
-      "x": 3.52,
-      "z": 4.48
+      "t": 2.3,
+      "x": 3.69,
+      "z": 4.52
     },
     {
       "name": "T1S",
       "group": "armament",
       "t": 2.6,
-      "x": 1.61,
-      "z": 3.88
+      "x": 1.71,
+      "z": 3.92
     },
     {
       "name": "T1P",
       "group": "armament",
       "t": 2.6,
-      "x": 1.61,
-      "z": 3.88
+      "x": 1.71,
+      "z": 3.92
     },
     {
       "name": "T2S",
       "group": "armament",
       "t": 2.6,
-      "x": -6.39,
-      "z": 3.88
+      "x": -6.29,
+      "z": 3.92
     },
     {
       "name": "T2P",
       "group": "armament",
       "t": 2.6,
-      "x": -6.39,
-      "z": 3.88
+      "x": -6.29,
+      "z": 3.92
     },
     {
       "name": "Mount Y",
       "group": "armament",
       "t": 0.9,
-      "x": -13.16,
-      "z": 3.94
+      "x": -13.91,
+      "z": 3.98
     },
     {
       "name": "Magazine Y",
       "group": "armament",
       "t": 0.7,
-      "x": -13.16,
-      "z": 0.8
+      "x": 13.82,
+      "z": 2.1
     },
     {
       "name": "AA1",
       "group": "armament",
       "t": 1.0,
-      "x": -12.8,
-      "z": 4.38
+      "x": -13.4,
+      "z": 4.42
     },
     {
       "name": "AA2",
       "group": "armament",
       "t": 1.0,
-      "x": -12.8,
-      "z": 4.38
+      "x": -13.4,
+      "z": 4.42
     },
     {
       "name": "AA3",
       "group": "armament",
       "t": 1.0,
-      "x": -1.6,
-      "z": 4.38
+      "x": -1.68,
+      "z": 4.42
     },
     {
       "name": "Crew and effects",
       "group": "misc",
-      "t": 3.7,
+      "t": 3.8,
       "x": 0.0,
-      "z": 1.68
+      "z": 1.72
     },
     {
       "name": "Provisions",
       "group": "misc",
       "t": 0.2,
       "x": 0.0,
-      "z": 1.27
+      "z": 1.29
     },
     {
       "name": "Fresh water",
       "group": "misc",
-      "t": 0.2,
-      "x": -8.0,
+      "t": 0.3,
+      "x": -8.38,
       "z": 0.16
     },
     {
       "name": "Equipment, outfit, crew & stores",
       "group": "misc",
-      "t": 7.0,
+      "t": 7.5,
       "x": 0.0,
-      "z": 1.59
+      "z": 1.61
     },
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 15.3,
-      "x": -8.0,
-      "z": 0.57
+      "t": 16.3,
+      "x": -8.38,
+      "z": 0.58
     }
   ]
 }

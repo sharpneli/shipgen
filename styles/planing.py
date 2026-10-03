@@ -15,6 +15,7 @@ it meanwhile.
 from __future__ import annotations
 
 import armament
+import ordnance
 from layout import LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, clamp, plan_machinery
 from navarch import Weight, volumetric_froude
 from geometry import AA_CFG, Hull
@@ -159,6 +160,13 @@ def _layout(design, res, shift):
         dict(id="Fuel tanks", kind="fuel_tank", x0=m1, x1=cx0 + 0.05 * L, half_width=inner_hw),
         dict(id="Engine room", kind="engine_room", x0=m0, x1=m1, half_width=inner_hw),
         dict(id="Tiller flat", kind="steering", x0=-L / 2, x1=m0, half_width=0.6 * B / 2)]
+    # the guns' ammunition in a locker at the forward end of the crew space (ordnance.stow)
+    guns = ordnance.guns(mounts)
+    if guns:
+        lx1, lw = L / 2 - 0.08 * L, 0.5 * inner_hw
+        ordnance.stow(lay, mounts, [dict(x0=lx1 - ordnance.zone_length(ordnance.booked_m3(lay, guns), 2 * lw,
+                                                                       lay.geo["plant"], tiers=1, least=0.5),
+                                         x1=lx1, half_width=lw, rooms=[dict(id="Ammunition locker", mounts=guns)])])
     lay.spec = dict(
         id=design["id"], name=design.get("name", design["id"]), **{"class": design.get("type", "")},
         length=L, beam=B, bow=hs["bow"], stern=hs["stern"], deck="steel",

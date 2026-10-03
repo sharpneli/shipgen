@@ -2259,6 +2259,7 @@
     "rear": 0,
     "roof": 0
    },
+   "magazine": "Gun magazine",
    "barbette": "S1 barbette"
   },
   {
@@ -2443,6 +2444,7 @@
     "rear": 0,
     "roof": 0
    },
+   "magazine": "Gun magazine",
    "barbette": "S2 barbette"
   },
   {
@@ -11755,7 +11757,7 @@
     ],
     [
      "14 hold C",
-     "open"
+     "Bulkhead 13"
     ]
    ]
   },
@@ -11789,7 +11791,7 @@
     ],
     [
      "14 fourth C",
-     "open"
+     "Bulkhead 13"
     ]
    ]
   },
@@ -11900,7 +11902,7 @@
    "top": -7.8,
    "volume_m3": 482.7,
    "below_waterline": true,
-   "room": "Hold 7",
+   "room": "Gun magazine",
    "permeability": 0.6,
    "neighbours": [
     [
@@ -11913,7 +11915,7 @@
     ],
     [
      "13 hold C",
-     "open"
+     "Bulkhead 13"
     ],
     [
      "15 hold C",
@@ -11934,7 +11936,7 @@
    "top": -5.2,
    "volume_m3": 414.6,
    "below_waterline": true,
-   "room": "Hold 7",
+   "room": "Gun magazine",
    "permeability": 0.6,
    "neighbours": [
     [
@@ -11943,11 +11945,11 @@
     ],
     [
      "14 third C",
-     "open"
+     "Third deck"
     ],
     [
      "13 fourth C",
-     "open"
+     "Bulkhead 13"
     ],
     [
      "15 fourth C",
@@ -11973,7 +11975,7 @@
    "neighbours": [
     [
      "14 fourth C",
-     "open"
+     "Third deck"
     ],
     [
      "14 second C",
@@ -12520,12 +12522,10 @@
     "13 fourth C",
     "13 third C",
     "13 second C",
-    "14 hold C",
-    "14 fourth C",
     "14 third C",
     "14 second C"
    ],
-   "volume_m3": 5422.1,
+   "volume_m3": 4524.8,
    "x0": -102.96,
    "x1": -72.987,
    "base": -10.83,
@@ -12542,6 +12542,24 @@
    "x1": -72.987,
    "base": -11.83,
    "top": -10.83
+  },
+  {
+   "id": "Gun magazine",
+   "kind": "magazine",
+   "cells": [
+    "14 hold C",
+    "14 fourth C"
+   ],
+   "tonnes": 82.3,
+   "mounts": [
+    "S1",
+    "S2"
+   ],
+   "volume_m3": 897.3,
+   "x0": -102.96,
+   "x1": -87.973,
+   "base": -10.83,
+   "top": -5.2
   },
   {
    "id": "Double bottom 14",

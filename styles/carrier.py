@@ -21,10 +21,10 @@ from __future__ import annotations
 import math
 
 import armament
+import ordnance
 from geometry import polygon_area, polygon_y_span
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
-                    boiler_seg, clamp, hull_spec, magazine_span, plan_funnels, plan_machinery,
-                    stack_machinery, MAGAZINE_T_PER_M3)
+                    boiler_seg, clamp, hull_spec, plan_funnels, plan_machinery, stack_machinery)
 from navarch import STEEL, Weight
 from geometry import AA_CFG, Hull
 from styles.base import Style
@@ -319,32 +319,32 @@ AVGAS_K = 1.2       # aviation fuel, tonnes per tonne of air group
 AVGAS_T_PER_M3 = 0.5   # avgas tanks: petrol at 0.72 t/m3 with the void and water-filled spaces around the tanks
 
 
-def _compartments(lay, design, hull, mach, hangar, extra=()):
+def _compartments(lay, design, hull, mach, hangar, mounts, extra=()):
     armour = design.get("armour") or {}
     av = aviation(design)
     L, B = hull.L, hull.B
     m0, m1 = mach
     cit = (m0 - 0.06 * L, m1 + 0.08 * L)
     lay.geo["citadel"] = cit
-    lay.geo["magazine_x"] = m1 + 0.04 * L
-    lay.geo["avgas_x"] = m0 - 0.03 * L
     inner_hw = 0.8 * B / 2
     hx0, hx1, hhw = hangar
-    # what burns or blows up stands low on the inner bottom, as many decks as it needs, under the hangar and the
-    # armour deck: a bomb fused by the armour deck bursts in the decks above it
+    # what burns or blows up stands low (ordnance.stow), under the hangar and the armour deck: the aviation
+    # ordnance and the guns' ammunition forward of the machinery, the avgas abaft it
     air_t = av["aircraft"] * av["aircraft_t"]
-    mag = magazine_span(lay.geo["plant"], ORDNANCE_K * air_t / MAGAZINE_T_PER_M3 / max(1.0, (cit[1] - m1) * 2 * inner_hw))
-    gas = magazine_span(lay.geo["plant"], AVGAS_K * air_t / AVGAS_T_PER_M3 / max(1.0, (m0 - cit[0]) * 2 * inner_hw))
-    lay.geo["magazine_z"], lay.geo["avgas_z"] = sum(mag) / 2, sum(gas) / 2
+    st = ordnance.stow(lay, mounts, [
+        dict(x0=m1, x1=cit[1], half_width=inner_hw,
+             rooms=[dict(id="Aviation magazines", tonnes=ORDNANCE_K * air_t), dict(id="Gun magazines", mounts=ordnance.guns(mounts))]),
+        dict(x0=cit[0], x1=m0, half_width=inner_hw,
+             rooms=[dict(id="Aviation fuel", kind="fuel_tank", tonnes=AVGAS_K * air_t, t_per_m3=AVGAS_T_PER_M3)])])
+    for key, rid in (("magazine", "Aviation magazines"), ("avgas", "Aviation fuel")):
+        if rid in st:
+            x0, x1, base, top = st[rid]
+            lay.geo[f"{key}_x"], lay.geo[f"{key}_z"] = (x0 + x1) / 2, (base + top) / 2
     lay.compartments += [
         dict(id="Citadel", kind="citadel", x0=cit[0], x1=cit[1], half_width=inner_hw,
              belt_mm=armour.get("belt_mm", 0)),
         dict(id="Hangar", kind="hangar", x0=hx0, x1=hx1, half_width=hhw, base=0.0,
              top=2 * LEVEL_H if av["flight_deck"] == "none" else HANGAR_H * av["hangar_decks"]),
-        dict(id="Aviation magazines", kind="magazine", x0=m1, x1=cit[1], half_width=inner_hw,
-             tonnes=round(ORDNANCE_K * air_t, 1), base=mag[0], top=mag[1]),
-        dict(id="Aviation fuel", kind="fuel_tank", x0=cit[0], x1=m0, half_width=inner_hw,
-             tonnes=round(AVGAS_K * air_t, 1), base=gas[0], top=gas[1]),
         dict(id="Steering gear", kind="steering", x0=-L / 2 + 0.03 * L, x1=-L / 2 + 0.08 * L, half_width=0.5 * B / 2),
         *extra]
 
@@ -482,7 +482,7 @@ def _flight_deck_layout(design, res, shift):
 
     # ---------------- machinery and compartments ----------------
     _machinery_rooms(lay, hull, res)
-    _compartments(lay, design, hull, lay.geo["machinery"], dp["hangar"])
+    _compartments(lay, design, hull, lay.geo["machinery"], dp["hangar"], mounts)
     return _finish(lay, design, hs, hull, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top,
                    flight_deck=fd, sponsons=sponsons, boats=[])
 
@@ -579,7 +579,7 @@ def _seaplane_layout(design, res, shift):
             break
 
     _machinery_rooms(lay, hull, res)
-    _compartments(lay, design, hull, lay.geo["machinery"], (hx0, hx1, hhw))
+    _compartments(lay, design, hull, lay.geo["machinery"], (hx0, hx1, hhw), mounts)
     return _finish(lay, design, hs, hull, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top,
                    fittings=fittings, cranes=cranes, boats=boats,
                    bollards=[L / 2 - 0.05 * L, -L / 2 + 0.06 * L], chain_x=L / 2 - 0.06 * L, hawse_back=0.03 * L + 1.0)

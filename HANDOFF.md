@@ -84,7 +84,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
   - **Step 2, the subdivision grid (done 2026-10-02; `subdivision.py`, README "Outputs").** The hull below the main deck is sections × tiers × bands of cells that tile it. The layout's compartments are rooms snapped to whole cells, and every cell has exactly one owning room. `hitboxes.json` lost its old `compartments` and gained `sections`, `decks`, `tiers`, `bulkheads`, `cells` and `rooms`.
     - The user's decisions:
       - **There's no game yet**, so the hitboxes format is free to change. "Go wild": the end goal is a complex designer, so the game only has to care about results like horsepower and top speed.
-      - **Secondary and abreast wing-turret magazines are grouped** at the ends of the machinery block (option b, as on real ships with ammunition passages). They're sized by ammunition weight at 0.35 t/m³ (`layout.MAGAZINE_T_PER_M3`).
+      - **Secondary and abreast wing-turret magazines are grouped** at the ends of the machinery block (option b, as on real ships with ammunition passages). They're sized by ammunition weight (now `ordnance.T_PER_M3`, 0.6 t/m³ since 2026-10-03).
         - A first try at 2r × 2r per mount made Mikasa 27 m longer.
         - Now lengths move a few metres: Mikasa 129 m (was 133), Kongo 263.5 m (was 257.5), Invincible 194.5 m (was 192), victory_1944 107 m (was 114).
       - **The extra tier** (a flat at the waterline) was replaced on 2026-10-03 by the deck stack (below).
@@ -101,10 +101,9 @@ doesn't: the decisions behind the current design, how to work safely here, and w
       - per-cell lists of what passes through (barbettes, uptakes)
       - double-bottom contents (oil, water)
       - TDS layers in detail
-      - carrier and merchant gun magazines
   - Step 3: links and flags, best done with the period refactor: engine room to shaft (uptakes to boiler rooms are done), generators to fore and aft power networks, grouped or alternating machinery, fuel type, centreline bulkhead, torpedo protection depth along the length. Carrier extras: flight-deck segments, lifts, hangar bays, avgas fore and aft.
   - **Buoyancy:** the user hasn't decided how realistic it should be. It will likely be a grid, but it must not drive a full simulation of the ship's motion. Flooding only makes the ship settle: a deeper draught costs speed and puts more of the belt under water.
-  - Known simplifications: carrier and merchant guns have no magazines yet. The barbette weight (`navarch.mount_weights`, 0.45 × depth) doesn't match the barbette hitbox, which reaches down to the armour deck.
+  - Known simplification: the barbette weight (`navarch.mount_weights`, 0.45 × depth) doesn't match the barbette hitbox, which reaches down to the armour deck.
 
 - **Deck stack and armour decks (done 2026-10-03).** The user wanted magazines low in the ship, with living space above them, and several armour decks.
   - The user's decisions:
@@ -116,8 +115,8 @@ doesn't: the decisions behind the current design, how to work safely here, and w
     - The lowest armour deck is the roof over the machinery and magazines.
     - The waterline flat is gone. Tiers carry a `submerged` fraction, and quarters go in tiers less than half under water.
     - Cells' `armour_above_mm` is now a list, top down.
-  - Magazines stand on the inner bottom (`layout.magazine_span`). A turret's magazine rises as many decks as its ammunition needs. Grouped magazines are 2 deck spaces tall (`MAGAZINE_TIERS`).
-    - `MAGAZINE_T_PER_M3` went from 0.35 to 0.6, because the handling space is now the free deck above. That kept the lengths near their old values.
+  - Magazines stand on the inner bottom (`ordnance.span`). A turret's magazine rises as many decks as its ammunition needs. Grouped magazines are planned 2 deck spaces tall (`ordnance.TIERS`).
+    - The magazine density (`ordnance.T_PER_M3`) went from 0.35 to 0.6, because the handling space is now the free deck above. That kept the lengths near their old values.
   - Calibration moves:
     - Mikasa 129 → 138 m (real 131.7). Its old armour deck sat 1.6 m below the main deck; deck 1 is 2.6 m down, so the machinery is shorter in height and the block longer.
     - victory_1944 100.5 → 87.5 m.
@@ -125,9 +124,20 @@ doesn't: the decisions behind the current design, how to work safely here, and w
     - Everything else is within ±2.5 m.
   - New example: `battleship_layered.json`, with a 38 mm full-length bomb deck, the 152 mm second deck and a 16 mm splinter deck on the third. It comes out at 263 m against the battleship's 257 m, because the splinter deck lowers the roof.
   - Not done:
-    - The steering gear and the merchants' holds still span the full height. The carrier aviation magazines and avgas tanks were lowered the same day. The user wants a roughly realistic stack: the hangar under the flight deck, and whatever explodes easily below that. An armour-piercing bomb's fuse should be set off by the armour deck, so it bursts before it reaches the magazine. Their weights moved down with them: carriers' GM rose a few cm, and the escort carrier is 0.5 m longer. Carrier guns still have no magazines.
+    - The steering gear and the merchants' holds still span the full height. The carrier aviation magazines and avgas tanks were lowered the same day. The user wants a roughly realistic stack: the hangar under the flight deck, and whatever explodes easily below that. An armour-piercing bomb's fuse should be set off by the armour deck, so it bursts before it reaches the magazine. Their weights moved down with them: carriers' GM rose a few cm, and the escort carrier is 0.5 m longer.
     - **Turtleback (sloped) decks: left out on purpose (user, 2026-10-03).** For simplicity, several flat armour decks are enough for now.
     - All-or-nothing versus incremental schemes are only expressible through `extent`.
+- **Unifying the styles (started 2026-10-03).** The user wants complex systems shared by every style. Only placement (where guns, superstructure and funnels go, hull forms, deck plans) stays per style. Small length changes are fine. Each step is committed and pushed separately, so it can be rolled back.
+  1. **Ordnance (done).**
+     - `ordnance.py` turns every style's ammunition into magazines. Every mount is booked through `armament.add_mount`, the warship's included, so its four hand-written copies are gone.
+     - Styles only name zones: warships keep their own magazines and grouped magazines; carriers put the aviation magazines with the gun magazines; merchants put a gun magazine aft; planing craft an ammunition locker.
+     - Effects:
+       - Warship secondaries now book barbette weights like other styles' mounts (+0.5–1.5% std displacement).
+       - MTB +1 m and PT boat +1.5 m: the locker takes crew space, which binds on those boats.
+  2. Superstructure blocks: the warship's local `add_block` becomes the shared `layout.add_block`.
+  3. Finishing the layout: one `finish_layout` for the renderer spec, replacing four copies.
+  4. AA: the warship uses `armament.place_aa`, with its own candidate slots.
+  5. Steering gear and citadel: one shared `add_steering`, lowered like the magazines.
 
 ## Next steps (proposed 2026-10-02, in this order; the user hasn't confirmed the order yet)
 1. **Hull cross-section shape.** Every height uses the deck outline now, so double-bottom and hold cells are as wide as the main deck. Give the hull sections that narrow toward the keel, from the block coefficient (full amidships, sharp at the ends).
@@ -136,7 +146,6 @@ doesn't: the decisions behind the current design, how to work safely here, and w
 3. **What sits in and passes through each cell:**
    - Each cell lists the barbettes, uptakes and casings that pass through it: the flash path from a turret to its magazine, and the leak path through the uptakes.
    - Double-bottom contents: oil or water, by tonnage.
-   - Magazines for carrier and merchant guns.
    - Clean up the remaining shared cells.
 4. **Armour schemes on the deck list.** These are design inputs, so agree the knobs with the user first. Several armour decks are done (see above).
    - Turtleback or sloped decks: the user has shelved them; several flat decks stand in for now.

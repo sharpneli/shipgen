@@ -1,8 +1,9 @@
 """
 armament: style-neutral placement of guns, torpedo mounts and AA.
 
-The warship layout (layout.py) places its batteries with its own rules. Other styles describe where guns
-may go (a line of positions, or candidate slots along the sides) and these helpers do the rest: footprint
+The warship layout (layout.py) places its batteries with its own rules, then books each mount with add_mount like
+every style. Other styles describe where guns may go (a line of positions, or candidate slots along the sides) and
+these helpers do the rest: footprint
 collision checks, superfiring levels, weights, and the mount records that hitboxes, arcs and the renderer
 read. Any style can therefore carry any armament (a Q-ship, a carrier with cruiser guns).
 """
@@ -33,27 +34,33 @@ def tube_footprint(t, x, y, bearing):
     return _fp_rect(x - ex, y - ey, x + ex, y + ey)
 
 
-def add_mount(lay, mounts, kind, t_id, t, mid, x, y, base, rest, z, level=0, armour_mm=0, depth=10.0):
-    """One mount: footprint, weights and the mount record. A fixed tube (t["fixed_tube"]) keeps `rest` as its
-    fixed bearing."""
+def add_mount(lay, mounts, kind, t_id, t, mid, x, y, base, rest, z, level=0, armour_mm=0, depth=10.0, top=None,
+              footprint_r=None, label="Mount", **extra):
+    """One mount: footprint, weights and the mount record, for every style. A fixed tube (t["fixed_tube"]) keeps
+    `rest` as its fixed bearing. top defaults to base + the turret's height; footprint_r to its body and ears.
+    The weights: the mount ("<label> <id>"), its barbette if it stands above the deck, and its ammunition
+    ("Magazine <id>", which ordnance.stow moves into its magazine). extra goes into the mount record."""
     th = turret_height(t) if kind != "torpedo" or t.get("fixed_tube") else 1.1
-    mounts.append(dict(id=mid, kind=kind, type=t_id, t=t, x=x, y=y, level=level, base=base, top=base + th,
-                       rest=rest, z=z, armour_mm=armour_mm))
+    top = base + th if top is None else top
+    mounts.append(dict(id=mid, kind=kind, type=t_id, t=t, x=x, y=y, level=level, base=base, top=top,
+                       rest=rest, z=z, armour_mm=armour_mm, **extra))
     if t.get("fixed_tube"):
         mounts[-1]["fixed"] = rest
-        lay.occupy(tube_footprint(t, x, y, rest), base, base + th, mid)
+        lay.occupy(tube_footprint(t, x, y, rest), base, top, mid)
     else:
-        lay.occupy(_fp_circle(x, y, body_reach(t) if kind != "torpedo" else t["barrel_len"] / 2 + 0.3),
-                   base, base + th, mid)
+        r = footprint_r if footprint_r is not None else (body_reach(t) if kind != "torpedo"
+                                                          else t["barrel_len"] / 2 + 0.3)
+        lay.occupy(_fp_circle(x, y, r), base, top, mid)
     if kind == "torpedo":
         lay.weights.append(Weight(mid, "armament", torpedo_weight(t["barrels"], t.get("fixed_tube", False)), x=x,
                                   z_rel=("deck", base + 0.5)))
-        return
+        return mounts[-1]
     tw, bw, aw = mount_weights(t, armour_mm, depth, level)
-    lay.weights += [Weight(f"Mount {mid}", "armament", tw, x=x, z_rel=("deck", base + th / 2)),
+    lay.weights += [Weight(f"{label} {mid}", "armament", tw, x=x, z_rel=("deck", (base + top) / 2)),
                     Weight(f"Magazine {mid}", "armament", aw, x=x, z_rel=("frac", 0.25))]
     if bw and base > 0.5:
         lay.weights.append(Weight(f"Barbette {mid}", "armour", bw, x=x, z_rel=("frac", 0.75)))
+    return mounts[-1]
 
 
 def gun_line(lay, mounts, turret_types, gun, kind, names, x_start, step_dir, y, rest, deck_h,

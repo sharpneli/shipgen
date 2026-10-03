@@ -25,6 +25,7 @@ import re
 from geometry import (make_turret_type, make_torpedo_type, rrect_polygon, rrect_clamped, circle_polygon,
                       turret_shapes, turret_height, turret_reach, point_in_polygon, polygons_intersect,
                       sector_polygon)
+import ordnance
 import powerplant
 from navarch import Weight, mount_weights, torpedo_weight, TUNING
 from hitbox import ARC_BEAM
@@ -149,35 +150,10 @@ def add_block(lay, blocks, bid, x0, x1, w, level, rf, rb, y=0.0, z0=0.0, layer=N
     return b
 
 
-MAGAZINE_T_PER_M3 = 0.6    # tonnes of ammunition per m3 of magazine (shell and powder rooms with their racks; the
-                           # handling rooms and passages are in the deck space above)
-
-
 def battery_of(mid):
     """A grouped mount's battery: its id less the number and side ("SB3P" -> "SB", "W1S" -> "W1")."""
     pre, num = re.match(r"^([A-Z]+?)(\d+)[SP]$", mid).groups()
     return pre + num if pre == "W" else pre
-
-
-MAGAZINE_TIERS = 2          # grouped magazines: deck spaces above the inner bottom (a shell room and a powder room)
-
-
-def magazine_span(plan, need_h=None, tiers=MAGAZINE_TIERS):
-    """(base, top) above the main deck of a magazine standing on the inner bottom, top on a deck of the stack and
-    never above the plan's roof (the lowest armour deck): the lowest deck need_h above the inner bottom, else the
-    tiers-th deck up. At least one deck space."""
-    D, ib, roof = plan["decks"][0], plan["inner_bottom"], plan["top"]
-    ups = sorted(z for z in plan["decks"] if ib + 1e-6 < z <= roof + 1e-6) or [roof]
-    if need_h is None:
-        top = ups[min(tiers, len(ups)) - 1]
-    else:
-        top = next((z for z in ups if z >= ib + need_h - 1e-6), ups[-1])
-    return ib - D, top - D
-
-
-def ammo_m3(t):
-    """Magazine volume for one mount of turret type t: its ammunition at MAGAZINE_T_PER_M3."""
-    return mount_weights(t, 0.0, 0.0, 0)[2] / MAGAZINE_T_PER_M3
 
 
 def magazine_plan(design, tm):
@@ -189,7 +165,7 @@ def magazine_plan(design, tm):
     main = design.get("main") or {}
     if tm and not main.get("echelon"):
         for k in range(main.get("wing", 0)):
-            out["fore" if k % 2 == 0 else "aft"].append((f"W{k + 1}", 2, ammo_m3(tm)))
+            out["fore" if k % 2 == 0 else "aft"].append((f"W{k + 1}", 2, ordnance.ammo_m3(tm)))
     secs = design.get("secondary") or []
     for k, s in enumerate(secs if isinstance(secs, list) else [secs]):
         n = s.get("per_side", s.get("count", 0) // 2)
@@ -199,34 +175,27 @@ def magazine_plan(design, tm):
         t = make_turret_type(s["calibre_mm"], s["calibre_length"], s["barrels"], kind=kind)[1]
         for grp, pairs in (("fore", (n + 1) // 2), ("aft", n // 2)):
             if pairs:
-                out[grp].append((battery_prefix(k), 2 * pairs, ammo_m3(t)))
+                out[grp].append((battery_prefix(k), 2 * pairs, ordnance.ammo_m3(t)))
     return out
 
 
 def add_magazines(lay, mounts, inner_hw, groups=None):
-    """Magazines, linked both ways (m["magazine"], the magazine's "mount" or "mounts").
-    End, midships and echelon wing turrets: one per mount, below it on the centreline, spanning its diameter, from
-    the inner bottom up as many decks as its ammunition needs (magazine_span). Grouped magazines are MAGAZINE_TIERS
-    deck spaces tall.
-    Grouped mounts (magazine_plan) share one magazine per battery and group, in the machinery block's magazine
-    segments: groups = {"fore"|"aft": (x0, x1)}. Each battery's forward pairs fill the fore group as planned. The
-    magazine weights move with them."""
+    """The warship's magazines (ordnance.stow), linked both ways (m["magazine"], the magazine's "mount" or
+    "mounts"). End, midships and echelon wing turrets: one per mount, below it on the centreline, spanning its
+    diameter (ordnance.own_zone). Grouped mounts (magazine_plan) share one magazine per battery and group, in the
+    machinery block's magazine segments: groups = {"fore"|"aft": (x0, x1)}. Each battery's forward pairs fill the
+    fore group as planned."""
     groups = groups or {}
     plan = lay.geo.get("plant") or {}
     ghw = plan["width"] / 2 if plan.get("wing_m") else min(inner_hw, plan.get("width", 2 * inner_hw) / 2)
-    batteries = {}
+    zones, batteries = [], {}
     for m in mounts:
         if m["kind"] not in ("main", "secondary"):
             continue
         if groups and (m["kind"] == "secondary" or (m.get("wing") and not m.get("echelon"))):
             batteries.setdefault(battery_of(m["id"]), []).append(m)
             continue
-        r = m["t"]["r"]
-        m["magazine"] = f"Magazine {m['id']}"
-        hw = min(r, inner_hw)
-        base, top = magazine_span(plan, ammo_m3(m["t"]) / (2 * r * 2 * hw))
-        lay.compartments.append(dict(id=m["magazine"], kind="magazine", mount=m["id"], x0=m["x"] - r,
-                                     x1=m["x"] + r, half_width=hw, base=base, top=top))
+        zones.append(ordnance.own_zone(m, inner_hw))
     rooms = {"fore": [], "aft": []}
     for bat, ms in batteries.items():
         pairs = sorted({m["x"] for m in ms}, reverse=True)
@@ -237,28 +206,13 @@ def add_magazines(lay, mounts, inner_hw, groups=None):
             n_fore = (len(pairs) + 1) // 2
         n_fore = len(pairs) if "aft" not in groups else 0 if "fore" not in groups else n_fore
         for grp, xs in (("fore", pairs[:n_fore]), ("aft", pairs[n_fore:])):
-            sel = [m for m in ms if m["x"] in xs]
+            sel = [m["id"] for m in ms if m["x"] in xs]
             if sel:
-                rooms[grp].append((bat, sel, sum(ammo_m3(m["t"]) for m in sel)))
+                rooms[grp].append(dict(id=f"Magazine {bat} {grp}", mounts=sel))
     for grp, rs in rooms.items():
-        if not rs:
-            continue
-        g0, g1 = groups[grp]
-        tot = sum(a for _, _, a in rs)
-        x = g1
-        for bat, sel, a in rs:            # forward to aft through the segment, by volume
-            l = (g1 - g0) * a / tot
-            rid = f"Magazine {bat} {grp}"
-            base, top = magazine_span(plan)
-            lay.compartments.append(dict(id=rid, kind="magazine", mounts=[m["id"] for m in sel], x0=x - l, x1=x,
-                                         half_width=ghw, base=base, top=top))
-            for m in sel:
-                m["magazine"] = rid
-            names = {f"Magazine {m['id']}" for m in sel}
-            for w in lay.weights:
-                if w.name in names:
-                    w.x = x - l / 2
-            x -= l
+        if rs:
+            zones.append(dict(x0=groups[grp][0], x1=groups[grp][1], half_width=ghw, rooms=rs))
+    ordnance.stow(lay, mounts, zones)
 
 
 def plan_machinery(lay, design, res, hull, x=0.0):
@@ -445,6 +399,7 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
     The lower tier fills first, then the upper. Within a tier the batteries fill in list order, each taking the free
     places nearest amidships: all at a comfortable pitch if every gun fits so, else with the lower guns just far
     enough apart for an upper gun between each pair, else closer."""
+    import armament     # armament imports layout
     from geometry import CASEMATE_SHIELD
     bats = []
     for sec in secs:
@@ -558,12 +513,9 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
             base, top = (0.0, LEVEL_H) if upper else (-LEVEL_H, 0.0)
             for side in (1, -1):
                 mid = f"{sec['prefix']}{i + 1}{'S' if side > 0 else 'P'}"
-                mounts.append(dict(id=mid, kind="secondary", type=t_id, t=t, x=x, y=side * yo, level=0, base=base,
-                                   top=top, rest=90 * side, z=0, armour_mm=arm, casemate=True))
-                lay.occupy(_fp_circle(x, side * yo, CASEMATE_SHIELD * rc), base, top, mid)
-                tw, _, aw = mount_weights(t, arm, depth, 0)
-                lay.weights += [Weight(f"Mount {mid}", "armament", tw, x=x, z_rel=("deck", (base + top) / 2)),
-                                Weight(f"Magazine {mid}", "armament", aw, x=x, z_rel=("frac", 0.3))]
+                armament.add_mount(lay, mounts, "secondary", t_id, t, mid, x, side * yo, base, 90 * side, 0,
+                                   armour_mm=arm, depth=depth, top=top, footprint_r=CASEMATE_SHIELD * rc,
+                                   casemate=True)
     # housings close together (no lower shield between them) join into one gallery, its outer face the innermost
     galleries.sort()
     merged = []
@@ -593,6 +545,7 @@ def stepped_counts(main):
 
 
 def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
+    import armament     # armament imports layout
     shp, depth = res.power_shp, res.depth
     lay = Layout()
     hs = hull_spec(design)
@@ -653,14 +606,13 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         gap_kind[g] = "T" if g in t_gaps else "W"
     # the grouped magazines (magazine_plan) stand at the ends of the machinery block, as wide as its space
     mag_plan = magazine_plan(design, tm)
-    mag_h = magazine_span(plant)[1] - magazine_span(plant)[0]
-    mag_l = {g: sum(n * v_ for _, n, v_ in v) / max(plant["width"] * mag_h, 1.0)
+    mag_l = {g: ordnance.zone_length(sum(n * v_ for _, n, v_ in v), plant["width"], plant) if v else 0.0
              for g, v in mag_plan.items()}
     if mag_l["fore"] > 0:
-        segs.insert(0, ["magazine", max(1.5, mag_l["fore"])])
+        segs.insert(0, ["magazine", mag_l["fore"]])
         gap_kind = {g + 1: k for g, k in gap_kind.items()}
     if mag_l["aft"] > 0:
-        segs.append(["magazine", max(1.5, mag_l["aft"])])
+        segs.append(["magazine", mag_l["aft"]])
     # funnels: enough for the gas, each within reach of its boilers (powerplant.funnel_plan). Natural and boost
     # draught want a tall stack: at least STACK_NATURAL from the grates to the funnel top.
     fun_top = LEVEL_H * max(tower_levels) + 3.0
@@ -907,17 +859,13 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                 base = 1.2 + level * (th + 1.0)
                 mid = turret_name(names[gname], i)
                 # a flush turret stows pointing away from the stepped turret ahead of it
-                mounts.append(dict(id=mid, kind="main", type=tm_id, t=tm, x=x, y=0.0, level=level,
-                                   base=base, top=base + th, rest=(180 if gname == "A" else 0) if flush else rest,
-                                   z=1 + level))
+                m = armament.add_mount(lay, mounts, "main", tm_id, tm, mid, x, 0.0, base,
+                                       (180 if gname == "A" else 0) if flush else rest, 1 + level, level=level,
+                                       armour_mm=armour.get("turret_mm", 0), depth=depth, footprint_r=reach,
+                                       label="Turret")
                 if flush:
-                    mounts[-1]["arc_role"] = "beam"
-                lay.reserve_sweep(mounts[-1])
-                lay.occupy(_fp_circle(x, 0, reach), base, base + th, mid)
-                tw, bw, aw = mount_weights(tm, armour.get("turret_mm", 0), depth, level)
-                lay.weights += [Weight(f"Turret {mid}", "armament", tw, x=x, z_rel=("deck", base + th / 2)),
-                                Weight(f"Barbette {mid}", "armour", bw, x=x, z_rel=("frac", 0.75)),
-                                Weight(f"Magazine {mid}", "armament", aw, x=x, z_rel=("frac", 0.22))]
+                    m["arc_role"] = "beam"
+                lay.reserve_sweep(m)
 
     # ---------------- middle: bridge, deckhouse, funnels, aft control ----------------
     blocks = []
@@ -1005,14 +953,9 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         mid_base = (LEVEL_H if wide else 0.0) + 1.2
 
         def main_mount(mid, x, y, rest, **kw):
-            mounts.append(dict(id=mid, kind="main", type=tm_id, t=tm, x=x, y=y, level=0, base=mid_base,
-                               top=mid_base + th, rest=rest, z=1, **kw))
-            lay.occupy(_fp_circle(x, y, reach), mid_base, mid_base + th, mid)
-            lay.reserve_sweep(mounts[-1])
-            tw, bw, aw = mount_weights(tm, armour.get("turret_mm", 0), depth, 0)
-            lay.weights += [Weight(f"Turret {mid}", "armament", tw, x=x, z_rel=("deck", mid_base + th / 2)),
-                            Weight(f"Barbette {mid}", "armour", bw, x=x, z_rel=("frac", 0.75)),
-                            Weight(f"Magazine {mid}", "armament", aw, x=x, z_rel=("frac", 0.22))]
+            lay.reserve_sweep(armament.add_mount(lay, mounts, "main", tm_id, tm, mid, x, y, mid_base, rest, 1,
+                                                 armour_mm=armour.get("turret_mm", 0), depth=depth,
+                                                 footprint_r=reach, label="Turret", **kw))
 
         for k, (x, stow) in enumerate(mids):
             main_mount(turret_name("QPRS", k), x, 0.0, stow, arc_role="beam", midships=True)
@@ -1152,13 +1095,9 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                                    "secondaries.")
             for side in (1, -1):
                 mid = f"{pre}{i + 1}{'S' if side > 0 else 'P'}"
-                mounts.append(dict(id=mid, kind="secondary", type=ts_id, t=ts, x=sx, y=side * y_s, level=0,
-                                   base=sec_base, top=sec_base + ths,
-                                   rest=90 * side, z=3, armour_mm=sec.get("armour_mm", 25)))
-                lay.occupy(_fp_circle(sx, side * y_s, rs_reach), sec_base, sec_base + ths, mid)
-                tw, _, aw = mount_weights(ts, sec.get("armour_mm", 25), depth, 0)
-                lay.weights += [Weight(f"Mount {mid}", "armament", tw, x=sx, z_rel=("deck", sec_base + ths / 2)),
-                                Weight(f"Magazine {mid}", "armament", aw, x=sx, z_rel=("frac", 0.3))]
+                armament.add_mount(lay, mounts, "secondary", ts_id, ts, mid, sx, side * y_s, sec_base, 90 * side, 3,
+                                   armour_mm=sec.get("armour_mm", 25), depth=depth, top=sec_base + ths,
+                                   footprint_r=rs_reach)
         if wide:
             dh_w = max(dh_w, 2 * (y_s + rs_reach + 0.6)) if not first else 2 * (y_s + rs_reach + 0.6)
         first = False
