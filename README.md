@@ -222,7 +222,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
 ## Looks
 `"look"` sets how the ship is painted and drawn: `{"navy": "kure", "era": "wwii"}`, as that navy built its ships in that era. It's purely visual: the layout, physics, report results, hitboxes and sprite sizes are identical in every look, so two ships that differ only in look play the same. A look applies to every style (warship, carrier, merchant, planing).
 
-- **Two indices.** Looks live in `looks.NAVIES[navy]["eras"][era]`, and `looks.ERAS` lists the eras oldest first. A navy may change anything between eras (paint, turret drawings, bows, funnels), and navies differ freely from each other.
+- **Two indices.** Looks live in `looks.NAVIES[navy]["eras"][era]`, and `looks.ERAS` lists the eras oldest first. The eras are `victorian` (1885–1903), `great_war` (1904–1920), `treaty` (1920–1936), `wwii` (1937–1946) and `cold_war` (1950–1970). Every navy has the last four, and only `generic` has `victorian` so far. A navy may change anything between eras (paint, turret drawings, bows, funnels), and navies differ freely from each other.
 - **Every pair renders.** A navy with no entry for an era is drawn as `generic` in that era, and the sheet says so ("drawn as generic"). Unknown navy or era names are validation errors. The default is `generic` / `wwii`.
 - **Repainting:** `render_ship(..., look={"era": "victorian"})` overrides the design's look key by key, so the game can redraw a design in a later era (a refit) without changing it.
 - National navies are named after dockyards. Navies: `generic`, `brooklyn` (US), `kure` (Japan), `portsmouth` (UK), `kiel` (Germany). Eras: `victorian`, `wwii`.

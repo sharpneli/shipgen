@@ -233,17 +233,29 @@ class Painter:
                      f'stroke-width="{f(max(self.sw * 1.4, 0.3))}" stroke-linecap="round"/>'
                      f'<circle cx="{f(bx)}" cy="{f(by)}" r="0.3" fill="{p["mast"]}"/>')
         mode = self.shapes.get("mast")
-        legs = self.shapes.get("tripod", 0.0 if mode in ("pole", "fighting_top") else 1.0)   # 0: every mast a pole
+        legs = self.shapes.get("tripod", 0.0 if mode in ("pole", "fighting_top", "cage") else 1.0)   # 0: every mast a pole
         if m.get("tripod", True) and legs:
             for ang in (150, 210):
                 lx = x + 4.0 * legs * math.cos(math.radians(ang))
                 ly = y + 3.0 * legs * (1 if ang == 150 else -1)
                 s.append(f'<line x1="{f(x)}" y1="{f(y)}" x2="{f(lx)}" y2="{f(ly)}" '
                          f'stroke="{p["mast"]}" stroke-width="{f(max(self.sw * 1.3, 0.3))}" stroke-linecap="round"/>')
+        cage = self.shapes.get("cage_r", 3.0 if mode == "cage" else 0.0)
+        if cage and m.get("tripod", True):   # a US cage (lattice) mast from above, where a big ship has a tripod: twisted struts from a wide foot to a narrow head
+            for i in range(12):
+                a0, a1 = math.radians(i * 30), math.radians(i * 30 + 75)
+                s.append(f'<line x1="{f(x + cage * math.cos(a0))}" y1="{f(y + cage * math.sin(a0))}" '
+                         f'x2="{f(x + 0.4 * cage * math.cos(a1))}" y2="{f(y + 0.4 * cage * math.sin(a1))}" '
+                         f'stroke="{p["mast"]}" stroke-width="{f(max(self.sw * 0.8, 0.15))}"/>')
+            s.append(f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(cage)}" fill="none" stroke="{p["mast"]}" '
+                     f'stroke-width="{f(max(self.sw * 0.8, 0.15))}"/>'
+                     f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(0.45 * cage)}" fill="{shade(p["mast"], 0.85)}" {self.stroke(0.6)}/>')
         top = self.shapes.get("top_r", 1.6 if mode == "fighting_top" else 0.0)
-        if top:   # a round fighting top on the mast
-            s.append(f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(top)}" fill="{shade(p["mast"], 0.75)}" {self.stroke(0.8)}/>'
-                     f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(top - 0.35)}" fill="none" stroke="{shade(p["mast"], 1.2)}" '
+        for i in range(self.shapes.get("top_tiers", 1) if top else 0):   # a fighting top; tiers stack a pagoda
+            r = top * (1 - 0.3 * i)
+            s.append(f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(r)}" fill="{shade(p["mast"], 0.75 + 0.2 * i)}" '
+                     f'{self.stroke(0.8)}/>'
+                     f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(r - 0.35)}" fill="none" stroke="{shade(p["mast"], 1.2 + 0.2 * i)}" '
                      f'stroke-width="0.2"/>')
         s.append(f'<circle cx="{f(x)}" cy="{f(y)}" r="0.7" fill="{p["mast"]}" {self.stroke(0.6)}/>')
         return "".join(s)

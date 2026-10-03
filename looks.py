@@ -22,7 +22,8 @@ Each look (one navy in one era) has:
                  funnel   "box", "oval" or "capped" (default: stadium)
                  blocks   superstructure corners: "boxy", "soft", "bowfront" (round fronts, square backs) or
                           "chamfer" (default: as laid out)
-                 mast     "pole": no tripod legs; "fighting_top": pole masts with a round fighting top
+                 mast     "pole": no tripod legs; "fighting_top": pole masts with a round fighting top;
+                          "cage": US lattice masts
     shapes_by_style   further shape overrides for one style (optional)
     adjust     colour nudges applied over the finished palette (optional, see below)
     from       inherit another look and list only the differences (optional, see below)
@@ -39,6 +40,7 @@ taken off the tripods. Two keys let a look say only that:
                  lighten   -1..1: toward white (+) or black (-)
                  saturate  -1..1: toward grey (-) or away from it (+)
                  tint      [colour, amount]: blend toward the colour by amount (0..1)
+                 styles    only for these styles (default every style), e.g. NAVAL to spare merchants
               e.g. [{"keys": "upperworks", "lighten": 0.15}, {"keys": "hull", "tint": ["#3e4b59", 0.2]}]
     adjust_by_style   further operations for one style, run after adjust (optional)
 
@@ -49,8 +51,10 @@ beside it wins):
     funnel_round       0..1 corner radius as a fraction of the funnel's half-width (box 0.44, default 1)
     funnel_squareness  superellipse exponent of the oval funnel (2.6; 2 = ellipse, higher = squarer)
     funnel_band_w      width of the painted top band in m (0.25)
-    tripod             tripod leg length factor (1; 0 = pole masts; pole and fighting_top give 0)
+    tripod             tripod leg length factor (1; 0 = pole masts; pole, fighting_top and cage give 0)
     top_r              fighting top radius in m (0 = none; fighting_top gives 1.6)
+    top_tiers          stacked tops, each smaller and lighter (1; 3 or so reads as a pagoda)
+    cage_r             US cage mast foot radius in m (0 = none; mast "cage" gives 3)
     deck_line_opacity  planking and plate seam lines (0.45; 0 = a plain deck)
 
 Precedence, lowest first: DEFAULT_PALETTE, look palette, STYLE_PALETTES[style], look by_style, design "palette".
@@ -162,8 +166,13 @@ def adjust_palette(pal: dict, ops: list) -> dict:
     return pal
 
 
+# The styles that wear navy paint; an adjust with "styles": NAVAL leaves merchants their own colours
+NAVAL = ["warship", "carrier", "planing"]
+# Masts outside warships: no fighting tops, pagodas or cages
+_PLAIN_MASTS = {s_: {"top_r": 0.0, "cage_r": 0.0} for s_ in ("merchant", "carrier", "planing")}
+
 # The eras a look can be drawn in, oldest first
-ERAS = ("victorian", "wwii")
+ERAS = ("victorian", "great_war", "treaty", "wwii", "cold_war")
 
 # NAVIES[navy]["eras"][era] is one look. National navies are named after a dockyard; "generic" is no navy in
 # particular and stands in for any navy without its own entry for an era
@@ -171,8 +180,6 @@ NAVIES = {
     "generic": dict(
         desc="No navy in particular",
         eras={
-            # the original WWII haze-grey scheme
-            "wwii": dict(desc="Haze grey, generic", palette={}, by_style={}, turrets="standard", shapes={}),
             # the 1890s black, white and buff most navies wore. Holystoned teak, black drum turrets with sighting
             # hoods, buff funnels and masts with fighting tops, a full beamy bow. Merchants get varnished teak
             # deckhouses and a red funnel with a black top; torpedo craft are all black
@@ -194,10 +201,53 @@ NAVIES = {
                 turrets="drum",
                 shapes={"bow_power": 0.4, "funnel": "oval", "blocks": "soft", "mast": "fighting_top"},
                 shapes_by_style={s_: {"mast": "pole"} for s_ in ("merchant", "carrier", "planing")}),
+            # 1904-1920: the first service greys, darker than later ones; tall tripods with spotting tops, teak,
+            # black funnel tops. Merchants keep their own colours
+            "great_war": {
+                "from": "wwii", "desc": "1904-1920: dark early grey, teak decks, tripods with spotting tops",
+                "palette": {"funnel_band": "#2b2f33"},
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels", "rigging"], "lighten": -0.15,
+                            "styles": NAVAL},
+                           {"keys": "decks", "tint": ["#8a6a3e", 0.25], "styles": NAVAL}],
+                "shapes": {"bow_power": 0.25, "funnel": "oval", "tripod": 1.3, "top_r": 1.4, "funnel_band_w": 0.4,
+                           "deck_line_opacity": 0.6},
+                "shapes_by_style": _PLAIN_MASTS},
+            # 1920-1936: light peacetime grey, holystoned white teak, tripods with director tops
+            "treaty": {
+                "from": "wwii", "desc": "1920-1936: light peacetime grey, white teak, tripods with director tops",
+                "palette": {"funnel_band": "#2b2f33"},
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.15, "styles": NAVAL},
+                           {"keys": "wood", "tint": ["#e2d5b5", 0.3], "styles": NAVAL}],
+                "shapes": {"bow_power": 0.15, "tripod": 1.2, "top_r": 1.1, "funnel_band_w": 0.4},
+                "shapes_by_style": _PLAIN_MASTS},
+            # the original WWII haze-grey scheme
+            "wwii": dict(desc="Haze grey, generic", palette={}, by_style={}, turrets="standard", shapes={}),
+            # 1950-1970: bluish haze grey, dark non-skid steel decks, pole and lattice masts, welded boxy upperworks
+            "cold_war": {
+                "from": "wwii", "desc": "1950-1970: haze grey, dark non-skid decks, pole masts, boxy upperworks",
+                "palette": {"deck": "#4c5359", "steel_line": "#2a2f34", "flight_deck": "#3e444a"},
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "tint": ["#6e7d8c", 0.12],
+                            "styles": NAVAL}],
+                "shapes": {"tripod": 0.0, "blocks": "boxy", "funnel": "capped", "deck_line_opacity": 0.2}},
         }),
     "brooklyn": dict(
         desc="US-inspired",
         eras={
+            # US-inspired 1910s: light blue-tinged grey, cage masts, boxy turrets
+            "great_war": {
+                "from": "generic/great_war", "desc": "US-inspired 1910s: light blue-grey, cage masts, boxy turrets",
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.12, "styles": NAVAL},
+                           {"keys": ["hull", "upperworks"], "tint": ["#6f8aa3", 0.08], "styles": NAVAL}],
+                "turrets": "slab",
+                "shapes": {"transom": 0.15, "funnel": "box", "blocks": "boxy", "mast": "cage", "tripod": 0.0,
+                           "top_r": 0.0}},
+            # US-inspired 1920s-30s: light navy grey, the cage masts kept until the rebuilds
+            "treaty": {
+                "from": "generic/treaty", "desc": "US-inspired 1920s-30s: light navy grey, cage masts, boxy turrets",
+                "adjust": [{"keys": ["hull", "upperworks"], "tint": ["#6f8aa3", 0.08], "styles": NAVAL}],
+                "turrets": "slab",
+                "shapes": {"transom": 0.15, "funnel": "box", "blocks": "boxy", "mast": "cage", "tripod": 0.0,
+                           "top_r": 0.0}},
             # US-inspired: Measure 21-style deck blue on every horizontal surface, boxy slab-sided turrets
             "wwii": dict(
                 desc="US-inspired: deck-blue horizontals, boxy turrets",
@@ -215,10 +265,29 @@ NAVIES = {
                                       "levels": ["#62705c", "#6f7d68", "#7c8a75", "#8a9782"]}},
                 turrets="slab",
                 shapes={"transom": 0.15, "funnel": "box", "blocks": "boxy"}),
+            # US-inspired 1950s-60s: haze grey over deck-grey non-skid
+            "cold_war": {
+                "from": "generic/cold_war", "desc": "US-inspired 1950s-60s: haze grey, deck-grey non-skid, boxy turrets",
+                "palette": {"deck": "#454c54", "flight_deck": "#3b424a"},
+                "turrets": "slab",
+                "shapes": {"transom": 0.15, "funnel": "box"}},
         }),
     "kure": dict(
         desc="Japan-inspired",
         eras={
+            # Japan-inspired 1910s: British-built lines and turrets, dark grey, tripods, black funnel tops
+            "great_war": {
+                "from": "generic/great_war", "desc": "Japan-inspired 1910s: British-built turrets, dark grey, tripods",
+                "palette": {"funnel_band": "#1c1d1e"},
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "tint": ["#555a5c", 0.35],
+                            "styles": NAVAL}],
+                "turrets": "classic",
+                "shapes": {"blocks": "soft", "bow_flare": 0.04}},
+            # Japan-inspired 1920s-30s: the wartime Kure look with pagoda masts built up round the tripods
+            "treaty": {
+                "from": "wwii", "desc": "Japan-inspired 1920s-30s: Kure grey, linoleum decks, pagoda masts",
+                "shapes": {"tripod": 1.4, "top_r": 3.2, "top_tiers": 3},
+                "shapes_by_style": _PLAIN_MASTS},
             # Japan-inspired: dark Kure grey, pale hinoki wood, brown linoleum on steel decks, black-topped funnels,
             # rounded turrets with long rangefinder arms, red and white carrier deck stripes
             "wwii": dict(
@@ -238,10 +307,31 @@ NAVIES = {
                                       "levels": ["#767b7c", "#848989", "#929797", "#a0a4a4"]}},
                 turrets="round",
                 shapes={"bow_flare": 0.08, "funnel": "oval", "blocks": "soft"}),
+            # Japan-inspired 1950s-60s: Kure-tinted haze grey, rounded turrets, flared bows
+            "cold_war": {
+                "from": "generic/cold_war", "desc": "Japan-inspired 1950s-60s: Kure-tinted haze grey, rounded turrets",
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "tint": ["#555a5c", 0.2],
+                            "styles": NAVAL}],
+                "turrets": "round",
+                "shapes": {"funnel": "oval", "blocks": "soft", "bow_flare": 0.08}},
         }),
     "portsmouth": dict(
         desc="UK-inspired",
         eras={
+            # UK-inspired 1910s: darker Edwardian grey, weathered teak, tall tripods with spotting tops
+            "great_war": {
+                "from": "wwii", "desc": "UK-inspired 1910s: dark grey, weathered teak, tripods with spotting tops",
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": -0.25, "styles": NAVAL},
+                           {"keys": "decks", "tint": ["#8a6a3e", 0.3], "styles": NAVAL}],
+                "shapes": {"tripod": 1.3, "top_r": 1.4, "funnel_band_w": 0.6, "deck_line_opacity": 0.7},
+                "shapes_by_style": _PLAIN_MASTS},
+            # UK-inspired 1920s-30s: light Home Fleet grey, white teak, tripods with director tops
+            "treaty": {
+                "from": "wwii", "desc": "UK-inspired 1920s-30s: light Home Fleet grey, white teak, director tops",
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.1, "styles": NAVAL},
+                           {"keys": "wood", "tint": ["#e6dcc0", 0.3], "styles": NAVAL}],
+                "shapes": {"tripod": 1.2, "top_r": 1.1, "funnel_band_w": 0.4},
+                "shapes_by_style": _PLAIN_MASTS},
             # UK-inspired: pale Admiralty grey, holystoned teak, white boats, black funnel tops, straight-sided turrets
             # with a rounded rear
             "wwii": dict(
@@ -259,10 +349,31 @@ NAVIES = {
                                       "levels": ["#b3bbbe", "#bfc6c9", "#cbd1d3", "#d7dcde"]}},
                 turrets="classic",
                 shapes={"bow_power": 0.35, "transom": 0.05, "blocks": "bowfront"}),
+            # UK-inspired 1950s-60s: light Admiralty grey over dark non-skid, black funnel tops
+            "cold_war": {
+                "from": "generic/cold_war", "desc": "UK-inspired 1950s-60s: light Admiralty grey, dark non-skid decks",
+                "palette": {"funnel_band": "#1e2022"},
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.08, "styles": NAVAL}],
+                "turrets": "classic",
+                "shapes": {"bow_power": 0.35, "transom": 0.05, "blocks": "bowfront"}},
         }),
     "kiel": dict(
         desc="Germany-inspired",
         eras={
+            # German-inspired 1910s: light blue-grey, pole masts with small spotting tops, faceted turrets
+            "great_war": {
+                "from": "generic/great_war", "desc": "German-inspired 1910s: light blue-grey, pole masts, faceted turrets",
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.2, "styles": NAVAL},
+                           {"keys": ["hull", "upperworks"], "tint": ["#7d8fa0", 0.08], "styles": NAVAL}],
+                "turrets": "faceted",
+                "shapes": {"bow_power": 0.2, "bow_flare": 0.04, "funnel": "capped", "blocks": "chamfer", "tripod": 0.0,
+                           "top_r": 0.9}},
+            # German-inspired 1920s-30s: the Reichsmarine's lighter hull, pole masts with spotting tops
+            "treaty": {
+                "from": "wwii", "desc": "German-inspired 1920s-30s: lighter hull, pole masts with spotting tops",
+                "adjust": [{"keys": "hull", "lighten": 0.12, "styles": NAVAL}],
+                "shapes": {"top_r": 0.9},
+                "shapes_by_style": _PLAIN_MASTS},
             # German-inspired: dark grey hull and decks under light grey upperworks, mid teak, grey funnel caps,
             # faceted turrets
             "wwii": dict(
@@ -280,6 +391,13 @@ NAVIES = {
                                       "levels": ["#b5b9bb", "#c0c4c6", "#cbcfd0", "#d6d9da"]}},
                 turrets="faceted",
                 shapes={"bow_power": 0.2, "bow_flare": 0.04, "funnel": "capped", "blocks": "chamfer", "mast": "pole"}),
+            # German-inspired 1950s-60s: light haze grey, faceted turrets, capped funnels
+            "cold_war": {
+                "from": "generic/cold_war", "desc": "German-inspired 1950s-60s: light haze grey, faceted turrets",
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.1, "styles": NAVAL}],
+                "turrets": "faceted",
+                "shapes": {"bow_power": 0.2, "bow_flare": 0.04, "funnel": "capped",
+                           "blocks": "chamfer"}},
         }),
 }
 
@@ -363,7 +481,7 @@ def palette(design) -> dict:
     """The design's palette overrides (merged over DEFAULT_PALETTE by the renderer)."""
     lk, st = get(design), style_name(design)
     pal = {**lk["palette"], **STYLE_PALETTES.get(st, {}), **lk["by_style"].get(st, {})}
-    ops = lk.get("adjust", []) + lk.get("adjust_by_style", {}).get(st, [])
+    ops = [op for op in lk.get("adjust", []) + lk.get("adjust_by_style", {}).get(st, []) if st in op.get("styles", [st])]
     if ops:
         pal = adjust_palette({**DEFAULT_PALETTE, **pal}, ops)
     return {**pal, **design.get("palette", {})}
