@@ -150,6 +150,7 @@ def place_batteries(lay, mounts, turret_types, design, end_lines, side_slots, de
     flat on deck (no superfiring). armour_mm: the mounts' armour unless a battery gives its own."""
     cursor = [ln[0] for ln in end_lines]
     for k, b in enumerate(batteries(design)):
+        first = len(mounts)
         prefix = "S" if k == 0 else "S" + "BCDEFG"[k - 1]
         t_id, t = gun_type(b)
         turret_types[t_id] = t
@@ -171,6 +172,8 @@ def place_batteries(lay, mounts, turret_types, design, end_lines, side_slots, de
         if n_side:
             side_pairs(lay, mounts, turret_types, "secondary", t_id, t, n_side, side_slots(t), prefix,
                        armour_mm=b.get("armour_mm", armour_mm), depth=depth)
+        for m in mounts[first:]:
+            m["material"] = b.get("material")      # the battery's own armour material, if it names one
 
 
 def torpedo_type(tp, fixed=False):

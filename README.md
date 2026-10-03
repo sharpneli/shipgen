@@ -86,6 +86,18 @@ The side armour is the main belt and up to three secondary pieces. Every design 
   - **Pre-dreadnought** (`mikasa.json`, `connecticut.json`): a waterline belt from stem to stern, tapering toward the ends, an upper belt between the barbettes, and the protective deck at the ends (`ends` deck plates).
   - **Full-length upper belt** (Gangut, the early French): `upper_belt.extent` `full`.
 
+`armour.materials` names the armour material per part: `belt`, `upper_belt`, `end_belts`, `bulkheads`, `decks`, `turrets`, `barbettes`, `conning_tower`, `secondary` and, on carriers, `flight_deck`. A deck entry, `upper_belt`, an end belt or a secondary battery may give its own `material`, which wins over the map.
+- **They're plain strings,** passed unchanged to every armour piece in `hitboxes.json` for the game's ballistics, which looks them up. The designer doesn't read them: armour weighs thickness × area × 7.85 t/m³ whatever it's made of, and no material is tied to a period.
+- **The designs use names of the time:**
+  - wrought iron and compound
+  - `Harvey nickel steel`, `nickel steel`
+  - `Krupp cemented`, `Krupp non-cemented`, `Vickers cemented`
+  - British `cemented armour` / `non-cemented armour`, and `high-tensile steel`
+  - US `Class A` (face-hardened), `Class B` (homogeneous) and `STS`
+  - `mild steel` on unarmoured ships
+
+  Any other string works too.
+
 `crew` sets how the crew lives (`crew.py`, from `research/crew-space-model.md`).
 - `standard` is the habitability standard as numbers: net areas per head, shared spaces, headroom, water and provisions rates, and the hotel fraction.
   - `crew-templates.md` has six reference blocks, H0 (sleep at station) to H5 (single cabins). `python crew_templates.py` regenerates it.
@@ -242,7 +254,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
   - Heights (`base`/`top`/`z`) are metres above the main deck, negative below it. On a carrier the main deck is the hangar deck.
   - `vertical`: `keel`, `waterline` and `armour_deck` (the main armour deck, null on a ship without deck armour) on that height scale, plus `draught`, `depth` and `freeboard` (full load).
   - `hull`: the hull outline polygon.
-  - `armour`: present only for the armour the ship has (`navarch.armour_geometry`, the same geometry its weights come from).
+  - `armour`: present only for the armour the ship has (`navarch.armour_geometry`, the same geometry its weights come from). Every armour piece carries `material`, the design's `armour.materials` string, when the design names one. The same goes for armoured components (turrets, barbettes, the conning tower, armoured casings, an armoured flight deck with its `armour_mm`) and for deck `plates`. Armoured transverse bulkheads carry `armour_material`; cells carry `belt_material` and `armour_above_material` (parallel to `armour_above_mm`).
     - `belt`: `thickness_mm`, `x0`/`x1` (the citadel), `bottom`/`top`. A tapered belt adds `bottom_mm` (at `bottom`) and `taper_from` (the waterline, where the taper starts). From below the waterline up to the main armour deck, or centred on the waterline if that deck is lower.
     - `decks`: the armour decks, top down: `deck` (its id, such as `Second deck`), `thickness_mm`, `extent`, `x0`/`x1`, `z`, and the flags `main` (the main armour deck) and `roof` (the lowest, over the vital spaces).
     - `strakes`: the side armour other than the main belt (`armour.upper_belt` and `armour.end_belts`), each with `id`, `kind` (`upper` | `end`), `extent` (`citadel` | `fore` | `aft`), `thickness_mm` (at the citadel end), `tip_mm` (at the hull's end, only when it tapers), `x0`/`x1` and `bottom`/`top`.

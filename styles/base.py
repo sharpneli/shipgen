@@ -32,7 +32,7 @@ SHARED_DECK = ({"citadel", "fore"}, {"citadel", "aft"}, {"citadel", "ends"}, {"f
 
 def armour_errors(design) -> list[str]:
     """armour.decks: a list of {"deck": n (0 the main deck, 1 the second, ...), "mm", "extent"}, top down."""
-    from navarch import ARMOUR_EXTENTS
+    from navarch import ARMOUR_EXTENTS, ARMOUR_PARTS
     a = design.get("armour") or {}
     errs = []
     if "deck_mm" in a:
@@ -65,6 +65,23 @@ def armour_errors(design) -> list[str]:
                 errs.append("armour.upper_belt.to_deck: use a deck number (0 the main deck, 1 the second deck, ...)")
             if ub.get("extent", "citadel") not in ARMOUR_EXTENTS:
                 errs.append(f"armour.upper_belt.extent = {ub.get('extent')!r}: use {' or '.join(ARMOUR_EXTENTS)}")
+    mats = a.get("materials")
+    if mats is not None:
+        if not isinstance(mats, dict):
+            errs.append("armour.materials: name a material per part, e.g. {\"belt\": \"Krupp cemented\", ...}")
+        else:
+            errs += [f"armour.materials.{k}: not an armour part ({', '.join(ARMOUR_PARTS)})" for k in mats
+                     if k not in ARMOUR_PARTS]
+            errs += [f"armour.materials.{k}: name the material as a string" for k, v in mats.items()
+                     if not isinstance(v, str) or not v]
+    owns = [(f"armour.decks[{k}]", d) for k, d in enumerate(decks) if isinstance(d, dict)]
+    owns += [("armour.upper_belt", a["upper_belt"])] if isinstance(a.get("upper_belt"), dict) else []
+    owns += [(f"armour.end_belts.{e}", v) for e, v in (a.get("end_belts") or {}).items() if isinstance(v, dict)] \
+        if isinstance(a.get("end_belts"), dict) else []
+    sec = design.get("secondary") or []
+    owns += [(f"secondary[{k}]", b) for k, b in enumerate(sec if isinstance(sec, list) else [sec]) if isinstance(b, dict)]
+    errs += [f"{where}.material: name the material as a string" for where, d in owns
+             if "material" in d and (not isinstance(d["material"], str) or not d["material"])]
     eb = a.get("end_belts")
     if eb is not None:
         if not isinstance(eb, dict) or set(eb) - {"fore", "aft"}:

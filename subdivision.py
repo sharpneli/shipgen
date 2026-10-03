@@ -82,8 +82,10 @@ def decks(design, D, ag):
         out.append(dict(id="Inner bottom", kind="inner_bottom", z=-D + double_bottom(D)))
     arm = {}
     for d in ag["decks"]:      # the plates on each deck: one is armour_mm over x0..x1, several are listed
-        arm.setdefault(d["deck"], []).append(dict(armour_mm=d["mm"], x0=d["x0"], x1=d["x1"]))
-    arm = {n: ps[0] if len(ps) == 1 else dict(plates=[{k: round(v, 3) for k, v in p.items()} for p in ps])
+        arm.setdefault(d["deck"], []).append(dict(armour_mm=d["mm"], x0=d["x0"], x1=d["x1"],
+                                                  **({"material": d["material"]} if d["material"] else {})))
+    arm = {n: ps[0] if len(ps) == 1 else
+           dict(plates=[{k: round(v, 3) if isinstance(v, float) else v for k, v in p.items()} for p in ps])
            for n, ps in arm.items()}
     for n, z in reversed(deck_stack(design, D)):
         out.append(dict(id=deck_name(n), kind="main" if n == 0 else "deck", deck=n, z=z - D, **arm.get(n, {})))
@@ -191,6 +193,8 @@ def build(lay, design, res, ag, armoured):
         if s["kind"] == "armoured":
             d.update(armour_mm=round(ag["bulkhead_mm"]), armour_bottom=round(rz(ag["bulkhead_bottom"]), 2),
                      armour_top=round(rz(ag["bulkhead_top"]), 2))
+            if ag["bulkhead_material"]:
+                d["armour_material"] = ag["bulkhead_material"]
         tb.append(d)
     assert len(tb) == nbh
 
@@ -207,7 +211,7 @@ def build(lay, design, res, ag, armoured):
     cells, longi = [], []
     belts = ([dict(x0=ag["x0"], x1=ag["x1"], bottom=ag["belt_bottom"], top=ag["belt_top"], mm=ag["belt_mm"],
                    tip_mm=ag["belt_mm"], bottom_mm=ag["belt_bottom_mm"], wl=rz(ag["waterline"]),
-                   extent="citadel")] if ag["belt_mm"] > 0 else []) + ag["strakes"]
+                   extent="citadel", material=ag["belt_material"])] if ag["belt_mm"] > 0 else []) + ag["strakes"]
     belts = [{**b, "bottom": rz(b["bottom"]), "top": rz(b["top"])} for b in belts]
     for si, sec in enumerate(sections):
         x0, x1 = sec["x0"], sec["x1"]
@@ -254,14 +258,19 @@ def build(lay, design, res, ag, armoured):
                          below_waterline=tr["below_waterline"], si=si, ti=ti)
                 if in_cit and armoured:
                     c["citadel"] = True
-                above = [d["mm"] for d in adecks if tr["top"] <= d["z"] + 1e-6 and d["x0"] <= xm <= d["x1"]]
+                above = [d for d in adecks if tr["top"] <= d["z"] + 1e-6 and d["x0"] <= xm <= d["x1"]]
                 if above:
-                    c["armour_above_mm"] = above
+                    c["armour_above_mm"] = [d["mm"] for d in above]
+                    if any(d["material"] for d in above):
+                        c["armour_above_material"] = [d["material"] for d in above]
                 outer = band in ("P", "S") or (band == "C") or (band in ("CP", "CS") and not banded)
-                side = [belt_mm_at(b, xm, min(b["top"], tr["top"])) for b in belts
+                side = [(belt_mm_at(b, xm, min(b["top"], tr["top"])), b) for b in belts
                         if outer and b["x0"] <= xm <= b["x1"] and _overlap(b["bottom"], b["top"], tr["base"], tr["top"]) > 0]
                 if side:      # the thickest side armour beside the cell (where it's thickest: its top)
-                    c["belt_mm"] = round(max(side))
+                    mm, b = max(side, key=lambda v: v[0])
+                    c["belt_mm"] = round(mm)
+                    if b.get("material"):
+                        c["belt_material"] = b["material"]
                 if banded and band in ("P", "S") and in_cit and tds > 0:
                     c["tds_m"] = tds
                 cells.append(c)

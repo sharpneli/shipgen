@@ -117,7 +117,7 @@ def export_hitboxes(lay, design, res):
     """hitboxes.json. Heights are metres above the main deck; res (navarch.Result) places the keel, the
     waterline and the armour."""
     from layout import block_base, block_top
-    from navarch import armour_geometry, deck_name, DECK_PITCH
+    from navarch import armour_geometry, armour_material, deck_name, DECK_PITCH
     D, T = res.depth, res.draught
     rz = lambda z: round(z - D, 2)        # metres above the keel -> above the main deck
     ag = armour_geometry(design, lay.hull.L, T, D, lay.geo)
@@ -132,6 +132,10 @@ def export_hitboxes(lay, design, res):
     r3 = lambda pts: [[round(x, 3), round(y, 3)] for x, y in pts]
     fd_base = min([dk["base"] for dk in lay.decks if dk["kind"] == "flight_deck"] + [1e9])
     comps = []
+    def with_material(d, m):    # the armour.materials string, passed through as given (none: no key)
+        if m:
+            d["material"] = m
+        return d
     for m in lay.mounts:
         t = m["t"]
         sh = turret_shapes(t)
@@ -144,9 +148,12 @@ def export_hitboxes(lay, design, res):
             rotating=m.get("fixed") is None, rest_deg=m["rest"], arcs_deg=m["arcs"],
             local={"body": r3(sh["body"]), "parts": [r3(p) for p in sh["parts"]],
                    "barrels": [r3(p) for p in sh["barrels"]]}))
+        mat = (armour_material(design, "turrets") if m["kind"] == "main" else
+               m.get("material") or armour_material(design, "secondary") if m["kind"] == "secondary" else None)
         if m["kind"] in ("main", "secondary"):
             comps[-1]["armour"] = dict(face=arm, side=round(TURRET_SIDE * arm), rear=round(TURRET_REAR * arm),
                                        roof=round(TURRET_ROOF * arm))
+            with_material(comps[-1], mat)
         if m.get("magazine"):
             comps[-1]["magazine"] = m["magazine"]
         if m.get("casemate"):   # in the hull side, below the main deck
@@ -161,6 +168,7 @@ def export_hitboxes(lay, design, res):
                               base=(min(rz(barbette_z), round(m["base"], 2)) if in_hull
                                     else round(m["base"] - 1.0, 2)),
                               top=round(m["base"], 2), armour_mm=round(BARBETTE * arm)))
+            with_material(comps[-1], armour_material(design, "barbettes") if m["kind"] == "main" else mat)
     for b in lay.blocks:
         pts = rrect_polygon(b["x0"], b["y"] - b["w"] / 2, b["x1"], b["y"] + b["w"] / 2, b["rf"], b["rb"])
         smoke = getattr(lay, "smoke", {}).get(b["id"])
@@ -176,6 +184,7 @@ def export_hitboxes(lay, design, res):
         comps.append(dict(id="Conning tower", kind="conning_tower", shape="circle", x=round(ct["x"], 3),
                           y=round(ct["y"], 3), r=round(ct["r"], 3), base=0.0, top=round(ct["top"], 2),
                           armour_mm=ag["belt_mm"]))
+        with_material(comps[-1], armour_material(design, "conning_tower"))
     plan = lay.geo.get("plant")
     for f in lay.funnels:
         pts = rrect_polygon(f["x"] - f["l"] / 2, f["y"] - f["w"] / 2, f["x"] + f["l"] / 2, f["y"] + f["w"] / 2,
@@ -192,10 +201,16 @@ def export_hitboxes(lay, design, res):
         comps.append(dict(id=c["id"], kind="casing", shape="polygon",
                           points=[[round(x, 3), round(y, 3)] for x, y in pts], base=round(c["base"], 2),
                           top=round(c["top"], 2), armour_mm=c["armour_mm"]))
+        if c["armour_mm"]:
+            with_material(comps[-1], ag["roof_material"])
     for dk in lay.decks + [{**sp, "kind": "sponson"} for sp in lay.sponsons]:
         comps.append(dict(id=dk["id"], kind=dk["kind"], shape="polygon",
                           points=[[round(x, 3), round(y, 3)] for x, y in dk["points"]],
                           base=round(dk["base"], 2), top=round(dk["top"], 2)))
+        fd_mm = (design.get("armour") or {}).get("flight_deck_mm", 0)
+        if dk["kind"] == "flight_deck" and fd_mm:
+            comps[-1]["armour_mm"] = fd_mm
+            with_material(comps[-1], armour_material(design, "flight_deck"))
     for a in lay.aa:
         comps.append(dict(id=a["id"], kind="aa", type=a["type"], shape="circle", x=round(a["x"], 3),
                           y=round(a["y"], 3), r=AA_CFG[a["type"]][0], base=a["base"], top=a["base"] + 2.0))
@@ -208,23 +223,25 @@ def export_hitboxes(lay, design, res):
     sub = subdivision.build(lay, design, res, ag, armoured)
     arm_out = {}
     if ag["belt_mm"] > 0:
-        arm_out["belt"] = dict(thickness_mm=ag["belt_mm"], x0=round(ag["x0"], 3), x1=round(ag["x1"], 3),
-                               bottom=rz(ag["belt_bottom"]), top=rz(ag["belt_top"]))
+        arm_out["belt"] = with_material(dict(thickness_mm=ag["belt_mm"], x0=round(ag["x0"], 3), x1=round(ag["x1"], 3),
+                                             bottom=rz(ag["belt_bottom"]), top=rz(ag["belt_top"])), ag["belt_material"])
         if ag["belt_bottom_mm"] != ag["belt_mm"]:    # tapers below the waterline to this at its lower edge
             arm_out["belt"].update(bottom_mm=ag["belt_bottom_mm"], taper_from=rz(min(ag["belt_top"], ag["waterline"])))
     if ag["strakes"]:
-        arm_out["strakes"] = [dict(id=st["id"], kind=st["kind"], extent=st["extent"], thickness_mm=st["mm"],
+        arm_out["strakes"] = [with_material(dict(id=st["id"], kind=st["kind"], extent=st["extent"], thickness_mm=st["mm"],
                                    **({"tip_mm": st["tip_mm"]} if st["tip_mm"] != st["mm"] else {}),
                                    x0=round(st["x0"], 3), x1=round(st["x1"], 3), bottom=rz(st["bottom"]),
-                                   top=rz(st["top"])) for st in ag["strakes"]]
+                                   top=rz(st["top"])), st["material"]) for st in ag["strakes"]]
     if armoured and ag["bulkhead_mm"] > 0:
-        arm_out["bulkheads"] = [dict(id=f"{end} bulkhead", x=round(x, 3), thickness_mm=round(ag["bulkhead_mm"]),
-                                     bottom=rz(ag["bulkhead_bottom"]), top=rz(ag["bulkhead_top"]))
+        arm_out["bulkheads"] = [with_material(dict(id=f"{end} bulkhead", x=round(x, 3), thickness_mm=round(ag["bulkhead_mm"]),
+                                                   bottom=rz(ag["bulkhead_bottom"]), top=rz(ag["bulkhead_top"])),
+                                              ag["bulkhead_material"])
                                 for end, x in (("Forward", ag["x1"]), ("Aft", ag["x0"]))]
     if ag["decks"]:
-        arm_out["decks"] = [dict(deck=deck_name(d["deck"]), thickness_mm=d["mm"], extent=d["extent"],
-                                 x0=round(d["x0"], 3), x1=round(d["x1"], 3), z=rz(d["z"]),
-                                 main=d["z"] == ag["main_z"], roof=d["z"] == ag["roof_z"]) for d in ag["decks"]]
+        arm_out["decks"] = [with_material(dict(deck=deck_name(d["deck"]), thickness_mm=d["mm"], extent=d["extent"],
+                                               x0=round(d["x0"], 3), x1=round(d["x1"], 3), z=rz(d["z"]),
+                                               main=d["z"] == ag["main_z"], roof=d["z"] == ag["roof_z"]),
+                                          d["material"]) for d in ag["decks"]]
     return dict(
         units="metres",
         frame="ship-local: origin = ship centre = sprite centre, +x toward bow, +y toward starboard; "

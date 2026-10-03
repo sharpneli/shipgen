@@ -554,7 +554,7 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
                 mid = f"{sec['prefix']}{i + 1}{'S' if side > 0 else 'P'}"
                 armament.add_mount(lay, mounts, "secondary", t_id, t, mid, x, side * yo, base, 90 * side, 0,
                                    armour_mm=arm, depth=depth, top=top, footprint_r=CASEMATE_SHIELD * rc,
-                                   casemate=True)
+                                   casemate=True, material=sec.get("material"))
     # housings close together (no lower shield between them) join into one gallery, its outer face the innermost
     galleries.sort()
     merged = []
@@ -1109,7 +1109,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                 mid = f"{pre}{i + 1}{'S' if side > 0 else 'P'}"
                 armament.add_mount(lay, mounts, "secondary", ts_id, ts, mid, sx, side * y_s, sec_base, 90 * side, 3,
                                    armour_mm=sec.get("armour_mm", 25), depth=depth, top=sec_base + ths,
-                                   footprint_r=rs_reach)
+                                   footprint_r=rs_reach, material=sec.get("material"))
         if wide:
             dh_w = max(dh_w, 2 * (y_s + rs_reach + 0.6)) if not first else 2 * (y_s + rs_reach + 0.6)
         first = False

@@ -333,15 +333,27 @@ def deck_stack(design, D):
     return out
 
 
+ARMOUR_PARTS = ("belt", "upper_belt", "end_belts", "bulkheads", "decks", "turrets", "barbettes", "conning_tower",
+                "secondary", "flight_deck")
+
+
+def armour_material(design, part, own=None):
+    """The armour material named for a part (armour.materials[part]; a deck or battery may give its own): a
+    plain string passed through to the hitboxes for the game's ballistics, or None if the design names none."""
+    return own.get("material") if own and own.get("material") else (
+        ((design.get("armour") or {}).get("materials") or {}).get(part))
+
+
 def armour_decks(design, D):
     """The design's armour decks (armour.decks, top down), placed on the deck stack: [dict(deck, mm, extent, z,
-    asked)]. A deck the hull is too shallow for lies on its lowest deck (asked keeps what the design said)."""
+    asked, material)]. A deck the hull is too shallow for lies on its lowest deck (asked keeps what the design
+    said)."""
     stack = deck_stack(design, D)
     out = []
     for d in (design.get("armour") or {}).get("decks") or []:
         n = min(int(d.get("deck", 0)), stack[-1][0])
         out.append(dict(deck=n, mm=d.get("mm", 0), extent=d.get("extent", "citadel"), z=stack[n][1],
-                        asked=int(d.get("deck", 0))))
+                        asked=int(d.get("deck", 0)), material=armour_material(design, "decks", d)))
     return out
 
 
@@ -379,7 +391,8 @@ def armour_geometry(design, L, T, D, geo):
                 armour.belt_bottom_mm at its lower edge: from armour.belt_depth_m below the full-load waterline to
                 armour.belt_height_m above it, or up to the main armour deck when that is higher (kept between
                 keel and main deck; TUNING belt_h, half below and half above, when the design gives none)
-      strakes   the rest of the side armour, each dict(id, kind, extent, mm, tip_mm, x0, x1, bottom, top):
+      strakes   the rest of the side armour, each dict(id, kind, extent, mm, tip_mm, x0, x1, bottom, top,
+                material):
                   end    armour.end_belts: the waterline belt carried on from the citadel to the stem ("fore")
                          or stern ("aft"), at the main belt's depth, up to the thickest armour deck over that end
                          when that is higher; mm at the citadel tapering to tip_mm at the hull's end
@@ -387,7 +400,9 @@ def armour_geometry(design, L, T, D, geo):
                          over its extent (one strake per stretch: the citadel, fore and aft)
       bulkheads the citadel's transverse bulkheads (armour.bulkhead_mm, 0.6 of the belt if not given) close the
                 belts' ends, from the top of the main or upper belt over the citadel down to 0.4 belt heights
-                below the belt."""
+                below the belt.
+      materials armour.materials, by part (armour_material): belt_material, bulkhead_material, roof_material,
+                and material on each deck plate and strake. Strings only, for the game's ballistics."""
     a = design.get("armour") or {}
     belt = a.get("belt_mm", 0)
     x0, x1 = geo.get("citadel", (-0.3 * L, 0.3 * L))
@@ -401,7 +416,9 @@ def armour_geometry(design, L, T, D, geo):
                      None)
             if p:
                 p.update(mm=p["mm"] + d["mm"], x0=min(p["x0"], p0), x1=max(p["x1"], p1),
-                         extent="full" if "full" in (p["extent"], ext) else p["extent"])
+                         extent="full" if "full" in (p["extent"], ext) else p["extent"],
+                         material=p["material"] if d["material"] in (None, p["material"]) else
+                         d["material"] if p["material"] is None else f"{p['material']} + {d['material']}")
                 continue
             decks.append({**d, "extent": ext, "x0": p0, "x1": p1})
     over = [d for d in decks if d["extent"] in ("citadel", "full")]      # the plates over the citadel
@@ -428,7 +445,8 @@ def armour_geometry(design, L, T, D, geo):
         tops[end] = et
         if s1 - s0 > 1e-6:
             strakes.append(dict(id=f"{end.capitalize()} end belt", kind="end", extent=end, mm=e["mm"],
-                                tip_mm=e.get("tip_mm", e["mm"]), x0=s0, x1=s1, bottom=bot, top=et))
+                                tip_mm=e.get("tip_mm", e["mm"]), x0=s0, x1=s1, bottom=bot, top=et,
+                                material=armour_material(design, "end_belts", e)))
     ub = a.get("upper_belt") or {}
     if ub.get("mm", 0) > 0:
         stack = deck_stack(design, D)
@@ -440,12 +458,14 @@ def armour_geometry(design, L, T, D, geo):
             if ut > tops[ext] + 0.05 and s1 - s0 > 1e-6:
                 strakes.append(dict(id="Upper belt" if ext == "citadel" else f"Upper belt ({ext})", kind="upper",
                                     extent=ext, mm=ub["mm"], tip_mm=ub["mm"], x0=s0, x1=s1, bottom=tops[ext],
-                                    top=ut))
+                                    top=ut, material=armour_material(design, "upper_belt", ub)))
     bh_top = max([top] + [s["top"] for s in strakes if s["kind"] == "upper" and s["extent"] == "citadel"])
     return dict(x0=x0, x1=x1, belt_mm=belt, belt_bottom_mm=a.get("belt_bottom_mm", belt), waterline=T,
                 belt_bottom=bot, belt_top=top, decks=decks, strakes=strakes,
                 main_z=main["z"] if main else None, roof_z=roof["z"] if roof else None,
-                roof_mm=roof["mm"] if roof else 0, armoured=belt > 0 or bool(over),
+                roof_mm=roof["mm"] if roof else 0, roof_material=roof["material"] if roof else None,
+                belt_material=armour_material(design, "belt"), bulkhead_material=armour_material(design, "bulkheads"),
+                armoured=belt > 0 or bool(over),
                 bulkhead_mm=a.get("bulkhead_mm", 0.6 * belt), bulkhead_bottom=max(0.0, bot - 0.4 * h),
                 bulkhead_top=bh_top)
 
