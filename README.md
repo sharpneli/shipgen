@@ -78,6 +78,11 @@ The side armour is the main belt and up to three secondary pieces. Every design 
 - `bulkhead_mm`: the citadel's transverse ends, closing the belts from 0.4 belt heights under the belt up to the top of the main or upper belt.
 - `upper_belt`: `{"mm", "to_deck", "extent"}`, a strake from the top of the belt below it up to deck `to_deck` (0 the main deck). Over the citadel it starts at the main belt's top; beyond it, at the end belt's top (or the main belt's waterline band if there's none). It has no height, and warns, when the belt already reaches that deck. `extent` takes the deck extents, and `full` is one strake over the citadel and one beyond each end.
 - `end_belts`: `{"fore": {"mm", "tip_mm"}, "aft": {...}}`, the waterline belt carried on from the citadel to the stem and the stern. It's as deep as the main belt and reaches up to the thickest armour deck over that end when that's higher. It is `mm` thick at the citadel and tapers linearly to `tip_mm` at the hull's end.
+- How the schemes come out:
+  - **All or nothing** (Nevada onward): a thick belt and deck over the citadel, heavy bulkheads, and nothing else (`battleship.json`, `all_forward.json`).
+  - **Incremental, dreadnought era**: a main belt, an upper belt to the main deck, and end belts, often thicker forward than aft, with deck plates over the ends (`dreadnought.json`, `nassau.json`, `kongo.json`). `invincible.json` has a fore end belt only, and a deck over the steering gear aft.
+  - **Pre-dreadnought** (`mikasa.json`, `connecticut.json`): a waterline belt from stem to stern, tapering toward the ends, an upper belt between the barbettes, and the protective deck at the ends (`ends` deck plates).
+  - **Full-length upper belt** (Gangut, the early French): `upper_belt.extent` `full`.
 
 `crew` sets how the crew lives (`crew.py`, from `research/crew-space-model.md`).
 - `standard` is the habitability standard as numbers: net areas per head, shared spaces, headroom, water and provisions rates, and the hotel fraction.

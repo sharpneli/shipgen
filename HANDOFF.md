@@ -135,6 +135,14 @@ doesn't: the decisions behind the current design, how to work safely here, and w
   - The main belt stays `belt_mm`, so the hitboxes' `armour.belt` is unchanged. The rest is `armour.strakes`, and a deck with several plates lists `plates`. A cell's `belt_mm` is the thickest strake beside it.
   - All the geometry lives in `navarch.armour_geometry` (`strakes`, `bulkhead_top`), so the weights and the hitboxes can't disagree.
   - Only plates over the citadel (`citadel` or `full`) can be the main armour deck or the roof, and only they make a ship "armoured" (its machinery casings and gratings).
+  - The period designs carry their real schemes. Gangut is left alone, because it's a silly test design. Calibration moves, standard displacement with the real ship in brackets:
+    - Mikasa 10.5k → 12.6k t (15.1k), 129.5 × 21.8 m (131.7 × 23.2). The pre-dreadnoughts were light and narrow, and both improved.
+    - Connecticut 12.1k → 14.8k t (16k), 134 × 23 m (139 × 23.4).
+    - Nassau 17.7k → 21k t (18.9k).
+    - Invincible 18.7k → 20.1k t (17.4k).
+    - Dreadnought 22k → 27k t (18.1k), 187.5 m. Its armour is 10k t against about 5k t real, mostly from before: a long citadel, and a 76 mm deck where the real ship had 19–44 mm. Left for the period refactor.
+    - Kongo 33.7k → 38.1k t (27.5k), already heavy before.
+    - AoN ships got heavier bulkheads (battleship 287 mm, Nelson-like 305 mm): +0.7–1.1k t, +0.5–1 m.
   - Not done: a separate armoured box over the steering gear (side armour aft that stops short of the stern). An `aft` deck plate and an aft end belt stand in for it.
 - **Unifying the styles (started 2026-10-03).** The user wants complex systems shared by every style. Only placement (where guns, superstructure and funnels go, hull forms, deck plans) stays per style. Small length changes are fine. Each step is committed and pushed separately, so it can be rolled back.
   1. **Ordnance (done).**
