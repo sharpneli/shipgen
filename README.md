@@ -164,7 +164,7 @@ The design gives no size. The designer works out the hull from what it carries (
 
 `secondary` (warship style) is one battery or a list of batteries, each with its own calibre, `per_side` and `armour_mm`, and `"mount"`:
 - `"deck"` (the default): turrets or open mounts on the deckhouse amidships. The first deck battery spreads evenly along it; later ones take the free spots nearest amidships.
-- `"casemate"`: single guns at the hull side. Only a round port shield and the barrels show, outboard. Casemates stay where the hull is at least 85% of its full beam (`layout.CASEMATE_BEAM`). Two tiers, set by `"tier"`:
+- `"casemate"`: single guns at the hull side. Only a round port shield and the barrels show, outboard: half the barrel length (`geometry.BARREL_SHOWN`; turrets show 0.8 of theirs). Casemates stay where the hull is at least 85% of its full beam (`layout.CASEMATE_BEAM`). Two tiers, set by `"tier"`:
   - `"lower"` (the default): in the hull side, one level below the main deck (base −2.6 m, top 0). They keep clear of the main barbettes and of each other.
   - `"upper"`: on the main deck (base 0, top 2.6 m), each in an armoured housing against the deck edge (a level-1 superstructure block). Housings close together join into one gallery. They keep clear of whatever stands on the main deck and of the main turrets' sweeps. The tiers stagger, so the upper guns stand between the lower ones and every gun shows.
   - Placement: the lower tier fills first, then the upper. Within a tier, each battery takes the free places nearest amidships in list order, so list the battery you want amidships first. The rows centre on the hull's full-width part and move with the balancing shift.

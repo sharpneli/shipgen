@@ -34,7 +34,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from fleet import FLEET, TURRET_TYPES
 from looks import DEFAULT_PALETTE
-from geometry import turret_shapes, turret_reach, BARREL_ROOT, CASEMATE_SHIELD, rrect_polygon, Hull, AA_CFG
+from geometry import turret_shapes, turret_reach, barrel_shown, BARREL_ROOT, CASEMATE_SHIELD, rrect_polygon, Hull, AA_CFG
 
 PAD_M = 3.0  # empty margin around each hull sprite, metres
 
@@ -613,7 +613,7 @@ def build_turret(t, palette, scale, align=2, shadows=True, look="standard"):
         out = []
         for i, bpoly in enumerate(G["barrels"]):
             y = (i - (n - 1) / 2) * sp
-            xe = x_start + bl
+            xe = x_start + barrel_shown(t)
             out.append(f'<path d="{poly(bpoly)}" '
                        f'fill="{p["barrel"]}" {P.stroke(0.8)}/>')
             out.append(f'<line x1="{f(x_start)}" y1="{f(y - bw * 0.18)}" x2="{f(xe - bw)}" y2="{f(y - bw * 0.18)}" '

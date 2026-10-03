@@ -151,6 +151,14 @@ def make_torpedo_type(tubes: int, fixed: bool = False) -> tuple[str, dict]:
 
 BARREL_ROOT = {"bb": 0.5, "dp": 0.3, "open": -0.3, "casemate": 0.0}
 CASEMATE_SHIELD = 0.55  # a casemate gun's round port shield, in units of its casemate half-width r
+# the fraction of a gun's barrel_len that shows (and is hit) outside its turret or casemate; the rest is taken as
+# inside it and simply not modelled. Ballistics still use the full length in calibres.
+BARREL_SHOWN = {"bb": 0.8, "dp": 0.8, "casemate": 0.5}
+
+
+def barrel_shown(t: dict) -> float:
+    """The drawn and hitbox length of a gun's barrels, from their root (BARREL_SHOWN)."""
+    return t["barrel_len"] * BARREL_SHOWN.get(t.get("shape", "bb"), 1.0)
 
 
 def turret_shapes(t: dict) -> dict:
@@ -164,7 +172,7 @@ def turret_shapes(t: dict) -> dict:
         res = []
         for i in range(n):
             y = (i - (n - 1) / 2) * sp
-            xe = x0 + bl
+            xe = x0 + barrel_shown(t)
             res.append([(x0, y - bw * 0.62), (xe, y - bw / 2), (xe, y + bw / 2), (x0, y + bw * 0.62)])
         return res
 
