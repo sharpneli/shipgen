@@ -172,12 +172,15 @@ def render_view(hb, az, el, what, width=1800, title=""):
     lx, ly, lz = LIGHT
     ln = math.sqrt(lx * lx + ly * ly + lz * lz)
     # layers: big planes underneath (the hull's deck, the armour deck), then everything else far to near, then the
-    # hull's near sides on top, translucent
+    # hull's near sides on top, translucent. The belt's outer faces go just under the hull: they lie on the hull side,
+    # where the cells' outer walls are too, and a centroid sort would put some of those walls over the belt
     def layer(t):
-        kind, _, nrm = t
+        kind, pts, nrm = t
         if kind == "armour_deck" or (kind == "hull" and nrm[2] > 0.5):
             return 0
-        return 2 if kind == "hull" else 1
+        if kind == "belt" and nrm[1] * pts[0][1] > 0:
+            return 2
+        return 3 if kind == "hull" else 1
     fs.sort(key=lambda t: (layer(t), -sum(dot(p, f) for p in t[1]) / len(t[1])))
     for kind, pts, nrm in fs:
         rgb, alpha = KIND.get(kind, ((200, 200, 200), 255))
