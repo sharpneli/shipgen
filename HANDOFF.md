@@ -22,13 +22,23 @@ doesn't: the decisions behind the current design, how to work safely here, and w
 
 ## Planned by the user
 - **The game spans about 1890 to 1970:** pre-dreadnoughts, through the dreadnought era, to early modern ships. Defaults and new features should cover that whole range.
-- **More looks** (`looks.py`). All five eras exist (2026-10-03), mostly written as nudges: `generic` sets each era's character, and the national looks inherit from it (`from`) or from their own `wwii` look and add their identity. Era features in place: darker early greys, weathered teak, tall tripods with spotting tops, and black funnel bands (`great_war`); light peacetime grey, white teak and director tops (`treaty`); bluish haze grey, dark non-skid steel decks, pole masts and boxy, capped upperworks (`cold_war`). New Painter features: US cage masts (`brooklyn` `great_war`/`treaty`, drawn only on tripod-class masts) and stacked pagoda tops (`kure` `treaty`), plus `kure` `great_war` with British-built `classic` turrets. Still open:
-  - Victorian national looks (2026-10-03): `brooklyn` Great White Fleet (white hull and turrets, buff upperworks), `kure` Tsushima war paint (dark green-grey), `portsmouth` black, white and buff with light planked decks and two-tier tops, `kiel` light grey with yellow-buff funnels. Merchants keep the generic victorian merchant colours in every navy.
-  - `kure` `wwii` now has the full pagoda; `treaty` has a smaller, two-tier early one (user: current looks needn't stay byte-identical).
-  - The user plans a style-tuning pass later to make the looks more distinct.
-  - Features that need new drawing code: awnings, deck recognition stripes, lattice masts, macks, dazzle camouflage and hull numbers. Turret drawings aren't parametrised (fixed polygons per style).
-  - Possible new navies: Italy (`la_spezia`, forecastle recognition stripes) and France (`toulon`).
+- **Looks (`looks.py`): navy × era grid complete (2026-10-03).** All 5 navies (`generic`, `brooklyn`, `kure`, `portsmouth`, `kiel`) have their own look in all 5 eras (`victorian`, `great_war`, `treaty`, `wwii`, `cold_war`): 25 looks, with no generic fallback left. Most are written as nudges: `generic` sets each era's character, and the national looks inherit from it (`from`) or from their own `wwii` look and add their identity (turret drawing, funnels, superstructure corners, bow). Done:
+  - Era features: darker early greys, weathered teak, tall tripods with spotting tops and black funnel bands (`great_war`); light peacetime grey, white teak and director tops (`treaty`); bluish haze grey, dark non-skid steel decks, pole masts and boxy, capped upperworks (`cold_war`).
+  - Painter features: US cage masts (`brooklyn` `great_war`/`treaty`, drawn only on tripod-class masts) and stacked pagoda tops (`kure` `wwii` full, `treaty` a smaller two-tier one). `kure` `great_war` uses British-built `classic` turrets.
+  - Victorian national looks: `brooklyn` Great White Fleet (white hull and turrets, buff upperworks), `kure` Tsushima war paint (dark green-grey), `portsmouth` black, white and buff with light planked decks and two-tier tops, `kiel` light grey with yellow-buff funnels.
   - Designs moved to their period (user, 2026-10-03): kongo, dreadnought, invincible and battlecruiser are `great_war`, and connecticut is `brooklyn`/`victorian` (Great White Fleet flagship).
+  - The user isn't strict about keeping current looks byte-identical; look changes may alter existing sprites (hitboxes, `sprite.json` and report results must still never change).
+- **Looks: possible future additions** (none started; the user plans a style-tuning pass to make the looks more distinct, next session or later):
+  - **Style tuning:** fighting tops and two-tier tops sitting near the bridge are hard to see and may need to be bigger or drawn in a contrasting colour. `generic` and `portsmouth` victorian are still fairly close.
+  - **Merchant colours per navy and era:** in `victorian` every navy's merchants use the generic victorian merchant colours, and in `treaty` `portsmouth` and `kure` merchants still use their wwii colours. Only `wwii` has a full set of national merchant liveries.
+  - **New navies:** Italy (`la_spezia`, red and white forecastle recognition stripes) and France (`toulon`). France also wants the "floating hotel" pre-dreadnoughts (see below).
+  - **New Painter features**, each needing drawing code rather than a nudge:
+    - awnings (treaty-era peacetime)
+    - deck recognition stripes (Italian forecastles, aircraft recognition panels)
+    - lattice masts and macks (`cold_war`)
+    - dazzle camouflage (`great_war`)
+    - hull or deck numbers on warships (carriers already have deck numbers)
+  - **Adjustable turret drawings:** turret bodies are fixed polygons per style (`shipgen.look_turret_body`), so they can't yet be nudged with numbers the way masts, funnels and corners can.
 - **Casemates (done):** warship `secondary` may be a list of batteries, each `"mount": "deck"` or `"casemate"`. Casemates fire ±60° about the beam and come in two tiers: `"lower"` in the hull side, and `"upper"` in housings on the main deck, staggered between the lower guns. The user is happy with 2 tiers for now and explicitly wants silly builds, such as a WWII-tech ship of the line, to work. Examples: `mikasa`, `connecticut`, `nassau_casemates`, `kongo`, `victory_1944`. Open items:
   - The pre-dreadnoughts came out light (Mikasa 11.3k std against 15.1k t real). The secondary armour brought them closer (Mikasa 12.3k t, Connecticut 14.5k t against 16k t). Any remaining gap is for material and tech inputs (hull construction, plant), never a period factor.
   - Lower and upper guns never stack at the same x (from above, stacked guns would look like one). Stacked British two-storey casemates therefore come out staggered.
