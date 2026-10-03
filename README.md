@@ -51,7 +51,7 @@ design.py      the command line: validate, shipdesign.build, write report.json a
   "id": "battleship", "name": "Fast Battleship", "type": "BB", "look": "standard",
   "hull": {"block_coefficient": 0.59},
   "speed_kn": 33, "range_nm": 15000,
-  "armour": {"belt_mm": 307, "belt_depth_m": 3.0, "belt_height_m": 3.0, "bulkhead_mm": 287, "upper_belt": {"mm": 0, "to_deck": 0, "extent": "citadel"},
+  "armour": {"belt_mm": 307, "belt_depth_m": 3.0, "belt_height_m": 3.0, "belt_bottom_mm": 307, "bulkhead_mm": 287, "upper_belt": {"mm": 0, "to_deck": 0, "extent": "citadel"},
              "end_belts": {"fore": {"mm": 0, "tip_mm": 0}, "aft": {"mm": 0, "tip_mm": 0}},
              "turret_mm": 432, "decks": [{"deck": 1, "mm": 152, "extent": "citadel"}]},
   "main": {"calibre_mm": 406, "calibre_length": 50, "barrels": 3, "fore": 2, "aft": 1},
@@ -75,6 +75,7 @@ design.py      the command line: validate, shipdesign.build, write report.json a
 
 The side armour is the main belt and up to three secondary pieces. Every design lists them all, with 0 mm for what it lacks:
 - `belt_mm`: the main belt over the citadel.
+- `belt_bottom_mm`: the main belt keeps `belt_mm` down to the waterline, then tapers linearly to this at its lower edge, as most real belts did (Mikasa 229 → 127 mm, Dreadnought 279 → 229 mm). Equal to `belt_mm` for a uniform belt. A tapered belt is lighter, so a deep belt costs less.
 - `belt_depth_m` and `belt_height_m`: the belt's band, in metres below and above the full-load waterline. The main belt reaches up to the main armour deck when that's higher, so belt and deck close the box. The end belts share the band. The designs carry 0.15 × draught + 1.2 m each way, the old built-in rule. A belt under 1 m deep warns, because rolling or flooding uncovers the side under it, and the game settles a flooded ship deeper.
 - `bulkhead_mm`: the citadel's transverse ends, closing the belts from 0.4 belt heights under the belt up to the top of the main or upper belt.
 - `upper_belt`: `{"mm", "to_deck", "extent"}`, a strake from the top of the belt below it up to deck `to_deck` (0 the main deck). Over the citadel it starts at the main belt's top; beyond it, at the end belt's top (or the main belt's waterline band if there's none). It has no height, and warns, when the belt already reaches that deck. `extent` takes the deck extents, and `full` is one strake over the citadel and one beyond each end.
@@ -242,7 +243,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
   - `vertical`: `keel`, `waterline` and `armour_deck` (the main armour deck, null on a ship without deck armour) on that height scale, plus `draught`, `depth` and `freeboard` (full load).
   - `hull`: the hull outline polygon.
   - `armour`: present only for the armour the ship has (`navarch.armour_geometry`, the same geometry its weights come from).
-    - `belt`: `thickness_mm`, `x0`/`x1` (the citadel), `bottom`/`top`. From below the waterline up to the main armour deck, or centred on the waterline if that deck is lower.
+    - `belt`: `thickness_mm`, `x0`/`x1` (the citadel), `bottom`/`top`. A tapered belt adds `bottom_mm` (at `bottom`) and `taper_from` (the waterline, where the taper starts). From below the waterline up to the main armour deck, or centred on the waterline if that deck is lower.
     - `decks`: the armour decks, top down: `deck` (its id, such as `Second deck`), `thickness_mm`, `extent`, `x0`/`x1`, `z`, and the flags `main` (the main armour deck) and `roof` (the lowest, over the vital spaces).
     - `strakes`: the side armour other than the main belt (`armour.upper_belt` and `armour.end_belts`), each with `id`, `kind` (`upper` | `end`), `extent` (`citadel` | `fore` | `aft`), `thickness_mm` (at the citadel end), `tip_mm` (at the hull's end, only when it tapers), `x0`/`x1` and `bottom`/`top`.
     - `bulkheads`: the citadel's forward and aft ends: `x`, `thickness_mm`, `bottom`/`top`.
@@ -275,7 +276,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
       - `volume_m3` is the hull's plan inside the box times the height. The part below the waterline is scaled so the underwater parts add up to the displacement volume.
       - `permeability` comes from the room's kind (`subdivision.PERMEABILITY`; a full coal bunker is 0.4), and `below_waterline` is set from the tier (the whole cell is under water).
       - The owning `room`, and `also`: the rooms that share this cell because they're too small for one of their own.
-      - Armour and protection: `citadel`, `armour_above_mm` (the armour decks above the cell, top down, as a list of thicknesses), `belt_mm` (an outer cell level with side armour: the thickest belt or strake beside it, at the cell's middle for a tapered one) and `tds_m` (a wing cell inside the citadel).
+      - Armour and protection: `citadel`, `armour_above_mm` (the armour decks above the cell, top down, as a list of thicknesses), `belt_mm` (an outer cell level with side armour: the thickest belt or strake beside it, at the cell's middle along a tapered end belt and at the top of its overlap down a tapered main belt) and `tds_m` (a wing cell inside the citadel).
       - `crew`: the complement spread over the quarters by volume.
       - `neighbours`: `[cell id, boundary]` pairs. The boundary is the bulkhead or deck id between them, or `"open"` inside one room.
     - `rooms`: `id`, `kind`, `cells`, `volume_m3` and their extent (`x0`/`x1`, `base`/`top`), plus what the layout gives them:

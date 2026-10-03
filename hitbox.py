@@ -210,6 +210,8 @@ def export_hitboxes(lay, design, res):
     if ag["belt_mm"] > 0:
         arm_out["belt"] = dict(thickness_mm=ag["belt_mm"], x0=round(ag["x0"], 3), x1=round(ag["x1"], 3),
                                bottom=rz(ag["belt_bottom"]), top=rz(ag["belt_top"]))
+        if ag["belt_bottom_mm"] != ag["belt_mm"]:    # tapers below the waterline to this at its lower edge
+            arm_out["belt"].update(bottom_mm=ag["belt_bottom_mm"], taper_from=rz(min(ag["belt_top"], ag["waterline"])))
     if ag["strakes"]:
         arm_out["strakes"] = [dict(id=st["id"], kind=st["kind"], extent=st["extent"], thickness_mm=st["mm"],
                                    **({"tip_mm": st["tip_mm"]} if st["tip_mm"] != st["mm"] else {}),

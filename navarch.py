@@ -353,15 +353,20 @@ def extent_spans(extent, L, x0, x1):
             "ends": [("fore", x1, L / 2), ("aft", -L / 2, x0)]}[extent]
 
 
-def belt_mm_at(s, x):
-    """A belt strake's thickness at x: mm at its root (the citadel end), tapering linearly to tip_mm at the
-    hull's end."""
-    if s["tip_mm"] == s["mm"] or s["x1"] - s["x0"] <= 0:
-        return s["mm"]
-    f = (x - s["x0"]) / (s["x1"] - s["x0"])
-    if s["extent"] == "aft":
-        f = 1.0 - f
-    return s["mm"] + (s["tip_mm"] - s["mm"]) * min(1.0, max(0.0, f))
+def belt_mm_at(s, x, z=None):
+    """A belt's thickness at x (and height z, on the same scale as its bottom): mm at its root (the citadel end),
+    tapering linearly to tip_mm at the hull's end. A belt with bottom_mm (the main belt) keeps its thickness down
+    to the waterline (wl), then tapers linearly to bottom_mm at its lower edge."""
+    mm = s["mm"]
+    if s["tip_mm"] != mm and s["x1"] - s["x0"] > 0:
+        f = (x - s["x0"]) / (s["x1"] - s["x0"])
+        if s["extent"] == "aft":
+            f = 1.0 - f
+        mm += (s["tip_mm"] - mm) * min(1.0, max(0.0, f))
+    if z is not None and s.get("bottom_mm", mm) != mm and z < s["wl"] and s["wl"] > s["bottom"]:
+        f = max(0.0, (z - s["bottom"]) / (s["wl"] - s["bottom"]))
+        mm = s["bottom_mm"] + (mm - s["bottom_mm"]) * f
+    return mm
 
 
 def armour_geometry(design, L, T, D, geo):
@@ -370,7 +375,8 @@ def armour_geometry(design, L, T, D, geo):
                 ("full"), or the hull beyond the citadel's fore or aft end ("ends" is a plate at each end)
       main      the main armour deck: the thickest over the citadel (the higher of equals), or None
       roof      the lowest armour deck over the citadel: the machinery and magazines stand under it (None if none)
-      belt      the main belt over the citadel: from armour.belt_depth_m below the full-load waterline to
+      belt      the main belt over the citadel, armour.belt_mm thick down to the waterline, then tapering to
+                armour.belt_bottom_mm at its lower edge: from armour.belt_depth_m below the full-load waterline to
                 armour.belt_height_m above it, or up to the main armour deck when that is higher (kept between
                 keel and main deck; TUNING belt_h, half below and half above, when the design gives none)
       strakes   the rest of the side armour, each dict(id, kind, extent, mm, tip_mm, x0, x1, bottom, top):
@@ -436,7 +442,8 @@ def armour_geometry(design, L, T, D, geo):
                                     extent=ext, mm=ub["mm"], tip_mm=ub["mm"], x0=s0, x1=s1, bottom=tops[ext],
                                     top=ut))
     bh_top = max([top] + [s["top"] for s in strakes if s["kind"] == "upper" and s["extent"] == "citadel"])
-    return dict(x0=x0, x1=x1, belt_mm=belt, belt_bottom=bot, belt_top=top, decks=decks, strakes=strakes,
+    return dict(x0=x0, x1=x1, belt_mm=belt, belt_bottom_mm=a.get("belt_bottom_mm", belt), waterline=T,
+                belt_bottom=bot, belt_top=top, decks=decks, strakes=strakes,
                 main_z=main["z"] if main else None, roof_z=roof["z"] if roof else None,
                 roof_mm=roof["mm"] if roof else 0, armoured=belt > 0 or bool(over),
                 bulkhead_mm=a.get("bulkhead_mm", 0.6 * belt), bulkhead_bottom=max(0.0, bot - 0.4 * h),
@@ -450,9 +457,14 @@ def armour_weights(design, L, B, T, D, geo):
     zf = lambda lo, hi: ("frac", (lo + hi) / 2 / D if D else 0.5)
     out = []
     if g["belt_mm"] > 0:
-        h = g["belt_top"] - g["belt_bottom"]
-        out.append(Weight("Belt armour", "armour", 2 * lc * h * g["belt_mm"] / 1000 * STEEL, x=xc,
-                          z_rel=zf(g["belt_top"], g["belt_bottom"])))
+        # full thickness above the waterline (t0 .. top), tapering to belt_bottom_mm below it (bot .. t0)
+        bot, top, mm, mb = g["belt_bottom"], g["belt_top"], g["belt_mm"], g["belt_bottom_mm"]
+        t0 = min(top, max(bot, g["waterline"]))
+        a_up, a_lo = (top - t0) * mm, (t0 - bot) * (mm + mb) / 2           # m x mm per side
+        z_lo = bot + (t0 - bot) * (mb + 2 * mm) / (3 * (mb + mm)) if mb + mm > 0 else bot
+        zc = ((top + t0) / 2 * a_up + z_lo * a_lo) / (a_up + a_lo) if a_up + a_lo > 0 else (top + bot) / 2
+        out.append(Weight("Belt armour", "armour", 2 * lc * (a_up + a_lo) / 1000 * STEEL, x=xc,
+                          z_rel=("frac", zc / D if D else 0.5)))
     if g["armoured"] and g["bulkhead_mm"] > 0:
         hb = g["bulkhead_top"] - g["bulkhead_bottom"]
         out.append(Weight("Bulkheads", "armour", 2 * B * hb * g["bulkhead_mm"] / 1000 * STEEL, x=xc,

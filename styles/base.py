@@ -19,7 +19,7 @@ COMMON_LIMITS = {
     ("aa", "heavy"): (0, 500), ("aa", "light"): (0, 500),
     ("armour", "belt_mm"): (0, 2000), ("armour", "turret_mm"): (0, 2000),
     ("armour", "tds_m"): (0, 20), ("armour", "bulkhead_mm"): (0, 2000),
-    ("armour", "belt_depth_m"): (0, 30), ("armour", "belt_height_m"): (0, 30),
+    ("armour", "belt_bottom_mm"): (0, 2000), ("armour", "belt_depth_m"): (0, 30), ("armour", "belt_height_m"): (0, 30),
     ("armour", "upper_belt", "mm"): (0, 2000),
     ("armour", "end_belts", "fore", "mm"): (0, 2000), ("armour", "end_belts", "fore", "tip_mm"): (0, 2000),
     ("armour", "end_belts", "aft", "mm"): (0, 2000), ("armour", "end_belts", "aft", "tip_mm"): (0, 2000),

@@ -206,7 +206,8 @@ def build(lay, design, res, ag, armoured):
 
     cells, longi = [], []
     belts = ([dict(x0=ag["x0"], x1=ag["x1"], bottom=ag["belt_bottom"], top=ag["belt_top"], mm=ag["belt_mm"],
-                   tip_mm=ag["belt_mm"], extent="citadel")] if ag["belt_mm"] > 0 else []) + ag["strakes"]
+                   tip_mm=ag["belt_mm"], bottom_mm=ag["belt_bottom_mm"], wl=rz(ag["waterline"]),
+                   extent="citadel")] if ag["belt_mm"] > 0 else []) + ag["strakes"]
     belts = [{**b, "bottom": rz(b["bottom"]), "top": rz(b["top"])} for b in belts]
     for si, sec in enumerate(sections):
         x0, x1 = sec["x0"], sec["x1"]
@@ -257,9 +258,9 @@ def build(lay, design, res, ag, armoured):
                 if above:
                     c["armour_above_mm"] = above
                 outer = band in ("P", "S") or (band == "C") or (band in ("CP", "CS") and not banded)
-                side = [belt_mm_at(b, xm) for b in belts if outer and b["x0"] <= xm <= b["x1"]
-                        and _overlap(b["bottom"], b["top"], tr["base"], tr["top"]) > 0]
-                if side:      # the thickest side armour beside the cell
+                side = [belt_mm_at(b, xm, min(b["top"], tr["top"])) for b in belts
+                        if outer and b["x0"] <= xm <= b["x1"] and _overlap(b["bottom"], b["top"], tr["base"], tr["top"]) > 0]
+                if side:      # the thickest side armour beside the cell (where it's thickest: its top)
                     c["belt_mm"] = round(max(side))
                 if banded and band in ("P", "S") and in_cit and tds > 0:
                     c["tds_m"] = tds
