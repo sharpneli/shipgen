@@ -203,7 +203,9 @@ def fixed_tube_pairs(lay, mounts, turret_types, tp, xs, y_of_x, base=0.2, toe_de
 def place_aa(lay, aa_out, kind, count, cands, spacing=None, ignore=()):
     """AA mounts in pairs from cands (x, y, base[, y_port]) with y >= 0, in order of preference, mirrored to
     -y unless y_port is given; y == 0 means a single centreline mount. Fills an odd count with a
-    centreline slot if one is offered."""
+    centreline slot if one is offered (offer it last to keep it for the leftover). A slot must be free of what's
+    placed (ignore: ids to disregard, or a function of the slot's base giving them) and clear of the guns'
+    sweeps."""
     rr = AA_CFG[kind][0]
     spacing = spacing if spacing is not None else (3.0 if kind == "quad40" else 2.2)
     placed = 0
@@ -221,7 +223,8 @@ def place_aa(lay, aa_out, kind, count, cands, spacing=None, ignore=()):
         fps = [_fp_circle(x, y, rr) for x, y in use]
         if len(fps) == 2 and _overlap(fps[0], fps[1], spacing):   # a slot too near the centreline to mirror
             continue
-        if not all(lay.free(fp, 0.4, ignore) for fp in fps):
+        ign = ignore(base) if callable(ignore) else ignore
+        if not all(lay.free(fp, 0.4, ign) and lay.clear(fp, base + 2.0) for fp in fps):
             continue
         if any(_overlap(fp, o, spacing) for fp in fps for o in aa_fps):
             continue

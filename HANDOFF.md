@@ -136,7 +136,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
        - MTB +1 m and PT boat +1.5 m: the locker takes crew space, which binds on those boats.
   2. **Superstructure blocks (done).** The warship's two local `add_block` copies (one never called) were replaced by the shared `layout.add_block`. Outputs are identical.
   3. **Finishing the layout (done).** `layout.finish_layout` builds the renderer spec and sets the layout's parts for every style, replacing four copies, the carrier's `_finish` among them. Outputs are byte-identical.
-  4. AA: the warship uses `armament.place_aa`, with its own candidate slots.
+  4. **AA (done).** The warship supplies its slots (`aa_slots`: deckhouse roof, deck edges, a stern centreline slot offered last) to the shared `armament.place_aa`. That function now also checks the guns' sweeps and can ignore ids depending on a slot's base. Outputs are identical.
   5. Steering gear and citadel: one shared `add_steering`, lowered like the magazines.
 
 ## Next steps (proposed 2026-10-02, in this order; the user hasn't confirmed the order yet)

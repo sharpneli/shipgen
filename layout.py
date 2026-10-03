@@ -1156,12 +1156,12 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     aa_out = []
     aa_req = design.get("aa", {})
 
-    def place_aa(kind, count):
+    def aa_slots(kind):
+        """Deck-edge slots along the hull, and for heavy AA the deckhouse roof's edges, nearest amidships first
+        (the roof preferred); a single leftover mount goes on the centreline at the stern."""
         rr = AA_CFG[kind][0]
-        spacing = 3.0 if kind == "quad40" else 2.2   # extra gap between AA mounts so they spread out
-        placed = 0
         cands = []
-        if wide and kind == "quad40":  # heavy AA: on the deckhouse roof, along its edges
+        if wide and kind == "quad40":
             yy = dh_w / 2 - rr - 0.3
             for k in range(int((dh["x1"] - dh["x0"]) * 2)):
                 cands.append((dh["x0"] + 0.5 * k, yy, LEVEL_H))
@@ -1172,36 +1172,14 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                 cands.append((x, yy, 0.0))
             x -= 0.5
         cands.sort(key=lambda c: (abs(c[0] - mach_c) / L + (0.0 if c[2] else 0.15)))
-        aa_fps = [_fp_circle(a["x"], a["y"], AA_CFG[a["type"]][0]) for a in aa_out]   # spaced from each other
-        for cx, cy, base in cands:
-            if placed >= count:
-                break
-            fps = [_fp_circle(cx, cy, rr), _fp_circle(cx, -cy, rr)]
-            pair = count - placed >= 2
-            use = fps if pair else [fps[0]]
-            # a single leftover AA mount goes on the centreline at the stern
-            if not pair:
-                sx = -L / 2 + rr + 2.5
-                if hull.half_width(sx) > rr + 0.6 and lay.free(_fp_circle(sx, 0, rr), 0.4):
-                    use, cx, cy, base = [_fp_circle(sx, 0, rr)], sx, 0.0, 0.0
-            if not all(lay.free(fp, 0.4, ignore=("Deckhouse",) if base else ()) and lay.clear(fp, base + 2.0)
-                       for fp in use):
-                continue
-            if any(_overlap(fp, o, spacing) for fp in use for o in aa_fps):
-                continue
-            aa_fps += use
-            for k, fp in enumerate(use):
-                y = fp[2]
-                aid = f"AA{len(aa_out) + 1}"
-                d = 180 if (y == 0 and cx < 0) else (90 if y > 0 else -90 if y < 0 else 0)
-                aa_out.append(dict(id=aid, type=kind, x=fp[1], y=y, dir=d, base=base,
-                                   layer="base"))
-                lay.occupy(fp, base, base + 2.0, aid)
-                lay.weights.append(Weight(aid, "armament", TUNING["aa_t"][kind], x=fp[1],
-                                          z_rel=("deck", base + 1.0)))
-                placed += 1
-        if placed < count:
-            lay.fail("length", f"Only {placed} of {count} {'heavy' if kind == 'quad40' else 'light'} AA mounts fit.")
+        sx = -L / 2 + rr + 2.5
+        if hull.half_width(sx) > rr + 0.6:
+            cands.append((sx, 0.0, 0.0))
+        return cands
+
+    def place_aa(kind, count):
+        armament.place_aa(lay, aa_out, kind, count, aa_slots(kind),
+                          ignore=lambda base: ("Deckhouse",) if base else ())
 
     place_aa("quad40", aa_req.get("heavy", 0))
     place_aa("single20", aa_req.get("light", 0))
