@@ -96,8 +96,7 @@ def prisms(hb, what):
             hw = _half_width(hull, bh["x"]) - 0.2
             out.append(("armoured_bulkhead", [(bh["x"] - 0.15, -hw), (bh["x"] + 0.15, -hw), (bh["x"] + 0.15, hw),
                                               (bh["x"] - 0.15, hw)], bh["armour_bottom"], bh["armour_top"]))
-    if "deck" in arm and what == "internal":
-        d = arm["deck"]
+    for d in (arm.get("decks", []) if what == "internal" else []):
         xs = [d["x0"] + (d["x1"] - d["x0"]) * k / 12 for k in range(13)]
         pts = [(x, _half_width(hull, x) - 0.2) for x in xs] + [(x, -_half_width(hull, x) + 0.2) for x in xs[::-1]]
         out.append(("armour_deck", pts, d["z"] - 0.15, d["z"]))
@@ -252,7 +251,11 @@ def render_subdivision(ship, out_dir, width=1800):
         cy = margin + 40 + row * i + 18 + B * S / 2
         P = lambda x, y: (margin + (x + L / 2) * S, cy + y * S)
         d.text((margin, cy - B * S / 2 - 17), f"{t['id']}: {t['base']:g} to {t['top']:g} m"
-               + (" (below the waterline)" if t["below_waterline"] else ""), fill=(220, 225, 230, 255), font=big)
+               + (" (below the waterline)" if t["below_waterline"] else
+                  f" ({100 * t['submerged']:.0f}% below the waterline)" if t.get("submerged") else "")
+               + "".join(f", under {d['thickness_mm']} mm on the {d['deck'].lower()}"
+                         for d in hb.get("armour", {}).get("decks", []) if abs(d["z"] - t["top"]) < 1e-6),
+               fill=(220, 225, 230, 255), font=big)
         d.polygon([P(x, y) for x, y in hull], outline=(200, 210, 220, 255))
         for c in hb["cells"]:
             if c["tier"] != t["id"]:

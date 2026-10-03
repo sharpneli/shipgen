@@ -149,7 +149,8 @@ def add_block(lay, blocks, bid, x0, x1, w, level, rf, rb, y=0.0, z0=0.0, layer=N
     return b
 
 
-MAGAZINE_T_PER_M3 = 0.35   # grouped magazines: tonnes of ammunition per m3 of magazine (racks, handling, passages)
+MAGAZINE_T_PER_M3 = 0.6    # tonnes of ammunition per m3 of magazine (shell and powder rooms with their racks; the
+                           # handling rooms and passages are in the deck space above)
 
 
 def battery_of(mid):
@@ -158,8 +159,24 @@ def battery_of(mid):
     return pre + num if pre == "W" else pre
 
 
+MAGAZINE_TIERS = 2          # grouped magazines: deck spaces above the inner bottom (a shell room and a powder room)
+
+
+def magazine_span(plan, need_h=None, tiers=MAGAZINE_TIERS):
+    """(base, top) above the main deck of a magazine standing on the inner bottom, top on a deck of the stack and
+    never above the plan's roof (the lowest armour deck): the lowest deck need_h above the inner bottom, else the
+    tiers-th deck up. At least one deck space."""
+    D, ib, roof = plan["decks"][0], plan["inner_bottom"], plan["top"]
+    ups = sorted(z for z in plan["decks"] if ib + 1e-6 < z <= roof + 1e-6) or [roof]
+    if need_h is None:
+        top = ups[min(tiers, len(ups)) - 1]
+    else:
+        top = next((z for z in ups if z >= ib + need_h - 1e-6), ups[-1])
+    return ib - D, top - D
+
+
 def ammo_m3(t):
-    """Magazine volume for one mount of turret type t in a grouped magazine: its ammunition at MAGAZINE_T_PER_M3."""
+    """Magazine volume for one mount of turret type t: its ammunition at MAGAZINE_T_PER_M3."""
     return mount_weights(t, 0.0, 0.0, 0)[2] / MAGAZINE_T_PER_M3
 
 
@@ -188,7 +205,9 @@ def magazine_plan(design, tm):
 
 def add_magazines(lay, mounts, inner_hw, groups=None):
     """Magazines, linked both ways (m["magazine"], the magazine's "mount" or "mounts").
-    End, midships and echelon wing turrets: one per mount, below it on the centreline, spanning its diameter.
+    End, midships and echelon wing turrets: one per mount, below it on the centreline, spanning its diameter, from
+    the inner bottom up as many decks as its ammunition needs (magazine_span). Grouped magazines are MAGAZINE_TIERS
+    deck spaces tall.
     Grouped mounts (magazine_plan) share one magazine per battery and group, in the machinery block's magazine
     segments: groups = {"fore"|"aft": (x0, x1)}. Each battery's forward pairs fill the fore group as planned. The
     magazine weights move with them."""
@@ -204,8 +223,10 @@ def add_magazines(lay, mounts, inner_hw, groups=None):
             continue
         r = m["t"]["r"]
         m["magazine"] = f"Magazine {m['id']}"
+        hw = min(r, inner_hw)
+        base, top = magazine_span(plan, ammo_m3(m["t"]) / (2 * r * 2 * hw))
         lay.compartments.append(dict(id=m["magazine"], kind="magazine", mount=m["id"], x0=m["x"] - r,
-                                     x1=m["x"] + r, half_width=min(r, inner_hw)))
+                                     x1=m["x"] + r, half_width=hw, base=base, top=top))
     rooms = {"fore": [], "aft": []}
     for bat, ms in batteries.items():
         pairs = sorted({m["x"] for m in ms}, reverse=True)
@@ -228,8 +249,9 @@ def add_magazines(lay, mounts, inner_hw, groups=None):
         for bat, sel, a in rs:            # forward to aft through the segment, by volume
             l = (g1 - g0) * a / tot
             rid = f"Magazine {bat} {grp}"
+            base, top = magazine_span(plan)
             lay.compartments.append(dict(id=rid, kind="magazine", mounts=[m["id"] for m in sel], x0=x - l, x1=x,
-                                         half_width=ghw))
+                                         half_width=ghw, base=base, top=top))
             for m in sel:
                 m["magazine"] = rid
             names = {f"Magazine {m['id']}" for m in sel}
@@ -242,10 +264,11 @@ def add_magazines(lay, mounts, inner_hw, groups=None):
 def plan_machinery(lay, design, res, hull, x=0.0):
     """The machinery space for the solved ship res (navarch.Result: its plant, power, depth, draught, fuel), centred
     near x. The room the plant gets: across, the hull inside its frames, less torpedo protection (armour.tds_m) and
-    wing bunkers on each side; up, from the inner bottom to the armour deck (the main deck if unarmoured). Fuel the
+    wing bunkers on each side; up, from the inner bottom to the lowest armour deck over the citadel (the main deck
+    without deck armour). Fuel the
     wing bunkers and double bottom can't take goes into end bunkers or tanks, which lengthen the block. Stores the
     plan in lay.geo["plant"] and returns the block's length (powerplant.segments)."""
-    from navarch import armour_geometry
+    from navarch import armour_geometry, deck_stack
     p = res.plant
     armour = design.get("armour") or {}
     D, T = res.depth, res.draught
@@ -253,10 +276,10 @@ def plan_machinery(lay, design, res, hull, x=0.0):
     wing = p["wing_bunker_m"] if (p["tech"]["fuel"] == "coal" and p["bunkers"] == "wing") else 0.0
     w = powerplant.STEEL_FRAME * 2 * hull.half_width(x) - 2 * tds - 2 * wing
     ag = armour_geometry(design, hull.L, T, D, lay.geo)
-    armoured = ag["belt_mm"] > 0 or ag["deck_mm"] > 0
-    top = ag["deck_z"] if armoured else D
+    armoured = ag["armoured"]
+    top = ag["roof_z"] if ag["roof_z"] is not None else D
     db = powerplant.double_bottom(D)
-    h = top - db
+    h = max(1.0, top - db)
     sp = powerplant.space(p, res.power_shp, w, h)
     cb = design["hull"]["block_coefficient"]
     wing_t, end = powerplant.bunkers(p, res.fuel, sp["length"], w, h, hull.L, hull.B, cb, D, T, tds)
@@ -265,8 +288,8 @@ def plan_machinery(lay, design, res, hull, x=0.0):
         lay.fail("beam", f"The plant's units are {sp['unit'][1]:.1f} m wide, but the machinery space is only "
                          f"{max(w, 0.0):.1f} m across. Use more shafts (smaller units) or less side protection.")
     lay.geo["plant"] = dict(fuel=p["tech"]["fuel"], space=sp, segments=segs, wing_t=wing_t, wing_m=wing, end_m=end,
-                            width=w, height=h, inner_bottom=db, top=top, armoured=armoured, deck_mm=ag["deck_mm"],
-                            tds=tds)
+                            width=w, height=h, inner_bottom=db, top=top, armoured=armoured, deck_mm=ag["roof_mm"],
+                            tds=tds, decks=[z for _, z in deck_stack(design, D)])
     return sum(seg_l for _, seg_l in segs)
 
 
@@ -630,7 +653,8 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         gap_kind[g] = "T" if g in t_gaps else "W"
     # the grouped magazines (magazine_plan) stand at the ends of the machinery block, as wide as its space
     mag_plan = magazine_plan(design, tm)
-    mag_l = {g: sum(n * v_ for _, n, v_ in v) / max(plant["width"] * plant["height"], 1.0)
+    mag_h = magazine_span(plant)[1] - magazine_span(plant)[0]
+    mag_l = {g: sum(n * v_ for _, n, v_ in v) / max(plant["width"] * mag_h, 1.0)
              for g, v in mag_plan.items()}
     if mag_l["fore"] > 0:
         segs.insert(0, ["magazine", max(1.5, mag_l["fore"])])
@@ -1283,7 +1307,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     lay.geo["citadel"] = cit
     inner_hw = 0.8 * B / 2
     lay.compartments.append(dict(id="Citadel", kind="citadel", x0=cit[0], x1=cit[1], half_width=inner_hw,
-                                 belt_mm=armour.get("belt_mm", 0), deck_mm=armour.get("deck_mm", 0)))
+                                 belt_mm=armour.get("belt_mm", 0)))
     mag_x = [(x0, x1) for kind, x0, x1 in mach_placed if kind == "magazine"]
     mag_groups = {}
     if mag_l["fore"] > 0:

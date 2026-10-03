@@ -292,25 +292,81 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         res.warnings.append(f"Trimmed {abs(res.trim_m):.1f} m by the {'bow' if res.trim_m > 0 else 'stern'}.")
     fn = froude(V, L)
     res.warnings += style.checks(design, res, tun)
+    for d in armour_decks(design, res.depth):
+        if d["asked"] != d["deck"]:
+            res.warnings.append(f"The hull has no {deck_name(d['asked']).lower()} ({res.depth:.1f} m deep): its "
+                                f"{d['mm']} mm deck armour lies on the {deck_name(d['deck']).lower()}.")
     if fn > tun.get("fn_warn", 0.62):
         res.warnings.append(f"Speed {V} kn is extreme for a {L:.0f} m hull (Froude {fn:.2f}); power is enormous.")
     return res
 
 
+DECK_PITCH = 2.6       # m between the hull's decks below the main deck (one superstructure level, the lower casemates)
+MIN_TIER = 1.0         # a deck closer than this (m) to the inner bottom (the keel on a planing craft) is left out
+DECK_NAMES = ["Main deck", "Second deck", "Third deck", "Fourth deck", "Fifth deck", "Sixth deck", "Seventh deck",
+              "Eighth deck", "Ninth deck", "Tenth deck"]
+ARMOUR_EXTENTS = ("citadel", "full")
+
+
+def deck_name(n):
+    return DECK_NAMES[n] if n < len(DECK_NAMES) else f"Deck {n + 1}"
+
+
+def deck_stack(design, D):
+    """The hull's decks, every DECK_PITCH down from the main deck, as heights above the keel, top down:
+    [(n, z)] with n = 0 the main deck, 1 the second deck, ... Stops MIN_TIER above the inner bottom (the keel on
+    a planing craft); the main deck is always there."""
+    floor = 0.0 if design.get("style") == "planing" else powerplant.double_bottom(D)
+    out = [(0, D)]
+    while D - len(out) * DECK_PITCH >= floor + MIN_TIER - 1e-9:
+        out.append((len(out), D - len(out) * DECK_PITCH))
+    return out
+
+
+def armour_decks(design, D):
+    """The design's armour decks (armour.decks, top down), placed on the deck stack: [dict(deck, mm, extent, z,
+    asked)]. A deck the hull is too shallow for lies on its lowest deck (asked keeps what the design said)."""
+    stack = deck_stack(design, D)
+    out = []
+    for d in (design.get("armour") or {}).get("decks") or []:
+        n = min(int(d.get("deck", 0)), stack[-1][0])
+        out.append(dict(deck=n, mm=d.get("mm", 0), extent=d.get("extent", "citadel"), z=stack[n][1],
+                        asked=int(d.get("deck", 0))))
+    return out
+
+
 def armour_geometry(design, L, T, D, geo):
     """Where the armour is: the one source for its weights and its hitboxes. Heights in metres above the keel.
-    The belt is centred on the waterline (kept between keel and main deck); the armour deck sits on top of it
-    (flat, all-or-nothing style), or 2.5 m below the main deck (never under the waterline) on a ship without a
-    belt. The citadel's transverse bulkheads close the belt ends, from the armour deck down 1.4 belt heights,
-    at 0.6 of the belt thickness."""
+      decks     the armour decks (armour_decks) with their x extents: the citadel, or the whole hull ("full")
+      main      the main armour deck: the thickest over the citadel (the higher of equals), or None
+      roof      the lowest armour deck over the citadel: the machinery and magazines stand under it (None if none)
+      belt      its armour height (TUNING belt_h) runs from below the waterline, up to the main armour deck when
+                that is higher (kept between keel and main deck)
+      bulkheads the citadel's transverse bulkheads close the belt ends, from the belt top down to 0.4 belt heights
+                below the belt, at 0.6 of the belt thickness."""
     a = design.get("armour", {})
-    belt, deck = a.get("belt_mm", 0), a.get("deck_mm", 0)
+    belt = a.get("belt_mm", 0)
     x0, x1 = geo.get("citadel", (-0.3 * L, 0.3 * L))
+    decks = []
+    for d in armour_decks(design, D):
+        if d["mm"] <= 0:
+            continue
+        ext = (-L / 2, L / 2) if d["extent"] == "full" else (x0, x1)
+        if decks and decks[-1]["deck"] == d["deck"]:     # pushed onto one deck by a shallow hull: one plate
+            p = decks[-1]
+            p.update(mm=p["mm"] + d["mm"], x0=min(p["x0"], ext[0]), x1=max(p["x1"], ext[1]),
+                     extent="full" if "full" in (p["extent"], d["extent"]) else "citadel")
+            continue
+        decks.append({**d, "x0": ext[0], "x1": ext[1]})
+    main = max(decks, key=lambda d: (d["mm"], d["z"]), default=None)
+    roof = min(decks, key=lambda d: d["z"], default=None)
     h = TUNING["belt_h_a"] * T + TUNING["belt_h_b"]
-    bot, top = max(0.0, T - h / 2), min(D, T + h / 2)
-    deck_z = top if belt > 0 else min(D, max(T, D - 2.5))
-    return dict(x0=x0, x1=x1, belt_mm=belt, deck_mm=deck, belt_bottom=bot, belt_top=top, deck_z=deck_z,
-                bulkhead_mm=0.6 * belt, bulkhead_bottom=max(0.0, deck_z - 1.4 * (top - bot)))
+    bot = max(0.0, T - h / 2)
+    top = min(D, max(T + h / 2, main["z"] if main else 0.0))
+    return dict(x0=x0, x1=x1, belt_mm=belt, belt_bottom=bot, belt_top=top, decks=decks,
+                main_z=main["z"] if main else None, roof_z=roof["z"] if roof else None,
+                roof_mm=roof["mm"] if roof else 0, armoured=belt > 0 or bool(decks),
+                bulkhead_mm=0.6 * belt, bulkhead_bottom=max(0.0, bot - 0.4 * h))
 
 
 def armour_weights(design, L, B, T, D, geo):
@@ -320,14 +376,17 @@ def armour_weights(design, L, B, T, D, geo):
     out = []
     if g["belt_mm"] > 0:
         h = g["belt_top"] - g["belt_bottom"]
-        hb = g["deck_z"] - g["bulkhead_bottom"]
+        hb = g["belt_top"] - g["bulkhead_bottom"]
         out.append(Weight("Belt armour", "armour", 2 * lc * h * g["belt_mm"] / 1000 * STEEL, x=xc,
                           z_rel=("frac", (g["belt_top"] + g["belt_bottom"]) / 2 / D if D else 0.5)))
         out.append(Weight("Bulkheads", "armour", 2 * B * hb * g["bulkhead_mm"] / 1000 * STEEL, x=xc,
-                          z_rel=("frac", (g["deck_z"] + g["bulkhead_bottom"]) / 2 / D if D else 0.5)))
-    if g["deck_mm"] > 0:
-        out.append(Weight("Deck armour", "armour", lc * B * 0.9 * g["deck_mm"] / 1000 * STEEL, x=xc,
-                          z_rel=("deck", g["deck_z"] - D)))
+                          z_rel=("frac", (g["belt_top"] + g["bulkhead_bottom"]) / 2 / D if D else 0.5)))
+    cb = design["hull"]["block_coefficient"]
+    for d in g["decks"]:
+        area = (L * cwp(cb) if d["extent"] == "full" else d["x1"] - d["x0"]) * B * 0.9
+        out.append(Weight(f"Deck armour ({deck_name(d['deck']).lower()})", "armour",
+                          area * d["mm"] / 1000 * STEEL, x=0.0 if d["extent"] == "full" else xc,
+                          z_rel=("deck", d["z"] - D)))
     return out
 
 

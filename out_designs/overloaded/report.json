@@ -78,7 +78,13 @@
     },
     "armour": {
       "belt_mm": 250,
-      "deck_mm": 100,
+      "decks": [
+        {
+          "deck": 1,
+          "mm": 100,
+          "extent": "citadel"
+        }
+      ],
       "turret_mm": 300
     },
     "main": {
@@ -100,35 +106,35 @@
     }
   },
   "results": {
-    "length_m": 242.0,
-    "beam_m": 30.91,
+    "length_m": 244.0,
+    "beam_m": 31.31,
     "block_coefficient": 0.52,
-    "standard_displacement_t": 38737,
-    "full_displacement_t": 42043,
-    "draught_m": 10.55,
-    "depth_m": 16.4,
-    "freeboard_m": 5.86,
-    "power_shp": 206400.0,
-    "fuel_t": 3306,
-    "crew": 1478,
-    "gm_full_m": 1.72,
-    "gm_light_m": 1.2,
-    "trim_m": -0.0,
-    "lcg_m": -2.91,
-    "lcb_m": -2.9,
-    "layout_shift_m": -0.06
+    "standard_displacement_t": 39772,
+    "full_displacement_t": 43130,
+    "draught_m": 10.59,
+    "depth_m": 16.48,
+    "freeboard_m": 5.89,
+    "power_shp": 209600.0,
+    "fuel_t": 3357,
+    "crew": 1483,
+    "gm_full_m": 1.76,
+    "gm_light_m": 1.25,
+    "trim_m": 0.0,
+    "lcg_m": -2.93,
+    "lcb_m": -2.93,
+    "layout_shift_m": 0.0
   },
   "plant": {
     "name": "High-pressure geared turbines (1940)",
     "fuel": "oil",
-    "rated_kw": 153914,
-    "rated_shp": 206400.0,
-    "continuous_kw": 142370,
+    "rated_kw": 156292,
+    "rated_shp": 209590.0,
+    "continuous_kw": 144570,
     "overload_max": 1.075,
     "shafts": 4,
     "units": 4,
-    "unit_mw": 38.48,
-    "weight_t": 4063.3,
+    "unit_mw": 39.07,
+    "weight_t": 4126.1,
     "sfc_g_per_kwh": 363.0,
     "part_load": {
       "curve": "GTB",
@@ -152,32 +158,32 @@
     "stress": 0.5,
     "transmission": "mechanical",
     "arrangement": "grouped",
-    "crew": 437,
-    "machinery_length_m": 53.2,
+    "crew": 442,
+    "machinery_length_m": 52.2,
     "boiler_rooms": 2,
     "engine_rooms": 2,
     "rows": 4,
     "protrusion_m": 0.0,
     "space_m": {
-      "width": 28.44,
-      "height": 12.18
+      "width": 28.81,
+      "height": 12.65
     },
     "wing_bunkers_t": 0,
-    "end_bunkers_m": 2.8,
+    "end_bunkers_m": 2.6,
     "funnels": 1,
-    "funnel_gas_area_m2": 21.5,
+    "funnel_gas_area_m2": 21.7,
     "funnel_gas_velocity_m_s": 14.7,
-    "smoke_reach_m": 17.8
+    "smoke_reach_m": 17.9
   },
   "crew": {
-    "complement": 1478,
-    "officers": 118,
-    "cpos": 118,
-    "ratings": 1242,
+    "complement": 1483,
+    "officers": 119,
+    "cpos": 119,
+    "ratings": 1245,
     "departments": {
-      "engineering": 437,
+      "engineering": 440,
       "weapons": 795,
-      "deck_and_command": 157,
+      "deck_and_command": 159,
       "hotel": 89
     },
     "standard": "Tiered bunks and separate messdecks",
@@ -185,14 +191,14 @@
     "range_days": 23,
     "distiller": true,
     "berth_ratio": 1.0,
-    "living_m3": 11048,
-    "provisions_m3": 428,
-    "water_m3": 443,
+    "living_m3": 11096,
+    "provisions_m3": 430,
+    "water_m3": 445,
     "water_in_double_bottom_m3": 0,
-    "distiller_m3_per_day": 106.4,
-    "space_needed_m3": 11926,
-    "space_usable_m3": 27844,
-    "space_free_m3": 42837,
+    "distiller_m3_per_day": 106.8,
+    "space_needed_m3": 11977,
+    "space_usable_m3": 32154,
+    "space_free_m3": 49467,
     "sleep_m2_per_man": 1.77,
     "sleep_standard_m2": 1.3,
     "headroom_m": 2.4,
@@ -201,469 +207,469 @@
     "tolerance_days": 60
   },
   "weight_groups_t": {
-    "hull": 13741,
-    "armour": 11022,
+    "hull": 14104,
+    "armour": 11548,
     "armament": 5764,
-    "machinery": 4142,
-    "fuel": 3306,
-    "misc": 3008,
-    "superstructure": 1059
+    "machinery": 4203,
+    "fuel": 3357,
+    "misc": 3068,
+    "superstructure": 1085
   },
   "weights": [
     {
       "name": "Hull structure",
       "group": "hull",
-      "t": 13740.5,
-      "x": -2.42,
-      "z": 9.51
+      "t": 14104.3,
+      "x": -2.44,
+      "z": 9.56
     },
     {
       "name": "Machinery",
       "group": "machinery",
-      "t": 4063.3,
-      "x": -4.98,
-      "z": 5.25
+      "t": 4126.1,
+      "x": -5.2,
+      "z": 5.27
     },
     {
       "name": "Turret A",
       "group": "armament",
       "t": 882.1,
-      "x": 75.54,
-      "z": 19.02
+      "x": 76.43,
+      "z": 19.1
     },
     {
       "name": "Barbette A",
       "group": "armour",
-      "t": 559.9,
-      "x": 75.54,
-      "z": 12.3
+      "t": 559.7,
+      "x": 76.43,
+      "z": 12.36
     },
     {
       "name": "Magazine A",
       "group": "armament",
       "t": 396.3,
-      "x": 75.54,
-      "z": 3.61
+      "x": 76.43,
+      "z": 3.63
     },
     {
       "name": "Turret B",
       "group": "armament",
       "t": 882.1,
-      "x": 57.7,
-      "z": 22.85
+      "x": 58.59,
+      "z": 22.93
     },
     {
       "name": "Barbette B",
       "group": "armour",
-      "t": 850.7,
-      "x": 57.7,
-      "z": 12.3
+      "t": 850.5,
+      "x": 58.59,
+      "z": 12.36
     },
     {
       "name": "Magazine B",
       "group": "armament",
       "t": 396.3,
-      "x": 57.7,
-      "z": 3.61
+      "x": 58.59,
+      "z": 3.63
     },
     {
       "name": "Turret Y",
       "group": "armament",
       "t": 882.1,
-      "x": -81.47,
-      "z": 19.02
+      "x": -82.24,
+      "z": 19.1
     },
     {
       "name": "Barbette Y",
       "group": "armour",
-      "t": 559.9,
-      "x": -81.47,
-      "z": 12.3
+      "t": 559.7,
+      "x": -82.24,
+      "z": 12.36
     },
     {
       "name": "Magazine Y",
       "group": "armament",
       "t": 396.3,
-      "x": -81.47,
-      "z": 3.61
+      "x": -82.24,
+      "z": 3.63
     },
     {
       "name": "Turret X",
       "group": "armament",
       "t": 882.1,
-      "x": -63.63,
-      "z": 22.85
+      "x": -64.4,
+      "z": 22.93
     },
     {
       "name": "Barbette X",
       "group": "armour",
-      "t": 850.7,
-      "x": -63.63,
-      "z": 12.3
+      "t": 850.5,
+      "x": -64.4,
+      "z": 12.36
     },
     {
       "name": "Magazine X",
       "group": "armament",
       "t": 396.3,
-      "x": -63.63,
-      "z": 3.61
+      "x": -64.4,
+      "z": 3.63
     },
     {
       "name": "Bridge",
       "group": "superstructure",
-      "t": 50.2,
-      "x": 38.53,
-      "z": 20.3
+      "t": 51.2,
+      "x": 39.37,
+      "z": 20.38
     },
     {
       "name": "Bridge upper",
       "group": "superstructure",
-      "t": 32.9,
-      "x": 38.82,
-      "z": 22.9
+      "t": 33.6,
+      "x": 39.65,
+      "z": 22.98
     },
     {
       "name": "Main director",
       "group": "superstructure",
-      "t": 11.3,
-      "x": 39.59,
-      "z": 25.5
+      "t": 11.5,
+      "x": 40.43,
+      "z": 25.58
     },
     {
       "name": "Aft control",
       "group": "superstructure",
-      "t": 35.7,
-      "x": -45.06,
-      "z": 20.3
+      "t": 36.4,
+      "x": -45.79,
+      "z": 20.38
     },
     {
       "name": "Aft director",
       "group": "superstructure",
-      "t": 10.8,
-      "x": -45.06,
-      "z": 22.9
+      "t": 11.1,
+      "x": -45.79,
+      "z": 22.98
     },
     {
       "name": "Funnel 1",
       "group": "superstructure",
-      "t": 45.3,
-      "x": 6.44,
-      "z": 23.1
+      "t": 45.9,
+      "x": 6.63,
+      "z": 23.18
     },
     {
       "name": "Uptakes Funnel 1",
       "group": "machinery",
-      "t": 79.0,
-      "x": 8.36,
-      "z": 11.49
+      "t": 76.6,
+      "x": 8.34,
+      "z": 11.59
     },
     {
       "name": "Gratings Funnel 1",
       "group": "armour",
-      "t": 12.9,
-      "x": 10.28,
-      "z": 13.33
+      "t": 13.0,
+      "x": 10.05,
+      "z": 13.88
     },
     {
       "name": "Mount S1S",
       "group": "armament",
       "t": 23.1,
-      "x": -18.06,
-      "z": 19.76
+      "x": -18.0,
+      "z": 19.84
     },
     {
       "name": "Magazine S1S",
       "group": "armament",
       "t": 42.0,
       "x": -32.31,
-      "z": 4.92
+      "z": 4.95
     },
     {
       "name": "Mount S1P",
       "group": "armament",
       "t": 23.1,
-      "x": -18.06,
-      "z": 19.76
+      "x": -18.0,
+      "z": 19.84
     },
     {
       "name": "Magazine S1P",
       "group": "armament",
       "t": 42.0,
       "x": -32.31,
-      "z": 4.92
+      "z": 4.95
     },
     {
       "name": "Mount S2S",
       "group": "armament",
       "t": 23.1,
-      "x": -7.99,
-      "z": 19.76
+      "x": -7.94,
+      "z": 19.84
     },
     {
       "name": "Magazine S2S",
       "group": "armament",
       "t": 42.0,
       "x": -32.31,
-      "z": 4.92
+      "z": 4.95
     },
     {
       "name": "Mount S2P",
       "group": "armament",
       "t": 23.1,
-      "x": -7.99,
-      "z": 19.76
+      "x": -7.94,
+      "z": 19.84
     },
     {
       "name": "Magazine S2P",
       "group": "armament",
       "t": 42.0,
       "x": -32.31,
-      "z": 4.92
+      "z": 4.95
     },
     {
       "name": "Mount S3S",
       "group": "armament",
       "t": 23.1,
-      "x": 2.07,
-      "z": 19.76
+      "x": 2.13,
+      "z": 19.84
     },
     {
       "name": "Magazine S3S",
       "group": "armament",
       "t": 42.0,
-      "x": 22.34,
-      "z": 4.92
+      "x": 21.92,
+      "z": 4.95
     },
     {
       "name": "Mount S3P",
       "group": "armament",
       "t": 23.1,
-      "x": 2.07,
-      "z": 19.76
+      "x": 2.13,
+      "z": 19.84
     },
     {
       "name": "Magazine S3P",
       "group": "armament",
       "t": 42.0,
-      "x": 22.34,
-      "z": 4.92
+      "x": 21.92,
+      "z": 4.95
     },
     {
       "name": "Mount S4S",
       "group": "armament",
       "t": 23.1,
-      "x": 12.13,
-      "z": 19.76
+      "x": 12.19,
+      "z": 19.84
     },
     {
       "name": "Magazine S4S",
       "group": "armament",
       "t": 42.0,
-      "x": 22.34,
-      "z": 4.92
+      "x": 21.92,
+      "z": 4.95
     },
     {
       "name": "Mount S4P",
       "group": "armament",
       "t": 23.1,
-      "x": 12.13,
-      "z": 19.76
+      "x": 12.19,
+      "z": 19.84
     },
     {
       "name": "Magazine S4P",
       "group": "armament",
       "t": 42.0,
-      "x": 22.34,
-      "z": 4.92
+      "x": 21.92,
+      "z": 4.95
     },
     {
       "name": "Deckhouse",
       "group": "superstructure",
-      "t": 872.6,
-      "x": -2.46,
-      "z": 17.7
+      "t": 895.6,
+      "x": -2.41,
+      "z": 17.78
     },
     {
       "name": "AA1",
       "group": "armament",
       "t": 15.0,
-      "x": -23.51,
-      "z": 20.0
+      "x": -23.28,
+      "z": 20.08
     },
     {
       "name": "AA2",
       "group": "armament",
       "t": 15.0,
-      "x": -23.51,
-      "z": 20.0
+      "x": -23.28,
+      "z": 20.08
     },
     {
       "name": "AA3",
       "group": "armament",
       "t": 15.0,
-      "x": 17.49,
-      "z": 20.0
+      "x": 17.72,
+      "z": 20.08
     },
     {
       "name": "AA4",
       "group": "armament",
       "t": 15.0,
-      "x": 17.49,
-      "z": 20.0
+      "x": 17.72,
+      "z": 20.08
     },
     {
       "name": "AA5",
       "group": "armament",
       "t": 15.0,
-      "x": -30.51,
-      "z": 20.0
+      "x": -30.28,
+      "z": 20.08
     },
     {
       "name": "AA6",
       "group": "armament",
       "t": 15.0,
-      "x": -30.51,
-      "z": 20.0
+      "x": -30.28,
+      "z": 20.08
     },
     {
       "name": "AA7",
       "group": "armament",
       "t": 15.0,
-      "x": 24.49,
-      "z": 20.0
+      "x": 24.72,
+      "z": 20.08
     },
     {
       "name": "AA8",
       "group": "armament",
       "t": 15.0,
-      "x": 24.49,
-      "z": 20.0
+      "x": 24.72,
+      "z": 20.08
     },
     {
       "name": "AA9",
       "group": "armament",
       "t": 1.0,
-      "x": -53.02,
-      "z": 17.4
+      "x": -53.64,
+      "z": 17.48
     },
     {
       "name": "AA10",
       "group": "armament",
       "t": 1.0,
-      "x": -53.02,
-      "z": 17.4
+      "x": -53.64,
+      "z": 17.48
     },
     {
       "name": "AA11",
       "group": "armament",
       "t": 1.0,
-      "x": -57.02,
-      "z": 17.4
+      "x": -57.64,
+      "z": 17.48
     },
     {
       "name": "AA12",
       "group": "armament",
       "t": 1.0,
-      "x": -57.02,
-      "z": 17.4
+      "x": -57.64,
+      "z": 17.48
     },
     {
       "name": "AA13",
       "group": "armament",
       "t": 1.0,
-      "x": 47.98,
-      "z": 17.4
+      "x": 48.86,
+      "z": 17.48
     },
     {
       "name": "AA14",
       "group": "armament",
       "t": 1.0,
-      "x": 47.98,
-      "z": 17.4
+      "x": 48.86,
+      "z": 17.48
     },
     {
       "name": "AA15",
       "group": "armament",
       "t": 1.0,
-      "x": -61.02,
-      "z": 17.4
+      "x": -61.64,
+      "z": 17.48
     },
     {
       "name": "AA16",
       "group": "armament",
       "t": 1.0,
-      "x": -61.02,
-      "z": 17.4
+      "x": -61.64,
+      "z": 17.48
     },
     {
       "name": "AA17",
       "group": "armament",
       "t": 1.0,
-      "x": 51.98,
-      "z": 17.4
+      "x": 52.86,
+      "z": 17.48
     },
     {
       "name": "AA18",
       "group": "armament",
       "t": 1.0,
-      "x": 51.98,
-      "z": 17.4
+      "x": 52.86,
+      "z": 17.48
     },
     {
       "name": "Crew and effects",
       "group": "misc",
-      "t": 177.4,
+      "t": 178.0,
       "x": 0.0,
-      "z": 14.9
+      "z": 14.98
     },
     {
       "name": "Provisions",
       "group": "misc",
-      "t": 257.0,
+      "t": 257.9,
       "x": 0.0,
-      "z": 6.56
+      "z": 6.59
     },
     {
       "name": "Fresh water",
       "group": "misc",
-      "t": 443.4,
-      "x": -4.98,
+      "t": 444.9,
+      "x": -5.2,
       "z": 0.82
     },
     {
       "name": "Belt armour",
       "group": "armour",
-      "t": 3810.6,
-      "x": -2.96,
-      "z": 10.55
+      "t": 4204.5,
+      "x": -2.91,
+      "z": 10.84
     },
     {
       "name": "Bulkheads",
       "group": "armour",
-      "t": 567.0,
-      "x": -2.96,
-      "z": 9.43
+      "t": 612.9,
+      "x": -2.91,
+      "z": 9.73
     },
     {
-      "name": "Deck armour",
+      "name": "Deck armour (second deck)",
       "group": "armour",
-      "t": 3810.8,
-      "x": -2.96,
-      "z": 13.33
+      "t": 3896.8,
+      "x": -2.91,
+      "z": 13.88
     },
     {
       "name": "Equipment, outfit, crew & stores",
       "group": "misc",
-      "t": 2130.5,
+      "t": 2187.5,
       "x": 0.0,
-      "z": 8.2
+      "z": 8.24
     },
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 3306.4,
-      "x": -4.98,
-      "z": 2.95
+      "t": 3357.5,
+      "x": -5.2,
+      "z": 2.97
     }
   ]
 }

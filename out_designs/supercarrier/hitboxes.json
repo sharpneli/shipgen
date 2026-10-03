@@ -6,11 +6,11 @@
  "length": 333.0,
  "beam": 35.05,
  "vertical": {
-  "keel": -19.23,
+  "keel": -19.24,
   "waterline": -10.49,
-  "armour_deck": -7.98,
-  "draught": 8.74,
-  "depth": 19.23,
+  "armour_deck": -7.8,
+  "draught": 8.75,
+  "depth": 19.24,
   "freeboard": 10.49
  },
  "hull": [
@@ -2090,33 +2090,39 @@
  "armour": {
   "belt": {
    "thickness_mm": 76,
-   "x0": -54.715,
-   "x1": 61.375,
+   "x0": -54.479,
+   "x1": 61.139,
    "bottom": -13.0,
-   "top": -7.98
+   "top": -7.8
   },
   "bulkheads": [
    {
     "id": "Forward bulkhead",
-    "x": 61.375,
+    "x": 61.139,
     "thickness_mm": 46,
     "bottom": -15.01,
-    "top": -7.98
+    "top": -7.8
    },
    {
     "id": "Aft bulkhead",
-    "x": -54.715,
+    "x": -54.479,
     "thickness_mm": 46,
     "bottom": -15.01,
-    "top": -7.98
+    "top": -7.8
    }
   ],
-  "deck": {
-   "thickness_mm": 50,
-   "x0": -54.715,
-   "x1": 61.375,
-   "z": -7.98
-  }
+  "decks": [
+   {
+    "deck": "Fourth deck",
+    "thickness_mm": 50,
+    "extent": "citadel",
+    "x0": -54.479,
+    "x1": 61.139,
+    "z": -7.8,
+    "main": true,
+    "roof": true
+   }
+  ]
  },
  "components": [
   {
@@ -4731,7 +4737,7 @@
      12.23
     ]
    ],
-   "base": -12.83,
+   "base": -12.84,
    "top": 7.6,
    "boiler_rooms": [
     "Boiler room 1",
@@ -5121,58 +5127,125 @@
   {
    "id": "Inner bottom",
    "kind": "inner_bottom",
-   "z": -17.886
+   "z": -17.891
   },
   {
-   "id": "Lower deck",
-   "kind": "flat",
-   "z": -10.492
+   "id": "Seventh deck",
+   "kind": "deck",
+   "deck": 6,
+   "z": -15.6
   },
   {
-   "id": "Armour deck",
-   "kind": "armour",
-   "z": -7.981,
+   "id": "Sixth deck",
+   "kind": "deck",
+   "deck": 5,
+   "z": -13.0
+  },
+  {
+   "id": "Fifth deck",
+   "kind": "deck",
+   "deck": 4,
+   "z": -10.4
+  },
+  {
+   "id": "Fourth deck",
+   "kind": "deck",
+   "deck": 3,
+   "z": -7.8,
    "armour_mm": 50,
-   "x0": -54.715,
-   "x1": 61.375
+   "x0": -54.479,
+   "x1": 61.139
+  },
+  {
+   "id": "Third deck",
+   "kind": "deck",
+   "deck": 2,
+   "z": -5.2
+  },
+  {
+   "id": "Second deck",
+   "kind": "deck",
+   "deck": 1,
+   "z": -2.6
   },
   {
    "id": "Main deck",
    "kind": "main",
+   "deck": 0,
    "z": 0.0
   }
  ],
  "tiers": [
   {
    "id": "bottom",
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89,
    "below_waterline": true,
+   "submerged": 1.0,
    "floor": "Keel",
    "ceiling": "Inner bottom"
   },
   {
    "id": "hold",
    "base": -17.89,
-   "top": -10.49,
+   "top": -15.6,
    "below_waterline": true,
+   "submerged": 1.0,
    "floor": "Inner bottom",
-   "ceiling": "Lower deck"
+   "ceiling": "Seventh deck"
   },
   {
-   "id": "platform",
-   "base": -10.49,
-   "top": -7.98,
+   "id": "seventh",
+   "base": -15.6,
+   "top": -13.0,
+   "below_waterline": true,
+   "submerged": 1.0,
+   "floor": "Seventh deck",
+   "ceiling": "Sixth deck"
+  },
+  {
+   "id": "sixth",
+   "base": -13.0,
+   "top": -10.4,
    "below_waterline": false,
-   "floor": "Lower deck",
-   "ceiling": "Armour deck"
+   "submerged": 0.96,
+   "floor": "Sixth deck",
+   "ceiling": "Fifth deck"
   },
   {
-   "id": "between",
-   "base": -7.98,
+   "id": "fifth",
+   "base": -10.4,
+   "top": -7.8,
+   "below_waterline": false,
+   "submerged": 0.0,
+   "floor": "Fifth deck",
+   "ceiling": "Fourth deck"
+  },
+  {
+   "id": "fourth",
+   "base": -7.8,
+   "top": -5.2,
+   "below_waterline": false,
+   "submerged": 0.0,
+   "floor": "Fourth deck",
+   "ceiling": "Third deck"
+  },
+  {
+   "id": "third",
+   "base": -5.2,
+   "top": -2.6,
+   "below_waterline": false,
+   "submerged": 0.0,
+   "floor": "Third deck",
+   "ceiling": "Second deck"
+  },
+  {
+   "id": "second",
+   "base": -2.6,
    "top": 0.0,
    "below_waterline": false,
-   "floor": "Armour deck",
+   "submerged": 0.0,
+   "floor": "Second deck",
    "ceiling": "Main deck"
   }
  ],
@@ -5184,73 +5257,73 @@
   },
   {
    "id": "2",
-   "x0": 127.731,
+   "x0": 127.672,
    "x1": 149.85
   },
   {
    "id": "3",
-   "x0": 105.612,
-   "x1": 127.731
+   "x0": 105.495,
+   "x1": 127.672
   },
   {
    "id": "4",
-   "x0": 83.494,
-   "x1": 105.612
+   "x0": 83.317,
+   "x1": 105.495
   },
   {
    "id": "5",
-   "x0": 61.375,
-   "x1": 83.494
+   "x0": 61.139,
+   "x1": 83.317
   },
   {
    "id": "6",
-   "x0": 34.735,
-   "x1": 61.375
+   "x0": 34.499,
+   "x1": 61.139
   },
   {
    "id": "7",
-   "x0": 21.391,
-   "x1": 34.735
+   "x0": 21.396,
+   "x1": 34.499
   },
   {
    "id": "8",
-   "x0": 8.048,
-   "x1": 21.391
+   "x0": 8.294,
+   "x1": 21.396
   },
   {
    "id": "9",
-   "x0": -13.344,
-   "x1": 8.048
+   "x0": -13.103,
+   "x1": 8.294
   },
   {
    "id": "10",
-   "x0": -34.735,
-   "x1": -13.344
+   "x0": -34.499,
+   "x1": -13.103
   },
   {
    "id": "11",
-   "x0": -54.715,
-   "x1": -34.735
+   "x0": -54.479,
+   "x1": -34.499
   },
   {
    "id": "12",
-   "x0": -76.001,
-   "x1": -54.715
+   "x0": -75.824,
+   "x1": -54.479
   },
   {
    "id": "13",
-   "x0": -97.287,
-   "x1": -76.001
+   "x0": -97.17,
+   "x1": -75.824
   },
   {
    "id": "14",
-   "x0": -118.574,
-   "x1": -97.287
+   "x0": -118.515,
+   "x1": -97.17
   },
   {
    "id": "15",
    "x0": -139.86,
-   "x1": -118.574
+   "x1": -118.515
   },
   {
    "id": "16",
@@ -5268,118 +5341,118 @@
    "id": "Bulkhead 1",
    "kind": "collision",
    "x": 149.85,
-   "base": -19.23,
+   "base": -19.24,
    "top": 0.0
   },
   {
    "id": "Bulkhead 2",
    "kind": "main",
-   "x": 127.731,
-   "base": -19.23,
+   "x": 127.672,
+   "base": -19.24,
    "top": 0.0
   },
   {
    "id": "Bulkhead 3",
    "kind": "main",
-   "x": 105.612,
-   "base": -19.23,
+   "x": 105.495,
+   "base": -19.24,
    "top": 0.0
   },
   {
    "id": "Bulkhead 4",
    "kind": "main",
-   "x": 83.494,
-   "base": -19.23,
+   "x": 83.317,
+   "base": -19.24,
    "top": 0.0
   },
   {
    "id": "Bulkhead 5",
    "kind": "armoured",
-   "x": 61.375,
-   "base": -19.23,
+   "x": 61.139,
+   "base": -19.24,
    "top": 0.0,
    "armour_mm": 46,
    "armour_bottom": -15.01,
-   "armour_top": -7.98
+   "armour_top": -7.8
   },
   {
    "id": "Bulkhead 6",
    "kind": "main",
-   "x": 34.735,
-   "base": -19.23,
+   "x": 34.499,
+   "base": -19.24,
    "top": 0.0
   },
   {
    "id": "Bulkhead 7",
    "kind": "main",
-   "x": 21.391,
-   "base": -19.23,
+   "x": 21.396,
+   "base": -19.24,
    "top": 0.0
   },
   {
    "id": "Bulkhead 8",
    "kind": "main",
-   "x": 8.048,
-   "base": -19.23,
+   "x": 8.294,
+   "base": -19.24,
    "top": 0.0
   },
   {
    "id": "Bulkhead 9",
    "kind": "main",
-   "x": -13.344,
-   "base": -19.23,
+   "x": -13.103,
+   "base": -19.24,
    "top": 0.0
   },
   {
    "id": "Bulkhead 10",
    "kind": "main",
-   "x": -34.735,
-   "base": -19.23,
+   "x": -34.499,
+   "base": -19.24,
    "top": 0.0
   },
   {
    "id": "Bulkhead 11",
    "kind": "armoured",
-   "x": -54.715,
-   "base": -19.23,
+   "x": -54.479,
+   "base": -19.24,
    "top": 0.0,
    "armour_mm": 46,
    "armour_bottom": -15.01,
-   "armour_top": -7.98
+   "armour_top": -7.8
   },
   {
    "id": "Bulkhead 12",
    "kind": "main",
-   "x": -76.001,
-   "base": -19.23,
+   "x": -75.824,
+   "base": -19.24,
    "top": 0.0
   },
   {
    "id": "Bulkhead 13",
    "kind": "main",
-   "x": -97.287,
-   "base": -19.23,
+   "x": -97.17,
+   "base": -19.24,
    "top": 0.0
   },
   {
    "id": "Bulkhead 14",
    "kind": "main",
-   "x": -118.574,
-   "base": -19.23,
+   "x": -118.515,
+   "base": -19.24,
    "top": 0.0
   },
   {
    "id": "Bulkhead 15",
    "kind": "main",
    "x": -139.86,
-   "base": -19.23,
+   "base": -19.24,
    "top": 0.0
   },
   {
    "id": "Bulkhead 16",
    "kind": "main",
    "x": -156.51,
-   "base": -19.23,
+   "base": -19.24,
    "top": 0.0
   },
   {
@@ -5388,10 +5461,10 @@
    "section": "6",
    "side": "S",
    "y": 11.123,
-   "x0": 34.735,
-   "x1": 61.375,
+   "x0": 34.499,
+   "x1": 61.139,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo bulkhead 6 P",
@@ -5399,10 +5472,10 @@
    "section": "6",
    "side": "P",
    "y": -11.123,
-   "x0": 34.735,
-   "x1": 61.375,
+   "x0": 34.499,
+   "x1": 61.139,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo bulkhead 7 S",
@@ -5410,10 +5483,10 @@
    "section": "7",
    "side": "S",
    "y": 11.123,
-   "x0": 21.391,
-   "x1": 34.735,
+   "x0": 21.396,
+   "x1": 34.499,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo bulkhead 7 P",
@@ -5421,10 +5494,10 @@
    "section": "7",
    "side": "P",
    "y": -11.123,
-   "x0": 21.391,
-   "x1": 34.735,
+   "x0": 21.396,
+   "x1": 34.499,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo bulkhead 8 S",
@@ -5432,10 +5505,10 @@
    "section": "8",
    "side": "S",
    "y": 11.123,
-   "x0": 8.048,
-   "x1": 21.391,
+   "x0": 8.294,
+   "x1": 21.396,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo bulkhead 8 P",
@@ -5443,10 +5516,10 @@
    "section": "8",
    "side": "P",
    "y": -11.123,
-   "x0": 8.048,
-   "x1": 21.391,
+   "x0": 8.294,
+   "x1": 21.396,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo bulkhead 9 S",
@@ -5454,10 +5527,10 @@
    "section": "9",
    "side": "S",
    "y": 11.123,
-   "x0": -13.344,
-   "x1": 8.048,
+   "x0": -13.103,
+   "x1": 8.294,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo bulkhead 9 P",
@@ -5465,10 +5538,10 @@
    "section": "9",
    "side": "P",
    "y": -11.123,
-   "x0": -13.344,
-   "x1": 8.048,
+   "x0": -13.103,
+   "x1": 8.294,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo bulkhead 10 S",
@@ -5476,10 +5549,10 @@
    "section": "10",
    "side": "S",
    "y": 11.123,
-   "x0": -34.735,
-   "x1": -13.344,
+   "x0": -34.499,
+   "x1": -13.103,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo bulkhead 10 P",
@@ -5487,10 +5560,10 @@
    "section": "10",
    "side": "P",
    "y": -11.123,
-   "x0": -34.735,
-   "x1": -13.344,
+   "x0": -34.499,
+   "x1": -13.103,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo bulkhead 11 S",
@@ -5498,10 +5571,10 @@
    "section": "11",
    "side": "S",
    "y": 11.123,
-   "x0": -54.715,
-   "x1": -34.735,
+   "x0": -54.479,
+   "x1": -34.499,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo bulkhead 11 P",
@@ -5509,10 +5582,10 @@
    "section": "11",
    "side": "P",
    "y": -11.123,
-   "x0": -54.715,
-   "x1": -34.735,
+   "x0": -54.479,
+   "x1": -34.499,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   }
  ],
  "cells": [
@@ -5525,7 +5598,7 @@
    "x1": 166.5,
    "y0": -4.608,
    "y1": 4.608,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89,
    "volume_m3": 72.9,
    "below_waterline": true,
@@ -5552,8 +5625,8 @@
    "y0": -4.608,
    "y1": 4.608,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 400.2,
+   "top": -15.6,
+   "volume_m3": 124.0,
    "below_waterline": true,
    "room": "Stores 1",
    "permeability": 0.6,
@@ -5563,8 +5636,8 @@
      "Inner bottom"
     ],
     [
-     "1 platform C",
-     "Lower deck"
+     "1 seventh C",
+     "open"
     ],
     [
      "2 hold C",
@@ -5573,59 +5646,181 @@
    ]
   },
   {
-   "id": "1 platform C",
+   "id": "1 seventh C",
    "section": "1",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
    "x0": 149.85,
    "x1": 166.5,
    "y0": -4.608,
    "y1": 4.608,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 196.4,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 140.7,
+   "below_waterline": true,
+   "room": "Stores 1",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "1 hold C",
+     "open"
+    ],
+    [
+     "1 sixth C",
+     "open"
+    ],
+    [
+     "2 seventh C",
+     "Bulkhead 1"
+    ]
+   ]
+  },
+  {
+   "id": "1 sixth C",
+   "section": "1",
+   "tier": "sixth",
+   "band": "C",
+   "x0": 149.85,
+   "x1": 166.5,
+   "y0": -4.608,
+   "y1": 4.608,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 142.9,
+   "below_waterline": false,
+   "room": "Stores 1",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "1 seventh C",
+     "open"
+    ],
+    [
+     "1 fifth C",
+     "Fifth deck"
+    ],
+    [
+     "2 sixth C",
+     "Bulkhead 1"
+    ]
+   ]
+  },
+  {
+   "id": "1 fifth C",
+   "section": "1",
+   "tier": "fifth",
+   "band": "C",
+   "x0": 149.85,
+   "x1": 166.5,
+   "y0": -4.608,
+   "y1": 4.608,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 203.3,
    "below_waterline": false,
    "crew": 5,
    "room": "Quarters 1",
    "permeability": 0.95,
    "neighbours": [
     [
-     "1 hold C",
-     "Lower deck"
+     "1 sixth C",
+     "Fifth deck"
     ],
     [
-     "1 between C",
+     "1 fourth C",
      "open"
     ],
     [
-     "2 platform C",
+     "2 fifth C",
      "Bulkhead 1"
     ]
    ]
   },
   {
-   "id": "1 between C",
+   "id": "1 fourth C",
    "section": "1",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": 149.85,
    "x1": 166.5,
    "y0": -4.608,
    "y1": 4.608,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 624.1,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 203.3,
    "below_waterline": false,
-   "crew": 15,
+   "crew": 5,
    "room": "Quarters 1",
    "permeability": 0.95,
    "neighbours": [
     [
-     "1 platform C",
+     "1 fifth C",
      "open"
     ],
     [
-     "2 between C",
+     "1 third C",
+     "open"
+    ],
+    [
+     "2 fourth C",
+     "Bulkhead 1"
+    ]
+   ]
+  },
+  {
+   "id": "1 third C",
+   "section": "1",
+   "tier": "third",
+   "band": "C",
+   "x0": 149.85,
+   "x1": 166.5,
+   "y0": -4.608,
+   "y1": 4.608,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 203.3,
+   "below_waterline": false,
+   "crew": 5,
+   "room": "Quarters 1",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "1 fourth C",
+     "open"
+    ],
+    [
+     "1 second C",
+     "open"
+    ],
+    [
+     "2 third C",
+     "Bulkhead 1"
+    ]
+   ]
+  },
+  {
+   "id": "1 second C",
+   "section": "1",
+   "tier": "second",
+   "band": "C",
+   "x0": 149.85,
+   "x1": 166.5,
+   "y0": -4.608,
+   "y1": 4.608,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 203.3,
+   "below_waterline": false,
+   "crew": 5,
+   "room": "Quarters 1",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "1 third C",
+     "open"
+    ],
+    [
+     "2 second C",
      "Bulkhead 1"
     ]
    ]
@@ -5635,13 +5830,13 @@
    "section": "2",
    "tier": "bottom",
    "band": "C",
-   "x0": 127.731,
+   "x0": 127.672,
    "x1": 149.85,
-   "y0": -9.873,
-   "y1": 9.873,
-   "base": -19.23,
+   "y0": -9.886,
+   "y1": 9.886,
+   "base": -19.24,
    "top": -17.89,
-   "volume_m3": 302.0,
+   "volume_m3": 303.2,
    "below_waterline": true,
    "room": "Double bottom 2",
    "permeability": 0.95,
@@ -5665,13 +5860,13 @@
    "section": "2",
    "tier": "hold",
    "band": "C",
-   "x0": 127.731,
+   "x0": 127.672,
    "x1": 149.85,
-   "y0": -9.873,
-   "y1": 9.873,
+   "y0": -9.886,
+   "y1": 9.886,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 1658.9,
+   "top": -15.6,
+   "volume_m3": 515.8,
    "below_waterline": true,
    "room": "Stores 2",
    "permeability": 0.6,
@@ -5681,8 +5876,8 @@
      "Inner bottom"
     ],
     [
-     "2 platform C",
-     "Lower deck"
+     "2 seventh C",
+     "open"
     ],
     [
      "1 hold C",
@@ -5695,67 +5890,205 @@
    ]
   },
   {
-   "id": "2 platform C",
+   "id": "2 seventh C",
    "section": "2",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
-   "x0": 127.731,
+   "x0": 127.672,
    "x1": 149.85,
-   "y0": -9.873,
-   "y1": 9.873,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 813.9,
-   "below_waterline": false,
-   "crew": 20,
-   "room": "Quarters 2",
-   "permeability": 0.95,
+   "y0": -9.886,
+   "y1": 9.886,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 585.4,
+   "below_waterline": true,
+   "room": "Stores 2",
+   "permeability": 0.6,
    "neighbours": [
     [
      "2 hold C",
-     "Lower deck"
-    ],
-    [
-     "2 between C",
      "open"
     ],
     [
-     "1 platform C",
+     "2 sixth C",
+     "open"
+    ],
+    [
+     "1 seventh C",
      "Bulkhead 1"
     ],
     [
-     "3 platform C",
+     "3 seventh C",
      "Bulkhead 2"
     ]
    ]
   },
   {
-   "id": "2 between C",
+   "id": "2 sixth C",
    "section": "2",
-   "tier": "between",
+   "tier": "sixth",
    "band": "C",
-   "x0": 127.731,
+   "x0": 127.672,
    "x1": 149.85,
-   "y0": -9.873,
-   "y1": 9.873,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 2586.8,
+   "y0": -9.886,
+   "y1": 9.886,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 594.6,
    "below_waterline": false,
-   "crew": 63,
+   "room": "Stores 2",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "2 seventh C",
+     "open"
+    ],
+    [
+     "2 fifth C",
+     "Fifth deck"
+    ],
+    [
+     "1 sixth C",
+     "Bulkhead 1"
+    ],
+    [
+     "3 sixth C",
+     "Bulkhead 2"
+    ]
+   ]
+  },
+  {
+   "id": "2 fifth C",
+   "section": "2",
+   "tier": "fifth",
+   "band": "C",
+   "x0": 127.672,
+   "x1": 149.85,
+   "y0": -9.886,
+   "y1": 9.886,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 845.8,
+   "below_waterline": false,
+   "crew": 21,
    "room": "Quarters 2",
    "permeability": 0.95,
    "neighbours": [
     [
-     "2 platform C",
+     "2 sixth C",
+     "Fifth deck"
+    ],
+    [
+     "2 fourth C",
      "open"
     ],
     [
-     "1 between C",
+     "1 fifth C",
      "Bulkhead 1"
     ],
     [
-     "3 between C",
+     "3 fifth C",
+     "Bulkhead 2"
+    ]
+   ]
+  },
+  {
+   "id": "2 fourth C",
+   "section": "2",
+   "tier": "fourth",
+   "band": "C",
+   "x0": 127.672,
+   "x1": 149.85,
+   "y0": -9.886,
+   "y1": 9.886,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 845.8,
+   "below_waterline": false,
+   "crew": 21,
+   "room": "Quarters 2",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "2 fifth C",
+     "open"
+    ],
+    [
+     "2 third C",
+     "open"
+    ],
+    [
+     "1 fourth C",
+     "Bulkhead 1"
+    ],
+    [
+     "3 fourth C",
+     "Bulkhead 2"
+    ]
+   ]
+  },
+  {
+   "id": "2 third C",
+   "section": "2",
+   "tier": "third",
+   "band": "C",
+   "x0": 127.672,
+   "x1": 149.85,
+   "y0": -9.886,
+   "y1": 9.886,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 845.8,
+   "below_waterline": false,
+   "crew": 21,
+   "room": "Quarters 2",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "2 fourth C",
+     "open"
+    ],
+    [
+     "2 second C",
+     "open"
+    ],
+    [
+     "1 third C",
+     "Bulkhead 1"
+    ],
+    [
+     "3 third C",
+     "Bulkhead 2"
+    ]
+   ]
+  },
+  {
+   "id": "2 second C",
+   "section": "2",
+   "tier": "second",
+   "band": "C",
+   "x0": 127.672,
+   "x1": 149.85,
+   "y0": -9.886,
+   "y1": 9.886,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 845.8,
+   "below_waterline": false,
+   "crew": 21,
+   "room": "Quarters 2",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "2 third C",
+     "open"
+    ],
+    [
+     "1 second C",
+     "Bulkhead 1"
+    ],
+    [
+     "3 second C",
      "Bulkhead 2"
     ]
    ]
@@ -5765,13 +6098,13 @@
    "section": "3",
    "tier": "bottom",
    "band": "C",
-   "x0": 105.612,
-   "x1": 127.731,
-   "y0": -14.029,
-   "y1": 14.029,
-   "base": -19.23,
+   "x0": 105.495,
+   "x1": 127.672,
+   "y0": -14.048,
+   "y1": 14.048,
+   "base": -19.24,
    "top": -17.89,
-   "volume_m3": 496.8,
+   "volume_m3": 499.0,
    "below_waterline": true,
    "room": "Double bottom 3",
    "permeability": 0.95,
@@ -5795,13 +6128,13 @@
    "section": "3",
    "tier": "hold",
    "band": "C",
-   "x0": 105.612,
-   "x1": 127.731,
-   "y0": -14.029,
-   "y1": 14.029,
+   "x0": 105.495,
+   "x1": 127.672,
+   "y0": -14.048,
+   "y1": 14.048,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 2728.7,
+   "top": -15.6,
+   "volume_m3": 848.8,
    "below_waterline": true,
    "room": "Stores 3",
    "permeability": 0.6,
@@ -5811,8 +6144,8 @@
      "Inner bottom"
     ],
     [
-     "3 platform C",
-     "Lower deck"
+     "3 seventh C",
+     "open"
     ],
     [
      "2 hold C",
@@ -5825,67 +6158,205 @@
    ]
   },
   {
-   "id": "3 platform C",
+   "id": "3 seventh C",
    "section": "3",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
-   "x0": 105.612,
-   "x1": 127.731,
-   "y0": -14.029,
-   "y1": 14.029,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 1338.8,
-   "below_waterline": false,
-   "crew": 33,
-   "room": "Quarters 3",
-   "permeability": 0.95,
+   "x0": 105.495,
+   "x1": 127.672,
+   "y0": -14.048,
+   "y1": 14.048,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 963.4,
+   "below_waterline": true,
+   "room": "Stores 3",
+   "permeability": 0.6,
    "neighbours": [
     [
      "3 hold C",
-     "Lower deck"
-    ],
-    [
-     "3 between C",
      "open"
     ],
     [
-     "2 platform C",
+     "3 sixth C",
+     "open"
+    ],
+    [
+     "2 seventh C",
      "Bulkhead 2"
     ],
     [
-     "4 platform C",
+     "4 seventh C",
      "Bulkhead 3"
     ]
    ]
   },
   {
-   "id": "3 between C",
+   "id": "3 sixth C",
    "section": "3",
-   "tier": "between",
+   "tier": "sixth",
    "band": "C",
-   "x0": 105.612,
-   "x1": 127.731,
-   "y0": -14.029,
-   "y1": 14.029,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 4255.1,
+   "x0": 105.495,
+   "x1": 127.672,
+   "y0": -14.048,
+   "y1": 14.048,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 978.5,
    "below_waterline": false,
-   "crew": 104,
+   "room": "Stores 3",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "3 seventh C",
+     "open"
+    ],
+    [
+     "3 fifth C",
+     "Fifth deck"
+    ],
+    [
+     "2 sixth C",
+     "Bulkhead 2"
+    ],
+    [
+     "4 sixth C",
+     "Bulkhead 3"
+    ]
+   ]
+  },
+  {
+   "id": "3 fifth C",
+   "section": "3",
+   "tier": "fifth",
+   "band": "C",
+   "x0": 105.495,
+   "x1": 127.672,
+   "y0": -14.048,
+   "y1": 14.048,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 1391.8,
+   "below_waterline": false,
+   "crew": 35,
    "room": "Quarters 3",
    "permeability": 0.95,
    "neighbours": [
     [
-     "3 platform C",
+     "3 sixth C",
+     "Fifth deck"
+    ],
+    [
+     "3 fourth C",
      "open"
     ],
     [
-     "2 between C",
+     "2 fifth C",
      "Bulkhead 2"
     ],
     [
-     "4 between C",
+     "4 fifth C",
+     "Bulkhead 3"
+    ]
+   ]
+  },
+  {
+   "id": "3 fourth C",
+   "section": "3",
+   "tier": "fourth",
+   "band": "C",
+   "x0": 105.495,
+   "x1": 127.672,
+   "y0": -14.048,
+   "y1": 14.048,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 1391.8,
+   "below_waterline": false,
+   "crew": 35,
+   "room": "Quarters 3",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "3 fifth C",
+     "open"
+    ],
+    [
+     "3 third C",
+     "open"
+    ],
+    [
+     "2 fourth C",
+     "Bulkhead 2"
+    ],
+    [
+     "4 fourth C",
+     "Bulkhead 3"
+    ]
+   ]
+  },
+  {
+   "id": "3 third C",
+   "section": "3",
+   "tier": "third",
+   "band": "C",
+   "x0": 105.495,
+   "x1": 127.672,
+   "y0": -14.048,
+   "y1": 14.048,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 1391.8,
+   "below_waterline": false,
+   "crew": 35,
+   "room": "Quarters 3",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "3 fourth C",
+     "open"
+    ],
+    [
+     "3 second C",
+     "open"
+    ],
+    [
+     "2 third C",
+     "Bulkhead 2"
+    ],
+    [
+     "4 third C",
+     "Bulkhead 3"
+    ]
+   ]
+  },
+  {
+   "id": "3 second C",
+   "section": "3",
+   "tier": "second",
+   "band": "C",
+   "x0": 105.495,
+   "x1": 127.672,
+   "y0": -14.048,
+   "y1": 14.048,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 1391.8,
+   "below_waterline": false,
+   "crew": 35,
+   "room": "Quarters 3",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "3 third C",
+     "open"
+    ],
+    [
+     "2 second C",
+     "Bulkhead 2"
+    ],
+    [
+     "4 second C",
      "Bulkhead 3"
     ]
    ]
@@ -5895,13 +6366,13 @@
    "section": "4",
    "tier": "bottom",
    "band": "C",
-   "x0": 83.494,
-   "x1": 105.612,
-   "y0": -16.818,
-   "y1": 16.818,
-   "base": -19.23,
+   "x0": 83.317,
+   "x1": 105.495,
+   "y0": -16.833,
+   "y1": 16.833,
+   "base": -19.24,
    "top": -17.89,
-   "volume_m3": 641.3,
+   "volume_m3": 643.9,
    "below_waterline": true,
    "room": "Double bottom 4",
    "permeability": 0.95,
@@ -5925,13 +6396,13 @@
    "section": "4",
    "tier": "hold",
    "band": "C",
-   "x0": 83.494,
-   "x1": 105.612,
-   "y0": -16.818,
-   "y1": 16.818,
+   "x0": 83.317,
+   "x1": 105.495,
+   "y0": -16.833,
+   "y1": 16.833,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 3522.0,
+   "top": -15.6,
+   "volume_m3": 1095.3,
    "below_waterline": true,
    "room": "Stores 4",
    "permeability": 0.6,
@@ -5941,8 +6412,8 @@
      "Inner bottom"
     ],
     [
-     "4 platform C",
-     "Lower deck"
+     "4 seventh C",
+     "open"
     ],
     [
      "3 hold C",
@@ -5955,67 +6426,205 @@
    ]
   },
   {
-   "id": "4 platform C",
+   "id": "4 seventh C",
    "section": "4",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
-   "x0": 83.494,
-   "x1": 105.612,
-   "y0": -16.818,
-   "y1": 16.818,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 1728.0,
-   "below_waterline": false,
-   "crew": 42,
-   "room": "Quarters 4",
-   "permeability": 0.95,
+   "x0": 83.317,
+   "x1": 105.495,
+   "y0": -16.833,
+   "y1": 16.833,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 1243.2,
+   "below_waterline": true,
+   "room": "Stores 4",
+   "permeability": 0.6,
    "neighbours": [
     [
      "4 hold C",
-     "Lower deck"
-    ],
-    [
-     "4 between C",
      "open"
     ],
     [
-     "3 platform C",
+     "4 sixth C",
+     "open"
+    ],
+    [
+     "3 seventh C",
      "Bulkhead 3"
     ],
     [
-     "5 platform C",
+     "5 seventh C",
      "Bulkhead 4"
     ]
    ]
   },
   {
-   "id": "4 between C",
+   "id": "4 sixth C",
    "section": "4",
-   "tier": "between",
+   "tier": "sixth",
    "band": "C",
-   "x0": 83.494,
-   "x1": 105.612,
-   "y0": -16.818,
-   "y1": 16.818,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 5492.1,
+   "x0": 83.317,
+   "x1": 105.495,
+   "y0": -16.833,
+   "y1": 16.833,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 1262.7,
    "below_waterline": false,
-   "crew": 134,
+   "room": "Stores 4",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "4 seventh C",
+     "open"
+    ],
+    [
+     "4 fifth C",
+     "Fifth deck"
+    ],
+    [
+     "3 sixth C",
+     "Bulkhead 3"
+    ],
+    [
+     "5 sixth C",
+     "Bulkhead 4"
+    ]
+   ]
+  },
+  {
+   "id": "4 fifth C",
+   "section": "4",
+   "tier": "fifth",
+   "band": "C",
+   "x0": 83.317,
+   "x1": 105.495,
+   "y0": -16.833,
+   "y1": 16.833,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 1796.1,
+   "below_waterline": false,
+   "crew": 45,
    "room": "Quarters 4",
    "permeability": 0.95,
    "neighbours": [
     [
-     "4 platform C",
+     "4 sixth C",
+     "Fifth deck"
+    ],
+    [
+     "4 fourth C",
      "open"
     ],
     [
-     "3 between C",
+     "3 fifth C",
      "Bulkhead 3"
     ],
     [
-     "5 between C",
+     "5 fifth C",
+     "Bulkhead 4"
+    ]
+   ]
+  },
+  {
+   "id": "4 fourth C",
+   "section": "4",
+   "tier": "fourth",
+   "band": "C",
+   "x0": 83.317,
+   "x1": 105.495,
+   "y0": -16.833,
+   "y1": 16.833,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 1796.1,
+   "below_waterline": false,
+   "crew": 45,
+   "room": "Quarters 4",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "4 fifth C",
+     "open"
+    ],
+    [
+     "4 third C",
+     "open"
+    ],
+    [
+     "3 fourth C",
+     "Bulkhead 3"
+    ],
+    [
+     "5 fourth C",
+     "Bulkhead 4"
+    ]
+   ]
+  },
+  {
+   "id": "4 third C",
+   "section": "4",
+   "tier": "third",
+   "band": "C",
+   "x0": 83.317,
+   "x1": 105.495,
+   "y0": -16.833,
+   "y1": 16.833,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 1796.1,
+   "below_waterline": false,
+   "crew": 45,
+   "room": "Quarters 4",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "4 fourth C",
+     "open"
+    ],
+    [
+     "4 second C",
+     "open"
+    ],
+    [
+     "3 third C",
+     "Bulkhead 3"
+    ],
+    [
+     "5 third C",
+     "Bulkhead 4"
+    ]
+   ]
+  },
+  {
+   "id": "4 second C",
+   "section": "4",
+   "tier": "second",
+   "band": "C",
+   "x0": 83.317,
+   "x1": 105.495,
+   "y0": -16.833,
+   "y1": 16.833,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 1796.1,
+   "below_waterline": false,
+   "crew": 45,
+   "room": "Quarters 4",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "4 third C",
+     "open"
+    ],
+    [
+     "3 second C",
+     "Bulkhead 3"
+    ],
+    [
+     "5 second C",
      "Bulkhead 4"
     ]
    ]
@@ -6025,13 +6634,13 @@
    "section": "5",
    "tier": "bottom",
    "band": "C",
-   "x0": 61.375,
-   "x1": 83.494,
+   "x0": 61.139,
+   "x1": 83.317,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89,
-   "volume_m3": 715.9,
+   "volume_m3": 718.3,
    "below_waterline": true,
    "room": "Double bottom 5",
    "permeability": 0.95,
@@ -6055,13 +6664,13 @@
    "section": "5",
    "tier": "hold",
    "band": "C",
-   "x0": 61.375,
-   "x1": 83.494,
+   "x0": 61.139,
+   "x1": 83.317,
    "y0": -17.525,
    "y1": 17.525,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 3932.2,
+   "top": -15.6,
+   "volume_m3": 1221.9,
    "below_waterline": true,
    "room": "Stores 5",
    "permeability": 0.6,
@@ -6071,8 +6680,8 @@
      "Inner bottom"
     ],
     [
-     "5 platform C",
-     "Lower deck"
+     "5 seventh C",
+     "open"
     ],
     [
      "4 hold C",
@@ -6093,75 +6702,229 @@
    ]
   },
   {
-   "id": "5 platform C",
+   "id": "5 seventh C",
    "section": "5",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
-   "x0": 61.375,
-   "x1": 83.494,
+   "x0": 61.139,
+   "x1": 83.317,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 1929.3,
-   "below_waterline": false,
-   "crew": 47,
-   "room": "Quarters 5",
-   "permeability": 0.95,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 1386.8,
+   "below_waterline": true,
+   "room": "Stores 5",
+   "permeability": 0.6,
    "neighbours": [
     [
      "5 hold C",
-     "Lower deck"
-    ],
-    [
-     "5 between C",
      "open"
     ],
     [
-     "4 platform C",
+     "5 sixth C",
+     "open"
+    ],
+    [
+     "4 seventh C",
      "Bulkhead 4"
     ],
     [
-     "6 platform P",
+     "6 seventh P",
      "Bulkhead 5"
     ],
     [
-     "6 platform C",
+     "6 seventh C",
      "Bulkhead 5"
     ],
     [
-     "6 platform S",
+     "6 seventh S",
      "Bulkhead 5"
     ]
    ]
   },
   {
-   "id": "5 between C",
+   "id": "5 sixth C",
    "section": "5",
-   "tier": "between",
+   "tier": "sixth",
    "band": "C",
-   "x0": 61.375,
-   "x1": 83.494,
+   "x0": 61.139,
+   "x1": 83.317,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 6131.8,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 1408.7,
    "below_waterline": false,
-   "crew": 150,
+   "room": "Stores 5",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "5 seventh C",
+     "open"
+    ],
+    [
+     "5 fifth C",
+     "Fifth deck"
+    ],
+    [
+     "4 sixth C",
+     "Bulkhead 4"
+    ],
+    [
+     "6 sixth P",
+     "Bulkhead 5"
+    ],
+    [
+     "6 sixth C",
+     "Bulkhead 5"
+    ],
+    [
+     "6 sixth S",
+     "Bulkhead 5"
+    ]
+   ]
+  },
+  {
+   "id": "5 fifth C",
+   "section": "5",
+   "tier": "fifth",
+   "band": "C",
+   "x0": 61.139,
+   "x1": 83.317,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 2003.6,
+   "below_waterline": false,
+   "crew": 50,
    "room": "Quarters 5",
    "permeability": 0.95,
    "neighbours": [
     [
-     "5 platform C",
+     "5 sixth C",
+     "Fifth deck"
+    ],
+    [
+     "5 fourth C",
      "open"
     ],
     [
-     "4 between C",
+     "4 fifth C",
      "Bulkhead 4"
     ],
     [
-     "6 between C",
+     "6 fifth P",
+     "Bulkhead 5"
+    ],
+    [
+     "6 fifth C",
+     "Bulkhead 5"
+    ],
+    [
+     "6 fifth S",
+     "Bulkhead 5"
+    ]
+   ]
+  },
+  {
+   "id": "5 fourth C",
+   "section": "5",
+   "tier": "fourth",
+   "band": "C",
+   "x0": 61.139,
+   "x1": 83.317,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 2003.6,
+   "below_waterline": false,
+   "crew": 50,
+   "room": "Quarters 5",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "5 fifth C",
+     "open"
+    ],
+    [
+     "5 third C",
+     "open"
+    ],
+    [
+     "4 fourth C",
+     "Bulkhead 4"
+    ],
+    [
+     "6 fourth C",
+     "Bulkhead 5"
+    ]
+   ]
+  },
+  {
+   "id": "5 third C",
+   "section": "5",
+   "tier": "third",
+   "band": "C",
+   "x0": 61.139,
+   "x1": 83.317,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 2003.6,
+   "below_waterline": false,
+   "crew": 50,
+   "room": "Quarters 5",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "5 fourth C",
+     "open"
+    ],
+    [
+     "5 second C",
+     "open"
+    ],
+    [
+     "4 third C",
+     "Bulkhead 4"
+    ],
+    [
+     "6 third C",
+     "Bulkhead 5"
+    ]
+   ]
+  },
+  {
+   "id": "5 second C",
+   "section": "5",
+   "tier": "second",
+   "band": "C",
+   "x0": 61.139,
+   "x1": 83.317,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 2003.6,
+   "below_waterline": false,
+   "crew": 50,
+   "room": "Quarters 5",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "5 third C",
+     "open"
+    ],
+    [
+     "4 second C",
+     "Bulkhead 4"
+    ],
+    [
+     "6 second C",
      "Bulkhead 5"
     ]
    ]
@@ -6171,16 +6934,18 @@
    "section": "6",
    "tier": "bottom",
    "band": "C",
-   "x0": 34.735,
-   "x1": 61.375,
+   "x0": 34.499,
+   "x1": 61.139,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89,
-   "volume_m3": 870.1,
+   "volume_m3": 870.3,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "room": "Double bottom 6",
    "permeability": 0.95,
    "neighbours": [
@@ -6211,17 +6976,18 @@
    "section": "6",
    "tier": "hold",
    "band": "P",
-   "x0": 34.735,
-   "x1": 61.375,
+   "x0": 34.499,
+   "x1": 61.139,
    "y0": -17.525,
    "y1": -11.123,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 872.9,
+   "top": -15.6,
+   "volume_m3": 270.4,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "tds_m": 5.0,
    "room": "Torpedo protection 6 P",
    "permeability": 0.95,
@@ -6235,7 +7001,7 @@
      "Inner bottom"
     ],
     [
-     "6 platform P",
+     "6 seventh P",
      "open"
     ],
     [
@@ -6253,17 +7019,18 @@
    "section": "6",
    "tier": "hold",
    "band": "C",
-   "x0": 34.735,
-   "x1": 61.375,
+   "x0": 34.499,
+   "x1": 61.139,
    "y0": -11.123,
    "y1": 11.123,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 3033.1,
+   "top": -15.6,
+   "volume_m3": 939.7,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "room": "Aviation magazines",
    "permeability": 0.6,
    "neighbours": [
@@ -6280,7 +7047,7 @@
      "Inner bottom"
     ],
     [
-     "6 platform C",
+     "6 seventh C",
      "open"
     ],
     [
@@ -6298,17 +7065,18 @@
    "section": "6",
    "tier": "hold",
    "band": "S",
-   "x0": 34.735,
-   "x1": 61.375,
+   "x0": 34.499,
+   "x1": 61.139,
    "y0": 11.123,
    "y1": 17.525,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 872.9,
+   "top": -15.6,
+   "volume_m3": 270.4,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "tds_m": 5.0,
    "room": "Torpedo protection 6 S",
    "permeability": 0.95,
@@ -6322,7 +7090,7 @@
      "Inner bottom"
     ],
     [
-     "6 platform S",
+     "6 seventh S",
      "open"
     ],
     [
@@ -6336,27 +7104,29 @@
    ]
   },
   {
-   "id": "6 platform P",
+   "id": "6 seventh P",
    "section": "6",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "P",
-   "x0": 34.735,
-   "x1": 61.375,
+   "x0": 34.499,
+   "x1": 61.139,
    "y0": -17.525,
    "y1": -11.123,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 428.3,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 306.9,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "tds_m": 5.0,
    "room": "Torpedo protection 6 P",
    "permeability": 0.95,
    "neighbours": [
     [
-     "6 platform C",
+     "6 seventh C",
      "Torpedo bulkhead 6 P"
     ],
     [
@@ -6364,44 +7134,46 @@
      "open"
     ],
     [
-     "6 between C",
-     "Armour deck"
+     "6 sixth P",
+     "open"
     ],
     [
-     "5 platform C",
+     "5 seventh C",
      "Bulkhead 5"
     ],
     [
-     "7 platform P",
+     "7 seventh P",
      "Bulkhead 6"
     ]
    ]
   },
   {
-   "id": "6 platform C",
+   "id": "6 seventh C",
    "section": "6",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
-   "x0": 34.735,
-   "x1": 61.375,
+   "x0": 34.499,
+   "x1": 61.139,
    "y0": -11.123,
    "y1": 11.123,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 1488.1,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 1066.5,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "room": "Aviation magazines",
    "permeability": 0.6,
    "neighbours": [
     [
-     "6 platform P",
+     "6 seventh P",
      "Torpedo bulkhead 6 P"
     ],
     [
-     "6 platform S",
+     "6 seventh S",
      "Torpedo bulkhead 6 S"
     ],
     [
@@ -6409,41 +7181,43 @@
      "open"
     ],
     [
-     "6 between C",
-     "Armour deck"
+     "6 sixth C",
+     "open"
     ],
     [
-     "5 platform C",
+     "5 seventh C",
      "Bulkhead 5"
     ],
     [
-     "7 platform C",
+     "7 seventh C",
      "Bulkhead 6"
     ]
    ]
   },
   {
-   "id": "6 platform S",
+   "id": "6 seventh S",
    "section": "6",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "S",
-   "x0": 34.735,
-   "x1": 61.375,
+   "x0": 34.499,
+   "x1": 61.139,
    "y0": 11.123,
    "y1": 17.525,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 428.3,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 306.9,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "tds_m": 5.0,
    "room": "Torpedo protection 6 S",
    "permeability": 0.95,
    "neighbours": [
     [
-     "6 platform C",
+     "6 seventh C",
      "Torpedo bulkhead 6 S"
     ],
     [
@@ -6451,55 +7225,397 @@
      "open"
     ],
     [
-     "6 between C",
-     "Armour deck"
+     "6 sixth S",
+     "open"
     ],
     [
-     "5 platform C",
+     "5 seventh C",
      "Bulkhead 5"
     ],
     [
-     "7 platform S",
+     "7 seventh S",
      "Bulkhead 6"
     ]
    ]
   },
   {
-   "id": "6 between C",
+   "id": "6 sixth P",
    "section": "6",
-   "tier": "between",
-   "band": "C",
-   "x0": 34.735,
-   "x1": 61.375,
+   "tier": "sixth",
+   "band": "P",
+   "x0": 34.499,
+   "x1": 61.139,
    "y0": -17.525,
-   "y1": 17.525,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 7452.0,
+   "y1": -11.123,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 311.8,
    "below_waterline": false,
    "citadel": true,
-   "crew": 182,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 6 P",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "6 sixth C",
+     "Torpedo bulkhead 6 P"
+    ],
+    [
+     "6 seventh P",
+     "open"
+    ],
+    [
+     "6 fifth P",
+     "open"
+    ],
+    [
+     "5 sixth C",
+     "Bulkhead 5"
+    ],
+    [
+     "7 sixth P",
+     "Bulkhead 6"
+    ]
+   ]
+  },
+  {
+   "id": "6 sixth C",
+   "section": "6",
+   "tier": "sixth",
+   "band": "C",
+   "x0": 34.499,
+   "x1": 61.139,
+   "y0": -11.123,
+   "y1": 11.123,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 1083.3,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "room": "Aviation magazines",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "6 sixth P",
+     "Torpedo bulkhead 6 P"
+    ],
+    [
+     "6 sixth S",
+     "Torpedo bulkhead 6 S"
+    ],
+    [
+     "6 seventh C",
+     "open"
+    ],
+    [
+     "6 fifth C",
+     "open"
+    ],
+    [
+     "5 sixth C",
+     "Bulkhead 5"
+    ],
+    [
+     "7 sixth C",
+     "Bulkhead 6"
+    ]
+   ]
+  },
+  {
+   "id": "6 sixth S",
+   "section": "6",
+   "tier": "sixth",
+   "band": "S",
+   "x0": 34.499,
+   "x1": 61.139,
+   "y0": 11.123,
+   "y1": 17.525,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 311.8,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 6 S",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "6 sixth C",
+     "Torpedo bulkhead 6 S"
+    ],
+    [
+     "6 seventh S",
+     "open"
+    ],
+    [
+     "6 fifth S",
+     "open"
+    ],
+    [
+     "5 sixth C",
+     "Bulkhead 5"
+    ],
+    [
+     "7 sixth S",
+     "Bulkhead 6"
+    ]
+   ]
+  },
+  {
+   "id": "6 fifth P",
+   "section": "6",
+   "tier": "fifth",
+   "band": "P",
+   "x0": 34.499,
+   "x1": 61.139,
+   "y0": -17.525,
+   "y1": -11.123,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 443.4,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 6 P",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "6 fifth C",
+     "Torpedo bulkhead 6 P"
+    ],
+    [
+     "6 sixth P",
+     "open"
+    ],
+    [
+     "6 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "5 fifth C",
+     "Bulkhead 5"
+    ],
+    [
+     "7 fifth P",
+     "Bulkhead 6"
+    ]
+   ]
+  },
+  {
+   "id": "6 fifth C",
+   "section": "6",
+   "tier": "fifth",
+   "band": "C",
+   "x0": 34.499,
+   "x1": 61.139,
+   "y0": -11.123,
+   "y1": 11.123,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 1540.8,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "room": "Aviation magazines",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "6 fifth P",
+     "Torpedo bulkhead 6 P"
+    ],
+    [
+     "6 fifth S",
+     "Torpedo bulkhead 6 S"
+    ],
+    [
+     "6 sixth C",
+     "open"
+    ],
+    [
+     "6 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "5 fifth C",
+     "Bulkhead 5"
+    ],
+    [
+     "7 fifth C",
+     "Bulkhead 6"
+    ]
+   ]
+  },
+  {
+   "id": "6 fifth S",
+   "section": "6",
+   "tier": "fifth",
+   "band": "S",
+   "x0": 34.499,
+   "x1": 61.139,
+   "y0": 11.123,
+   "y1": 17.525,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 443.4,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 6 S",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "6 fifth C",
+     "Torpedo bulkhead 6 S"
+    ],
+    [
+     "6 sixth S",
+     "open"
+    ],
+    [
+     "6 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "5 fifth C",
+     "Bulkhead 5"
+    ],
+    [
+     "7 fifth S",
+     "Bulkhead 6"
+    ]
+   ]
+  },
+  {
+   "id": "6 fourth C",
+   "section": "6",
+   "tier": "fourth",
+   "band": "C",
+   "x0": 34.499,
+   "x1": 61.139,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 2427.7,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 60,
    "room": "Quarters 6",
    "permeability": 0.95,
    "neighbours": [
     [
-     "6 platform P",
-     "Armour deck"
+     "6 fifth P",
+     "Fourth deck"
     ],
     [
-     "6 platform C",
-     "Armour deck"
+     "6 fifth C",
+     "Fourth deck"
     ],
     [
-     "6 platform S",
-     "Armour deck"
+     "6 fifth S",
+     "Fourth deck"
     ],
     [
-     "5 between C",
+     "6 third C",
+     "open"
+    ],
+    [
+     "5 fourth C",
      "Bulkhead 5"
     ],
     [
-     "7 between C",
+     "7 fourth C",
+     "Bulkhead 6"
+    ]
+   ]
+  },
+  {
+   "id": "6 third C",
+   "section": "6",
+   "tier": "third",
+   "band": "C",
+   "x0": 34.499,
+   "x1": 61.139,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 2427.7,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 60,
+   "room": "Quarters 6",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "6 fourth C",
+     "open"
+    ],
+    [
+     "6 second C",
+     "open"
+    ],
+    [
+     "5 third C",
+     "Bulkhead 5"
+    ],
+    [
+     "7 third C",
+     "Bulkhead 6"
+    ]
+   ]
+  },
+  {
+   "id": "6 second C",
+   "section": "6",
+   "tier": "second",
+   "band": "C",
+   "x0": 34.499,
+   "x1": 61.139,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 2427.7,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 60,
+   "room": "Quarters 6",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "6 third C",
+     "open"
+    ],
+    [
+     "5 second C",
+     "Bulkhead 5"
+    ],
+    [
+     "7 second C",
      "Bulkhead 6"
     ]
    ]
@@ -6509,16 +7625,18 @@
    "section": "7",
    "tier": "bottom",
    "band": "C",
-   "x0": 21.391,
-   "x1": 34.735,
+   "x0": 21.396,
+   "x1": 34.499,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89,
-   "volume_m3": 435.8,
+   "volume_m3": 428.1,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "room": "Double bottom 7",
    "permeability": 0.95,
    "neighbours": [
@@ -6549,17 +7667,18 @@
    "section": "7",
    "tier": "hold",
    "band": "P",
-   "x0": 21.391,
-   "x1": 34.735,
+   "x0": 21.396,
+   "x1": 34.499,
    "y0": -17.525,
    "y1": -11.123,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 437.2,
+   "top": -15.6,
+   "volume_m3": 133.0,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "tds_m": 5.0,
    "room": "Torpedo protection 7 P",
    "permeability": 0.95,
@@ -6573,7 +7692,7 @@
      "Inner bottom"
     ],
     [
-     "7 platform P",
+     "7 seventh P",
      "open"
     ],
     [
@@ -6591,17 +7710,18 @@
    "section": "7",
    "tier": "hold",
    "band": "C",
-   "x0": 21.391,
-   "x1": 34.735,
+   "x0": 21.396,
+   "x1": 34.499,
    "y0": -11.123,
    "y1": 11.123,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 1519.2,
+   "top": -15.6,
+   "volume_m3": 462.2,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "room": "Boiler room 1",
    "permeability": 0.85,
    "neighbours": [
@@ -6618,7 +7738,7 @@
      "Inner bottom"
     ],
     [
-     "7 platform C",
+     "7 seventh C",
      "open"
     ],
     [
@@ -6636,17 +7756,18 @@
    "section": "7",
    "tier": "hold",
    "band": "S",
-   "x0": 21.391,
-   "x1": 34.735,
+   "x0": 21.396,
+   "x1": 34.499,
    "y0": 11.123,
    "y1": 17.525,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 437.2,
+   "top": -15.6,
+   "volume_m3": 133.0,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "tds_m": 5.0,
    "room": "Torpedo protection 7 S",
    "permeability": 0.95,
@@ -6660,7 +7781,7 @@
      "Inner bottom"
     ],
     [
-     "7 platform S",
+     "7 seventh S",
      "open"
     ],
     [
@@ -6674,27 +7795,29 @@
    ]
   },
   {
-   "id": "7 platform P",
+   "id": "7 seventh P",
    "section": "7",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "P",
-   "x0": 21.391,
-   "x1": 34.735,
+   "x0": 21.396,
+   "x1": 34.499,
    "y0": -17.525,
    "y1": -11.123,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 214.5,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 151.0,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "tds_m": 5.0,
    "room": "Torpedo protection 7 P",
    "permeability": 0.95,
    "neighbours": [
     [
-     "7 platform C",
+     "7 seventh C",
      "Torpedo bulkhead 7 P"
     ],
     [
@@ -6702,44 +7825,46 @@
      "open"
     ],
     [
-     "7 between C",
-     "Armour deck"
+     "7 sixth P",
+     "open"
     ],
     [
-     "6 platform P",
+     "6 seventh P",
      "Bulkhead 6"
     ],
     [
-     "8 platform P",
+     "8 seventh P",
      "Bulkhead 7"
     ]
    ]
   },
   {
-   "id": "7 platform C",
+   "id": "7 seventh C",
    "section": "7",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
-   "x0": 21.391,
-   "x1": 34.735,
+   "x0": 21.396,
+   "x1": 34.499,
    "y0": -11.123,
    "y1": 11.123,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 745.4,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 524.6,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "room": "Boiler room 1",
    "permeability": 0.85,
    "neighbours": [
     [
-     "7 platform P",
+     "7 seventh P",
      "Torpedo bulkhead 7 P"
     ],
     [
-     "7 platform S",
+     "7 seventh S",
      "Torpedo bulkhead 7 S"
     ],
     [
@@ -6747,41 +7872,43 @@
      "open"
     ],
     [
-     "7 between C",
-     "Armour deck"
+     "7 sixth C",
+     "open"
     ],
     [
-     "6 platform C",
+     "6 seventh C",
      "Bulkhead 6"
     ],
     [
-     "8 platform C",
+     "8 seventh C",
      "Bulkhead 7"
     ]
    ]
   },
   {
-   "id": "7 platform S",
+   "id": "7 seventh S",
    "section": "7",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "S",
-   "x0": 21.391,
-   "x1": 34.735,
+   "x0": 21.396,
+   "x1": 34.499,
    "y0": 11.123,
    "y1": 17.525,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 214.5,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 151.0,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "tds_m": 5.0,
    "room": "Torpedo protection 7 S",
    "permeability": 0.95,
    "neighbours": [
     [
-     "7 platform C",
+     "7 seventh C",
      "Torpedo bulkhead 7 S"
     ],
     [
@@ -6789,55 +7916,397 @@
      "open"
     ],
     [
-     "7 between C",
-     "Armour deck"
+     "7 sixth S",
+     "open"
     ],
     [
-     "6 platform S",
+     "6 seventh S",
      "Bulkhead 6"
     ],
     [
-     "8 platform S",
+     "8 seventh S",
      "Bulkhead 7"
     ]
    ]
   },
   {
-   "id": "7 between C",
+   "id": "7 sixth P",
    "section": "7",
-   "tier": "between",
-   "band": "C",
-   "x0": 21.391,
-   "x1": 34.735,
+   "tier": "sixth",
+   "band": "P",
+   "x0": 21.396,
+   "x1": 34.499,
    "y0": -17.525,
-   "y1": 17.525,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 3732.6,
+   "y1": -11.123,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 153.3,
    "below_waterline": false,
    "citadel": true,
-   "crew": 91,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 7 P",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "7 sixth C",
+     "Torpedo bulkhead 7 P"
+    ],
+    [
+     "7 seventh P",
+     "open"
+    ],
+    [
+     "7 fifth P",
+     "open"
+    ],
+    [
+     "6 sixth P",
+     "Bulkhead 6"
+    ],
+    [
+     "8 sixth P",
+     "Bulkhead 7"
+    ]
+   ]
+  },
+  {
+   "id": "7 sixth C",
+   "section": "7",
+   "tier": "sixth",
+   "band": "C",
+   "x0": 21.396,
+   "x1": 34.499,
+   "y0": -11.123,
+   "y1": 11.123,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 532.8,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "room": "Boiler room 1",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "7 sixth P",
+     "Torpedo bulkhead 7 P"
+    ],
+    [
+     "7 sixth S",
+     "Torpedo bulkhead 7 S"
+    ],
+    [
+     "7 seventh C",
+     "open"
+    ],
+    [
+     "7 fifth C",
+     "open"
+    ],
+    [
+     "6 sixth C",
+     "Bulkhead 6"
+    ],
+    [
+     "8 sixth C",
+     "Bulkhead 7"
+    ]
+   ]
+  },
+  {
+   "id": "7 sixth S",
+   "section": "7",
+   "tier": "sixth",
+   "band": "S",
+   "x0": 21.396,
+   "x1": 34.499,
+   "y0": 11.123,
+   "y1": 17.525,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 153.3,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 7 S",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "7 sixth C",
+     "Torpedo bulkhead 7 S"
+    ],
+    [
+     "7 seventh S",
+     "open"
+    ],
+    [
+     "7 fifth S",
+     "open"
+    ],
+    [
+     "6 sixth S",
+     "Bulkhead 6"
+    ],
+    [
+     "8 sixth S",
+     "Bulkhead 7"
+    ]
+   ]
+  },
+  {
+   "id": "7 fifth P",
+   "section": "7",
+   "tier": "fifth",
+   "band": "P",
+   "x0": 21.396,
+   "x1": 34.499,
+   "y0": -17.525,
+   "y1": -11.123,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 218.1,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 7 P",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "7 fifth C",
+     "Torpedo bulkhead 7 P"
+    ],
+    [
+     "7 sixth P",
+     "open"
+    ],
+    [
+     "7 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "6 fifth P",
+     "Bulkhead 6"
+    ],
+    [
+     "8 fifth P",
+     "Bulkhead 7"
+    ]
+   ]
+  },
+  {
+   "id": "7 fifth C",
+   "section": "7",
+   "tier": "fifth",
+   "band": "C",
+   "x0": 21.396,
+   "x1": 34.499,
+   "y0": -11.123,
+   "y1": 11.123,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 757.9,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "room": "Boiler room 1",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "7 fifth P",
+     "Torpedo bulkhead 7 P"
+    ],
+    [
+     "7 fifth S",
+     "Torpedo bulkhead 7 S"
+    ],
+    [
+     "7 sixth C",
+     "open"
+    ],
+    [
+     "7 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "6 fifth C",
+     "Bulkhead 6"
+    ],
+    [
+     "8 fifth C",
+     "Bulkhead 7"
+    ]
+   ]
+  },
+  {
+   "id": "7 fifth S",
+   "section": "7",
+   "tier": "fifth",
+   "band": "S",
+   "x0": 21.396,
+   "x1": 34.499,
+   "y0": 11.123,
+   "y1": 17.525,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 218.1,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 7 S",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "7 fifth C",
+     "Torpedo bulkhead 7 S"
+    ],
+    [
+     "7 sixth S",
+     "open"
+    ],
+    [
+     "7 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "6 fifth S",
+     "Bulkhead 6"
+    ],
+    [
+     "8 fifth S",
+     "Bulkhead 7"
+    ]
+   ]
+  },
+  {
+   "id": "7 fourth C",
+   "section": "7",
+   "tier": "fourth",
+   "band": "C",
+   "x0": 21.396,
+   "x1": 34.499,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 1194.0,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 30,
    "room": "Quarters 7",
    "permeability": 0.95,
    "neighbours": [
     [
-     "7 platform P",
-     "Armour deck"
+     "7 fifth P",
+     "Fourth deck"
     ],
     [
-     "7 platform C",
-     "Armour deck"
+     "7 fifth C",
+     "Fourth deck"
     ],
     [
-     "7 platform S",
-     "Armour deck"
+     "7 fifth S",
+     "Fourth deck"
     ],
     [
-     "6 between C",
+     "7 third C",
+     "open"
+    ],
+    [
+     "6 fourth C",
      "Bulkhead 6"
     ],
     [
-     "8 between C",
+     "8 fourth C",
+     "Bulkhead 7"
+    ]
+   ]
+  },
+  {
+   "id": "7 third C",
+   "section": "7",
+   "tier": "third",
+   "band": "C",
+   "x0": 21.396,
+   "x1": 34.499,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 1194.0,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 30,
+   "room": "Quarters 7",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "7 fourth C",
+     "open"
+    ],
+    [
+     "7 second C",
+     "open"
+    ],
+    [
+     "6 third C",
+     "Bulkhead 6"
+    ],
+    [
+     "8 third C",
+     "Bulkhead 7"
+    ]
+   ]
+  },
+  {
+   "id": "7 second C",
+   "section": "7",
+   "tier": "second",
+   "band": "C",
+   "x0": 21.396,
+   "x1": 34.499,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 1194.0,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 30,
+   "room": "Quarters 7",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "7 third C",
+     "open"
+    ],
+    [
+     "6 second C",
+     "Bulkhead 6"
+    ],
+    [
+     "8 second C",
      "Bulkhead 7"
     ]
    ]
@@ -6847,16 +8316,18 @@
    "section": "8",
    "tier": "bottom",
    "band": "C",
-   "x0": 8.048,
-   "x1": 21.391,
+   "x0": 8.294,
+   "x1": 21.396,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89,
-   "volume_m3": 435.8,
+   "volume_m3": 428.1,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "room": "Double bottom 8",
    "permeability": 0.95,
    "neighbours": [
@@ -6887,17 +8358,18 @@
    "section": "8",
    "tier": "hold",
    "band": "P",
-   "x0": 8.048,
-   "x1": 21.391,
+   "x0": 8.294,
+   "x1": 21.396,
    "y0": -17.525,
    "y1": -11.123,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 437.2,
+   "top": -15.6,
+   "volume_m3": 133.0,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "tds_m": 5.0,
    "room": "Torpedo protection 8 P",
    "permeability": 0.95,
@@ -6911,7 +8383,7 @@
      "Inner bottom"
     ],
     [
-     "8 platform P",
+     "8 seventh P",
      "open"
     ],
     [
@@ -6929,17 +8401,18 @@
    "section": "8",
    "tier": "hold",
    "band": "C",
-   "x0": 8.048,
-   "x1": 21.391,
+   "x0": 8.294,
+   "x1": 21.396,
    "y0": -11.123,
    "y1": 11.123,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 1519.2,
+   "top": -15.6,
+   "volume_m3": 462.2,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "room": "Boiler room 2",
    "permeability": 0.85,
    "neighbours": [
@@ -6956,7 +8429,7 @@
      "Inner bottom"
     ],
     [
-     "8 platform C",
+     "8 seventh C",
      "open"
     ],
     [
@@ -6974,17 +8447,18 @@
    "section": "8",
    "tier": "hold",
    "band": "S",
-   "x0": 8.048,
-   "x1": 21.391,
+   "x0": 8.294,
+   "x1": 21.396,
    "y0": 11.123,
    "y1": 17.525,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 437.2,
+   "top": -15.6,
+   "volume_m3": 133.0,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "tds_m": 5.0,
    "room": "Torpedo protection 8 S",
    "permeability": 0.95,
@@ -6998,7 +8472,7 @@
      "Inner bottom"
     ],
     [
-     "8 platform S",
+     "8 seventh S",
      "open"
     ],
     [
@@ -7012,27 +8486,29 @@
    ]
   },
   {
-   "id": "8 platform P",
+   "id": "8 seventh P",
    "section": "8",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "P",
-   "x0": 8.048,
-   "x1": 21.391,
+   "x0": 8.294,
+   "x1": 21.396,
    "y0": -17.525,
    "y1": -11.123,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 214.5,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 151.0,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "tds_m": 5.0,
    "room": "Torpedo protection 8 P",
    "permeability": 0.95,
    "neighbours": [
     [
-     "8 platform C",
+     "8 seventh C",
      "Torpedo bulkhead 8 P"
     ],
     [
@@ -7040,44 +8516,46 @@
      "open"
     ],
     [
-     "8 between C",
-     "Armour deck"
+     "8 sixth P",
+     "open"
     ],
     [
-     "7 platform P",
+     "7 seventh P",
      "Bulkhead 7"
     ],
     [
-     "9 platform P",
+     "9 seventh P",
      "Bulkhead 8"
     ]
    ]
   },
   {
-   "id": "8 platform C",
+   "id": "8 seventh C",
    "section": "8",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
-   "x0": 8.048,
-   "x1": 21.391,
+   "x0": 8.294,
+   "x1": 21.396,
    "y0": -11.123,
    "y1": 11.123,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 745.4,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 524.6,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "room": "Boiler room 2",
    "permeability": 0.85,
    "neighbours": [
     [
-     "8 platform P",
+     "8 seventh P",
      "Torpedo bulkhead 8 P"
     ],
     [
-     "8 platform S",
+     "8 seventh S",
      "Torpedo bulkhead 8 S"
     ],
     [
@@ -7085,41 +8563,43 @@
      "open"
     ],
     [
-     "8 between C",
-     "Armour deck"
+     "8 sixth C",
+     "open"
     ],
     [
-     "7 platform C",
+     "7 seventh C",
      "Bulkhead 7"
     ],
     [
-     "9 platform C",
+     "9 seventh C",
      "Bulkhead 8"
     ]
    ]
   },
   {
-   "id": "8 platform S",
+   "id": "8 seventh S",
    "section": "8",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "S",
-   "x0": 8.048,
-   "x1": 21.391,
+   "x0": 8.294,
+   "x1": 21.396,
    "y0": 11.123,
    "y1": 17.525,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 214.5,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 151.0,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "tds_m": 5.0,
    "room": "Torpedo protection 8 S",
    "permeability": 0.95,
    "neighbours": [
     [
-     "8 platform C",
+     "8 seventh C",
      "Torpedo bulkhead 8 S"
     ],
     [
@@ -7127,55 +8607,397 @@
      "open"
     ],
     [
-     "8 between C",
-     "Armour deck"
+     "8 sixth S",
+     "open"
     ],
     [
-     "7 platform S",
+     "7 seventh S",
      "Bulkhead 7"
     ],
     [
-     "9 platform S",
+     "9 seventh S",
      "Bulkhead 8"
     ]
    ]
   },
   {
-   "id": "8 between C",
+   "id": "8 sixth P",
    "section": "8",
-   "tier": "between",
-   "band": "C",
-   "x0": 8.048,
-   "x1": 21.391,
+   "tier": "sixth",
+   "band": "P",
+   "x0": 8.294,
+   "x1": 21.396,
    "y0": -17.525,
-   "y1": 17.525,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 3732.6,
+   "y1": -11.123,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 153.3,
    "below_waterline": false,
    "citadel": true,
-   "crew": 91,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 8 P",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "8 sixth C",
+     "Torpedo bulkhead 8 P"
+    ],
+    [
+     "8 seventh P",
+     "open"
+    ],
+    [
+     "8 fifth P",
+     "open"
+    ],
+    [
+     "7 sixth P",
+     "Bulkhead 7"
+    ],
+    [
+     "9 sixth P",
+     "Bulkhead 8"
+    ]
+   ]
+  },
+  {
+   "id": "8 sixth C",
+   "section": "8",
+   "tier": "sixth",
+   "band": "C",
+   "x0": 8.294,
+   "x1": 21.396,
+   "y0": -11.123,
+   "y1": 11.123,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 532.8,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "room": "Boiler room 2",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "8 sixth P",
+     "Torpedo bulkhead 8 P"
+    ],
+    [
+     "8 sixth S",
+     "Torpedo bulkhead 8 S"
+    ],
+    [
+     "8 seventh C",
+     "open"
+    ],
+    [
+     "8 fifth C",
+     "open"
+    ],
+    [
+     "7 sixth C",
+     "Bulkhead 7"
+    ],
+    [
+     "9 sixth C",
+     "Bulkhead 8"
+    ]
+   ]
+  },
+  {
+   "id": "8 sixth S",
+   "section": "8",
+   "tier": "sixth",
+   "band": "S",
+   "x0": 8.294,
+   "x1": 21.396,
+   "y0": 11.123,
+   "y1": 17.525,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 153.3,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 8 S",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "8 sixth C",
+     "Torpedo bulkhead 8 S"
+    ],
+    [
+     "8 seventh S",
+     "open"
+    ],
+    [
+     "8 fifth S",
+     "open"
+    ],
+    [
+     "7 sixth S",
+     "Bulkhead 7"
+    ],
+    [
+     "9 sixth S",
+     "Bulkhead 8"
+    ]
+   ]
+  },
+  {
+   "id": "8 fifth P",
+   "section": "8",
+   "tier": "fifth",
+   "band": "P",
+   "x0": 8.294,
+   "x1": 21.396,
+   "y0": -17.525,
+   "y1": -11.123,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 218.1,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 8 P",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "8 fifth C",
+     "Torpedo bulkhead 8 P"
+    ],
+    [
+     "8 sixth P",
+     "open"
+    ],
+    [
+     "8 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "7 fifth P",
+     "Bulkhead 7"
+    ],
+    [
+     "9 fifth P",
+     "Bulkhead 8"
+    ]
+   ]
+  },
+  {
+   "id": "8 fifth C",
+   "section": "8",
+   "tier": "fifth",
+   "band": "C",
+   "x0": 8.294,
+   "x1": 21.396,
+   "y0": -11.123,
+   "y1": 11.123,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 757.9,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "room": "Boiler room 2",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "8 fifth P",
+     "Torpedo bulkhead 8 P"
+    ],
+    [
+     "8 fifth S",
+     "Torpedo bulkhead 8 S"
+    ],
+    [
+     "8 sixth C",
+     "open"
+    ],
+    [
+     "8 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "7 fifth C",
+     "Bulkhead 7"
+    ],
+    [
+     "9 fifth C",
+     "Bulkhead 8"
+    ]
+   ]
+  },
+  {
+   "id": "8 fifth S",
+   "section": "8",
+   "tier": "fifth",
+   "band": "S",
+   "x0": 8.294,
+   "x1": 21.396,
+   "y0": 11.123,
+   "y1": 17.525,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 218.1,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 8 S",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "8 fifth C",
+     "Torpedo bulkhead 8 S"
+    ],
+    [
+     "8 sixth S",
+     "open"
+    ],
+    [
+     "8 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "7 fifth S",
+     "Bulkhead 7"
+    ],
+    [
+     "9 fifth S",
+     "Bulkhead 8"
+    ]
+   ]
+  },
+  {
+   "id": "8 fourth C",
+   "section": "8",
+   "tier": "fourth",
+   "band": "C",
+   "x0": 8.294,
+   "x1": 21.396,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 1194.0,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 30,
    "room": "Quarters 8",
    "permeability": 0.95,
    "neighbours": [
     [
-     "8 platform P",
-     "Armour deck"
+     "8 fifth P",
+     "Fourth deck"
     ],
     [
-     "8 platform C",
-     "Armour deck"
+     "8 fifth C",
+     "Fourth deck"
     ],
     [
-     "8 platform S",
-     "Armour deck"
+     "8 fifth S",
+     "Fourth deck"
     ],
     [
-     "7 between C",
+     "8 third C",
+     "open"
+    ],
+    [
+     "7 fourth C",
      "Bulkhead 7"
     ],
     [
-     "9 between C",
+     "9 fourth C",
+     "Bulkhead 8"
+    ]
+   ]
+  },
+  {
+   "id": "8 third C",
+   "section": "8",
+   "tier": "third",
+   "band": "C",
+   "x0": 8.294,
+   "x1": 21.396,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 1194.0,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 30,
+   "room": "Quarters 8",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "8 fourth C",
+     "open"
+    ],
+    [
+     "8 second C",
+     "open"
+    ],
+    [
+     "7 third C",
+     "Bulkhead 7"
+    ],
+    [
+     "9 third C",
+     "Bulkhead 8"
+    ]
+   ]
+  },
+  {
+   "id": "8 second C",
+   "section": "8",
+   "tier": "second",
+   "band": "C",
+   "x0": 8.294,
+   "x1": 21.396,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 1194.0,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 30,
+   "room": "Quarters 8",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "8 third C",
+     "open"
+    ],
+    [
+     "7 second C",
+     "Bulkhead 7"
+    ],
+    [
+     "9 second C",
      "Bulkhead 8"
     ]
    ]
@@ -7185,16 +9007,18 @@
    "section": "9",
    "tier": "bottom",
    "band": "C",
-   "x0": -13.344,
-   "x1": 8.048,
+   "x0": -13.103,
+   "x1": 8.294,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89,
-   "volume_m3": 698.7,
+   "volume_m3": 699.0,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "room": "Double bottom 9",
    "permeability": 0.95,
    "neighbours": [
@@ -7225,17 +9049,18 @@
    "section": "9",
    "tier": "hold",
    "band": "P",
-   "x0": -13.344,
-   "x1": 8.048,
+   "x0": -13.103,
+   "x1": 8.294,
    "y0": -17.525,
    "y1": -11.123,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 700.9,
+   "top": -15.6,
+   "volume_m3": 217.2,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "tds_m": 5.0,
    "room": "Torpedo protection 9 P",
    "permeability": 0.95,
@@ -7249,7 +9074,7 @@
      "Inner bottom"
     ],
     [
-     "9 platform P",
+     "9 seventh P",
      "open"
     ],
     [
@@ -7267,17 +9092,18 @@
    "section": "9",
    "tier": "hold",
    "band": "C",
-   "x0": -13.344,
-   "x1": 8.048,
+   "x0": -13.103,
+   "x1": 8.294,
    "y0": -11.123,
    "y1": 11.123,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 2435.5,
+   "top": -15.6,
+   "volume_m3": 754.7,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "room": "Engine room 1",
    "permeability": 0.85,
    "neighbours": [
@@ -7294,7 +9120,7 @@
      "Inner bottom"
     ],
     [
-     "9 platform C",
+     "9 seventh C",
      "open"
     ],
     [
@@ -7312,17 +9138,18 @@
    "section": "9",
    "tier": "hold",
    "band": "S",
-   "x0": -13.344,
-   "x1": 8.048,
+   "x0": -13.103,
+   "x1": 8.294,
    "y0": 11.123,
    "y1": 17.525,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 700.9,
+   "top": -15.6,
+   "volume_m3": 217.2,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "tds_m": 5.0,
    "room": "Torpedo protection 9 S",
    "permeability": 0.95,
@@ -7336,7 +9163,7 @@
      "Inner bottom"
     ],
     [
-     "9 platform S",
+     "9 seventh S",
      "open"
     ],
     [
@@ -7350,27 +9177,29 @@
    ]
   },
   {
-   "id": "9 platform P",
+   "id": "9 seventh P",
    "section": "9",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "P",
-   "x0": -13.344,
-   "x1": 8.048,
+   "x0": -13.103,
+   "x1": 8.294,
    "y0": -17.525,
    "y1": -11.123,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 343.9,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 246.5,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "tds_m": 5.0,
    "room": "Torpedo protection 9 P",
    "permeability": 0.95,
    "neighbours": [
     [
-     "9 platform C",
+     "9 seventh C",
      "Torpedo bulkhead 9 P"
     ],
     [
@@ -7378,44 +9207,46 @@
      "open"
     ],
     [
-     "9 between C",
-     "Armour deck"
+     "9 sixth P",
+     "open"
     ],
     [
-     "8 platform P",
+     "8 seventh P",
      "Bulkhead 8"
     ],
     [
-     "10 platform P",
+     "10 seventh P",
      "Bulkhead 9"
     ]
    ]
   },
   {
-   "id": "9 platform C",
+   "id": "9 seventh C",
    "section": "9",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
-   "x0": -13.344,
-   "x1": 8.048,
+   "x0": -13.103,
+   "x1": 8.294,
    "y0": -11.123,
    "y1": 11.123,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 1194.9,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 856.6,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "room": "Engine room 1",
    "permeability": 0.85,
    "neighbours": [
     [
-     "9 platform P",
+     "9 seventh P",
      "Torpedo bulkhead 9 P"
     ],
     [
-     "9 platform S",
+     "9 seventh S",
      "Torpedo bulkhead 9 S"
     ],
     [
@@ -7423,41 +9254,43 @@
      "open"
     ],
     [
-     "9 between C",
-     "Armour deck"
+     "9 sixth C",
+     "open"
     ],
     [
-     "8 platform C",
+     "8 seventh C",
      "Bulkhead 8"
     ],
     [
-     "10 platform C",
+     "10 seventh C",
      "Bulkhead 9"
     ]
    ]
   },
   {
-   "id": "9 platform S",
+   "id": "9 seventh S",
    "section": "9",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "S",
-   "x0": -13.344,
-   "x1": 8.048,
+   "x0": -13.103,
+   "x1": 8.294,
    "y0": 11.123,
    "y1": 17.525,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 343.9,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 246.5,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "tds_m": 5.0,
    "room": "Torpedo protection 9 S",
    "permeability": 0.95,
    "neighbours": [
     [
-     "9 platform C",
+     "9 seventh C",
      "Torpedo bulkhead 9 S"
     ],
     [
@@ -7465,55 +9298,397 @@
      "open"
     ],
     [
-     "9 between C",
-     "Armour deck"
+     "9 sixth S",
+     "open"
     ],
     [
-     "8 platform S",
+     "8 seventh S",
      "Bulkhead 8"
     ],
     [
-     "10 platform S",
+     "10 seventh S",
      "Bulkhead 9"
     ]
    ]
   },
   {
-   "id": "9 between C",
+   "id": "9 sixth P",
    "section": "9",
-   "tier": "between",
-   "band": "C",
-   "x0": -13.344,
-   "x1": 8.048,
+   "tier": "sixth",
+   "band": "P",
+   "x0": -13.103,
+   "x1": 8.294,
    "y0": -17.525,
-   "y1": 17.525,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 5983.7,
+   "y1": -11.123,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 250.4,
    "below_waterline": false,
    "citadel": true,
-   "crew": 147,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 9 P",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "9 sixth C",
+     "Torpedo bulkhead 9 P"
+    ],
+    [
+     "9 seventh P",
+     "open"
+    ],
+    [
+     "9 fifth P",
+     "open"
+    ],
+    [
+     "8 sixth P",
+     "Bulkhead 8"
+    ],
+    [
+     "10 sixth P",
+     "Bulkhead 9"
+    ]
+   ]
+  },
+  {
+   "id": "9 sixth C",
+   "section": "9",
+   "tier": "sixth",
+   "band": "C",
+   "x0": -13.103,
+   "x1": 8.294,
+   "y0": -11.123,
+   "y1": 11.123,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 870.1,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "room": "Engine room 1",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "9 sixth P",
+     "Torpedo bulkhead 9 P"
+    ],
+    [
+     "9 sixth S",
+     "Torpedo bulkhead 9 S"
+    ],
+    [
+     "9 seventh C",
+     "open"
+    ],
+    [
+     "9 fifth C",
+     "open"
+    ],
+    [
+     "8 sixth C",
+     "Bulkhead 8"
+    ],
+    [
+     "10 sixth C",
+     "Bulkhead 9"
+    ]
+   ]
+  },
+  {
+   "id": "9 sixth S",
+   "section": "9",
+   "tier": "sixth",
+   "band": "S",
+   "x0": -13.103,
+   "x1": 8.294,
+   "y0": 11.123,
+   "y1": 17.525,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 250.4,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 9 S",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "9 sixth C",
+     "Torpedo bulkhead 9 S"
+    ],
+    [
+     "9 seventh S",
+     "open"
+    ],
+    [
+     "9 fifth S",
+     "open"
+    ],
+    [
+     "8 sixth S",
+     "Bulkhead 8"
+    ],
+    [
+     "10 sixth S",
+     "Bulkhead 9"
+    ]
+   ]
+  },
+  {
+   "id": "9 fifth P",
+   "section": "9",
+   "tier": "fifth",
+   "band": "P",
+   "x0": -13.103,
+   "x1": 8.294,
+   "y0": -17.525,
+   "y1": -11.123,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 356.1,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 9 P",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "9 fifth C",
+     "Torpedo bulkhead 9 P"
+    ],
+    [
+     "9 sixth P",
+     "open"
+    ],
+    [
+     "9 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "8 fifth P",
+     "Bulkhead 8"
+    ],
+    [
+     "10 fifth P",
+     "Bulkhead 9"
+    ]
+   ]
+  },
+  {
+   "id": "9 fifth C",
+   "section": "9",
+   "tier": "fifth",
+   "band": "C",
+   "x0": -13.103,
+   "x1": 8.294,
+   "y0": -11.123,
+   "y1": 11.123,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 1237.6,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "room": "Engine room 1",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "9 fifth P",
+     "Torpedo bulkhead 9 P"
+    ],
+    [
+     "9 fifth S",
+     "Torpedo bulkhead 9 S"
+    ],
+    [
+     "9 sixth C",
+     "open"
+    ],
+    [
+     "9 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "8 fifth C",
+     "Bulkhead 8"
+    ],
+    [
+     "10 fifth C",
+     "Bulkhead 9"
+    ]
+   ]
+  },
+  {
+   "id": "9 fifth S",
+   "section": "9",
+   "tier": "fifth",
+   "band": "S",
+   "x0": -13.103,
+   "x1": 8.294,
+   "y0": 11.123,
+   "y1": 17.525,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 356.1,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 9 S",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "9 fifth C",
+     "Torpedo bulkhead 9 S"
+    ],
+    [
+     "9 sixth S",
+     "open"
+    ],
+    [
+     "9 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "8 fifth S",
+     "Bulkhead 8"
+    ],
+    [
+     "10 fifth S",
+     "Bulkhead 9"
+    ]
+   ]
+  },
+  {
+   "id": "9 fourth C",
+   "section": "9",
+   "tier": "fourth",
+   "band": "C",
+   "x0": -13.103,
+   "x1": 8.294,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 1949.9,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 49,
    "room": "Quarters 9",
    "permeability": 0.95,
    "neighbours": [
     [
-     "9 platform P",
-     "Armour deck"
+     "9 fifth P",
+     "Fourth deck"
     ],
     [
-     "9 platform C",
-     "Armour deck"
+     "9 fifth C",
+     "Fourth deck"
     ],
     [
-     "9 platform S",
-     "Armour deck"
+     "9 fifth S",
+     "Fourth deck"
     ],
     [
-     "8 between C",
+     "9 third C",
+     "open"
+    ],
+    [
+     "8 fourth C",
      "Bulkhead 8"
     ],
     [
-     "10 between C",
+     "10 fourth C",
+     "Bulkhead 9"
+    ]
+   ]
+  },
+  {
+   "id": "9 third C",
+   "section": "9",
+   "tier": "third",
+   "band": "C",
+   "x0": -13.103,
+   "x1": 8.294,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 1949.9,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 49,
+   "room": "Quarters 9",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "9 fourth C",
+     "open"
+    ],
+    [
+     "9 second C",
+     "open"
+    ],
+    [
+     "8 third C",
+     "Bulkhead 8"
+    ],
+    [
+     "10 third C",
+     "Bulkhead 9"
+    ]
+   ]
+  },
+  {
+   "id": "9 second C",
+   "section": "9",
+   "tier": "second",
+   "band": "C",
+   "x0": -13.103,
+   "x1": 8.294,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 1949.9,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 49,
+   "room": "Quarters 9",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "9 third C",
+     "open"
+    ],
+    [
+     "8 second C",
+     "Bulkhead 8"
+    ],
+    [
+     "10 second C",
      "Bulkhead 9"
     ]
    ]
@@ -7523,16 +9698,18 @@
    "section": "10",
    "tier": "bottom",
    "band": "C",
-   "x0": -34.735,
-   "x1": -13.344,
+   "x0": -34.499,
+   "x1": -13.103,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89,
-   "volume_m3": 698.7,
+   "volume_m3": 699.0,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "room": "Double bottom 10",
    "permeability": 0.95,
    "neighbours": [
@@ -7563,17 +9740,18 @@
    "section": "10",
    "tier": "hold",
    "band": "P",
-   "x0": -34.735,
-   "x1": -13.344,
+   "x0": -34.499,
+   "x1": -13.103,
    "y0": -17.525,
    "y1": -11.123,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 700.9,
+   "top": -15.6,
+   "volume_m3": 217.2,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "tds_m": 5.0,
    "room": "Torpedo protection 10 P",
    "permeability": 0.95,
@@ -7587,7 +9765,7 @@
      "Inner bottom"
     ],
     [
-     "10 platform P",
+     "10 seventh P",
      "open"
     ],
     [
@@ -7605,17 +9783,18 @@
    "section": "10",
    "tier": "hold",
    "band": "C",
-   "x0": -34.735,
-   "x1": -13.344,
+   "x0": -34.499,
+   "x1": -13.103,
    "y0": -11.123,
    "y1": 11.123,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 2435.5,
+   "top": -15.6,
+   "volume_m3": 754.7,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "room": "Engine room 2",
    "permeability": 0.85,
    "neighbours": [
@@ -7632,7 +9811,7 @@
      "Inner bottom"
     ],
     [
-     "10 platform C",
+     "10 seventh C",
      "open"
     ],
     [
@@ -7650,17 +9829,18 @@
    "section": "10",
    "tier": "hold",
    "band": "S",
-   "x0": -34.735,
-   "x1": -13.344,
+   "x0": -34.499,
+   "x1": -13.103,
    "y0": 11.123,
    "y1": 17.525,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 700.9,
+   "top": -15.6,
+   "volume_m3": 217.2,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "tds_m": 5.0,
    "room": "Torpedo protection 10 S",
    "permeability": 0.95,
@@ -7674,7 +9854,7 @@
      "Inner bottom"
     ],
     [
-     "10 platform S",
+     "10 seventh S",
      "open"
     ],
     [
@@ -7688,27 +9868,29 @@
    ]
   },
   {
-   "id": "10 platform P",
+   "id": "10 seventh P",
    "section": "10",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "P",
-   "x0": -34.735,
-   "x1": -13.344,
+   "x0": -34.499,
+   "x1": -13.103,
    "y0": -17.525,
    "y1": -11.123,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 343.9,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 246.5,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "tds_m": 5.0,
    "room": "Torpedo protection 10 P",
    "permeability": 0.95,
    "neighbours": [
     [
-     "10 platform C",
+     "10 seventh C",
      "Torpedo bulkhead 10 P"
     ],
     [
@@ -7716,44 +9898,46 @@
      "open"
     ],
     [
-     "10 between C",
-     "Armour deck"
+     "10 sixth P",
+     "open"
     ],
     [
-     "9 platform P",
+     "9 seventh P",
      "Bulkhead 9"
     ],
     [
-     "11 platform P",
+     "11 seventh P",
      "Bulkhead 10"
     ]
    ]
   },
   {
-   "id": "10 platform C",
+   "id": "10 seventh C",
    "section": "10",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
-   "x0": -34.735,
-   "x1": -13.344,
+   "x0": -34.499,
+   "x1": -13.103,
    "y0": -11.123,
    "y1": 11.123,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 1194.9,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 856.6,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "room": "Engine room 2",
    "permeability": 0.85,
    "neighbours": [
     [
-     "10 platform P",
+     "10 seventh P",
      "Torpedo bulkhead 10 P"
     ],
     [
-     "10 platform S",
+     "10 seventh S",
      "Torpedo bulkhead 10 S"
     ],
     [
@@ -7761,41 +9945,43 @@
      "open"
     ],
     [
-     "10 between C",
-     "Armour deck"
+     "10 sixth C",
+     "open"
     ],
     [
-     "9 platform C",
+     "9 seventh C",
      "Bulkhead 9"
     ],
     [
-     "11 platform C",
+     "11 seventh C",
      "Bulkhead 10"
     ]
    ]
   },
   {
-   "id": "10 platform S",
+   "id": "10 seventh S",
    "section": "10",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "S",
-   "x0": -34.735,
-   "x1": -13.344,
+   "x0": -34.499,
+   "x1": -13.103,
    "y0": 11.123,
    "y1": 17.525,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 343.9,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 246.5,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "tds_m": 5.0,
    "room": "Torpedo protection 10 S",
    "permeability": 0.95,
    "neighbours": [
     [
-     "10 platform C",
+     "10 seventh C",
      "Torpedo bulkhead 10 S"
     ],
     [
@@ -7803,55 +9989,397 @@
      "open"
     ],
     [
-     "10 between C",
-     "Armour deck"
+     "10 sixth S",
+     "open"
     ],
     [
-     "9 platform S",
+     "9 seventh S",
      "Bulkhead 9"
     ],
     [
-     "11 platform S",
+     "11 seventh S",
      "Bulkhead 10"
     ]
    ]
   },
   {
-   "id": "10 between C",
+   "id": "10 sixth P",
    "section": "10",
-   "tier": "between",
-   "band": "C",
-   "x0": -34.735,
-   "x1": -13.344,
+   "tier": "sixth",
+   "band": "P",
+   "x0": -34.499,
+   "x1": -13.103,
    "y0": -17.525,
-   "y1": 17.525,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 5983.7,
+   "y1": -11.123,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 250.4,
    "below_waterline": false,
    "citadel": true,
-   "crew": 147,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 10 P",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "10 sixth C",
+     "Torpedo bulkhead 10 P"
+    ],
+    [
+     "10 seventh P",
+     "open"
+    ],
+    [
+     "10 fifth P",
+     "open"
+    ],
+    [
+     "9 sixth P",
+     "Bulkhead 9"
+    ],
+    [
+     "11 sixth P",
+     "Bulkhead 10"
+    ]
+   ]
+  },
+  {
+   "id": "10 sixth C",
+   "section": "10",
+   "tier": "sixth",
+   "band": "C",
+   "x0": -34.499,
+   "x1": -13.103,
+   "y0": -11.123,
+   "y1": 11.123,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 870.1,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "room": "Engine room 2",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "10 sixth P",
+     "Torpedo bulkhead 10 P"
+    ],
+    [
+     "10 sixth S",
+     "Torpedo bulkhead 10 S"
+    ],
+    [
+     "10 seventh C",
+     "open"
+    ],
+    [
+     "10 fifth C",
+     "open"
+    ],
+    [
+     "9 sixth C",
+     "Bulkhead 9"
+    ],
+    [
+     "11 sixth C",
+     "Bulkhead 10"
+    ]
+   ]
+  },
+  {
+   "id": "10 sixth S",
+   "section": "10",
+   "tier": "sixth",
+   "band": "S",
+   "x0": -34.499,
+   "x1": -13.103,
+   "y0": 11.123,
+   "y1": 17.525,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 250.4,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 10 S",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "10 sixth C",
+     "Torpedo bulkhead 10 S"
+    ],
+    [
+     "10 seventh S",
+     "open"
+    ],
+    [
+     "10 fifth S",
+     "open"
+    ],
+    [
+     "9 sixth S",
+     "Bulkhead 9"
+    ],
+    [
+     "11 sixth S",
+     "Bulkhead 10"
+    ]
+   ]
+  },
+  {
+   "id": "10 fifth P",
+   "section": "10",
+   "tier": "fifth",
+   "band": "P",
+   "x0": -34.499,
+   "x1": -13.103,
+   "y0": -17.525,
+   "y1": -11.123,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 356.1,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 10 P",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "10 fifth C",
+     "Torpedo bulkhead 10 P"
+    ],
+    [
+     "10 sixth P",
+     "open"
+    ],
+    [
+     "10 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "9 fifth P",
+     "Bulkhead 9"
+    ],
+    [
+     "11 fifth P",
+     "Bulkhead 10"
+    ]
+   ]
+  },
+  {
+   "id": "10 fifth C",
+   "section": "10",
+   "tier": "fifth",
+   "band": "C",
+   "x0": -34.499,
+   "x1": -13.103,
+   "y0": -11.123,
+   "y1": 11.123,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 1237.6,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "room": "Engine room 2",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "10 fifth P",
+     "Torpedo bulkhead 10 P"
+    ],
+    [
+     "10 fifth S",
+     "Torpedo bulkhead 10 S"
+    ],
+    [
+     "10 sixth C",
+     "open"
+    ],
+    [
+     "10 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "9 fifth C",
+     "Bulkhead 9"
+    ],
+    [
+     "11 fifth C",
+     "Bulkhead 10"
+    ]
+   ]
+  },
+  {
+   "id": "10 fifth S",
+   "section": "10",
+   "tier": "fifth",
+   "band": "S",
+   "x0": -34.499,
+   "x1": -13.103,
+   "y0": 11.123,
+   "y1": 17.525,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 356.1,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 10 S",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "10 fifth C",
+     "Torpedo bulkhead 10 S"
+    ],
+    [
+     "10 sixth S",
+     "open"
+    ],
+    [
+     "10 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "9 fifth S",
+     "Bulkhead 9"
+    ],
+    [
+     "11 fifth S",
+     "Bulkhead 10"
+    ]
+   ]
+  },
+  {
+   "id": "10 fourth C",
+   "section": "10",
+   "tier": "fourth",
+   "band": "C",
+   "x0": -34.499,
+   "x1": -13.103,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 1949.9,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 49,
    "room": "Quarters 10",
    "permeability": 0.95,
    "neighbours": [
     [
-     "10 platform P",
-     "Armour deck"
+     "10 fifth P",
+     "Fourth deck"
     ],
     [
-     "10 platform C",
-     "Armour deck"
+     "10 fifth C",
+     "Fourth deck"
     ],
     [
-     "10 platform S",
-     "Armour deck"
+     "10 fifth S",
+     "Fourth deck"
     ],
     [
-     "9 between C",
+     "10 third C",
+     "open"
+    ],
+    [
+     "9 fourth C",
      "Bulkhead 9"
     ],
     [
-     "11 between C",
+     "11 fourth C",
+     "Bulkhead 10"
+    ]
+   ]
+  },
+  {
+   "id": "10 third C",
+   "section": "10",
+   "tier": "third",
+   "band": "C",
+   "x0": -34.499,
+   "x1": -13.103,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 1949.9,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 48,
+   "room": "Quarters 10",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "10 fourth C",
+     "open"
+    ],
+    [
+     "10 second C",
+     "open"
+    ],
+    [
+     "9 third C",
+     "Bulkhead 9"
+    ],
+    [
+     "11 third C",
+     "Bulkhead 10"
+    ]
+   ]
+  },
+  {
+   "id": "10 second C",
+   "section": "10",
+   "tier": "second",
+   "band": "C",
+   "x0": -34.499,
+   "x1": -13.103,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 1949.9,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 49,
+   "room": "Quarters 10",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "10 third C",
+     "open"
+    ],
+    [
+     "9 second C",
+     "Bulkhead 9"
+    ],
+    [
+     "11 second C",
      "Bulkhead 10"
     ]
    ]
@@ -7861,16 +10389,18 @@
    "section": "11",
    "tier": "bottom",
    "band": "C",
-   "x0": -54.715,
-   "x1": -34.735,
+   "x0": -54.479,
+   "x1": -34.499,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89,
-   "volume_m3": 652.6,
+   "volume_m3": 652.7,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "room": "Double bottom 11",
    "permeability": 0.95,
    "neighbours": [
@@ -7901,17 +10431,18 @@
    "section": "11",
    "tier": "hold",
    "band": "P",
-   "x0": -54.715,
-   "x1": -34.735,
+   "x0": -54.479,
+   "x1": -34.499,
    "y0": -17.525,
    "y1": -11.123,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 654.7,
+   "top": -15.6,
+   "volume_m3": 202.8,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "tds_m": 5.0,
    "room": "Torpedo protection 11 P",
    "permeability": 0.95,
@@ -7925,7 +10456,7 @@
      "Inner bottom"
     ],
     [
-     "11 platform P",
+     "11 seventh P",
      "open"
     ],
     [
@@ -7943,17 +10474,18 @@
    "section": "11",
    "tier": "hold",
    "band": "C",
-   "x0": -54.715,
-   "x1": -34.735,
+   "x0": -54.479,
+   "x1": -34.499,
    "y0": -11.123,
    "y1": 11.123,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 2274.8,
+   "top": -15.6,
+   "volume_m3": 704.7,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "room": "Aviation fuel",
    "permeability": 0.95,
    "neighbours": [
@@ -7970,7 +10502,7 @@
      "Inner bottom"
     ],
     [
-     "11 platform C",
+     "11 seventh C",
      "open"
     ],
     [
@@ -7988,17 +10520,18 @@
    "section": "11",
    "tier": "hold",
    "band": "S",
-   "x0": -54.715,
-   "x1": -34.735,
+   "x0": -54.479,
+   "x1": -34.499,
    "y0": 11.123,
    "y1": 17.525,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 654.7,
+   "top": -15.6,
+   "volume_m3": 202.8,
    "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
-   "belt_mm": 76,
+   "armour_above_mm": [
+    50
+   ],
    "tds_m": 5.0,
    "room": "Torpedo protection 11 S",
    "permeability": 0.95,
@@ -8012,7 +10545,7 @@
      "Inner bottom"
     ],
     [
-     "11 platform S",
+     "11 seventh S",
      "open"
     ],
     [
@@ -8026,27 +10559,29 @@
    ]
   },
   {
-   "id": "11 platform P",
+   "id": "11 seventh P",
    "section": "11",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "P",
-   "x0": -54.715,
-   "x1": -34.735,
+   "x0": -54.479,
+   "x1": -34.499,
    "y0": -17.525,
    "y1": -11.123,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 321.2,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 230.2,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "tds_m": 5.0,
    "room": "Torpedo protection 11 P",
    "permeability": 0.95,
    "neighbours": [
     [
-     "11 platform C",
+     "11 seventh C",
      "Torpedo bulkhead 11 P"
     ],
     [
@@ -8054,44 +10589,46 @@
      "open"
     ],
     [
-     "11 between C",
-     "Armour deck"
+     "11 sixth P",
+     "open"
     ],
     [
-     "10 platform P",
+     "10 seventh P",
      "Bulkhead 10"
     ],
     [
-     "12 platform C",
+     "12 seventh C",
      "Bulkhead 11"
     ]
    ]
   },
   {
-   "id": "11 platform C",
+   "id": "11 seventh C",
    "section": "11",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
-   "x0": -54.715,
-   "x1": -34.735,
+   "x0": -54.479,
+   "x1": -34.499,
    "y0": -11.123,
    "y1": 11.123,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 1116.1,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 799.9,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "room": "Aviation fuel",
    "permeability": 0.95,
    "neighbours": [
     [
-     "11 platform P",
+     "11 seventh P",
      "Torpedo bulkhead 11 P"
     ],
     [
-     "11 platform S",
+     "11 seventh S",
      "Torpedo bulkhead 11 S"
     ],
     [
@@ -8099,41 +10636,43 @@
      "open"
     ],
     [
-     "11 between C",
-     "Armour deck"
+     "11 sixth C",
+     "open"
     ],
     [
-     "10 platform C",
+     "10 seventh C",
      "Bulkhead 10"
     ],
     [
-     "12 platform C",
+     "12 seventh C",
      "Bulkhead 11"
     ]
    ]
   },
   {
-   "id": "11 platform S",
+   "id": "11 seventh S",
    "section": "11",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "S",
-   "x0": -54.715,
-   "x1": -34.735,
+   "x0": -54.479,
+   "x1": -34.499,
    "y0": 11.123,
    "y1": 17.525,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 321.2,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 230.2,
+   "below_waterline": true,
    "citadel": true,
-   "armour_above_mm": 50,
+   "armour_above_mm": [
+    50
+   ],
    "belt_mm": 76,
    "tds_m": 5.0,
    "room": "Torpedo protection 11 S",
    "permeability": 0.95,
    "neighbours": [
     [
-     "11 platform C",
+     "11 seventh C",
      "Torpedo bulkhead 11 S"
     ],
     [
@@ -8141,55 +10680,397 @@
      "open"
     ],
     [
-     "11 between C",
-     "Armour deck"
+     "11 sixth S",
+     "open"
     ],
     [
-     "10 platform S",
+     "10 seventh S",
      "Bulkhead 10"
     ],
     [
-     "12 platform C",
+     "12 seventh C",
      "Bulkhead 11"
     ]
    ]
   },
   {
-   "id": "11 between C",
+   "id": "11 sixth P",
    "section": "11",
-   "tier": "between",
-   "band": "C",
-   "x0": -54.715,
-   "x1": -34.735,
+   "tier": "sixth",
+   "band": "P",
+   "x0": -54.479,
+   "x1": -34.499,
    "y0": -17.525,
-   "y1": 17.525,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 5589.0,
+   "y1": -11.123,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 233.8,
    "below_waterline": false,
    "citadel": true,
-   "crew": 137,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 11 P",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "11 sixth C",
+     "Torpedo bulkhead 11 P"
+    ],
+    [
+     "11 seventh P",
+     "open"
+    ],
+    [
+     "11 fifth P",
+     "open"
+    ],
+    [
+     "10 sixth P",
+     "Bulkhead 10"
+    ],
+    [
+     "12 sixth C",
+     "Bulkhead 11"
+    ]
+   ]
+  },
+  {
+   "id": "11 sixth C",
+   "section": "11",
+   "tier": "sixth",
+   "band": "C",
+   "x0": -54.479,
+   "x1": -34.499,
+   "y0": -11.123,
+   "y1": 11.123,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 812.5,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "room": "Aviation fuel",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "11 sixth P",
+     "Torpedo bulkhead 11 P"
+    ],
+    [
+     "11 sixth S",
+     "Torpedo bulkhead 11 S"
+    ],
+    [
+     "11 seventh C",
+     "open"
+    ],
+    [
+     "11 fifth C",
+     "open"
+    ],
+    [
+     "10 sixth C",
+     "Bulkhead 10"
+    ],
+    [
+     "12 sixth C",
+     "Bulkhead 11"
+    ]
+   ]
+  },
+  {
+   "id": "11 sixth S",
+   "section": "11",
+   "tier": "sixth",
+   "band": "S",
+   "x0": -54.479,
+   "x1": -34.499,
+   "y0": 11.123,
+   "y1": 17.525,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 233.8,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 11 S",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "11 sixth C",
+     "Torpedo bulkhead 11 S"
+    ],
+    [
+     "11 seventh S",
+     "open"
+    ],
+    [
+     "11 fifth S",
+     "open"
+    ],
+    [
+     "10 sixth S",
+     "Bulkhead 10"
+    ],
+    [
+     "12 sixth C",
+     "Bulkhead 11"
+    ]
+   ]
+  },
+  {
+   "id": "11 fifth P",
+   "section": "11",
+   "tier": "fifth",
+   "band": "P",
+   "x0": -54.479,
+   "x1": -34.499,
+   "y0": -17.525,
+   "y1": -11.123,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 332.6,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 11 P",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "11 fifth C",
+     "Torpedo bulkhead 11 P"
+    ],
+    [
+     "11 sixth P",
+     "open"
+    ],
+    [
+     "11 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "10 fifth P",
+     "Bulkhead 10"
+    ],
+    [
+     "12 fifth C",
+     "Bulkhead 11"
+    ]
+   ]
+  },
+  {
+   "id": "11 fifth C",
+   "section": "11",
+   "tier": "fifth",
+   "band": "C",
+   "x0": -54.479,
+   "x1": -34.499,
+   "y0": -11.123,
+   "y1": 11.123,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 1155.6,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "room": "Aviation fuel",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "11 fifth P",
+     "Torpedo bulkhead 11 P"
+    ],
+    [
+     "11 fifth S",
+     "Torpedo bulkhead 11 S"
+    ],
+    [
+     "11 sixth C",
+     "open"
+    ],
+    [
+     "11 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "10 fifth C",
+     "Bulkhead 10"
+    ],
+    [
+     "12 fifth C",
+     "Bulkhead 11"
+    ]
+   ]
+  },
+  {
+   "id": "11 fifth S",
+   "section": "11",
+   "tier": "fifth",
+   "band": "S",
+   "x0": -54.479,
+   "x1": -34.499,
+   "y0": 11.123,
+   "y1": 17.525,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 332.6,
+   "below_waterline": false,
+   "citadel": true,
+   "armour_above_mm": [
+    50
+   ],
+   "belt_mm": 76,
+   "tds_m": 5.0,
+   "room": "Torpedo protection 11 S",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "11 fifth C",
+     "Torpedo bulkhead 11 S"
+    ],
+    [
+     "11 sixth S",
+     "open"
+    ],
+    [
+     "11 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "10 fifth S",
+     "Bulkhead 10"
+    ],
+    [
+     "12 fifth C",
+     "Bulkhead 11"
+    ]
+   ]
+  },
+  {
+   "id": "11 fourth C",
+   "section": "11",
+   "tier": "fourth",
+   "band": "C",
+   "x0": -54.479,
+   "x1": -34.499,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 1820.8,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 45,
    "room": "Quarters 11",
    "permeability": 0.95,
    "neighbours": [
     [
-     "11 platform P",
-     "Armour deck"
+     "11 fifth P",
+     "Fourth deck"
     ],
     [
-     "11 platform C",
-     "Armour deck"
+     "11 fifth C",
+     "Fourth deck"
     ],
     [
-     "11 platform S",
-     "Armour deck"
+     "11 fifth S",
+     "Fourth deck"
     ],
     [
-     "10 between C",
+     "11 third C",
+     "open"
+    ],
+    [
+     "10 fourth C",
      "Bulkhead 10"
     ],
     [
-     "12 between C",
+     "12 fourth C",
+     "Bulkhead 11"
+    ]
+   ]
+  },
+  {
+   "id": "11 third C",
+   "section": "11",
+   "tier": "third",
+   "band": "C",
+   "x0": -54.479,
+   "x1": -34.499,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 1820.8,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 45,
+   "room": "Quarters 11",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "11 fourth C",
+     "open"
+    ],
+    [
+     "11 second C",
+     "open"
+    ],
+    [
+     "10 third C",
+     "Bulkhead 10"
+    ],
+    [
+     "12 third C",
+     "Bulkhead 11"
+    ]
+   ]
+  },
+  {
+   "id": "11 second C",
+   "section": "11",
+   "tier": "second",
+   "band": "C",
+   "x0": -54.479,
+   "x1": -34.499,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 1820.8,
+   "below_waterline": false,
+   "citadel": true,
+   "crew": 45,
+   "room": "Quarters 11",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "11 third C",
+     "open"
+    ],
+    [
+     "10 second C",
+     "Bulkhead 10"
+    ],
+    [
+     "12 second C",
      "Bulkhead 11"
     ]
    ]
@@ -8199,13 +11080,13 @@
    "section": "12",
    "tier": "bottom",
    "band": "C",
-   "x0": -76.001,
-   "x1": -54.715,
+   "x0": -75.824,
+   "x1": -54.479,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89,
-   "volume_m3": 695.2,
+   "volume_m3": 697.3,
    "below_waterline": true,
    "room": "Double bottom 12",
    "permeability": 0.95,
@@ -8229,13 +11110,13 @@
    "section": "12",
    "tier": "hold",
    "band": "C",
-   "x0": -76.001,
-   "x1": -54.715,
+   "x0": -75.824,
+   "x1": -54.479,
    "y0": -17.525,
    "y1": 17.525,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 3818.5,
+   "top": -15.6,
+   "volume_m3": 1186.2,
    "below_waterline": true,
    "room": "Stores 12",
    "permeability": 0.6,
@@ -8245,8 +11126,8 @@
      "Inner bottom"
     ],
     [
-     "12 platform C",
-     "Lower deck"
+     "12 seventh C",
+     "open"
     ],
     [
      "11 hold P",
@@ -8267,75 +11148,229 @@
    ]
   },
   {
-   "id": "12 platform C",
+   "id": "12 seventh C",
    "section": "12",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
-   "x0": -76.001,
-   "x1": -54.715,
+   "x0": -75.824,
+   "x1": -54.479,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 1873.5,
-   "below_waterline": false,
-   "crew": 46,
-   "room": "Quarters 12",
-   "permeability": 0.95,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 1346.4,
+   "below_waterline": true,
+   "room": "Stores 12",
+   "permeability": 0.6,
    "neighbours": [
     [
      "12 hold C",
-     "Lower deck"
-    ],
-    [
-     "12 between C",
      "open"
     ],
     [
-     "11 platform P",
+     "12 sixth C",
+     "open"
+    ],
+    [
+     "11 seventh P",
      "Bulkhead 11"
     ],
     [
-     "11 platform C",
+     "11 seventh C",
      "Bulkhead 11"
     ],
     [
-     "11 platform S",
+     "11 seventh S",
      "Bulkhead 11"
     ],
     [
-     "13 platform C",
+     "13 seventh C",
      "Bulkhead 12"
     ]
    ]
   },
   {
-   "id": "12 between C",
+   "id": "12 sixth C",
    "section": "12",
-   "tier": "between",
+   "tier": "sixth",
    "band": "C",
-   "x0": -76.001,
-   "x1": -54.715,
+   "x0": -75.824,
+   "x1": -54.479,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 5954.4,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 1367.6,
    "below_waterline": false,
-   "crew": 146,
+   "room": "Stores 12",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "12 seventh C",
+     "open"
+    ],
+    [
+     "12 fifth C",
+     "Fifth deck"
+    ],
+    [
+     "11 sixth P",
+     "Bulkhead 11"
+    ],
+    [
+     "11 sixth C",
+     "Bulkhead 11"
+    ],
+    [
+     "11 sixth S",
+     "Bulkhead 11"
+    ],
+    [
+     "13 sixth C",
+     "Bulkhead 12"
+    ]
+   ]
+  },
+  {
+   "id": "12 fifth C",
+   "section": "12",
+   "tier": "fifth",
+   "band": "C",
+   "x0": -75.824,
+   "x1": -54.479,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 1945.2,
+   "below_waterline": false,
+   "crew": 48,
    "room": "Quarters 12",
    "permeability": 0.95,
    "neighbours": [
     [
-     "12 platform C",
+     "12 sixth C",
+     "Fifth deck"
+    ],
+    [
+     "12 fourth C",
      "open"
     ],
     [
-     "11 between C",
+     "11 fifth P",
      "Bulkhead 11"
     ],
     [
-     "13 between C",
+     "11 fifth C",
+     "Bulkhead 11"
+    ],
+    [
+     "11 fifth S",
+     "Bulkhead 11"
+    ],
+    [
+     "13 fifth C",
+     "Bulkhead 12"
+    ]
+   ]
+  },
+  {
+   "id": "12 fourth C",
+   "section": "12",
+   "tier": "fourth",
+   "band": "C",
+   "x0": -75.824,
+   "x1": -54.479,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 1945.2,
+   "below_waterline": false,
+   "crew": 48,
+   "room": "Quarters 12",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "12 fifth C",
+     "open"
+    ],
+    [
+     "12 third C",
+     "open"
+    ],
+    [
+     "11 fourth C",
+     "Bulkhead 11"
+    ],
+    [
+     "13 fourth C",
+     "Bulkhead 12"
+    ]
+   ]
+  },
+  {
+   "id": "12 third C",
+   "section": "12",
+   "tier": "third",
+   "band": "C",
+   "x0": -75.824,
+   "x1": -54.479,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 1945.2,
+   "below_waterline": false,
+   "crew": 48,
+   "room": "Quarters 12",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "12 fourth C",
+     "open"
+    ],
+    [
+     "12 second C",
+     "open"
+    ],
+    [
+     "11 third C",
+     "Bulkhead 11"
+    ],
+    [
+     "13 third C",
+     "Bulkhead 12"
+    ]
+   ]
+  },
+  {
+   "id": "12 second C",
+   "section": "12",
+   "tier": "second",
+   "band": "C",
+   "x0": -75.824,
+   "x1": -54.479,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 1945.2,
+   "below_waterline": false,
+   "crew": 48,
+   "room": "Quarters 12",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "12 third C",
+     "open"
+    ],
+    [
+     "11 second C",
+     "Bulkhead 11"
+    ],
+    [
+     "13 second C",
      "Bulkhead 12"
     ]
    ]
@@ -8345,13 +11380,13 @@
    "section": "13",
    "tier": "bottom",
    "band": "C",
-   "x0": -97.287,
-   "x1": -76.001,
+   "x0": -97.17,
+   "x1": -75.824,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89,
-   "volume_m3": 695.2,
+   "volume_m3": 697.3,
    "below_waterline": true,
    "room": "Double bottom 13",
    "permeability": 0.95,
@@ -8375,13 +11410,13 @@
    "section": "13",
    "tier": "hold",
    "band": "C",
-   "x0": -97.287,
-   "x1": -76.001,
+   "x0": -97.17,
+   "x1": -75.824,
    "y0": -17.525,
    "y1": 17.525,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 3818.5,
+   "top": -15.6,
+   "volume_m3": 1186.2,
    "below_waterline": true,
    "room": "Stores 13",
    "permeability": 0.6,
@@ -8391,8 +11426,8 @@
      "Inner bottom"
     ],
     [
-     "13 platform C",
-     "Lower deck"
+     "13 seventh C",
+     "open"
     ],
     [
      "12 hold C",
@@ -8405,67 +11440,205 @@
    ]
   },
   {
-   "id": "13 platform C",
+   "id": "13 seventh C",
    "section": "13",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
-   "x0": -97.287,
-   "x1": -76.001,
+   "x0": -97.17,
+   "x1": -75.824,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 1873.5,
-   "below_waterline": false,
-   "crew": 46,
-   "room": "Quarters 13",
-   "permeability": 0.95,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 1346.4,
+   "below_waterline": true,
+   "room": "Stores 13",
+   "permeability": 0.6,
    "neighbours": [
     [
      "13 hold C",
-     "Lower deck"
-    ],
-    [
-     "13 between C",
      "open"
     ],
     [
-     "12 platform C",
+     "13 sixth C",
+     "open"
+    ],
+    [
+     "12 seventh C",
      "Bulkhead 12"
     ],
     [
-     "14 platform C",
+     "14 seventh C",
      "Bulkhead 13"
     ]
    ]
   },
   {
-   "id": "13 between C",
+   "id": "13 sixth C",
    "section": "13",
-   "tier": "between",
+   "tier": "sixth",
    "band": "C",
-   "x0": -97.287,
-   "x1": -76.001,
+   "x0": -97.17,
+   "x1": -75.824,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 5954.4,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 1367.6,
    "below_waterline": false,
-   "crew": 146,
+   "room": "Stores 13",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "13 seventh C",
+     "open"
+    ],
+    [
+     "13 fifth C",
+     "Fifth deck"
+    ],
+    [
+     "12 sixth C",
+     "Bulkhead 12"
+    ],
+    [
+     "14 sixth C",
+     "Bulkhead 13"
+    ]
+   ]
+  },
+  {
+   "id": "13 fifth C",
+   "section": "13",
+   "tier": "fifth",
+   "band": "C",
+   "x0": -97.17,
+   "x1": -75.824,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 1945.2,
+   "below_waterline": false,
+   "crew": 48,
    "room": "Quarters 13",
    "permeability": 0.95,
    "neighbours": [
     [
-     "13 platform C",
+     "13 sixth C",
+     "Fifth deck"
+    ],
+    [
+     "13 fourth C",
      "open"
     ],
     [
-     "12 between C",
+     "12 fifth C",
      "Bulkhead 12"
     ],
     [
-     "14 between C",
+     "14 fifth C",
+     "Bulkhead 13"
+    ]
+   ]
+  },
+  {
+   "id": "13 fourth C",
+   "section": "13",
+   "tier": "fourth",
+   "band": "C",
+   "x0": -97.17,
+   "x1": -75.824,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 1945.2,
+   "below_waterline": false,
+   "crew": 48,
+   "room": "Quarters 13",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "13 fifth C",
+     "open"
+    ],
+    [
+     "13 third C",
+     "open"
+    ],
+    [
+     "12 fourth C",
+     "Bulkhead 12"
+    ],
+    [
+     "14 fourth C",
+     "Bulkhead 13"
+    ]
+   ]
+  },
+  {
+   "id": "13 third C",
+   "section": "13",
+   "tier": "third",
+   "band": "C",
+   "x0": -97.17,
+   "x1": -75.824,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 1945.2,
+   "below_waterline": false,
+   "crew": 48,
+   "room": "Quarters 13",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "13 fourth C",
+     "open"
+    ],
+    [
+     "13 second C",
+     "open"
+    ],
+    [
+     "12 third C",
+     "Bulkhead 12"
+    ],
+    [
+     "14 third C",
+     "Bulkhead 13"
+    ]
+   ]
+  },
+  {
+   "id": "13 second C",
+   "section": "13",
+   "tier": "second",
+   "band": "C",
+   "x0": -97.17,
+   "x1": -75.824,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 1945.2,
+   "below_waterline": false,
+   "crew": 48,
+   "room": "Quarters 13",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "13 third C",
+     "open"
+    ],
+    [
+     "12 second C",
+     "Bulkhead 12"
+    ],
+    [
+     "14 second C",
      "Bulkhead 13"
     ]
    ]
@@ -8475,13 +11648,13 @@
    "section": "14",
    "tier": "bottom",
    "band": "C",
-   "x0": -118.574,
-   "x1": -97.287,
+   "x0": -118.515,
+   "x1": -97.17,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89,
-   "volume_m3": 693.7,
+   "volume_m3": 695.8,
    "below_waterline": true,
    "room": "Double bottom 14",
    "permeability": 0.95,
@@ -8505,13 +11678,13 @@
    "section": "14",
    "tier": "hold",
    "band": "C",
-   "x0": -118.574,
-   "x1": -97.287,
+   "x0": -118.515,
+   "x1": -97.17,
    "y0": -17.525,
    "y1": 17.525,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 3810.2,
+   "top": -15.6,
+   "volume_m3": 1183.7,
    "below_waterline": true,
    "room": "Stores 14",
    "permeability": 0.6,
@@ -8521,8 +11694,8 @@
      "Inner bottom"
     ],
     [
-     "14 platform C",
-     "Lower deck"
+     "14 seventh C",
+     "open"
     ],
     [
      "13 hold C",
@@ -8535,67 +11708,205 @@
    ]
   },
   {
-   "id": "14 platform C",
+   "id": "14 seventh C",
    "section": "14",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
-   "x0": -118.574,
-   "x1": -97.287,
+   "x0": -118.515,
+   "x1": -97.17,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 1869.4,
-   "below_waterline": false,
-   "crew": 46,
-   "room": "Quarters 14",
-   "permeability": 0.95,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 1343.5,
+   "below_waterline": true,
+   "room": "Stores 14",
+   "permeability": 0.6,
    "neighbours": [
     [
      "14 hold C",
-     "Lower deck"
-    ],
-    [
-     "14 between C",
      "open"
     ],
     [
-     "13 platform C",
+     "14 sixth C",
+     "open"
+    ],
+    [
+     "13 seventh C",
      "Bulkhead 13"
     ],
     [
-     "15 platform C",
+     "15 seventh C",
      "Bulkhead 14"
     ]
    ]
   },
   {
-   "id": "14 between C",
+   "id": "14 sixth C",
    "section": "14",
-   "tier": "between",
+   "tier": "sixth",
    "band": "C",
-   "x0": -118.574,
-   "x1": -97.287,
+   "x0": -118.515,
+   "x1": -97.17,
    "y0": -17.525,
    "y1": 17.525,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 5941.4,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 1364.6,
    "below_waterline": false,
-   "crew": 146,
+   "room": "Stores 14",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "14 seventh C",
+     "open"
+    ],
+    [
+     "14 fifth C",
+     "Fifth deck"
+    ],
+    [
+     "13 sixth C",
+     "Bulkhead 13"
+    ],
+    [
+     "15 sixth C",
+     "Bulkhead 14"
+    ]
+   ]
+  },
+  {
+   "id": "14 fifth C",
+   "section": "14",
+   "tier": "fifth",
+   "band": "C",
+   "x0": -118.515,
+   "x1": -97.17,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 1941.0,
+   "below_waterline": false,
+   "crew": 48,
    "room": "Quarters 14",
    "permeability": 0.95,
    "neighbours": [
     [
-     "14 platform C",
+     "14 sixth C",
+     "Fifth deck"
+    ],
+    [
+     "14 fourth C",
      "open"
     ],
     [
-     "13 between C",
+     "13 fifth C",
      "Bulkhead 13"
     ],
     [
-     "15 between C",
+     "15 fifth C",
+     "Bulkhead 14"
+    ]
+   ]
+  },
+  {
+   "id": "14 fourth C",
+   "section": "14",
+   "tier": "fourth",
+   "band": "C",
+   "x0": -118.515,
+   "x1": -97.17,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 1941.0,
+   "below_waterline": false,
+   "crew": 48,
+   "room": "Quarters 14",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "14 fifth C",
+     "open"
+    ],
+    [
+     "14 third C",
+     "open"
+    ],
+    [
+     "13 fourth C",
+     "Bulkhead 13"
+    ],
+    [
+     "15 fourth C",
+     "Bulkhead 14"
+    ]
+   ]
+  },
+  {
+   "id": "14 third C",
+   "section": "14",
+   "tier": "third",
+   "band": "C",
+   "x0": -118.515,
+   "x1": -97.17,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 1941.0,
+   "below_waterline": false,
+   "crew": 48,
+   "room": "Quarters 14",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "14 fourth C",
+     "open"
+    ],
+    [
+     "14 second C",
+     "open"
+    ],
+    [
+     "13 third C",
+     "Bulkhead 13"
+    ],
+    [
+     "15 third C",
+     "Bulkhead 14"
+    ]
+   ]
+  },
+  {
+   "id": "14 second C",
+   "section": "14",
+   "tier": "second",
+   "band": "C",
+   "x0": -118.515,
+   "x1": -97.17,
+   "y0": -17.525,
+   "y1": 17.525,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 1941.0,
+   "below_waterline": false,
+   "crew": 48,
+   "room": "Quarters 14",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "14 third C",
+     "open"
+    ],
+    [
+     "13 second C",
+     "Bulkhead 13"
+    ],
+    [
+     "15 second C",
      "Bulkhead 14"
     ]
    ]
@@ -8606,12 +11917,12 @@
    "tier": "bottom",
    "band": "C",
    "x0": -139.86,
-   "x1": -118.574,
-   "y0": -17.319,
-   "y1": 17.319,
-   "base": -19.23,
+   "x1": -118.515,
+   "y0": -17.321,
+   "y1": 17.321,
+   "base": -19.24,
    "top": -17.89,
-   "volume_m3": 662.7,
+   "volume_m3": 664.7,
    "below_waterline": true,
    "room": "Double bottom 15",
    "permeability": 0.95,
@@ -8636,12 +11947,12 @@
    "tier": "hold",
    "band": "C",
    "x0": -139.86,
-   "x1": -118.574,
-   "y0": -17.319,
-   "y1": 17.319,
+   "x1": -118.515,
+   "y0": -17.321,
+   "y1": 17.321,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 3639.6,
+   "top": -15.6,
+   "volume_m3": 1130.8,
    "below_waterline": true,
    "room": "Stores 15",
    "permeability": 0.6,
@@ -8651,8 +11962,8 @@
      "Inner bottom"
     ],
     [
-     "15 platform C",
-     "Lower deck"
+     "15 seventh C",
+     "open"
     ],
     [
      "14 hold C",
@@ -8665,67 +11976,205 @@
    ]
   },
   {
-   "id": "15 platform C",
+   "id": "15 seventh C",
    "section": "15",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
    "x0": -139.86,
-   "x1": -118.574,
-   "y0": -17.319,
-   "y1": 17.319,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 1785.7,
-   "below_waterline": false,
-   "crew": 44,
-   "room": "Quarters 15",
-   "permeability": 0.95,
+   "x1": -118.515,
+   "y0": -17.321,
+   "y1": 17.321,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 1283.4,
+   "below_waterline": true,
+   "room": "Stores 15",
+   "permeability": 0.6,
    "neighbours": [
     [
      "15 hold C",
-     "Lower deck"
-    ],
-    [
-     "15 between C",
      "open"
     ],
     [
-     "14 platform C",
+     "15 sixth C",
+     "open"
+    ],
+    [
+     "14 seventh C",
      "Bulkhead 14"
     ],
     [
-     "16 platform C",
+     "16 seventh C",
      "Bulkhead 15"
     ]
    ]
   },
   {
-   "id": "15 between C",
+   "id": "15 sixth C",
    "section": "15",
-   "tier": "between",
+   "tier": "sixth",
    "band": "C",
    "x0": -139.86,
-   "x1": -118.574,
-   "y0": -17.319,
-   "y1": 17.319,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 5675.4,
+   "x1": -118.515,
+   "y0": -17.321,
+   "y1": 17.321,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 1303.6,
    "below_waterline": false,
-   "crew": 139,
+   "room": "Stores 15",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "15 seventh C",
+     "open"
+    ],
+    [
+     "15 fifth C",
+     "Fifth deck"
+    ],
+    [
+     "14 sixth C",
+     "Bulkhead 14"
+    ],
+    [
+     "16 sixth C",
+     "Bulkhead 15"
+    ]
+   ]
+  },
+  {
+   "id": "15 fifth C",
+   "section": "15",
+   "tier": "fifth",
+   "band": "C",
+   "x0": -139.86,
+   "x1": -118.515,
+   "y0": -17.321,
+   "y1": 17.321,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 1854.2,
+   "below_waterline": false,
+   "crew": 46,
    "room": "Quarters 15",
    "permeability": 0.95,
    "neighbours": [
     [
-     "15 platform C",
+     "15 sixth C",
+     "Fifth deck"
+    ],
+    [
+     "15 fourth C",
      "open"
     ],
     [
-     "14 between C",
+     "14 fifth C",
      "Bulkhead 14"
     ],
     [
-     "16 between C",
+     "16 fifth C",
+     "Bulkhead 15"
+    ]
+   ]
+  },
+  {
+   "id": "15 fourth C",
+   "section": "15",
+   "tier": "fourth",
+   "band": "C",
+   "x0": -139.86,
+   "x1": -118.515,
+   "y0": -17.321,
+   "y1": 17.321,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 1854.2,
+   "below_waterline": false,
+   "crew": 46,
+   "room": "Quarters 15",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "15 fifth C",
+     "open"
+    ],
+    [
+     "15 third C",
+     "open"
+    ],
+    [
+     "14 fourth C",
+     "Bulkhead 14"
+    ],
+    [
+     "16 fourth C",
+     "Bulkhead 15"
+    ]
+   ]
+  },
+  {
+   "id": "15 third C",
+   "section": "15",
+   "tier": "third",
+   "band": "C",
+   "x0": -139.86,
+   "x1": -118.515,
+   "y0": -17.321,
+   "y1": 17.321,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 1854.2,
+   "below_waterline": false,
+   "crew": 46,
+   "room": "Quarters 15",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "15 fourth C",
+     "open"
+    ],
+    [
+     "15 second C",
+     "open"
+    ],
+    [
+     "14 third C",
+     "Bulkhead 14"
+    ],
+    [
+     "16 third C",
+     "Bulkhead 15"
+    ]
+   ]
+  },
+  {
+   "id": "15 second C",
+   "section": "15",
+   "tier": "second",
+   "band": "C",
+   "x0": -139.86,
+   "x1": -118.515,
+   "y0": -17.321,
+   "y1": 17.321,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 1854.2,
+   "below_waterline": false,
+   "crew": 46,
+   "room": "Quarters 15",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "15 third C",
+     "open"
+    ],
+    [
+     "14 second C",
+     "Bulkhead 14"
+    ],
+    [
+     "16 second C",
      "Bulkhead 15"
     ]
    ]
@@ -8739,9 +12188,9 @@
    "x1": -139.86,
    "y0": -15.812,
    "y1": 15.812,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89,
-   "volume_m3": 452.6,
+   "volume_m3": 452.7,
    "below_waterline": true,
    "room": "Double bottom 16",
    "permeability": 0.95,
@@ -8770,8 +12219,8 @@
    "y0": -15.812,
    "y1": 15.812,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 2485.8,
+   "top": -15.6,
+   "volume_m3": 770.1,
    "below_waterline": true,
    "room": "Steering gear",
    "permeability": 0.85,
@@ -8781,7 +12230,7 @@
      "Inner bottom"
     ],
     [
-     "16 platform C",
+     "16 seventh C",
      "open"
     ],
     [
@@ -8795,18 +12244,18 @@
    ]
   },
   {
-   "id": "16 platform C",
+   "id": "16 seventh C",
    "section": "16",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
    "x0": -156.51,
    "x1": -139.86,
    "y0": -15.812,
    "y1": 15.812,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 1219.6,
-   "below_waterline": false,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 874.1,
+   "below_waterline": true,
    "room": "Steering gear",
    "permeability": 0.85,
    "neighbours": [
@@ -8815,46 +12264,184 @@
      "open"
     ],
     [
-     "16 between C",
-     "Armour deck"
+     "16 sixth C",
+     "open"
     ],
     [
-     "15 platform C",
+     "15 seventh C",
      "Bulkhead 15"
     ],
     [
-     "17 platform C",
+     "17 seventh C",
      "Bulkhead 16"
     ]
    ]
   },
   {
-   "id": "16 between C",
+   "id": "16 sixth C",
    "section": "16",
-   "tier": "between",
+   "tier": "sixth",
    "band": "C",
    "x0": -156.51,
    "x1": -139.86,
    "y0": -15.812,
    "y1": 15.812,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 3876.2,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 887.8,
    "below_waterline": false,
-   "crew": 95,
+   "room": "Steering gear",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "16 seventh C",
+     "open"
+    ],
+    [
+     "16 fifth C",
+     "open"
+    ],
+    [
+     "15 sixth C",
+     "Bulkhead 15"
+    ],
+    [
+     "17 sixth C",
+     "Bulkhead 16"
+    ]
+   ]
+  },
+  {
+   "id": "16 fifth C",
+   "section": "16",
+   "tier": "fifth",
+   "band": "C",
+   "x0": -156.51,
+   "x1": -139.86,
+   "y0": -15.812,
+   "y1": 15.812,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 1262.8,
+   "below_waterline": false,
+   "room": "Steering gear",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "16 sixth C",
+     "open"
+    ],
+    [
+     "16 fourth C",
+     "Fourth deck"
+    ],
+    [
+     "15 fifth C",
+     "Bulkhead 15"
+    ],
+    [
+     "17 fifth C",
+     "Bulkhead 16"
+    ]
+   ]
+  },
+  {
+   "id": "16 fourth C",
+   "section": "16",
+   "tier": "fourth",
+   "band": "C",
+   "x0": -156.51,
+   "x1": -139.86,
+   "y0": -15.812,
+   "y1": 15.812,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 1262.8,
+   "below_waterline": false,
+   "crew": 31,
    "room": "Quarters 16",
    "permeability": 0.95,
    "neighbours": [
     [
-     "16 platform C",
-     "Armour deck"
+     "16 fifth C",
+     "Fourth deck"
     ],
     [
-     "15 between C",
+     "16 third C",
+     "open"
+    ],
+    [
+     "15 fourth C",
      "Bulkhead 15"
     ],
     [
-     "17 between C",
+     "17 fourth C",
+     "Bulkhead 16"
+    ]
+   ]
+  },
+  {
+   "id": "16 third C",
+   "section": "16",
+   "tier": "third",
+   "band": "C",
+   "x0": -156.51,
+   "x1": -139.86,
+   "y0": -15.812,
+   "y1": 15.812,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 1262.8,
+   "below_waterline": false,
+   "crew": 31,
+   "room": "Quarters 16",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "16 fourth C",
+     "open"
+    ],
+    [
+     "16 second C",
+     "open"
+    ],
+    [
+     "15 third C",
+     "Bulkhead 15"
+    ],
+    [
+     "17 third C",
+     "Bulkhead 16"
+    ]
+   ]
+  },
+  {
+   "id": "16 second C",
+   "section": "16",
+   "tier": "second",
+   "band": "C",
+   "x0": -156.51,
+   "x1": -139.86,
+   "y0": -15.812,
+   "y1": 15.812,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 1262.8,
+   "below_waterline": false,
+   "crew": 31,
+   "room": "Quarters 16",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "16 third C",
+     "open"
+    ],
+    [
+     "15 second C",
+     "Bulkhead 15"
+    ],
+    [
+     "17 second C",
      "Bulkhead 16"
     ]
    ]
@@ -8868,7 +12455,7 @@
    "x1": -156.51,
    "y0": -12.979,
    "y1": 12.979,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89,
    "volume_m3": 208.3,
    "below_waterline": true,
@@ -8895,8 +12482,8 @@
    "y0": -12.979,
    "y1": 12.979,
    "base": -17.89,
-   "top": -10.49,
-   "volume_m3": 1144.0,
+   "top": -15.6,
+   "volume_m3": 354.4,
    "below_waterline": true,
    "room": "Stores 17",
    "permeability": 0.6,
@@ -8906,8 +12493,8 @@
      "Inner bottom"
     ],
     [
-     "17 platform C",
-     "Lower deck"
+     "17 seventh C",
+     "open"
     ],
     [
      "16 hold C",
@@ -8916,59 +12503,181 @@
    ]
   },
   {
-   "id": "17 platform C",
+   "id": "17 seventh C",
    "section": "17",
-   "tier": "platform",
+   "tier": "seventh",
    "band": "C",
    "x0": -166.5,
    "x1": -156.51,
    "y0": -12.979,
    "y1": 12.979,
-   "base": -10.49,
-   "top": -7.98,
-   "volume_m3": 561.3,
+   "base": -15.6,
+   "top": -13.0,
+   "volume_m3": 402.3,
+   "below_waterline": true,
+   "room": "Stores 17",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "17 hold C",
+     "open"
+    ],
+    [
+     "17 sixth C",
+     "open"
+    ],
+    [
+     "16 seventh C",
+     "Bulkhead 16"
+    ]
+   ]
+  },
+  {
+   "id": "17 sixth C",
+   "section": "17",
+   "tier": "sixth",
+   "band": "C",
+   "x0": -166.5,
+   "x1": -156.51,
+   "y0": -12.979,
+   "y1": 12.979,
+   "base": -13.0,
+   "top": -10.4,
+   "volume_m3": 408.6,
+   "below_waterline": false,
+   "room": "Stores 17",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "17 seventh C",
+     "open"
+    ],
+    [
+     "17 fifth C",
+     "Fifth deck"
+    ],
+    [
+     "16 sixth C",
+     "Bulkhead 16"
+    ]
+   ]
+  },
+  {
+   "id": "17 fifth C",
+   "section": "17",
+   "tier": "fifth",
+   "band": "C",
+   "x0": -166.5,
+   "x1": -156.51,
+   "y0": -12.979,
+   "y1": 12.979,
+   "base": -10.4,
+   "top": -7.8,
+   "volume_m3": 581.2,
    "below_waterline": false,
    "crew": 14,
    "room": "Quarters 17",
    "permeability": 0.95,
    "neighbours": [
     [
-     "17 hold C",
-     "Lower deck"
+     "17 sixth C",
+     "Fifth deck"
     ],
     [
-     "17 between C",
+     "17 fourth C",
      "open"
     ],
     [
-     "16 platform C",
+     "16 fifth C",
      "Bulkhead 16"
     ]
    ]
   },
   {
-   "id": "17 between C",
+   "id": "17 fourth C",
    "section": "17",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": -166.5,
    "x1": -156.51,
    "y0": -12.979,
    "y1": 12.979,
-   "base": -7.98,
-   "top": 0.0,
-   "volume_m3": 1784.0,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 581.2,
    "below_waterline": false,
-   "crew": 44,
+   "crew": 14,
    "room": "Quarters 17",
    "permeability": 0.95,
    "neighbours": [
     [
-     "17 platform C",
+     "17 fifth C",
      "open"
     ],
     [
-     "16 between C",
+     "17 third C",
+     "open"
+    ],
+    [
+     "16 fourth C",
+     "Bulkhead 16"
+    ]
+   ]
+  },
+  {
+   "id": "17 third C",
+   "section": "17",
+   "tier": "third",
+   "band": "C",
+   "x0": -166.5,
+   "x1": -156.51,
+   "y0": -12.979,
+   "y1": 12.979,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 581.2,
+   "below_waterline": false,
+   "crew": 14,
+   "room": "Quarters 17",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "17 fourth C",
+     "open"
+    ],
+    [
+     "17 second C",
+     "open"
+    ],
+    [
+     "16 third C",
+     "Bulkhead 16"
+    ]
+   ]
+  },
+  {
+   "id": "17 second C",
+   "section": "17",
+   "tier": "second",
+   "band": "C",
+   "x0": -166.5,
+   "x1": -156.51,
+   "y0": -12.979,
+   "y1": 12.979,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 581.2,
+   "below_waterline": false,
+   "crew": 14,
+   "room": "Quarters 17",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "17 third C",
+     "open"
+    ],
+    [
+     "16 second C",
      "Bulkhead 16"
     ]
    ]
@@ -8984,33 +12693,37 @@
    "volume_m3": 72.9,
    "x0": 149.85,
    "x1": 166.5,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89
   },
   {
    "id": "Stores 1",
    "kind": "stores",
    "cells": [
-    "1 hold C"
+    "1 hold C",
+    "1 seventh C",
+    "1 sixth C"
    ],
-   "volume_m3": 400.2,
+   "volume_m3": 407.7,
    "x0": 149.85,
    "x1": 166.5,
    "base": -17.89,
-   "top": -10.49
+   "top": -10.4
   },
   {
    "id": "Quarters 1",
    "kind": "accommodation",
    "cells": [
-    "1 platform C",
-    "1 between C"
+    "1 fifth C",
+    "1 fourth C",
+    "1 third C",
+    "1 second C"
    ],
    "crew": 20,
-   "volume_m3": 820.5,
+   "volume_m3": 813.3,
    "x0": 149.85,
    "x1": 166.5,
-   "base": -10.49,
+   "base": -10.4,
    "top": 0.0
   },
   {
@@ -9019,36 +12732,40 @@
    "cells": [
     "2 bottom C"
    ],
-   "volume_m3": 302.0,
-   "x0": 127.731,
+   "volume_m3": 303.2,
+   "x0": 127.672,
    "x1": 149.85,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89
   },
   {
    "id": "Stores 2",
    "kind": "stores",
    "cells": [
-    "2 hold C"
+    "2 hold C",
+    "2 seventh C",
+    "2 sixth C"
    ],
-   "volume_m3": 1658.9,
-   "x0": 127.731,
+   "volume_m3": 1695.8,
+   "x0": 127.672,
    "x1": 149.85,
    "base": -17.89,
-   "top": -10.49
+   "top": -10.4
   },
   {
    "id": "Quarters 2",
    "kind": "accommodation",
    "cells": [
-    "2 platform C",
-    "2 between C"
+    "2 fifth C",
+    "2 fourth C",
+    "2 third C",
+    "2 second C"
    ],
-   "crew": 83,
-   "volume_m3": 3400.7,
-   "x0": 127.731,
+   "crew": 84,
+   "volume_m3": 3383.0,
+   "x0": 127.672,
    "x1": 149.85,
-   "base": -10.49,
+   "base": -10.4,
    "top": 0.0
   },
   {
@@ -9057,36 +12774,40 @@
    "cells": [
     "3 bottom C"
    ],
-   "volume_m3": 496.8,
-   "x0": 105.612,
-   "x1": 127.731,
-   "base": -19.23,
+   "volume_m3": 499.0,
+   "x0": 105.495,
+   "x1": 127.672,
+   "base": -19.24,
    "top": -17.89
   },
   {
    "id": "Stores 3",
    "kind": "stores",
    "cells": [
-    "3 hold C"
+    "3 hold C",
+    "3 seventh C",
+    "3 sixth C"
    ],
-   "volume_m3": 2728.7,
-   "x0": 105.612,
-   "x1": 127.731,
+   "volume_m3": 2790.6,
+   "x0": 105.495,
+   "x1": 127.672,
    "base": -17.89,
-   "top": -10.49
+   "top": -10.4
   },
   {
    "id": "Quarters 3",
    "kind": "accommodation",
    "cells": [
-    "3 platform C",
-    "3 between C"
+    "3 fifth C",
+    "3 fourth C",
+    "3 third C",
+    "3 second C"
    ],
-   "crew": 137,
-   "volume_m3": 5593.9,
-   "x0": 105.612,
-   "x1": 127.731,
-   "base": -10.49,
+   "crew": 140,
+   "volume_m3": 5567.2,
+   "x0": 105.495,
+   "x1": 127.672,
+   "base": -10.4,
    "top": 0.0
   },
   {
@@ -9095,36 +12816,40 @@
    "cells": [
     "4 bottom C"
    ],
-   "volume_m3": 641.3,
-   "x0": 83.494,
-   "x1": 105.612,
-   "base": -19.23,
+   "volume_m3": 643.9,
+   "x0": 83.317,
+   "x1": 105.495,
+   "base": -19.24,
    "top": -17.89
   },
   {
    "id": "Stores 4",
    "kind": "stores",
    "cells": [
-    "4 hold C"
+    "4 hold C",
+    "4 seventh C",
+    "4 sixth C"
    ],
-   "volume_m3": 3522.0,
-   "x0": 83.494,
-   "x1": 105.612,
+   "volume_m3": 3601.3,
+   "x0": 83.317,
+   "x1": 105.495,
    "base": -17.89,
-   "top": -10.49
+   "top": -10.4
   },
   {
    "id": "Quarters 4",
    "kind": "accommodation",
    "cells": [
-    "4 platform C",
-    "4 between C"
+    "4 fifth C",
+    "4 fourth C",
+    "4 third C",
+    "4 second C"
    ],
-   "crew": 176,
-   "volume_m3": 7220.2,
-   "x0": 83.494,
-   "x1": 105.612,
-   "base": -10.49,
+   "crew": 180,
+   "volume_m3": 7184.3,
+   "x0": 83.317,
+   "x1": 105.495,
+   "base": -10.4,
    "top": 0.0
   },
   {
@@ -9133,36 +12858,40 @@
    "cells": [
     "5 bottom C"
    ],
-   "volume_m3": 715.9,
-   "x0": 61.375,
-   "x1": 83.494,
-   "base": -19.23,
+   "volume_m3": 718.3,
+   "x0": 61.139,
+   "x1": 83.317,
+   "base": -19.24,
    "top": -17.89
   },
   {
    "id": "Stores 5",
    "kind": "stores",
    "cells": [
-    "5 hold C"
+    "5 hold C",
+    "5 seventh C",
+    "5 sixth C"
    ],
-   "volume_m3": 3932.2,
-   "x0": 61.375,
-   "x1": 83.494,
+   "volume_m3": 4017.4,
+   "x0": 61.139,
+   "x1": 83.317,
    "base": -17.89,
-   "top": -10.49
+   "top": -10.4
   },
   {
    "id": "Quarters 5",
    "kind": "accommodation",
    "cells": [
-    "5 platform C",
-    "5 between C"
+    "5 fifth C",
+    "5 fourth C",
+    "5 third C",
+    "5 second C"
    ],
-   "crew": 197,
-   "volume_m3": 8061.1,
-   "x0": 61.375,
-   "x1": 83.494,
-   "base": -10.49,
+   "crew": 200,
+   "volume_m3": 8014.5,
+   "x0": 61.139,
+   "x1": 83.317,
+   "base": -10.4,
    "top": 0.0
   },
   {
@@ -9170,13 +12899,15 @@
    "kind": "magazine",
    "cells": [
     "6 hold C",
-    "6 platform C"
+    "6 seventh C",
+    "6 sixth C",
+    "6 fifth C"
    ],
-   "volume_m3": 4521.3,
-   "x0": 34.735,
-   "x1": 61.375,
+   "volume_m3": 4630.3,
+   "x0": 34.499,
+   "x1": 61.139,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Double bottom 6",
@@ -9184,10 +12915,10 @@
    "cells": [
     "6 bottom C"
    ],
-   "volume_m3": 870.1,
-   "x0": 34.735,
-   "x1": 61.375,
-   "base": -19.23,
+   "volume_m3": 870.3,
+   "x0": 34.499,
+   "x1": 61.139,
+   "base": -19.24,
    "top": -17.89
   },
   {
@@ -9195,38 +12926,44 @@
    "kind": "tds",
    "cells": [
     "6 hold P",
-    "6 platform P"
+    "6 seventh P",
+    "6 sixth P",
+    "6 fifth P"
    ],
-   "volume_m3": 1301.1,
-   "x0": 34.735,
-   "x1": 61.375,
+   "volume_m3": 1332.5,
+   "x0": 34.499,
+   "x1": 61.139,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo protection 6 S",
    "kind": "tds",
    "cells": [
     "6 hold S",
-    "6 platform S"
+    "6 seventh S",
+    "6 sixth S",
+    "6 fifth S"
    ],
-   "volume_m3": 1301.1,
-   "x0": 34.735,
-   "x1": 61.375,
+   "volume_m3": 1332.5,
+   "x0": 34.499,
+   "x1": 61.139,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Quarters 6",
    "kind": "accommodation",
    "cells": [
-    "6 between C"
+    "6 fourth C",
+    "6 third C",
+    "6 second C"
    ],
-   "crew": 182,
-   "volume_m3": 7452.0,
-   "x0": 34.735,
-   "x1": 61.375,
-   "base": -7.98,
+   "crew": 180,
+   "volume_m3": 7283.1,
+   "x0": 34.499,
+   "x1": 61.139,
+   "base": -7.8,
    "top": 0.0
   },
   {
@@ -9234,13 +12971,15 @@
    "kind": "boiler_room",
    "cells": [
     "7 hold C",
-    "7 platform C"
+    "7 seventh C",
+    "7 sixth C",
+    "7 fifth C"
    ],
-   "volume_m3": 2264.6,
-   "x0": 21.391,
-   "x1": 34.735,
+   "volume_m3": 2277.4,
+   "x0": 21.396,
+   "x1": 34.499,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Double bottom 7",
@@ -9248,10 +12987,10 @@
    "cells": [
     "7 bottom C"
    ],
-   "volume_m3": 435.8,
-   "x0": 21.391,
-   "x1": 34.735,
-   "base": -19.23,
+   "volume_m3": 428.1,
+   "x0": 21.396,
+   "x1": 34.499,
+   "base": -19.24,
    "top": -17.89
   },
   {
@@ -9259,38 +12998,44 @@
    "kind": "tds",
    "cells": [
     "7 hold P",
-    "7 platform P"
+    "7 seventh P",
+    "7 sixth P",
+    "7 fifth P"
    ],
-   "volume_m3": 651.7,
-   "x0": 21.391,
-   "x1": 34.735,
+   "volume_m3": 655.4,
+   "x0": 21.396,
+   "x1": 34.499,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo protection 7 S",
    "kind": "tds",
    "cells": [
     "7 hold S",
-    "7 platform S"
+    "7 seventh S",
+    "7 sixth S",
+    "7 fifth S"
    ],
-   "volume_m3": 651.7,
-   "x0": 21.391,
-   "x1": 34.735,
+   "volume_m3": 655.4,
+   "x0": 21.396,
+   "x1": 34.499,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Quarters 7",
    "kind": "accommodation",
    "cells": [
-    "7 between C"
+    "7 fourth C",
+    "7 third C",
+    "7 second C"
    ],
-   "crew": 91,
-   "volume_m3": 3732.6,
-   "x0": 21.391,
-   "x1": 34.735,
-   "base": -7.98,
+   "crew": 90,
+   "volume_m3": 3582.1,
+   "x0": 21.396,
+   "x1": 34.499,
+   "base": -7.8,
    "top": 0.0
   },
   {
@@ -9298,13 +13043,15 @@
    "kind": "boiler_room",
    "cells": [
     "8 hold C",
-    "8 platform C"
+    "8 seventh C",
+    "8 sixth C",
+    "8 fifth C"
    ],
-   "volume_m3": 2264.6,
-   "x0": 8.048,
-   "x1": 21.391,
+   "volume_m3": 2277.4,
+   "x0": 8.294,
+   "x1": 21.396,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Double bottom 8",
@@ -9312,10 +13059,10 @@
    "cells": [
     "8 bottom C"
    ],
-   "volume_m3": 435.8,
-   "x0": 8.048,
-   "x1": 21.391,
-   "base": -19.23,
+   "volume_m3": 428.1,
+   "x0": 8.294,
+   "x1": 21.396,
+   "base": -19.24,
    "top": -17.89
   },
   {
@@ -9323,38 +13070,44 @@
    "kind": "tds",
    "cells": [
     "8 hold P",
-    "8 platform P"
+    "8 seventh P",
+    "8 sixth P",
+    "8 fifth P"
    ],
-   "volume_m3": 651.7,
-   "x0": 8.048,
-   "x1": 21.391,
+   "volume_m3": 655.4,
+   "x0": 8.294,
+   "x1": 21.396,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo protection 8 S",
    "kind": "tds",
    "cells": [
     "8 hold S",
-    "8 platform S"
+    "8 seventh S",
+    "8 sixth S",
+    "8 fifth S"
    ],
-   "volume_m3": 651.7,
-   "x0": 8.048,
-   "x1": 21.391,
+   "volume_m3": 655.4,
+   "x0": 8.294,
+   "x1": 21.396,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Quarters 8",
    "kind": "accommodation",
    "cells": [
-    "8 between C"
+    "8 fourth C",
+    "8 third C",
+    "8 second C"
    ],
-   "crew": 91,
-   "volume_m3": 3732.6,
-   "x0": 8.048,
-   "x1": 21.391,
-   "base": -7.98,
+   "crew": 90,
+   "volume_m3": 3582.1,
+   "x0": 8.294,
+   "x1": 21.396,
+   "base": -7.8,
    "top": 0.0
   },
   {
@@ -9362,13 +13115,15 @@
    "kind": "engine_room",
    "cells": [
     "9 hold C",
-    "9 platform C"
+    "9 seventh C",
+    "9 sixth C",
+    "9 fifth C"
    ],
-   "volume_m3": 3630.4,
-   "x0": -13.344,
-   "x1": 8.048,
+   "volume_m3": 3718.9,
+   "x0": -13.103,
+   "x1": 8.294,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Double bottom 9",
@@ -9376,10 +13131,10 @@
    "cells": [
     "9 bottom C"
    ],
-   "volume_m3": 698.7,
-   "x0": -13.344,
-   "x1": 8.048,
-   "base": -19.23,
+   "volume_m3": 699.0,
+   "x0": -13.103,
+   "x1": 8.294,
+   "base": -19.24,
    "top": -17.89
   },
   {
@@ -9387,38 +13142,44 @@
    "kind": "tds",
    "cells": [
     "9 hold P",
-    "9 platform P"
+    "9 seventh P",
+    "9 sixth P",
+    "9 fifth P"
    ],
-   "volume_m3": 1044.8,
-   "x0": -13.344,
-   "x1": 8.048,
+   "volume_m3": 1070.2,
+   "x0": -13.103,
+   "x1": 8.294,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo protection 9 S",
    "kind": "tds",
    "cells": [
     "9 hold S",
-    "9 platform S"
+    "9 seventh S",
+    "9 sixth S",
+    "9 fifth S"
    ],
-   "volume_m3": 1044.8,
-   "x0": -13.344,
-   "x1": 8.048,
+   "volume_m3": 1070.2,
+   "x0": -13.103,
+   "x1": 8.294,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Quarters 9",
    "kind": "accommodation",
    "cells": [
-    "9 between C"
+    "9 fourth C",
+    "9 third C",
+    "9 second C"
    ],
    "crew": 147,
-   "volume_m3": 5983.7,
-   "x0": -13.344,
-   "x1": 8.048,
-   "base": -7.98,
+   "volume_m3": 5849.6,
+   "x0": -13.103,
+   "x1": 8.294,
+   "base": -7.8,
    "top": 0.0
   },
   {
@@ -9426,13 +13187,15 @@
    "kind": "engine_room",
    "cells": [
     "10 hold C",
-    "10 platform C"
+    "10 seventh C",
+    "10 sixth C",
+    "10 fifth C"
    ],
-   "volume_m3": 3630.4,
-   "x0": -34.735,
-   "x1": -13.344,
+   "volume_m3": 3718.9,
+   "x0": -34.499,
+   "x1": -13.103,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Double bottom 10",
@@ -9440,10 +13203,10 @@
    "cells": [
     "10 bottom C"
    ],
-   "volume_m3": 698.7,
-   "x0": -34.735,
-   "x1": -13.344,
-   "base": -19.23,
+   "volume_m3": 699.0,
+   "x0": -34.499,
+   "x1": -13.103,
+   "base": -19.24,
    "top": -17.89
   },
   {
@@ -9451,38 +13214,44 @@
    "kind": "tds",
    "cells": [
     "10 hold P",
-    "10 platform P"
+    "10 seventh P",
+    "10 sixth P",
+    "10 fifth P"
    ],
-   "volume_m3": 1044.8,
-   "x0": -34.735,
-   "x1": -13.344,
+   "volume_m3": 1070.2,
+   "x0": -34.499,
+   "x1": -13.103,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo protection 10 S",
    "kind": "tds",
    "cells": [
     "10 hold S",
-    "10 platform S"
+    "10 seventh S",
+    "10 sixth S",
+    "10 fifth S"
    ],
-   "volume_m3": 1044.8,
-   "x0": -34.735,
-   "x1": -13.344,
+   "volume_m3": 1070.2,
+   "x0": -34.499,
+   "x1": -13.103,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Quarters 10",
    "kind": "accommodation",
    "cells": [
-    "10 between C"
+    "10 fourth C",
+    "10 third C",
+    "10 second C"
    ],
-   "crew": 147,
-   "volume_m3": 5983.7,
-   "x0": -34.735,
-   "x1": -13.344,
-   "base": -7.98,
+   "crew": 146,
+   "volume_m3": 5849.6,
+   "x0": -34.499,
+   "x1": -13.103,
+   "base": -7.8,
    "top": 0.0
   },
   {
@@ -9490,13 +13259,15 @@
    "kind": "fuel_tank",
    "cells": [
     "11 hold C",
-    "11 platform C"
+    "11 seventh C",
+    "11 sixth C",
+    "11 fifth C"
    ],
-   "volume_m3": 3390.9,
-   "x0": -54.715,
-   "x1": -34.735,
+   "volume_m3": 3472.7,
+   "x0": -54.479,
+   "x1": -34.499,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Double bottom 11",
@@ -9504,10 +13275,10 @@
    "cells": [
     "11 bottom C"
    ],
-   "volume_m3": 652.6,
-   "x0": -54.715,
-   "x1": -34.735,
-   "base": -19.23,
+   "volume_m3": 652.7,
+   "x0": -54.479,
+   "x1": -34.499,
+   "base": -19.24,
    "top": -17.89
   },
   {
@@ -9515,38 +13286,44 @@
    "kind": "tds",
    "cells": [
     "11 hold P",
-    "11 platform P"
+    "11 seventh P",
+    "11 sixth P",
+    "11 fifth P"
    ],
-   "volume_m3": 975.9,
-   "x0": -54.715,
-   "x1": -34.735,
+   "volume_m3": 999.4,
+   "x0": -54.479,
+   "x1": -34.499,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Torpedo protection 11 S",
    "kind": "tds",
    "cells": [
     "11 hold S",
-    "11 platform S"
+    "11 seventh S",
+    "11 sixth S",
+    "11 fifth S"
    ],
-   "volume_m3": 975.9,
-   "x0": -54.715,
-   "x1": -34.735,
+   "volume_m3": 999.4,
+   "x0": -54.479,
+   "x1": -34.499,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Quarters 11",
    "kind": "accommodation",
    "cells": [
-    "11 between C"
+    "11 fourth C",
+    "11 third C",
+    "11 second C"
    ],
-   "crew": 137,
-   "volume_m3": 5589.0,
-   "x0": -54.715,
-   "x1": -34.735,
-   "base": -7.98,
+   "crew": 135,
+   "volume_m3": 5462.3,
+   "x0": -54.479,
+   "x1": -34.499,
+   "base": -7.8,
    "top": 0.0
   },
   {
@@ -9555,36 +13332,40 @@
    "cells": [
     "12 bottom C"
    ],
-   "volume_m3": 695.2,
-   "x0": -76.001,
-   "x1": -54.715,
-   "base": -19.23,
+   "volume_m3": 697.3,
+   "x0": -75.824,
+   "x1": -54.479,
+   "base": -19.24,
    "top": -17.89
   },
   {
    "id": "Stores 12",
    "kind": "stores",
    "cells": [
-    "12 hold C"
+    "12 hold C",
+    "12 seventh C",
+    "12 sixth C"
    ],
-   "volume_m3": 3818.5,
-   "x0": -76.001,
-   "x1": -54.715,
+   "volume_m3": 3900.2,
+   "x0": -75.824,
+   "x1": -54.479,
    "base": -17.89,
-   "top": -10.49
+   "top": -10.4
   },
   {
    "id": "Quarters 12",
    "kind": "accommodation",
    "cells": [
-    "12 platform C",
-    "12 between C"
+    "12 fifth C",
+    "12 fourth C",
+    "12 third C",
+    "12 second C"
    ],
    "crew": 192,
-   "volume_m3": 7827.9,
-   "x0": -76.001,
-   "x1": -54.715,
-   "base": -10.49,
+   "volume_m3": 7780.8,
+   "x0": -75.824,
+   "x1": -54.479,
+   "base": -10.4,
    "top": 0.0
   },
   {
@@ -9593,36 +13374,40 @@
    "cells": [
     "13 bottom C"
    ],
-   "volume_m3": 695.2,
-   "x0": -97.287,
-   "x1": -76.001,
-   "base": -19.23,
+   "volume_m3": 697.3,
+   "x0": -97.17,
+   "x1": -75.824,
+   "base": -19.24,
    "top": -17.89
   },
   {
    "id": "Stores 13",
    "kind": "stores",
    "cells": [
-    "13 hold C"
+    "13 hold C",
+    "13 seventh C",
+    "13 sixth C"
    ],
-   "volume_m3": 3818.5,
-   "x0": -97.287,
-   "x1": -76.001,
+   "volume_m3": 3900.2,
+   "x0": -97.17,
+   "x1": -75.824,
    "base": -17.89,
-   "top": -10.49
+   "top": -10.4
   },
   {
    "id": "Quarters 13",
    "kind": "accommodation",
    "cells": [
-    "13 platform C",
-    "13 between C"
+    "13 fifth C",
+    "13 fourth C",
+    "13 third C",
+    "13 second C"
    ],
    "crew": 192,
-   "volume_m3": 7827.9,
-   "x0": -97.287,
-   "x1": -76.001,
-   "base": -10.49,
+   "volume_m3": 7780.8,
+   "x0": -97.17,
+   "x1": -75.824,
+   "base": -10.4,
    "top": 0.0
   },
   {
@@ -9631,36 +13416,40 @@
    "cells": [
     "14 bottom C"
    ],
-   "volume_m3": 693.7,
-   "x0": -118.574,
-   "x1": -97.287,
-   "base": -19.23,
+   "volume_m3": 695.8,
+   "x0": -118.515,
+   "x1": -97.17,
+   "base": -19.24,
    "top": -17.89
   },
   {
    "id": "Stores 14",
    "kind": "stores",
    "cells": [
-    "14 hold C"
+    "14 hold C",
+    "14 seventh C",
+    "14 sixth C"
    ],
-   "volume_m3": 3810.2,
-   "x0": -118.574,
-   "x1": -97.287,
+   "volume_m3": 3891.9,
+   "x0": -118.515,
+   "x1": -97.17,
    "base": -17.89,
-   "top": -10.49
+   "top": -10.4
   },
   {
    "id": "Quarters 14",
    "kind": "accommodation",
    "cells": [
-    "14 platform C",
-    "14 between C"
+    "14 fifth C",
+    "14 fourth C",
+    "14 third C",
+    "14 second C"
    ],
    "crew": 192,
-   "volume_m3": 7810.8,
-   "x0": -118.574,
-   "x1": -97.287,
-   "base": -10.49,
+   "volume_m3": 7764.1,
+   "x0": -118.515,
+   "x1": -97.17,
+   "base": -10.4,
    "top": 0.0
   },
   {
@@ -9669,36 +13458,40 @@
    "cells": [
     "15 bottom C"
    ],
-   "volume_m3": 662.7,
+   "volume_m3": 664.7,
    "x0": -139.86,
-   "x1": -118.574,
-   "base": -19.23,
+   "x1": -118.515,
+   "base": -19.24,
    "top": -17.89
   },
   {
    "id": "Stores 15",
    "kind": "stores",
    "cells": [
-    "15 hold C"
+    "15 hold C",
+    "15 seventh C",
+    "15 sixth C"
    ],
-   "volume_m3": 3639.6,
+   "volume_m3": 3717.9,
    "x0": -139.86,
-   "x1": -118.574,
+   "x1": -118.515,
    "base": -17.89,
-   "top": -10.49
+   "top": -10.4
   },
   {
    "id": "Quarters 15",
    "kind": "accommodation",
    "cells": [
-    "15 platform C",
-    "15 between C"
+    "15 fifth C",
+    "15 fourth C",
+    "15 third C",
+    "15 second C"
    ],
-   "crew": 183,
-   "volume_m3": 7461.1,
+   "crew": 184,
+   "volume_m3": 7417.0,
    "x0": -139.86,
-   "x1": -118.574,
-   "base": -10.49,
+   "x1": -118.515,
+   "base": -10.4,
    "top": 0.0
   },
   {
@@ -9706,13 +13499,15 @@
    "kind": "steering",
    "cells": [
     "16 hold C",
-    "16 platform C"
+    "16 seventh C",
+    "16 sixth C",
+    "16 fifth C"
    ],
-   "volume_m3": 3705.3,
+   "volume_m3": 3794.7,
    "x0": -156.51,
    "x1": -139.86,
    "base": -17.89,
-   "top": -7.98
+   "top": -7.8
   },
   {
    "id": "Double bottom 16",
@@ -9720,23 +13515,25 @@
    "cells": [
     "16 bottom C"
    ],
-   "volume_m3": 452.6,
+   "volume_m3": 452.7,
    "x0": -156.51,
    "x1": -139.86,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89
   },
   {
    "id": "Quarters 16",
    "kind": "accommodation",
    "cells": [
-    "16 between C"
+    "16 fourth C",
+    "16 third C",
+    "16 second C"
    ],
-   "crew": 95,
-   "volume_m3": 3876.2,
+   "crew": 93,
+   "volume_m3": 3788.3,
    "x0": -156.51,
    "x1": -139.86,
-   "base": -7.98,
+   "base": -7.8,
    "top": 0.0
   },
   {
@@ -9748,33 +13545,37 @@
    "volume_m3": 208.3,
    "x0": -166.5,
    "x1": -156.51,
-   "base": -19.23,
+   "base": -19.24,
    "top": -17.89
   },
   {
    "id": "Stores 17",
    "kind": "stores",
    "cells": [
-    "17 hold C"
+    "17 hold C",
+    "17 seventh C",
+    "17 sixth C"
    ],
-   "volume_m3": 1144.0,
+   "volume_m3": 1165.3,
    "x0": -166.5,
    "x1": -156.51,
    "base": -17.89,
-   "top": -10.49
+   "top": -10.4
   },
   {
    "id": "Quarters 17",
    "kind": "accommodation",
    "cells": [
-    "17 platform C",
-    "17 between C"
+    "17 fifth C",
+    "17 fourth C",
+    "17 third C",
+    "17 second C"
    ],
-   "crew": 58,
-   "volume_m3": 2345.2,
+   "crew": 56,
+   "volume_m3": 2324.7,
    "x0": -166.5,
    "x1": -156.51,
-   "base": -10.49,
+   "base": -10.4,
    "top": 0.0
   }
  ]

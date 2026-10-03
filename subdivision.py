@@ -8,23 +8,24 @@ size search never runs it.
             the layout's rooms (machinery rooms, magazines, holds, steering), the citadel's ends and the
             collision bulkhead. Stations closer than MIN_SECTION merge (the more important one stays), and gaps
             longer than MAX_SECTION fill in, except inside one room. Numbered from the bow.
-  tiers     between the decks, keel up: the inner bottom (not on planing craft), a flat at the waterline, the
-            armour deck, the main deck. Decks closer than MIN_TIER merge (the armour deck stays). Tiers are
-            "bottom", "hold", then "platform"s, and "between" under the main deck.
+  tiers     between the decks, keel up: the inner bottom (not on planing craft), then the deck stack every
+            navarch.DECK_PITCH up to the main deck (navarch.deck_stack). Armour decks (armour.decks) lie on the
+            stack. Each tier is named after the deck it stands on: "bottom", "hold", then ..., "third", "second"
+            under the main deck. A tier the waterline crosses gives its submerged fraction.
   bands     across the ship: port wing | centre | starboard wing where a longitudinal bulkhead stands (inboard of
-            the machinery's wing bunkers, or of the torpedo protection inside the citadel, up to the armour
-            deck), else the centre alone. A centreline machinery bulkhead splits the centre into CP | CS.
+            the machinery's wing bunkers, or of the torpedo protection inside the citadel, up to the lowest
+            armour deck), else the centre alone. A centreline machinery bulkhead splits the centre into CP | CS.
   cells     section x tier x band boxes. Their y extent reaches the hull's widest point over the section, so the
             boxes tile the hull: a point inside the hull below the main deck is in exactly one cell.
   rooms     the layout's compartments, snapped to whole cells: a room owns a cell when it overlaps the cell by at
             least half the shorter of the two along every axis; conflicts go by ROOM_PRIORITY, then overlap. A
             room too small for any cell of its own shares the cell it overlaps most ("also"). Cells no room
-            claims become a section's double bottom, stores (below the waterline), quarters (above it) or
+            claims become a section's double bottom, stores (at least half under water), quarters (above) or
             torpedo protection (a wing cell inside the citadel). Every cell has exactly one owning room.
 
-Each cell gives its volume (the hull's plan inside the box, times its height; below the waterline scaled so all
-underwater cells add up to the displacement volume), its permeability (PERMEABILITY by its room's kind), the
-armour over and beside it, its crew (the complement spread over the quarters by volume) and its neighbours, each
+Each cell gives its volume (the hull's plan inside the box, times its height; the part below the waterline scaled
+so all underwater parts add up to the displacement volume), its permeability (PERMEABILITY by its room's kind), the
+armour over it (every armour deck above it, top down) and beside it, its crew (the complement spread over the quarters by volume) and its neighbours, each
 with the boundary between them: a bulkhead or deck id, or "open" inside one room.
 """
 from __future__ import annotations
@@ -37,7 +38,6 @@ MIN_SECTION_MAX_M = 8.0
 MAX_SECTION = 0.07      # longer gaps get more bulkheads (the research's 0.05-0.07 L); a single room spans freely
 MAX_SECTION_M = 2.5
 COLLISION = 0.05        # the collision bulkhead, x L abaft the bow
-MIN_TIER = 1.0          # decks closer than this (m) merge
 STEEL_FRAME = 0.92      # usable half-width of the hull, as in powerplant (frames, side plating)
 
 # who keeps a contested cell, and whose ends make the stations
@@ -48,8 +48,6 @@ PERMEABILITY = {"magazine": 0.6, "steering": 0.85, "boiler_room": 0.85, "engine_
                 "bunker": 0.95, "cargo_tank": 0.95, "hold": 0.6, "accommodation": 0.95, "stores": 0.6,
                 "double_bottom": 0.95, "tds": 0.95}
 COAL_PERMEABILITY = 0.4   # a full coal bunker
-# deck merge priority: who stays when two decks are closer than MIN_TIER
-DECK_PRIORITY = {"keel": 9, "main": 9, "armour": 5, "inner_bottom": 3, "flat": 1}
 
 
 def _overlap(a0, a1, b0, b1):
@@ -72,42 +70,29 @@ def _box_overlap(room, cell):
     return v
 
 
-def decks(D, T, armoured, ag, planing):
-    """The decks, keel up, as heights above the main deck: [dict(id, kind, z, armour_mm?, x0?, x1?)], closer ones
-    merged by DECK_PRIORITY."""
+def decks(design, D, ag):
+    """The decks, keel up, as heights above the main deck: [dict(id, kind, z, armour_mm?, x0?, x1?)]. The keel,
+    the inner bottom (not on planing craft), then the deck stack (navarch.deck_stack) up to the main deck. An
+    armoured deck carries its armour (navarch.armour_geometry) and the stretch it covers."""
+    from navarch import deck_stack, deck_name
     from powerplant import double_bottom
     out = [dict(id="Keel", kind="keel", z=-D)]
-    if not planing:
+    if design.get("style") != "planing":
         out.append(dict(id="Inner bottom", kind="inner_bottom", z=-D + double_bottom(D)))
-    out.append(dict(id="Lower deck", kind="flat", z=-(D - T)))
-    if armoured:
-        out.append(dict(id="Armour deck", kind="armour", z=ag["deck_z"] - D, armour_mm=ag["deck_mm"],
-                        x0=ag["x0"], x1=ag["x1"]))
-    out.append(dict(id="Main deck", kind="main", z=0.0))
-    out.sort(key=lambda d: d["z"])
-    kept = []
-    for d in out:
-        prev = kept[-1] if kept else None
-        if prev and d["z"] - prev["z"] < MIN_TIER and not (prev["kind"] == "keel" and d["kind"] == "main"):
-            if prev["kind"] == "keel":
-                continue
-            if d["kind"] == "main" and prev["kind"] == "armour":      # the deck armour lies on the main deck
-                kept[-1] = {**d, **{k: prev[k] for k in ("armour_mm", "x0", "x1")}}
-            elif d["kind"] == "main" or DECK_PRIORITY[d["kind"]] > DECK_PRIORITY[prev["kind"]]:
-                kept[-1] = d
-            continue
-        kept.append(d)
-    return kept
+    arm = {}
+    for d in ag["decks"]:
+        arm[d["deck"]] = dict(armour_mm=d["mm"], x0=d["x0"], x1=d["x1"])
+    for n, z in reversed(deck_stack(design, D)):
+        out.append(dict(id=deck_name(n), kind="main" if n == 0 else "deck", deck=n, z=z - D, **arm.get(n, {})))
+    return out
 
 
-def tier_names(n, bottom):
-    """Names of n tiers, keel up."""
-    names = ["bottom"] if bottom else []
-    rest = n - len(names)
-    if rest == 1:
-        return names + ["hold"]
-    mid = rest - 2
-    return names + ["hold"] + (["platform"] if mid == 1 else [f"platform {k + 1}" for k in range(mid)]) + ["between"]
+def tier_name(floor):
+    """A tier is named after the deck it stands on: bottom (the double bottom), hold (on the inner bottom), then
+    second, third, ... (the space on that deck)."""
+    if floor["kind"] in ("keel", "inner_bottom"):
+        return "bottom" if floor["kind"] == "keel" else "hold"
+    return floor["id"].lower().removesuffix(" deck")
 
 
 def stations(L, rooms, cit, min_gap, max_gap):
@@ -163,14 +148,17 @@ def build(lay, design, res, ag, armoured):
     rz = lambda z: z - D
 
     # ---------------- decks and tiers ----------------
-    dks = decks(D, T, armoured, ag, planing)
+    dks = decks(design, D, ag)
     has_bottom = dks[1]["kind"] == "inner_bottom"
-    names = tier_names(len(dks) - 1, has_bottom)
-    tiers = [dict(id=names[i], base=dks[i]["z"], top=dks[i + 1]["z"], below_waterline=dks[i + 1]["z"] <= wl + 1e-6,
-                  floor=dks[i]["id"], ceiling=dks[i + 1]["id"]) for i in range(len(dks) - 1)]
+    tiers = []
+    for lo, hi in zip(dks, dks[1:]):
+        name = "hold" if lo["kind"] == "keel" and not has_bottom else tier_name(lo)
+        sub = min(1.0, max(0.0, (wl - lo["z"]) / (hi["z"] - lo["z"])))
+        tiers.append(dict(id=name, base=lo["z"], top=hi["z"], below_waterline=sub >= 1.0 - 1e-6,
+                          submerged=sub, floor=lo["id"], ceiling=hi["id"]))
     ib = dks[1]["z"] if has_bottom else -D
-    adk = next((d for d in dks if d.get("armour_mm")), None)       # the armour deck (maybe the main deck)
-    under = adk["z"] if adk else 0.0                                 # rooms' default top
+    under = (ag["roof_z"] - D) if ag["roof_z"] is not None else 0.0   # rooms' default top: the lowest armour deck
+    adecks = [d for d in reversed(dks) if d.get("armour_mm")]         # armoured decks, top down
 
     # ---------------- rooms (the layout's compartments) as boxes ----------------
     rooms = []
@@ -198,7 +186,7 @@ def build(lay, design, res, ag, armoured):
                  x=round(s["x"], 3), base=round(-D, 2), top=0.0)
         if s["kind"] == "armoured":
             d.update(armour_mm=round(ag["bulkhead_mm"]), armour_bottom=round(rz(ag["bulkhead_bottom"]), 2),
-                     armour_top=round(rz(ag["deck_z"]), 2))
+                     armour_top=round(rz(ag["belt_top"]), 2))
         tb.append(d)
     assert len(tb) == nbh
 
@@ -250,7 +238,8 @@ def build(lay, design, res, ag, armoured):
                 ys = [("CP", -hwmax, 0.0), ("CS", 0.0, hwmax)] if centre_split else [("C", -hwmax, hwmax)]
             for band, y0, y1 in ys:
                 area = sum(max(0.0, min(h, y1) - max(-h, y0)) for h in hws) * (x1 - x0) / len(hws)
-                vol = area * (tr["top"] - tr["base"]) * (under_k if tr["below_waterline"] else 1.0)
+                h = tr["top"] - tr["base"]
+                vol = area * h * (tr["submerged"] * under_k + 1.0 - tr["submerged"])
                 if vol < 0.01:
                     continue
                 c = dict(id=f"{sec['id']} {tr['id']} {band}", section=sec["id"], tier=tr["id"], band=band,
@@ -258,8 +247,9 @@ def build(lay, design, res, ag, armoured):
                          below_waterline=tr["below_waterline"], si=si, ti=ti)
                 if in_cit and armoured:
                     c["citadel"] = True
-                if adk and tr["top"] <= adk["z"] + 1e-6 and adk["x0"] <= xm <= adk["x1"]:
-                    c["armour_above_mm"] = adk["armour_mm"]
+                above = [d["armour_mm"] for d in adecks if tr["top"] <= d["z"] + 1e-6 and d["x0"] <= xm <= d["x1"]]
+                if above:
+                    c["armour_above_mm"] = above
                 outer = band in ("P", "S") or (band == "C") or (band in ("CP", "CS") and not banded)
                 if belt and outer and belt[0] <= xm <= belt[1] and _overlap(belt[2], belt[3], tr["base"], tr["top"]) > 0:
                     c["belt_mm"] = belt[4]
@@ -306,7 +296,7 @@ def build(lay, design, res, ag, armoured):
             use, name = "double_bottom", "Double bottom"
         elif c.get("tds_m") and c["band"] in ("P", "S"):
             use, name = "tds", "Torpedo protection"
-        elif c["below_waterline"]:
+        elif tiers[c["ti"]]["submerged"] >= 0.5:
             use, name = "stores", "Stores"
         else:
             use, name = "accommodation", "Quarters"

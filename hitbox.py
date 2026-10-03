@@ -117,12 +117,16 @@ def export_hitboxes(lay, design, res):
     """hitboxes.json. Heights are metres above the main deck; res (navarch.Result) places the keel, the
     waterline and the armour."""
     from layout import block_base, block_top
-    from navarch import armour_geometry
+    from navarch import armour_geometry, deck_name, DECK_PITCH
     D, T = res.depth, res.draught
     rz = lambda z: round(z - D, 2)        # metres above the keel -> above the main deck
     ag = armour_geometry(design, lay.hull.L, T, D, lay.geo)
-    armoured = ag["belt_mm"] > 0 or ag["deck_mm"] > 0
+    armoured = ag["armoured"]
     armour = design.get("armour", {})
+    # barbettes reach the main armour deck (the belt top without deck armour; the second deck, never under the
+    # waterline, when unarmoured)
+    barbette_z = (ag["main_z"] if ag["main_z"] is not None else ag["belt_top"] if ag["belt_mm"] > 0
+                  else max(T, D - DECK_PITCH))
     sec = design.get("secondary") or {}
     sec_arm = sec.get("armour_mm", 25) if isinstance(sec, dict) else 25
     r3 = lambda pts: [[round(x, 3), round(y, 3)] for x, y in pts]
@@ -148,13 +152,13 @@ def export_hitboxes(lay, design, res):
         if m.get("casemate"):   # in the hull side, below the main deck
             comps[-1]["mount"] = "casemate"
         if t.get("barbette", True):
-            # from the armour deck up to the turret, for a mount standing in the hull; a mount on a sponson or a
+            # from the main armour deck up to the turret, for a mount standing in the hull; a mount on a sponson or a
             # flight deck has only a pedestal on its platform
             in_hull = abs(m["y"]) + 0.95 * t["r"] <= lay.hull.half_width(m["x"]) and m["base"] < fd_base
             comps[-1]["barbette"] = f"{m['id']} barbette"
             comps.append(dict(id=f"{m['id']} barbette", kind="barbette", mount=m["id"], shape="circle",
                               x=round(m["x"], 3), y=round(m["y"], 3), r=round(t["r"] * 0.95, 3),
-                              base=(min(rz(ag["deck_z"]), round(m["base"], 2)) if in_hull
+                              base=(min(rz(barbette_z), round(m["base"], 2)) if in_hull
                                     else round(m["base"] - 1.0, 2)),
                               top=round(m["base"], 2), armour_mm=round(BARBETTE * arm)))
     for b in lay.blocks:
@@ -207,11 +211,12 @@ def export_hitboxes(lay, design, res):
         arm_out["belt"] = dict(thickness_mm=ag["belt_mm"], x0=round(ag["x0"], 3), x1=round(ag["x1"], 3),
                                bottom=rz(ag["belt_bottom"]), top=rz(ag["belt_top"]))
         arm_out["bulkheads"] = [dict(id=f"{end} bulkhead", x=round(x, 3), thickness_mm=round(ag["bulkhead_mm"]),
-                                     bottom=rz(ag["bulkhead_bottom"]), top=rz(ag["deck_z"]))
+                                     bottom=rz(ag["bulkhead_bottom"]), top=rz(ag["belt_top"]))
                                 for end, x in (("Forward", ag["x1"]), ("Aft", ag["x0"]))]
-    if ag["deck_mm"] > 0:
-        arm_out["deck"] = dict(thickness_mm=ag["deck_mm"], x0=round(ag["x0"], 3), x1=round(ag["x1"], 3),
-                               z=rz(ag["deck_z"]))
+    if ag["decks"]:
+        arm_out["decks"] = [dict(deck=deck_name(d["deck"]), thickness_mm=d["mm"], extent=d["extent"],
+                                 x0=round(d["x0"], 3), x1=round(d["x1"], 3), z=rz(d["z"]),
+                                 main=d["z"] == ag["main_z"], roof=d["z"] == ag["roof_z"]) for d in ag["decks"]]
     return dict(
         units="metres",
         frame="ship-local: origin = ship centre = sprite centre, +x toward bow, +y toward starboard; "
@@ -221,7 +226,7 @@ def export_hitboxes(lay, design, res):
                      "rotate by the current turret angle, then add (x, y)",
         length=lay.hull.L, beam=lay.hull.B,
         vertical=dict(keel=-round(D, 2), waterline=-round(D - T, 2),
-                      armour_deck=rz(ag["deck_z"]) if armoured else None,
+                      armour_deck=rz(ag["main_z"]) if ag["main_z"] is not None else None,
                       draught=round(T, 2), depth=round(D, 2), freeboard=round(D - T, 2)),
         hull=[[round(x, 3), round(y, 3)] for x, y in lay.hull.points()],
         armour=arm_out,

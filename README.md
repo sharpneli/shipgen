@@ -50,7 +50,7 @@ design.py      the command line: validate, shipdesign.build, write report.json a
   "id": "battleship", "name": "Fast Battleship", "type": "BB", "look": "standard",
   "hull": {"block_coefficient": 0.59},
   "speed_kn": 33, "range_nm": 15000,
-  "armour": {"belt_mm": 307, "deck_mm": 152, "turret_mm": 432},
+  "armour": {"belt_mm": 307, "turret_mm": 432, "decks": [{"deck": 1, "mm": 152, "extent": "citadel"}]},
   "main": {"calibre_mm": 406, "calibre_length": 50, "barrels": 3, "fore": 2, "aft": 1},
   "secondary": {"calibre_mm": 127, "calibre_length": 38, "barrels": 2, "per_side": 5},
   "torpedoes": {"mounts": 0, "tubes": 5},
@@ -60,6 +60,16 @@ design.py      the command line: validate, shipdesign.build, write report.json a
   "funnels": null
 }
 ```
+`armour` holds the belt, turret and torpedo protection (`tds_m`) values, and `decks`: the armour decks, top down. Every design lists them, even an empty list.
+- **The deck stack:** the hull's decks lie every `navarch.DECK_PITCH` (2.6 m) down from the main deck to the inner bottom. Deck 0 is the main deck (a carrier's hangar deck), deck 1 the second deck, and so on. A deck closer than 1 m to the inner bottom is left out, so the hold is 1–3.6 m tall.
+- **An armour deck** is `{"deck": n, "mm": thickness, "extent": "citadel" | "full"}`. `citadel` covers the citadel, and `full` covers the whole length. Each deck appears once, top down. A deck the hull is too shallow for lies on its lowest deck, with a warning; decks pushed onto the same one add up.
+- **What the decks decide:**
+  - The thickest deck over the citadel is the main armour deck. The higher one wins a tie. The belt (its height a × draught + b, from below the waterline) reaches up to it when it's higher, and the barbettes reach down to it.
+  - The lowest deck over the citadel is the roof of the vital spaces: the machinery and the magazines stand under it. A low roof squeezes the machinery, which makes it longer.
+  - Each deck weighs its area × thickness. A `full` deck covers the hull's waterplane.
+- `battleship_layered.json` is the battleship with Iowa-style layers: a 38 mm bomb deck on the main deck over the whole length, the 152 mm main armour deck on the second deck, and a 16 mm splinter deck on the third.
+- `armour.deck_mm` is gone, and a design that still has it is rejected.
+
 `crew` sets how the crew lives (`crew.py`, from `research/crew-space-model.md`).
 - `standard` is the habitability standard as numbers: net areas per head, shared spaces, headroom, water and provisions rates, and the hotel fraction.
   - `crew-templates.md` has six reference blocks, H0 (sleep at station) to H5 (single cabins). `python crew_templates.py` regenerates it.
@@ -83,7 +93,7 @@ The crew lives wherever the ship has empty volume (`crew.crew_space`):
 
 `machinery` is the propulsion plant (`powerplant.py`, from `research/powerplant-model.md`). There is no year input: `tech` holds the researched technology as numbers, so a navy can have a tech earlier or later than history did. `plant-templates.md` has blocks to copy for every period from 1880 to 1970, and `python plant_templates.py` regenerates them. A design without `tech` gets a 1940 high-pressure turbine plant (merchants: a 1940 oil-fired triple expansion; planing craft: 1940 petrol engines). The other keys are design choices: `stress`, `shafts`, `units_per_shaft`, `transmission`, `arrangement` (`grouped` or alternating `unit`), `centreline_bulkhead`, `bunkers` (`wing` or `ends`) and `wing_bunker_m`. The template's table explains each one. What the plant decides:
 - **Weight, fuel and engineering crew:** from the tech and the stress. Range is computed at cruise speed through the tech's part-load curve.
-- **Machinery length:** the plant's volume, fitted into the room the hull gives it. Across, that's the beam inside the frames, less torpedo protection (`armour.tds_m` per side) and wing bunkers, with units standing in rows. Up, it's the inner bottom to the armour deck.
+- **Machinery length:** the plant's volume, fitted into the room the hull gives it. Across, that's the beam inside the frames, less torpedo protection (`armour.tds_m` per side) and wing bunkers, with units standing in rows. Up, it's the inner bottom to the lowest armour deck over the citadel (the main deck without deck armour).
   - The volume splits between boiler and engine rooms by `boiler_fraction`.
   - Boiler rooms use the whole height: boilers, drums, fans and uptake trunks reach the deck.
   - Engine rooms use only the units' height plus 2.5 m of auxiliaries, so low turbines leave height unused.
@@ -135,7 +145,10 @@ The design gives no size. The designer works out the hull from what it carries (
 - Battery mount ids are `S1S`/`S1P`, ... for the first battery, then `SB...`, `SC...`. Casemate guns carry `"mount": "casemate"` in `hitboxes.json` and `sprite.json`.
 - **Magazines.** End, midships and echelon wing turrets each have a magazine under them. The secondaries (deck and casemate) and abreast wing turrets share grouped magazines at the two ends of the machinery block, as real ships fed them through ammunition passages (`layout.magazine_plan`).
   - Each battery sends the forward half of its pairs, rounded up, to the fore group. A wing pair's magazine goes to the end of the middle it stands at.
-  - The groups are as wide and tall as the machinery space. They're long enough to stow the mounts' ammunition at `layout.MAGAZINE_T_PER_M3` (0.35 t/m³ gross), so they lengthen the middle a little.
+  - **Magazines sit low.** They stand on the inner bottom, with their tops on a deck of the stack and never above the lowest armour deck (`layout.magazine_span`). They stow ammunition at `layout.MAGAZINE_T_PER_M3` (0.6 t/m³: shell and powder rooms; the handling rooms and passages are in the deck space above).
+    - A turret's own magazine is its diameter long and rises as many decks as its ammunition needs.
+    - The groups are as wide as the machinery space, `layout.MAGAZINE_TIERS` (2) deck spaces tall, and long enough for their ammunition, so they lengthen the middle a little.
+    - The decks above a magazine are free for quarters and stores.
   - There's one magazine per battery and group (`Magazine SB fore`), with a `mounts` list. The mounts' magazine weights sit there too.
 - Examples: `mikasa.json` (152 + 76 mm casemates in both tiers), `victory_1944.json` (a ship of the line: 152 mm lower and 120 mm upper casemates, no main battery), `connecticut.json` (178 + 76 mm casemates; its 203 mm wing turrets need a second main battery, still to come), `nassau_casemates.json` (Nassau's 150 + 88 mm in casemates, so all of them fit), `kongo.json` (152 mm casemates and 76 mm on deck).
 
@@ -208,16 +221,16 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
     - funnels: count, gas area and velocity, and smoke reach
 - `hitboxes.json`: all values in metres, ship-local (origin = sprite centre, +x bow, +y starboard). It describes the ship for the game's damage model (where things are, what armours them, what links to what), never what a hit does.
   - Heights (`base`/`top`/`z`) are metres above the main deck, negative below it. On a carrier the main deck is the hangar deck.
-  - `vertical`: `keel`, `waterline` and `armour_deck` (null on a ship without belt or deck armour) on that height scale, plus `draught`, `depth` and `freeboard` (full load).
+  - `vertical`: `keel`, `waterline` and `armour_deck` (the main armour deck, null on a ship without deck armour) on that height scale, plus `draught`, `depth` and `freeboard` (full load).
   - `hull`: the hull outline polygon.
   - `armour`: present only for the armour the ship has (`navarch.armour_geometry`, the same geometry its weights come from).
-    - `belt`: `thickness_mm`, `x0`/`x1` (the citadel), `bottom`/`top`. Centred on the waterline.
-    - `deck`: `thickness_mm`, `x0`/`x1`, `z`. It sits on top of the belt (2.5 m below the main deck on a ship without one).
+    - `belt`: `thickness_mm`, `x0`/`x1` (the citadel), `bottom`/`top`. From below the waterline up to the main armour deck, or centred on the waterline if that deck is lower.
+    - `decks`: the armour decks, top down: `deck` (its id, such as `Second deck`), `thickness_mm`, `extent`, `x0`/`x1`, `z`, and the flags `main` (the main armour deck) and `roof` (the lowest, over the vital spaces).
     - `bulkheads`: the citadel's forward and aft ends: `x`, `thickness_mm`, `bottom`/`top`.
   - `components`:
     - Turrets: `local` body/parts/barrels polygons (rotate them by the turret angle, then add x, y), `broadphase_r`, `arcs_deg`, `rest_deg`, base/top heights.
       - `armour_mm` is the face. `armour` splits it into `face`/`side`/`rear`/`roof` (`hitbox.TURRET_*` ratios).
-      - Gun mounts link to their `barbette` (a component) and their `magazine` (a room). The barbette links back with `mount` and reaches down to the armour deck. A mount on a sponson or a flight deck has only a 1 m pedestal on its platform.
+      - Gun mounts link to their `barbette` (a component) and their `magazine` (a room). The barbette links back with `mount` and reaches down to the main armour deck (the belt top without deck armour, the second deck on an unarmoured ship). A mount on a sponson or a flight deck has only a 1 m pedestal on its platform.
     - Superstructure: polygons with heights and a `role`: `bridge`, `director`, `aft_control`, `island`, `hangar`, `casemate` or `deckhouse` (`hitbox.BLOCK_ROLES`). A control position in a funnel's smoke lists those funnels in `smoke`.
     - Funnels: polygons with heights. `boiler_rooms` lists the rooms each one serves. An `uptake` component runs from the top of the boilers up to the funnel's base, with the same footprint and links.
     - `casing`: over machinery taller than its space, from the bounding deck up, with `armour_mm`.
@@ -230,23 +243,20 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
       - The stations snap to the ends of the rooms (machinery rooms, magazines, holds, steering), the citadel's ends and a collision bulkhead 0.05 L abaft the bow. Where several rooms end at one place, the station counts for more.
       - Stations closer than 0.03 L (at most 8 m) merge, and the more important one stays. Gaps longer than 0.07 L get more bulkheads, except inside a single room such as a long hold.
       - Capital ships come out at 17–21 sections, a destroyer at 19, and a PT boat at 10.
-    - `decks`: `id`, `kind` (`inner_bottom`, `flat` at the waterline, `armour` with `armour_mm` over `x0`/`x1`, `main`) and `z`, keel up.
-      - Decks closer than 1 m merge, and the armour deck stays.
-      - Deck armour that would lie within 1 m of the main deck lies on the main deck.
-      - Planing craft have no inner bottom.
-    - `tiers`: the spaces between decks, keel up: `bottom` (the double bottom), `hold`, any `platform`s, and `between` under the main deck. Each has `base`/`top`, `below_waterline`, and its `floor`/`ceiling` deck ids.
+    - `decks`: keel up, `id`, `kind` and `z`. The kinds are `inner_bottom` (not on planing craft), then the deck stack (`deck`, numbered in `deck`, up to the `main` deck). An armoured deck has `armour_mm` over `x0`/`x1`.
+    - `tiers`: the spaces between decks, keel up, each named after the deck it stands on: `bottom` (the double bottom), `hold`, then ..., `third`, and `second` under the main deck. Each has `base`/`top`, `submerged` (the fraction below the waterline), `below_waterline` (all of it), and its `floor`/`ceiling` deck ids.
     - `bulkheads`:
       - Transverse ones: `x`, `kind` `collision`, `armoured` (the citadel ends of a belted ship, with `armour_mm` from `armour_bottom` to `armour_top`) or `main`. They run from the keel to the main deck.
       - Longitudinal ones per section: `y`, `side`, `x0`/`x1`, `base`/`top`, and a `kind`:
         - `wing`: inboard of coal wing bunkers, up to the main deck.
-        - `tds`: inboard of the torpedo protection inside the citadel, up to the armour deck.
+        - `tds`: inboard of the torpedo protection inside the citadel, up to the lowest armour deck.
         - `centreline`: through the machinery, when `machinery.centreline_bulkhead` is true.
     - `cells`: `id` (`"7 hold S"`), `section`, `tier`, and `band` (`P` | `C` | `S`, with the centre split `CP` | `CS` by a centreline bulkhead).
       - Extent: `x0`/`x1`, `y0`/`y1` (out to the hull's widest point over the section, so clip to the hull outline) and `base`/`top`.
-      - `volume_m3` is the hull's plan inside the box times the height. Below the waterline it's scaled so the underwater cells add up to the displacement volume.
-      - `permeability` comes from the room's kind (`subdivision.PERMEABILITY`; a full coal bunker is 0.4), and `below_waterline` is set from the tier.
+      - `volume_m3` is the hull's plan inside the box times the height. The part below the waterline is scaled so the underwater parts add up to the displacement volume.
+      - `permeability` comes from the room's kind (`subdivision.PERMEABILITY`; a full coal bunker is 0.4), and `below_waterline` is set from the tier (the whole cell is under water).
       - The owning `room`, and `also`: the rooms that share this cell because they're too small for one of their own.
-      - Armour and protection: `citadel`, `armour_above_mm` (under the armour deck), `belt_mm` (an outer cell level with the belt) and `tds_m` (a wing cell inside the citadel).
+      - Armour and protection: `citadel`, `armour_above_mm` (the armour decks above the cell, top down, as a list of thicknesses), `belt_mm` (an outer cell level with the belt) and `tds_m` (a wing cell inside the citadel).
       - `crew`: the complement spread over the quarters by volume.
       - `neighbours`: `[cell id, boundary]` pairs. The boundary is the bulkhead or deck id between them, or `"open"` inside one room.
     - `rooms`: `id`, `kind`, `cells`, `volume_m3` and their extent (`x0`/`x1`, `base`/`top`), plus what the layout gives them:
@@ -260,8 +270,8 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
       - Cells no room claims become one room per section and use:
         - `double_bottom` in the bottom tier
         - `tds` (`Torpedo protection 7 S`) in a citadel wing cell
-        - `stores` below the waterline
-        - `accommodation` (`Quarters 7`) above it.
+        - `stores` in a tier at least half under water
+        - `accommodation` (`Quarters 7`) above that.
 - `sprite.json`: layers, origin_px, mount px positions, rest angles, arcs and z order.
 - `hull_base.png`, `turrets/*.png`, `hull_upper.png`, each with an SVG alongside. Level 0 is `--scale` px/m (default 10). No shadows are baked in.
 - `height.png`: greyscale height map on the same canvas. Grey × `height_step_m` (0.25) = metres above the waterline, and 0 = sea. Its mips use a 2×2 max filter, not an average, so a tall column never shrinks.

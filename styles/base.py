@@ -17,9 +17,35 @@ COMMON_LIMITS = {
     ("secondary", "barrels"): (1, 20), ("secondary", "per_side"): (0, 100), ("secondary", "count"): (0, 200),
     ("torpedoes", "mounts"): (0, 40), ("torpedoes", "tubes"): (1, 20),
     ("aa", "heavy"): (0, 500), ("aa", "light"): (0, 500),
-    ("armour", "belt_mm"): (0, 2000), ("armour", "deck_mm"): (0, 2000), ("armour", "turret_mm"): (0, 2000),
+    ("armour", "belt_mm"): (0, 2000), ("armour", "turret_mm"): (0, 2000),
     ("armour", "tds_m"): (0, 20),
 }
+
+
+def armour_errors(design) -> list[str]:
+    """armour.decks: a list of {"deck": n (0 the main deck, 1 the second, ...), "mm", "extent"}, top down."""
+    from navarch import ARMOUR_EXTENTS
+    a = design.get("armour") or {}
+    errs = []
+    if "deck_mm" in a:
+        errs.append("armour.deck_mm is gone: list the armour decks top down in armour.decks, e.g. "
+                    "[{\"deck\": 1, \"mm\": 152, \"extent\": \"citadel\"}]")
+    decks = a.get("decks", [])
+    if not isinstance(decks, list):
+        return errs + ["armour.decks: use a list of armour decks, top down"]
+    last = -1
+    for k, d in enumerate(decks):
+        if not isinstance(d, dict) or not isinstance(d.get("deck"), int) or d["deck"] < 0:
+            errs.append(f"armour.decks[{k}].deck: use a deck number (0 the main deck, 1 the second deck, ...)")
+            continue
+        if not isinstance(d.get("mm"), (int, float)) or d["mm"] < 0:
+            errs.append(f"armour.decks[{k}].mm: use a thickness of 0 or more")
+        if d.get("extent") not in ARMOUR_EXTENTS:
+            errs.append(f"armour.decks[{k}].extent = {d.get('extent')!r}: use {' or '.join(ARMOUR_EXTENTS)}")
+        if d["deck"] <= last:
+            errs.append(f"armour.decks[{k}]: list the armour decks top down, one per deck")
+        last = max(last, d["deck"])
+    return errs
 
 
 class Style:
@@ -45,6 +71,7 @@ class Style:
                         "(plant-templates.md has examples by year)")
         errs += [f"hull.{k}: the designer works out the hull's size from what it carries; remove it"
                  for k in ("length", "beam") if k in (design.get("hull") or {})]
+        errs += armour_errors(design)
         if isinstance(design.get("secondary"), list) and not self.SECONDARY_LIST:
             errs.append(f"secondary: the {self.name} style takes one secondary battery, not a list")
         sec = design.get("secondary") or []

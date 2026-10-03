@@ -87,7 +87,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
       - **Secondary and abreast wing-turret magazines are grouped** at the ends of the machinery block (option b, as on real ships with ammunition passages). They're sized by ammunition weight at 0.35 t/m³ (`layout.MAGAZINE_T_PER_M3`).
         - A first try at 2r × 2r per mount made Mikasa 27 m longer.
         - Now lengths move a few metres: Mikasa 129 m (was 133), Kongo 263.5 m (was 257.5), Invincible 194.5 m (was 192), victory_1944 107 m (was 114).
-      - **The extra tier (done): a flat at the waterline.** Tiers are bottom, hold, platform and between, or bottom, hold and between when unarmoured. The user expects more tiers later for armour schemes: turtleback decks, and several armour decks such as thin armour over the quarters and thicker over magazines below them. `subdivision.decks` takes a list of decks, each with optional `armour_mm` and x extent, so more armour decks slot in. Cells already carry `armour_above_mm`. A sloped deck would need cells with sloped bounds, which they don't have yet.
+      - **The extra tier** (a flat at the waterline) was replaced on 2026-10-03 by the deck stack (below).
     - Tuning knobs: `MIN_SECTION` 0.03 L (1–8 m), `MAX_SECTION` 0.07 L, `MIN_TIER` 1 m, `ROOM_PRIORITY` (magazine > machinery > steering = bunkers > holds), `PERMEABILITY`.
     - Sections:
       - Capital ships get 17–21, the destroyer 19 (research: 12–16), the PT boat 10 and the MTB 9 (a single tier).
@@ -106,19 +106,40 @@ doesn't: the decisions behind the current design, how to work safely here, and w
   - **Buoyancy:** the user hasn't decided how realistic it should be. It will likely be a grid, but it must not drive a full simulation of the ship's motion. Flooding only makes the ship settle: a deeper draught costs speed and puts more of the belt under water.
   - Known simplifications: carrier and merchant guns have no magazines yet. The barbette weight (`navarch.mount_weights`, 0.45 × depth) doesn't match the barbette hitbox, which reaches down to the armour deck.
 
+- **Deck stack and armour decks (done 2026-10-03).** The user wanted magazines low in the ship, with living space above them, and several armour decks.
+  - The user's decisions:
+    - The deck pitch is a constant (`navarch.DECK_PITCH`, 2.6 m), not a design knob.
+    - Armour decks are an explicit list in every design, top down: `armour.decks = [{"deck": n, "mm", "extent": "citadel" | "full"}]`. Deck 0 is the main deck. `deck_mm` is now a validation error. Every design file was converted to the stack deck nearest its old armour deck. That's deck 1 on most ships, and the fleet carrier 2, the supercarrier 3, Gangut 7. Unarmoured designs got `"decks": []`.
+    - Superstructure levels stay out of the grid, maybe for good ("not that interesting").
+  - Rules (README "Design input"):
+    - The thickest armour deck is the main one: the belt reaches up to it, and the barbettes reach down to it.
+    - The lowest armour deck is the roof over the machinery and magazines.
+    - The waterline flat is gone. Tiers carry a `submerged` fraction, and quarters go in tiers less than half under water.
+    - Cells' `armour_above_mm` is now a list, top down.
+  - Magazines stand on the inner bottom (`layout.magazine_span`). A turret's magazine rises as many decks as its ammunition needs. Grouped magazines are 2 deck spaces tall (`MAGAZINE_TIERS`).
+    - `MAGAZINE_T_PER_M3` went from 0.35 to 0.6, because the handling space is now the free deck above. That kept the lengths near their old values.
+  - Calibration moves:
+    - Mikasa 129 → 138 m (real 131.7). Its old armour deck sat 1.6 m below the main deck; deck 1 is 2.6 m down, so the machinery is shorter in height and the block longer.
+    - victory_1944 100.5 → 87.5 m.
+    - Belted capital ships gain 3–5% standard displacement (Kongo +1.3k t, battleship +1.5k t), because the belt now reaches the second deck.
+    - Everything else is within ±2.5 m.
+  - New example: `battleship_layered.json`, with a 38 mm full-length bomb deck, the 152 mm second deck and a 16 mm splinter deck on the third. It comes out at 263 m against the battleship's 257 m, because the splinter deck lowers the roof.
+  - Not done:
+    - The steering gear, the carrier aviation magazines and the merchants' holds still span the full height.
+    - **Turtleback (sloped) decks: left out on purpose (user, 2026-10-03).** For simplicity, several flat armour decks are enough for now.
+    - All-or-nothing versus incremental schemes are only expressible through `extent`.
+
 ## Next steps (proposed 2026-10-02, in this order; the user hasn't confirmed the order yet)
 1. **Hull cross-section shape.** Every height uses the deck outline now, so double-bottom and hold cells are as wide as the main deck. Give the hull sections that narrow toward the keel, from the block coefficient (full amidships, sharp at the ends).
    - That fixes cell bounds and volumes, torpedo protection depth, belt coverage, hit lookup near the bottom, and the 3D views.
-   - Sloped (turtleback) decks need it, so do it before the armour-scheme work.
 2. **Propulsion train.** Add shafts from each engine room through shaft alleys to the propellers, and rudders over the steering gear, as components that run through cells. This completes damage step 2 and gives the game its weak spots aft: a jammed rudder, wrecked shaft glands, a flooded shaft alley.
 3. **What sits in and passes through each cell:**
    - Each cell lists the barbettes, uptakes and casings that pass through it: the flash path from a turret to its magazine, and the leak path through the uptakes.
    - Double-bottom contents: oil or water, by tonnage.
    - Magazines for carrier and merchant guns.
    - Clean up the remaining shared cells.
-4. **Armour schemes on the deck list.** These are design inputs, so agree the knobs with the user first.
-   - Several armour decks with their own thickness and extent, such as a thin deck over the quarters and a thick one over the magazines.
-   - Turtleback or sloped decks, after step 1.
+4. **Armour schemes on the deck list.** These are design inputs, so agree the knobs with the user first. Several armour decks are done (see above).
+   - Turtleback or sloped decks: the user has shelved them; several flat decks stand in for now.
    - All-or-nothing versus incremental schemes.
    - Belt height and taper.
 5. **Links and flags (damage step 3), best done with the period physics refactor:**
@@ -133,7 +154,6 @@ doesn't: the decisions behind the current design, how to work safely here, and w
 
 Housekeeping, whenever convenient:
 - Fold the turret-sweep checker into `verify.py`.
-- Draw the armour deck in the 3D views from the new `decks` list, not from `armour.deck`.
 - Watch the destroyer's section count (19 against 12–16 in the research).
 - The warship citadel covers the main turrets and the whole machinery block with its grouped magazines (fixed 2026-10-02). Before that, an all-forward ship's machinery lay outside the belt: all_forward went from 27.9k to 34.8k t std. Now its Engine room 2 shares a cell, because the citadel-end bulkhead outranks the room's own end when stations merge.
 

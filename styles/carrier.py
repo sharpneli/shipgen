@@ -7,7 +7,7 @@ carrier: aircraft carriers, from seaplane carriers to angled-deck fleet carriers
         "hangar_decks": 1,                             flight deck height = hangar decks x 5.6 m + 2 m gallery
         "elevators": 2, "deck_edge_elevators": 1, "catapults": 2, "cranes": 0
     }
-    "armour": {"belt_mm", "deck_mm" (the hangar deck), "flight_deck_mm"}
+    "armour": {"belt_mm", "decks" (deck 0 is the hangar deck), "flight_deck_mm"}
 
 The main deck is the hangar deck; heights in hitboxes are above it, like every other style. A carrier has no
 main battery: its guns are secondaries fitted where they suit, "ends" on the flight deck in line with the
@@ -325,7 +325,7 @@ def _compartments(lay, design, hull, mach, hangar, extra=()):
     hx0, hx1, hhw = hangar
     lay.compartments += [
         dict(id="Citadel", kind="citadel", x0=cit[0], x1=cit[1], half_width=inner_hw,
-             belt_mm=armour.get("belt_mm", 0), deck_mm=armour.get("deck_mm", 0)),
+             belt_mm=armour.get("belt_mm", 0)),
         dict(id="Hangar", kind="hangar", x0=hx0, x1=hx1, half_width=hhw, base=0.0,
              top=2 * LEVEL_H if av["flight_deck"] == "none" else HANGAR_H * av["hangar_decks"]),
         dict(id="Aviation magazines", kind="magazine", x0=m1, x1=cit[1], half_width=inner_hw),

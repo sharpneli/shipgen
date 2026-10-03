@@ -3820,13 +3820,27 @@
    "z": -9.403
   },
   {
-   "id": "Lower deck",
-   "kind": "flat",
-   "z": -5.272
+   "id": "Fourth deck",
+   "kind": "deck",
+   "deck": 3,
+   "z": -7.8
+  },
+  {
+   "id": "Third deck",
+   "kind": "deck",
+   "deck": 2,
+   "z": -5.2
+  },
+  {
+   "id": "Second deck",
+   "kind": "deck",
+   "deck": 1,
+   "z": -2.6
   },
   {
    "id": "Main deck",
    "kind": "main",
+   "deck": 0,
    "z": 0.0
   }
  ],
@@ -3836,23 +3850,44 @@
    "base": -10.4,
    "top": -9.4,
    "below_waterline": true,
+   "submerged": 1.0,
    "floor": "Keel",
    "ceiling": "Inner bottom"
   },
   {
    "id": "hold",
    "base": -9.4,
-   "top": -5.27,
+   "top": -7.8,
    "below_waterline": true,
+   "submerged": 1.0,
    "floor": "Inner bottom",
-   "ceiling": "Lower deck"
+   "ceiling": "Fourth deck"
   },
   {
-   "id": "between",
-   "base": -5.27,
+   "id": "fourth",
+   "base": -7.8,
+   "top": -5.2,
+   "below_waterline": false,
+   "submerged": 0.97,
+   "floor": "Fourth deck",
+   "ceiling": "Third deck"
+  },
+  {
+   "id": "third",
+   "base": -5.2,
+   "top": -2.6,
+   "below_waterline": false,
+   "submerged": 0.0,
+   "floor": "Third deck",
+   "ceiling": "Second deck"
+  },
+  {
+   "id": "second",
+   "base": -2.6,
    "top": 0.0,
    "below_waterline": false,
-   "floor": "Lower deck",
+   "submerged": 0.0,
+   "floor": "Second deck",
    "ceiling": "Main deck"
   }
  ],
@@ -4094,8 +4129,8 @@
    "y0": -2.708,
    "y1": 2.708,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 46.9,
+   "top": -7.8,
+   "volume_m3": 18.2,
    "below_waterline": true,
    "room": "Stores 1",
    "permeability": 0.6,
@@ -4105,8 +4140,8 @@
      "Inner bottom"
     ],
     [
-     "1 between C",
-     "Lower deck"
+     "1 fourth C",
+     "open"
     ],
     [
      "2 hold C",
@@ -4115,28 +4150,89 @@
    ]
   },
   {
-   "id": "1 between C",
+   "id": "1 fourth C",
    "section": "1",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": 51.975,
    "x1": 57.75,
    "y0": -2.708,
    "y1": 2.708,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 84.1,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 29.9,
    "below_waterline": false,
-   "crew": 8,
+   "room": "Stores 1",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "1 hold C",
+     "open"
+    ],
+    [
+     "1 third C",
+     "Third deck"
+    ],
+    [
+     "2 fourth C",
+     "Bulkhead 1"
+    ]
+   ]
+  },
+  {
+   "id": "1 third C",
+   "section": "1",
+   "tier": "third",
+   "band": "C",
+   "x0": 51.975,
+   "x1": 57.75,
+   "y0": -2.708,
+   "y1": 2.708,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 41.5,
+   "below_waterline": false,
+   "crew": 4,
    "room": "Quarters 1",
    "permeability": 0.95,
    "neighbours": [
     [
-     "1 hold C",
-     "Lower deck"
+     "1 fourth C",
+     "Third deck"
     ],
     [
-     "2 between C",
+     "1 second C",
+     "open"
+    ],
+    [
+     "2 third C",
+     "Bulkhead 1"
+    ]
+   ]
+  },
+  {
+   "id": "1 second C",
+   "section": "1",
+   "tier": "second",
+   "band": "C",
+   "x0": 51.975,
+   "x1": 57.75,
+   "y0": -2.708,
+   "y1": 2.708,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 41.5,
+   "below_waterline": false,
+   "crew": 4,
+   "room": "Quarters 1",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "1 third C",
+     "open"
+    ],
+    [
+     "2 second C",
      "Bulkhead 1"
     ]
    ]
@@ -4181,8 +4277,8 @@
    "y0": -5.716,
    "y1": 5.716,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 188.2,
+   "top": -7.8,
+   "volume_m3": 73.0,
    "below_waterline": true,
    "room": "Stores 2",
    "permeability": 0.6,
@@ -4192,8 +4288,8 @@
      "Inner bottom"
     ],
     [
-     "2 between C",
-     "Lower deck"
+     "2 fourth C",
+     "open"
     ],
     [
      "1 hold C",
@@ -4206,32 +4302,101 @@
    ]
   },
   {
-   "id": "2 between C",
+   "id": "2 fourth C",
    "section": "2",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": 44.471,
    "x1": 51.975,
    "y0": -5.716,
    "y1": 5.716,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 337.3,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 119.7,
    "below_waterline": false,
-   "crew": 34,
+   "room": "Stores 2",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "2 hold C",
+     "open"
+    ],
+    [
+     "2 third C",
+     "Third deck"
+    ],
+    [
+     "1 fourth C",
+     "Bulkhead 1"
+    ],
+    [
+     "3 fourth C",
+     "Bulkhead 2"
+    ]
+   ]
+  },
+  {
+   "id": "2 third C",
+   "section": "2",
+   "tier": "third",
+   "band": "C",
+   "x0": 44.471,
+   "x1": 51.975,
+   "y0": -5.716,
+   "y1": 5.716,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 166.4,
+   "below_waterline": false,
+   "crew": 17,
    "room": "Quarters 2",
    "permeability": 0.95,
    "neighbours": [
     [
-     "2 hold C",
-     "Lower deck"
+     "2 fourth C",
+     "Third deck"
     ],
     [
-     "1 between C",
+     "2 second C",
+     "open"
+    ],
+    [
+     "1 third C",
      "Bulkhead 1"
     ],
     [
-     "3 between C",
+     "3 third C",
+     "Bulkhead 2"
+    ]
+   ]
+  },
+  {
+   "id": "2 second C",
+   "section": "2",
+   "tier": "second",
+   "band": "C",
+   "x0": 44.471,
+   "x1": 51.975,
+   "y0": -5.716,
+   "y1": 5.716,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 166.4,
+   "below_waterline": false,
+   "crew": 17,
+   "room": "Quarters 2",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "2 third C",
+     "open"
+    ],
+    [
+     "1 second C",
+     "Bulkhead 1"
+    ],
+    [
+     "3 second C",
      "Bulkhead 2"
     ]
    ]
@@ -4276,8 +4441,8 @@
    "y0": -8.067,
    "y1": 8.067,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 306.8,
+   "top": -7.8,
+   "volume_m3": 119.1,
    "below_waterline": true,
    "room": "Stores 3",
    "permeability": 0.6,
@@ -4287,8 +4452,8 @@
      "Inner bottom"
     ],
     [
-     "3 between C",
-     "Lower deck"
+     "3 fourth C",
+     "open"
     ],
     [
      "2 hold C",
@@ -4301,32 +4466,101 @@
    ]
   },
   {
-   "id": "3 between C",
+   "id": "3 fourth C",
    "section": "3",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": 36.968,
    "x1": 44.471,
    "y0": -8.067,
    "y1": 8.067,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 550.0,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 195.3,
    "below_waterline": false,
-   "crew": 56,
+   "room": "Stores 3",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "3 hold C",
+     "open"
+    ],
+    [
+     "3 third C",
+     "Third deck"
+    ],
+    [
+     "2 fourth C",
+     "Bulkhead 2"
+    ],
+    [
+     "4 fourth C",
+     "Bulkhead 3"
+    ]
+   ]
+  },
+  {
+   "id": "3 third C",
+   "section": "3",
+   "tier": "third",
+   "band": "C",
+   "x0": 36.968,
+   "x1": 44.471,
+   "y0": -8.067,
+   "y1": 8.067,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 271.2,
+   "below_waterline": false,
+   "crew": 28,
    "room": "Quarters 3",
    "permeability": 0.95,
    "neighbours": [
     [
-     "3 hold C",
-     "Lower deck"
+     "3 fourth C",
+     "Third deck"
     ],
     [
-     "2 between C",
+     "3 second C",
+     "open"
+    ],
+    [
+     "2 third C",
      "Bulkhead 2"
     ],
     [
-     "4 between C",
+     "4 third C",
+     "Bulkhead 3"
+    ]
+   ]
+  },
+  {
+   "id": "3 second C",
+   "section": "3",
+   "tier": "second",
+   "band": "C",
+   "x0": 36.968,
+   "x1": 44.471,
+   "y0": -8.067,
+   "y1": 8.067,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 271.2,
+   "below_waterline": false,
+   "crew": 28,
+   "room": "Quarters 3",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "3 third C",
+     "open"
+    ],
+    [
+     "2 second C",
+     "Bulkhead 2"
+    ],
+    [
+     "4 second C",
      "Bulkhead 3"
     ]
    ]
@@ -4371,8 +4605,8 @@
    "y0": -9.594,
    "y1": 9.594,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 393.3,
+   "top": -7.8,
+   "volume_m3": 152.6,
    "below_waterline": true,
    "room": "Stores 4",
    "permeability": 0.6,
@@ -4382,8 +4616,8 @@
      "Inner bottom"
     ],
     [
-     "4 between C",
-     "Lower deck"
+     "4 fourth C",
+     "open"
     ],
     [
      "3 hold C",
@@ -4396,32 +4630,101 @@
    ]
   },
   {
-   "id": "4 between C",
+   "id": "4 fourth C",
    "section": "4",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": 29.464,
    "x1": 36.968,
    "y0": -9.594,
    "y1": 9.594,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 705.1,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 250.3,
    "below_waterline": false,
-   "crew": 71,
+   "room": "Stores 4",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "4 hold C",
+     "open"
+    ],
+    [
+     "4 third C",
+     "Third deck"
+    ],
+    [
+     "3 fourth C",
+     "Bulkhead 3"
+    ],
+    [
+     "5 fourth C",
+     "Bulkhead 4"
+    ]
+   ]
+  },
+  {
+   "id": "4 third C",
+   "section": "4",
+   "tier": "third",
+   "band": "C",
+   "x0": 29.464,
+   "x1": 36.968,
+   "y0": -9.594,
+   "y1": 9.594,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 347.7,
+   "below_waterline": false,
+   "crew": 36,
    "room": "Quarters 4",
    "permeability": 0.95,
    "neighbours": [
     [
-     "4 hold C",
-     "Lower deck"
+     "4 fourth C",
+     "Third deck"
     ],
     [
-     "3 between C",
+     "4 second C",
+     "open"
+    ],
+    [
+     "3 third C",
      "Bulkhead 3"
     ],
     [
-     "5 between C",
+     "5 third C",
+     "Bulkhead 4"
+    ]
+   ]
+  },
+  {
+   "id": "4 second C",
+   "section": "4",
+   "tier": "second",
+   "band": "C",
+   "x0": 29.464,
+   "x1": 36.968,
+   "y0": -9.594,
+   "y1": 9.594,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 347.7,
+   "below_waterline": false,
+   "crew": 36,
+   "room": "Quarters 4",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "4 third C",
+     "open"
+    ],
+    [
+     "3 second C",
+     "Bulkhead 3"
+    ],
+    [
+     "5 second C",
      "Bulkhead 4"
     ]
    ]
@@ -4466,8 +4769,8 @@
    "y0": -9.895,
    "y1": 9.895,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 434.3,
+   "top": -7.8,
+   "volume_m3": 168.6,
    "below_waterline": true,
    "room": "Stores 5",
    "permeability": 0.6,
@@ -4477,8 +4780,8 @@
      "Inner bottom"
     ],
     [
-     "5 between C",
-     "Lower deck"
+     "5 fourth C",
+     "open"
     ],
     [
      "4 hold C",
@@ -4491,32 +4794,101 @@
    ]
   },
   {
-   "id": "5 between C",
+   "id": "5 fourth C",
    "section": "5",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": 21.96,
    "x1": 29.464,
    "y0": -9.895,
    "y1": 9.895,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 778.6,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 276.4,
    "below_waterline": false,
-   "crew": 79,
+   "room": "Stores 5",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "5 hold C",
+     "open"
+    ],
+    [
+     "5 third C",
+     "Third deck"
+    ],
+    [
+     "4 fourth C",
+     "Bulkhead 4"
+    ],
+    [
+     "6 fourth C",
+     "Bulkhead 5"
+    ]
+   ]
+  },
+  {
+   "id": "5 third C",
+   "section": "5",
+   "tier": "third",
+   "band": "C",
+   "x0": 21.96,
+   "x1": 29.464,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 384.0,
+   "below_waterline": false,
+   "crew": 39,
    "room": "Quarters 5",
    "permeability": 0.95,
    "neighbours": [
     [
-     "5 hold C",
-     "Lower deck"
+     "5 fourth C",
+     "Third deck"
     ],
     [
-     "4 between C",
+     "5 second C",
+     "open"
+    ],
+    [
+     "4 third C",
      "Bulkhead 4"
     ],
     [
-     "6 between C",
+     "6 third C",
+     "Bulkhead 5"
+    ]
+   ]
+  },
+  {
+   "id": "5 second C",
+   "section": "5",
+   "tier": "second",
+   "band": "C",
+   "x0": 21.96,
+   "x1": 29.464,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 384.0,
+   "below_waterline": false,
+   "crew": 39,
+   "room": "Quarters 5",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "5 third C",
+     "open"
+    ],
+    [
+     "4 second C",
+     "Bulkhead 4"
+    ],
+    [
+     "6 second C",
      "Bulkhead 5"
     ]
    ]
@@ -4561,8 +4933,8 @@
    "y0": -9.895,
    "y1": 9.895,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 537.7,
+   "top": -7.8,
+   "volume_m3": 208.7,
    "below_waterline": true,
    "room": "Aviation magazines",
    "permeability": 0.6,
@@ -4572,7 +4944,7 @@
      "Inner bottom"
     ],
     [
-     "6 between C",
+     "6 fourth C",
      "open"
     ],
     [
@@ -4586,17 +4958,17 @@
    ]
   },
   {
-   "id": "6 between C",
+   "id": "6 fourth C",
    "section": "6",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": 12.72,
    "x1": 21.96,
    "y0": -9.895,
    "y1": 9.895,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 964.1,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 342.2,
    "below_waterline": false,
    "room": "Aviation magazines",
    "permeability": 0.6,
@@ -4606,11 +4978,79 @@
      "open"
     ],
     [
-     "5 between C",
+     "6 third C",
+     "open"
+    ],
+    [
+     "5 fourth C",
      "Bulkhead 5"
     ],
     [
-     "7 between C",
+     "7 fourth C",
+     "Bulkhead 6"
+    ]
+   ]
+  },
+  {
+   "id": "6 third C",
+   "section": "6",
+   "tier": "third",
+   "band": "C",
+   "x0": 12.72,
+   "x1": 21.96,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 475.4,
+   "below_waterline": false,
+   "room": "Aviation magazines",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "6 fourth C",
+     "open"
+    ],
+    [
+     "6 second C",
+     "open"
+    ],
+    [
+     "5 third C",
+     "Bulkhead 5"
+    ],
+    [
+     "7 third C",
+     "Bulkhead 6"
+    ]
+   ]
+  },
+  {
+   "id": "6 second C",
+   "section": "6",
+   "tier": "second",
+   "band": "C",
+   "x0": 12.72,
+   "x1": 21.96,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 475.4,
+   "below_waterline": false,
+   "room": "Aviation magazines",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "6 third C",
+     "open"
+    ],
+    [
+     "5 second C",
+     "Bulkhead 5"
+    ],
+    [
+     "7 second C",
      "Bulkhead 6"
     ]
    ]
@@ -4655,8 +5095,8 @@
    "y0": -9.895,
    "y1": 9.895,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 428.7,
+   "top": -7.8,
+   "volume_m3": 166.4,
    "below_waterline": true,
    "room": "Boiler room 1",
    "permeability": 0.85,
@@ -4666,7 +5106,7 @@
      "Inner bottom"
     ],
     [
-     "7 between C",
+     "7 fourth C",
      "open"
     ],
     [
@@ -4680,17 +5120,51 @@
    ]
   },
   {
-   "id": "7 between C",
+   "id": "7 fourth C",
    "section": "7",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": 5.354,
    "x1": 12.72,
    "y0": -9.895,
    "y1": 9.895,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 768.6,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 272.8,
+   "below_waterline": false,
+   "room": "Boiler room 1",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "7 hold C",
+     "open"
+    ],
+    [
+     "7 third C",
+     "open"
+    ],
+    [
+     "6 fourth C",
+     "Bulkhead 6"
+    ],
+    [
+     "8 fourth C",
+     "Bulkhead 7"
+    ]
+   ]
+  },
+  {
+   "id": "7 third C",
+   "section": "7",
+   "tier": "third",
+   "band": "C",
+   "x0": 5.354,
+   "x1": 12.72,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 379.0,
    "below_waterline": false,
    "room": "Boiler room 1",
    "also": [
@@ -4699,15 +5173,49 @@
    "permeability": 0.85,
    "neighbours": [
     [
-     "7 hold C",
+     "7 fourth C",
      "open"
     ],
     [
-     "6 between C",
+     "7 second C",
+     "open"
+    ],
+    [
+     "6 third C",
      "Bulkhead 6"
     ],
     [
-     "8 between C",
+     "8 third C",
+     "Bulkhead 7"
+    ]
+   ]
+  },
+  {
+   "id": "7 second C",
+   "section": "7",
+   "tier": "second",
+   "band": "C",
+   "x0": 5.354,
+   "x1": 12.72,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 379.0,
+   "below_waterline": false,
+   "room": "Boiler room 1",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "7 third C",
+     "open"
+    ],
+    [
+     "6 second C",
+     "Bulkhead 6"
+    ],
+    [
+     "8 second C",
      "Bulkhead 7"
     ]
    ]
@@ -4752,8 +5260,8 @@
    "y0": -9.895,
    "y1": 9.895,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 380.8,
+   "top": -7.8,
+   "volume_m3": 147.8,
    "below_waterline": true,
    "room": "Boiler room 2",
    "permeability": 0.85,
@@ -4763,7 +5271,7 @@
      "Inner bottom"
     ],
     [
-     "8 between C",
+     "8 fourth C",
      "open"
     ],
     [
@@ -4777,17 +5285,17 @@
    ]
   },
   {
-   "id": "8 between C",
+   "id": "8 fourth C",
    "section": "8",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": -1.19,
    "x1": 5.354,
    "y0": -9.895,
    "y1": 9.895,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 682.8,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 242.4,
    "below_waterline": false,
    "room": "Boiler room 2",
    "permeability": 0.85,
@@ -4797,11 +5305,79 @@
      "open"
     ],
     [
-     "7 between C",
+     "8 third C",
+     "open"
+    ],
+    [
+     "7 fourth C",
      "Bulkhead 7"
     ],
     [
-     "9 between C",
+     "9 fourth C",
+     "Bulkhead 8"
+    ]
+   ]
+  },
+  {
+   "id": "8 third C",
+   "section": "8",
+   "tier": "third",
+   "band": "C",
+   "x0": -1.19,
+   "x1": 5.354,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 336.7,
+   "below_waterline": false,
+   "room": "Boiler room 2",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "8 fourth C",
+     "open"
+    ],
+    [
+     "8 second C",
+     "open"
+    ],
+    [
+     "7 third C",
+     "Bulkhead 7"
+    ],
+    [
+     "9 third C",
+     "Bulkhead 8"
+    ]
+   ]
+  },
+  {
+   "id": "8 second C",
+   "section": "8",
+   "tier": "second",
+   "band": "C",
+   "x0": -1.19,
+   "x1": 5.354,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 336.7,
+   "below_waterline": false,
+   "room": "Boiler room 2",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "8 third C",
+     "open"
+    ],
+    [
+     "7 second C",
+     "Bulkhead 7"
+    ],
+    [
+     "9 second C",
      "Bulkhead 8"
     ]
    ]
@@ -4846,8 +5422,8 @@
    "y0": -9.895,
    "y1": 9.895,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 359.5,
+   "top": -7.8,
+   "volume_m3": 139.5,
    "below_waterline": true,
    "room": "Engine room 1",
    "permeability": 0.85,
@@ -4857,7 +5433,7 @@
      "Inner bottom"
     ],
     [
-     "9 between C",
+     "9 fourth C",
      "open"
     ],
     [
@@ -4871,17 +5447,51 @@
    ]
   },
   {
-   "id": "9 between C",
+   "id": "9 fourth C",
    "section": "9",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": -7.366,
    "x1": -1.19,
    "y0": -9.895,
    "y1": 9.895,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 644.4,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 228.8,
+   "below_waterline": false,
+   "room": "Engine room 1",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "9 hold C",
+     "open"
+    ],
+    [
+     "9 third C",
+     "open"
+    ],
+    [
+     "8 fourth C",
+     "Bulkhead 8"
+    ],
+    [
+     "10 fourth C",
+     "Bulkhead 9"
+    ]
+   ]
+  },
+  {
+   "id": "9 third C",
+   "section": "9",
+   "tier": "third",
+   "band": "C",
+   "x0": -7.366,
+   "x1": -1.19,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 317.8,
    "below_waterline": false,
    "room": "Engine room 1",
    "also": [
@@ -4890,15 +5500,49 @@
    "permeability": 0.85,
    "neighbours": [
     [
-     "9 hold C",
+     "9 fourth C",
      "open"
     ],
     [
-     "8 between C",
+     "9 second C",
+     "open"
+    ],
+    [
+     "8 third C",
      "Bulkhead 8"
     ],
     [
-     "10 between C",
+     "10 third C",
+     "Bulkhead 9"
+    ]
+   ]
+  },
+  {
+   "id": "9 second C",
+   "section": "9",
+   "tier": "second",
+   "band": "C",
+   "x0": -7.366,
+   "x1": -1.19,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 317.8,
+   "below_waterline": false,
+   "room": "Engine room 1",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "9 third C",
+     "open"
+    ],
+    [
+     "8 second C",
+     "Bulkhead 8"
+    ],
+    [
+     "10 second C",
      "Bulkhead 9"
     ]
    ]
@@ -4943,8 +5587,8 @@
    "y0": -9.895,
    "y1": 9.895,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 311.6,
+   "top": -7.8,
+   "volume_m3": 120.9,
    "below_waterline": true,
    "room": "Engine room 2",
    "permeability": 0.85,
@@ -4954,7 +5598,7 @@
      "Inner bottom"
     ],
     [
-     "10 between C",
+     "10 fourth C",
      "open"
     ],
     [
@@ -4968,17 +5612,17 @@
    ]
   },
   {
-   "id": "10 between C",
+   "id": "10 fourth C",
    "section": "10",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": -12.72,
    "x1": -7.366,
    "y0": -9.895,
    "y1": 9.895,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 558.6,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 198.3,
    "below_waterline": false,
    "room": "Engine room 2",
    "permeability": 0.85,
@@ -4988,11 +5632,79 @@
      "open"
     ],
     [
-     "9 between C",
+     "10 third C",
+     "open"
+    ],
+    [
+     "9 fourth C",
      "Bulkhead 9"
     ],
     [
-     "11 between C",
+     "11 fourth C",
+     "Bulkhead 10"
+    ]
+   ]
+  },
+  {
+   "id": "10 third C",
+   "section": "10",
+   "tier": "third",
+   "band": "C",
+   "x0": -12.72,
+   "x1": -7.366,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 275.5,
+   "below_waterline": false,
+   "room": "Engine room 2",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "10 fourth C",
+     "open"
+    ],
+    [
+     "10 second C",
+     "open"
+    ],
+    [
+     "9 third C",
+     "Bulkhead 9"
+    ],
+    [
+     "11 third C",
+     "Bulkhead 10"
+    ]
+   ]
+  },
+  {
+   "id": "10 second C",
+   "section": "10",
+   "tier": "second",
+   "band": "C",
+   "x0": -12.72,
+   "x1": -7.366,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 275.5,
+   "below_waterline": false,
+   "room": "Engine room 2",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "10 third C",
+     "open"
+    ],
+    [
+     "9 second C",
+     "Bulkhead 9"
+    ],
+    [
+     "11 second C",
      "Bulkhead 10"
     ]
    ]
@@ -5037,8 +5749,8 @@
    "y0": -9.895,
    "y1": 9.895,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 403.3,
+   "top": -7.8,
+   "volume_m3": 156.5,
    "below_waterline": true,
    "room": "Aviation fuel",
    "permeability": 0.95,
@@ -5048,7 +5760,7 @@
      "Inner bottom"
     ],
     [
-     "11 between C",
+     "11 fourth C",
      "open"
     ],
     [
@@ -5062,17 +5774,17 @@
    ]
   },
   {
-   "id": "11 between C",
+   "id": "11 fourth C",
    "section": "11",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": -19.65,
    "x1": -12.72,
    "y0": -9.895,
    "y1": 9.895,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 723.1,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 256.7,
    "below_waterline": false,
    "room": "Aviation fuel",
    "permeability": 0.95,
@@ -5082,11 +5794,79 @@
      "open"
     ],
     [
-     "10 between C",
+     "11 third C",
+     "open"
+    ],
+    [
+     "10 fourth C",
      "Bulkhead 10"
     ],
     [
-     "12 between C",
+     "12 fourth C",
+     "Bulkhead 11"
+    ]
+   ]
+  },
+  {
+   "id": "11 third C",
+   "section": "11",
+   "tier": "third",
+   "band": "C",
+   "x0": -19.65,
+   "x1": -12.72,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 356.6,
+   "below_waterline": false,
+   "room": "Aviation fuel",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "11 fourth C",
+     "open"
+    ],
+    [
+     "11 second C",
+     "open"
+    ],
+    [
+     "10 third C",
+     "Bulkhead 10"
+    ],
+    [
+     "12 third C",
+     "Bulkhead 11"
+    ]
+   ]
+  },
+  {
+   "id": "11 second C",
+   "section": "11",
+   "tier": "second",
+   "band": "C",
+   "x0": -19.65,
+   "x1": -12.72,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 356.6,
+   "below_waterline": false,
+   "room": "Aviation fuel",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "11 third C",
+     "open"
+    ],
+    [
+     "10 second C",
+     "Bulkhead 10"
+    ],
+    [
+     "12 second C",
      "Bulkhead 11"
     ]
    ]
@@ -5131,8 +5911,8 @@
    "y0": -9.895,
    "y1": 9.895,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 419.9,
+   "top": -7.8,
+   "volume_m3": 163.0,
    "below_waterline": true,
    "room": "Stores 12",
    "permeability": 0.6,
@@ -5142,8 +5922,8 @@
      "Inner bottom"
     ],
     [
-     "12 between C",
-     "Lower deck"
+     "12 fourth C",
+     "open"
     ],
     [
      "11 hold C",
@@ -5156,32 +5936,101 @@
    ]
   },
   {
-   "id": "12 between C",
+   "id": "12 fourth C",
    "section": "12",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": -26.865,
    "x1": -19.65,
    "y0": -9.895,
    "y1": 9.895,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 752.8,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 267.2,
    "below_waterline": false,
-   "crew": 76,
+   "room": "Stores 12",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "12 hold C",
+     "open"
+    ],
+    [
+     "12 third C",
+     "Third deck"
+    ],
+    [
+     "11 fourth C",
+     "Bulkhead 11"
+    ],
+    [
+     "13 fourth C",
+     "Bulkhead 12"
+    ]
+   ]
+  },
+  {
+   "id": "12 third C",
+   "section": "12",
+   "tier": "third",
+   "band": "C",
+   "x0": -26.865,
+   "x1": -19.65,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 371.2,
+   "below_waterline": false,
+   "crew": 38,
    "room": "Quarters 12",
    "permeability": 0.95,
    "neighbours": [
     [
-     "12 hold C",
-     "Lower deck"
+     "12 fourth C",
+     "Third deck"
     ],
     [
-     "11 between C",
+     "12 second C",
+     "open"
+    ],
+    [
+     "11 third C",
      "Bulkhead 11"
     ],
     [
-     "13 between C",
+     "13 third C",
+     "Bulkhead 12"
+    ]
+   ]
+  },
+  {
+   "id": "12 second C",
+   "section": "12",
+   "tier": "second",
+   "band": "C",
+   "x0": -26.865,
+   "x1": -19.65,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 371.2,
+   "below_waterline": false,
+   "crew": 38,
+   "room": "Quarters 12",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "12 third C",
+     "open"
+    ],
+    [
+     "11 second C",
+     "Bulkhead 11"
+    ],
+    [
+     "13 second C",
      "Bulkhead 12"
     ]
    ]
@@ -5226,8 +6075,8 @@
    "y0": -9.895,
    "y1": 9.895,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 419.9,
+   "top": -7.8,
+   "volume_m3": 163.0,
    "below_waterline": true,
    "room": "Stores 13",
    "permeability": 0.6,
@@ -5237,8 +6086,8 @@
      "Inner bottom"
     ],
     [
-     "13 between C",
-     "Lower deck"
+     "13 fourth C",
+     "open"
     ],
     [
      "12 hold C",
@@ -5251,32 +6100,101 @@
    ]
   },
   {
-   "id": "13 between C",
+   "id": "13 fourth C",
    "section": "13",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": -34.08,
    "x1": -26.865,
    "y0": -9.895,
    "y1": 9.895,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 752.8,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 267.2,
    "below_waterline": false,
-   "crew": 76,
+   "room": "Stores 13",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "13 hold C",
+     "open"
+    ],
+    [
+     "13 third C",
+     "Third deck"
+    ],
+    [
+     "12 fourth C",
+     "Bulkhead 12"
+    ],
+    [
+     "14 fourth C",
+     "Bulkhead 13"
+    ]
+   ]
+  },
+  {
+   "id": "13 third C",
+   "section": "13",
+   "tier": "third",
+   "band": "C",
+   "x0": -34.08,
+   "x1": -26.865,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 371.2,
+   "below_waterline": false,
+   "crew": 38,
    "room": "Quarters 13",
    "permeability": 0.95,
    "neighbours": [
     [
-     "13 hold C",
-     "Lower deck"
+     "13 fourth C",
+     "Third deck"
     ],
     [
-     "12 between C",
+     "13 second C",
+     "open"
+    ],
+    [
+     "12 third C",
      "Bulkhead 12"
     ],
     [
-     "14 between C",
+     "14 third C",
+     "Bulkhead 13"
+    ]
+   ]
+  },
+  {
+   "id": "13 second C",
+   "section": "13",
+   "tier": "second",
+   "band": "C",
+   "x0": -34.08,
+   "x1": -26.865,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 371.2,
+   "below_waterline": false,
+   "crew": 38,
+   "room": "Quarters 13",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "13 third C",
+     "open"
+    ],
+    [
+     "12 second C",
+     "Bulkhead 12"
+    ],
+    [
+     "14 second C",
      "Bulkhead 13"
     ]
    ]
@@ -5321,8 +6239,8 @@
    "y0": -9.895,
    "y1": 9.895,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 418.8,
+   "top": -7.8,
+   "volume_m3": 162.6,
    "below_waterline": true,
    "room": "Stores 14",
    "permeability": 0.6,
@@ -5332,8 +6250,8 @@
      "Inner bottom"
     ],
     [
-     "14 between C",
-     "Lower deck"
+     "14 fourth C",
+     "open"
     ],
     [
      "13 hold C",
@@ -5346,32 +6264,101 @@
    ]
   },
   {
-   "id": "14 between C",
+   "id": "14 fourth C",
    "section": "14",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": -41.295,
    "x1": -34.08,
    "y0": -9.895,
    "y1": 9.895,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 750.9,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 266.5,
    "below_waterline": false,
-   "crew": 76,
+   "room": "Stores 14",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "14 hold C",
+     "open"
+    ],
+    [
+     "14 third C",
+     "Third deck"
+    ],
+    [
+     "13 fourth C",
+     "Bulkhead 13"
+    ],
+    [
+     "15 fourth C",
+     "Bulkhead 14"
+    ]
+   ]
+  },
+  {
+   "id": "14 third C",
+   "section": "14",
+   "tier": "third",
+   "band": "C",
+   "x0": -41.295,
+   "x1": -34.08,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 370.3,
+   "below_waterline": false,
+   "crew": 38,
    "room": "Quarters 14",
    "permeability": 0.95,
    "neighbours": [
     [
-     "14 hold C",
-     "Lower deck"
+     "14 fourth C",
+     "Third deck"
     ],
     [
-     "13 between C",
+     "14 second C",
+     "open"
+    ],
+    [
+     "13 third C",
      "Bulkhead 13"
     ],
     [
-     "15 between C",
+     "15 third C",
+     "Bulkhead 14"
+    ]
+   ]
+  },
+  {
+   "id": "14 second C",
+   "section": "14",
+   "tier": "second",
+   "band": "C",
+   "x0": -41.295,
+   "x1": -34.08,
+   "y0": -9.895,
+   "y1": 9.895,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 370.3,
+   "below_waterline": false,
+   "crew": 38,
+   "room": "Quarters 14",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "14 third C",
+     "open"
+    ],
+    [
+     "13 second C",
+     "Bulkhead 13"
+    ],
+    [
+     "15 second C",
      "Bulkhead 14"
     ]
    ]
@@ -5416,8 +6403,8 @@
    "y0": -9.766,
    "y1": 9.766,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 399.5,
+   "top": -7.8,
+   "volume_m3": 155.0,
    "below_waterline": true,
    "room": "Stores 15",
    "permeability": 0.6,
@@ -5427,8 +6414,8 @@
      "Inner bottom"
     ],
     [
-     "15 between C",
-     "Lower deck"
+     "15 fourth C",
+     "open"
     ],
     [
      "14 hold C",
@@ -5441,32 +6428,101 @@
    ]
   },
   {
-   "id": "15 between C",
+   "id": "15 fourth C",
    "section": "15",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": -48.51,
    "x1": -41.295,
    "y0": -9.766,
    "y1": 9.766,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 716.2,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 254.2,
    "below_waterline": false,
-   "crew": 72,
+   "room": "Stores 15",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "15 hold C",
+     "open"
+    ],
+    [
+     "15 third C",
+     "Third deck"
+    ],
+    [
+     "14 fourth C",
+     "Bulkhead 14"
+    ],
+    [
+     "16 fourth C",
+     "Bulkhead 15"
+    ]
+   ]
+  },
+  {
+   "id": "15 third C",
+   "section": "15",
+   "tier": "third",
+   "band": "C",
+   "x0": -48.51,
+   "x1": -41.295,
+   "y0": -9.766,
+   "y1": 9.766,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 353.2,
+   "below_waterline": false,
+   "crew": 36,
    "room": "Quarters 15",
    "permeability": 0.95,
    "neighbours": [
     [
-     "15 hold C",
-     "Lower deck"
+     "15 fourth C",
+     "Third deck"
     ],
     [
-     "14 between C",
+     "15 second C",
+     "open"
+    ],
+    [
+     "14 third C",
      "Bulkhead 14"
     ],
     [
-     "16 between C",
+     "16 third C",
+     "Bulkhead 15"
+    ]
+   ]
+  },
+  {
+   "id": "15 second C",
+   "section": "15",
+   "tier": "second",
+   "band": "C",
+   "x0": -48.51,
+   "x1": -41.295,
+   "y0": -9.766,
+   "y1": 9.766,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 353.2,
+   "below_waterline": false,
+   "crew": 36,
+   "room": "Quarters 15",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "15 third C",
+     "open"
+    ],
+    [
+     "14 second C",
+     "Bulkhead 14"
+    ],
+    [
+     "16 second C",
      "Bulkhead 15"
     ]
    ]
@@ -5511,8 +6567,8 @@
    "y0": -8.908,
    "y1": 8.908,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 278.5,
+   "top": -7.8,
+   "volume_m3": 108.1,
    "below_waterline": true,
    "room": "Steering gear",
    "permeability": 0.85,
@@ -5522,7 +6578,7 @@
      "Inner bottom"
     ],
     [
-     "16 between C",
+     "16 fourth C",
      "open"
     ],
     [
@@ -5536,17 +6592,17 @@
    ]
   },
   {
-   "id": "16 between C",
+   "id": "16 fourth C",
    "section": "16",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": -54.285,
    "x1": -48.51,
    "y0": -8.908,
    "y1": 8.908,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 499.4,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 177.3,
    "below_waterline": false,
    "room": "Steering gear",
    "permeability": 0.85,
@@ -5556,11 +6612,79 @@
      "open"
     ],
     [
-     "15 between C",
+     "16 third C",
+     "open"
+    ],
+    [
+     "15 fourth C",
      "Bulkhead 15"
     ],
     [
-     "17 between C",
+     "17 fourth C",
+     "Bulkhead 16"
+    ]
+   ]
+  },
+  {
+   "id": "16 third C",
+   "section": "16",
+   "tier": "third",
+   "band": "C",
+   "x0": -54.285,
+   "x1": -48.51,
+   "y0": -8.908,
+   "y1": 8.908,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 246.3,
+   "below_waterline": false,
+   "room": "Steering gear",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "16 fourth C",
+     "open"
+    ],
+    [
+     "16 second C",
+     "open"
+    ],
+    [
+     "15 third C",
+     "Bulkhead 15"
+    ],
+    [
+     "17 third C",
+     "Bulkhead 16"
+    ]
+   ]
+  },
+  {
+   "id": "16 second C",
+   "section": "16",
+   "tier": "second",
+   "band": "C",
+   "x0": -54.285,
+   "x1": -48.51,
+   "y0": -8.908,
+   "y1": 8.908,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 246.3,
+   "below_waterline": false,
+   "room": "Steering gear",
+   "permeability": 0.85,
+   "neighbours": [
+    [
+     "16 third C",
+     "open"
+    ],
+    [
+     "15 second C",
+     "Bulkhead 15"
+    ],
+    [
+     "17 second C",
      "Bulkhead 16"
     ]
    ]
@@ -5601,8 +6725,8 @@
    "y0": -7.275,
    "y1": 7.275,
    "base": -9.4,
-   "top": -5.27,
-   "volume_m3": 127.2,
+   "top": -7.8,
+   "volume_m3": 49.4,
    "below_waterline": true,
    "room": "Stores 17",
    "permeability": 0.6,
@@ -5612,8 +6736,8 @@
      "Inner bottom"
     ],
     [
-     "17 between C",
-     "Lower deck"
+     "17 fourth C",
+     "open"
     ],
     [
      "16 hold C",
@@ -5622,28 +6746,89 @@
    ]
   },
   {
-   "id": "17 between C",
+   "id": "17 fourth C",
    "section": "17",
-   "tier": "between",
+   "tier": "fourth",
    "band": "C",
    "x0": -57.75,
    "x1": -54.285,
    "y0": -7.275,
    "y1": 7.275,
-   "base": -5.27,
-   "top": 0.0,
-   "volume_m3": 228.1,
+   "base": -7.8,
+   "top": -5.2,
+   "volume_m3": 81.0,
    "below_waterline": false,
-   "crew": 23,
+   "room": "Stores 17",
+   "permeability": 0.6,
+   "neighbours": [
+    [
+     "17 hold C",
+     "open"
+    ],
+    [
+     "17 third C",
+     "Third deck"
+    ],
+    [
+     "16 fourth C",
+     "Bulkhead 16"
+    ]
+   ]
+  },
+  {
+   "id": "17 third C",
+   "section": "17",
+   "tier": "third",
+   "band": "C",
+   "x0": -57.75,
+   "x1": -54.285,
+   "y0": -7.275,
+   "y1": 7.275,
+   "base": -5.2,
+   "top": -2.6,
+   "volume_m3": 112.5,
+   "below_waterline": false,
+   "crew": 12,
    "room": "Quarters 17",
    "permeability": 0.95,
    "neighbours": [
     [
-     "17 hold C",
-     "Lower deck"
+     "17 fourth C",
+     "Third deck"
     ],
     [
-     "16 between C",
+     "17 second C",
+     "open"
+    ],
+    [
+     "16 third C",
+     "Bulkhead 16"
+    ]
+   ]
+  },
+  {
+   "id": "17 second C",
+   "section": "17",
+   "tier": "second",
+   "band": "C",
+   "x0": -57.75,
+   "x1": -54.285,
+   "y0": -7.275,
+   "y1": 7.275,
+   "base": -2.6,
+   "top": 0.0,
+   "volume_m3": 112.5,
+   "below_waterline": false,
+   "crew": 11,
+   "room": "Quarters 17",
+   "permeability": 0.95,
+   "neighbours": [
+    [
+     "17 third C",
+     "open"
+    ],
+    [
+     "16 second C",
      "Bulkhead 16"
     ]
    ]
@@ -5666,25 +6851,27 @@
    "id": "Stores 1",
    "kind": "stores",
    "cells": [
-    "1 hold C"
+    "1 hold C",
+    "1 fourth C"
    ],
-   "volume_m3": 46.9,
+   "volume_m3": 48.1,
    "x0": 51.975,
    "x1": 57.75,
    "base": -9.4,
-   "top": -5.27
+   "top": -5.2
   },
   {
    "id": "Quarters 1",
    "kind": "accommodation",
    "cells": [
-    "1 between C"
+    "1 third C",
+    "1 second C"
    ],
    "crew": 8,
-   "volume_m3": 84.1,
+   "volume_m3": 83.0,
    "x0": 51.975,
    "x1": 57.75,
-   "base": -5.27,
+   "base": -5.2,
    "top": 0.0
   },
   {
@@ -5703,25 +6890,27 @@
    "id": "Stores 2",
    "kind": "stores",
    "cells": [
-    "2 hold C"
+    "2 hold C",
+    "2 fourth C"
    ],
-   "volume_m3": 188.2,
+   "volume_m3": 192.8,
    "x0": 44.471,
    "x1": 51.975,
    "base": -9.4,
-   "top": -5.27
+   "top": -5.2
   },
   {
    "id": "Quarters 2",
    "kind": "accommodation",
    "cells": [
-    "2 between C"
+    "2 third C",
+    "2 second C"
    ],
    "crew": 34,
-   "volume_m3": 337.3,
+   "volume_m3": 332.7,
    "x0": 44.471,
    "x1": 51.975,
-   "base": -5.27,
+   "base": -5.2,
    "top": 0.0
   },
   {
@@ -5740,25 +6929,27 @@
    "id": "Stores 3",
    "kind": "stores",
    "cells": [
-    "3 hold C"
+    "3 hold C",
+    "3 fourth C"
    ],
-   "volume_m3": 306.8,
+   "volume_m3": 314.3,
    "x0": 36.968,
    "x1": 44.471,
    "base": -9.4,
-   "top": -5.27
+   "top": -5.2
   },
   {
    "id": "Quarters 3",
    "kind": "accommodation",
    "cells": [
-    "3 between C"
+    "3 third C",
+    "3 second C"
    ],
    "crew": 56,
-   "volume_m3": 550.0,
+   "volume_m3": 542.5,
    "x0": 36.968,
    "x1": 44.471,
-   "base": -5.27,
+   "base": -5.2,
    "top": 0.0
   },
   {
@@ -5777,25 +6968,27 @@
    "id": "Stores 4",
    "kind": "stores",
    "cells": [
-    "4 hold C"
+    "4 hold C",
+    "4 fourth C"
    ],
-   "volume_m3": 393.3,
+   "volume_m3": 402.9,
    "x0": 29.464,
    "x1": 36.968,
    "base": -9.4,
-   "top": -5.27
+   "top": -5.2
   },
   {
    "id": "Quarters 4",
    "kind": "accommodation",
    "cells": [
-    "4 between C"
+    "4 third C",
+    "4 second C"
    ],
-   "crew": 71,
-   "volume_m3": 705.1,
+   "crew": 72,
+   "volume_m3": 695.4,
    "x0": 29.464,
    "x1": 36.968,
-   "base": -5.27,
+   "base": -5.2,
    "top": 0.0
   },
   {
@@ -5814,25 +7007,27 @@
    "id": "Stores 5",
    "kind": "stores",
    "cells": [
-    "5 hold C"
+    "5 hold C",
+    "5 fourth C"
    ],
-   "volume_m3": 434.3,
+   "volume_m3": 444.9,
    "x0": 21.96,
    "x1": 29.464,
    "base": -9.4,
-   "top": -5.27
+   "top": -5.2
   },
   {
    "id": "Quarters 5",
    "kind": "accommodation",
    "cells": [
-    "5 between C"
+    "5 third C",
+    "5 second C"
    ],
-   "crew": 79,
-   "volume_m3": 778.6,
+   "crew": 78,
+   "volume_m3": 767.9,
    "x0": 21.96,
    "x1": 29.464,
-   "base": -5.27,
+   "base": -5.2,
    "top": 0.0
   },
   {
@@ -5840,7 +7035,9 @@
    "kind": "magazine",
    "cells": [
     "6 hold C",
-    "6 between C"
+    "6 fourth C",
+    "6 third C",
+    "6 second C"
    ],
    "volume_m3": 1501.8,
    "x0": 12.72,
@@ -5864,22 +7061,24 @@
    "id": "Bunker 1",
    "kind": "bunker",
    "cells": [
-    "7 between C"
+    "7 third C"
    ],
    "fuel": "oil",
    "shared": true,
    "volume_m3": 0,
    "x0": 5.354,
    "x1": 12.72,
-   "base": -5.27,
-   "top": 0.0
+   "base": -5.2,
+   "top": -2.6
   },
   {
    "id": "Boiler room 1",
    "kind": "boiler_room",
    "cells": [
     "7 hold C",
-    "7 between C"
+    "7 fourth C",
+    "7 third C",
+    "7 second C"
    ],
    "volume_m3": 1197.3,
    "x0": 5.354,
@@ -5904,7 +7103,9 @@
    "kind": "boiler_room",
    "cells": [
     "8 hold C",
-    "8 between C"
+    "8 fourth C",
+    "8 third C",
+    "8 second C"
    ],
    "volume_m3": 1063.6,
    "x0": -1.19,
@@ -5928,22 +7129,24 @@
    "id": "Bunker 2",
    "kind": "bunker",
    "cells": [
-    "9 between C"
+    "9 third C"
    ],
    "fuel": "oil",
    "shared": true,
    "volume_m3": 0,
    "x0": -7.366,
    "x1": -1.19,
-   "base": -5.27,
-   "top": 0.0
+   "base": -5.2,
+   "top": -2.6
   },
   {
    "id": "Engine room 1",
    "kind": "engine_room",
    "cells": [
     "9 hold C",
-    "9 between C"
+    "9 fourth C",
+    "9 third C",
+    "9 second C"
    ],
    "volume_m3": 1003.9,
    "x0": -7.366,
@@ -5968,7 +7171,9 @@
    "kind": "engine_room",
    "cells": [
     "10 hold C",
-    "10 between C"
+    "10 fourth C",
+    "10 third C",
+    "10 second C"
    ],
    "volume_m3": 870.2,
    "x0": -12.72,
@@ -5993,7 +7198,9 @@
    "kind": "fuel_tank",
    "cells": [
     "11 hold C",
-    "11 between C"
+    "11 fourth C",
+    "11 third C",
+    "11 second C"
    ],
    "volume_m3": 1126.4,
    "x0": -19.65,
@@ -6029,25 +7236,27 @@
    "id": "Stores 12",
    "kind": "stores",
    "cells": [
-    "12 hold C"
+    "12 hold C",
+    "12 fourth C"
    ],
-   "volume_m3": 419.9,
+   "volume_m3": 430.2,
    "x0": -26.865,
    "x1": -19.65,
    "base": -9.4,
-   "top": -5.27
+   "top": -5.2
   },
   {
    "id": "Quarters 12",
    "kind": "accommodation",
    "cells": [
-    "12 between C"
+    "12 third C",
+    "12 second C"
    ],
    "crew": 76,
-   "volume_m3": 752.8,
+   "volume_m3": 742.5,
    "x0": -26.865,
    "x1": -19.65,
-   "base": -5.27,
+   "base": -5.2,
    "top": 0.0
   },
   {
@@ -6066,25 +7275,27 @@
    "id": "Stores 13",
    "kind": "stores",
    "cells": [
-    "13 hold C"
+    "13 hold C",
+    "13 fourth C"
    ],
-   "volume_m3": 419.9,
+   "volume_m3": 430.2,
    "x0": -34.08,
    "x1": -26.865,
    "base": -9.4,
-   "top": -5.27
+   "top": -5.2
   },
   {
    "id": "Quarters 13",
    "kind": "accommodation",
    "cells": [
-    "13 between C"
+    "13 third C",
+    "13 second C"
    ],
    "crew": 76,
-   "volume_m3": 752.8,
+   "volume_m3": 742.5,
    "x0": -34.08,
    "x1": -26.865,
-   "base": -5.27,
+   "base": -5.2,
    "top": 0.0
   },
   {
@@ -6103,25 +7314,27 @@
    "id": "Stores 14",
    "kind": "stores",
    "cells": [
-    "14 hold C"
+    "14 hold C",
+    "14 fourth C"
    ],
-   "volume_m3": 418.8,
+   "volume_m3": 429.1,
    "x0": -41.295,
    "x1": -34.08,
    "base": -9.4,
-   "top": -5.27
+   "top": -5.2
   },
   {
    "id": "Quarters 14",
    "kind": "accommodation",
    "cells": [
-    "14 between C"
+    "14 third C",
+    "14 second C"
    ],
    "crew": 76,
-   "volume_m3": 750.9,
+   "volume_m3": 740.6,
    "x0": -41.295,
    "x1": -34.08,
-   "base": -5.27,
+   "base": -5.2,
    "top": 0.0
   },
   {
@@ -6140,25 +7353,27 @@
    "id": "Stores 15",
    "kind": "stores",
    "cells": [
-    "15 hold C"
+    "15 hold C",
+    "15 fourth C"
    ],
-   "volume_m3": 399.5,
+   "volume_m3": 409.3,
    "x0": -48.51,
    "x1": -41.295,
    "base": -9.4,
-   "top": -5.27
+   "top": -5.2
   },
   {
    "id": "Quarters 15",
    "kind": "accommodation",
    "cells": [
-    "15 between C"
+    "15 third C",
+    "15 second C"
    ],
    "crew": 72,
-   "volume_m3": 716.2,
+   "volume_m3": 706.4,
    "x0": -48.51,
    "x1": -41.295,
-   "base": -5.27,
+   "base": -5.2,
    "top": 0.0
   },
   {
@@ -6166,7 +7381,9 @@
    "kind": "steering",
    "cells": [
     "16 hold C",
-    "16 between C"
+    "16 fourth C",
+    "16 third C",
+    "16 second C"
    ],
    "volume_m3": 777.9,
    "x0": -54.285,
@@ -6202,25 +7419,27 @@
    "id": "Stores 17",
    "kind": "stores",
    "cells": [
-    "17 hold C"
+    "17 hold C",
+    "17 fourth C"
    ],
-   "volume_m3": 127.2,
+   "volume_m3": 130.3,
    "x0": -57.75,
    "x1": -54.285,
    "base": -9.4,
-   "top": -5.27
+   "top": -5.2
   },
   {
    "id": "Quarters 17",
    "kind": "accommodation",
    "cells": [
-    "17 between C"
+    "17 third C",
+    "17 second C"
    ],
    "crew": 23,
-   "volume_m3": 228.1,
+   "volume_m3": 225.0,
    "x0": -57.75,
    "x1": -54.285,
-   "base": -5.27,
+   "base": -5.2,
    "top": 0.0
   }
  ]
