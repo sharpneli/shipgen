@@ -248,8 +248,9 @@ class Carrier(Style):
         hx0, hx1, _ = dp["hangar"]
         return ([Weight("Air group", "aviation", n * m, x=(hx0 + hx1) / 2, z_rel=("deck", max(dp["fd_h"] - 3, 2))),
                  Weight("Aviation ordnance", "aviation", ORDNANCE_K * n * m, x=geo.get("magazine_x", 0.2 * L),
-                        z_rel=("frac", 0.25))],
-                [Weight("Aviation fuel", "fuel", 1.2 * n * m, x=geo.get("avgas_x", -0.25 * L), z_rel=("frac", 0.15))])
+                        z_rel=("deck", geo["magazine_z"]) if "magazine_z" in geo else ("frac", 0.25))],
+                [Weight("Aviation fuel", "fuel", AVGAS_K * n * m, x=geo.get("avgas_x", -0.25 * L),
+                        z_rel=("deck", geo["avgas_z"]) if "avgas_z" in geo else ("frac", 0.15))])
 
     def crew_extra(self, design):
         av = aviation(design)
@@ -314,6 +315,8 @@ def _machinery_rooms(lay, hull, res):
 
 
 ORDNANCE_K = 0.6    # aviation ordnance (bombs, torpedoes, rockets), tonnes per tonne of air group
+AVGAS_K = 1.2       # aviation fuel, tonnes per tonne of air group
+AVGAS_T_PER_M3 = 0.5   # avgas tanks: petrol at 0.72 t/m3 with the void and water-filled spaces around the tanks
 
 
 def _compartments(lay, design, hull, mach, hangar, extra=()):
@@ -327,18 +330,21 @@ def _compartments(lay, design, hull, mach, hangar, extra=()):
     lay.geo["avgas_x"] = m0 - 0.03 * L
     inner_hw = 0.8 * B / 2
     hx0, hx1, hhw = hangar
-    ord_t = ORDNANCE_K * av["aircraft"] * av["aircraft_t"]
+    # what burns or blows up stands low on the inner bottom, as many decks as it needs, under the hangar and the
+    # armour deck: a bomb fused by the armour deck bursts in the decks above it
+    air_t = av["aircraft"] * av["aircraft_t"]
+    mag = magazine_span(lay.geo["plant"], ORDNANCE_K * air_t / MAGAZINE_T_PER_M3 / max(1.0, (cit[1] - m1) * 2 * inner_hw))
+    gas = magazine_span(lay.geo["plant"], AVGAS_K * air_t / AVGAS_T_PER_M3 / max(1.0, (m0 - cit[0]) * 2 * inner_hw))
+    lay.geo["magazine_z"], lay.geo["avgas_z"] = sum(mag) / 2, sum(gas) / 2
     lay.compartments += [
         dict(id="Citadel", kind="citadel", x0=cit[0], x1=cit[1], half_width=inner_hw,
              belt_mm=armour.get("belt_mm", 0)),
         dict(id="Hangar", kind="hangar", x0=hx0, x1=hx1, half_width=hhw, base=0.0,
              top=2 * LEVEL_H if av["flight_deck"] == "none" else HANGAR_H * av["hangar_decks"]),
-        # low on the inner bottom, as many decks as the ordnance needs: a bomb through the armour deck bursts in
-        # the decks above it before it reaches them
         dict(id="Aviation magazines", kind="magazine", x0=m1, x1=cit[1], half_width=inner_hw,
-             tonnes=round(ord_t, 1), **dict(zip(("base", "top"), magazine_span(
-                 lay.geo["plant"], ord_t / MAGAZINE_T_PER_M3 / max(1.0, (cit[1] - m1) * 2 * inner_hw))))),
-        dict(id="Aviation fuel", kind="fuel_tank", x0=cit[0], x1=m0, half_width=inner_hw),
+             tonnes=round(ORDNANCE_K * air_t, 1), base=mag[0], top=mag[1]),
+        dict(id="Aviation fuel", kind="fuel_tank", x0=cit[0], x1=m0, half_width=inner_hw,
+             tonnes=round(AVGAS_K * air_t, 1), base=gas[0], top=gas[1]),
         dict(id="Steering gear", kind="steering", x0=-L / 2 + 0.03 * L, x1=-L / 2 + 0.08 * L, half_width=0.5 * B / 2),
         *extra]
 
