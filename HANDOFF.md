@@ -58,6 +58,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
     - Boiler rooms use the whole height to the bounding deck. Only engine rooms keep the spec's "unit height + 2.5 m" cap, so low turbines no longer make boiler rooms long. With that, the spec's own densities (ST7 0.34, ST8 0.36) give sensible WWII lengths, so they're unchanged.
     - The forward boiler group may run on under the bridge (`layout.BRIDGE_OVER_BOILERS`, 0.85 of its length). Its funnels stay on open deck.
     - Funnel casings are drawn at 3× the gas area (`powerplant.CASING`).
+    - Warship funnels are trunked aft (user, 2026-10-03): each boiler group's funnels are centred on the boiler group's aft boundary (usually the engine rooms), or as close as turret sweeps, the aft control and other funnels allow. Grouped plants (boilers forward, engines about twice as long aft) otherwise crowded the funnels into the forward third of the machinery, and players read the ships as nose-heavy, though trim was already balanced. The longer uptakes are weighed (+50–150 t). Kongo, Invincible and the battlecruiser barely move, because their Q turret stands on that boundary. Carriers (island) and merchants (house) are unchanged.
     - Coal wing bunkers run up to the main deck.
     - Oil also fills the torpedo protection's liquid layers.
     - Funnels never limit arcs. They compete through sweep reservation instead, since arcs stay fixed.

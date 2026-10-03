@@ -1087,15 +1087,37 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         block("Aft control", ax0, ax0 + la, 0.28 * B, 2, 1.0, 0.1 * B)
         block("Aft director", ax0 + 0.25 * la, ax0 + 0.75 * la, 0.17 * B, 3, 0.085 * B, 0.085 * B)
 
+    # each boiler group's funnels are trunked aft, toward the boundary with what lies aft of the boilers (the
+    # engine rooms), so the funnels don't all crowd the forward end of the machinery: the group's middle goes to the
+    # boundary, or as far toward it as the turrets' sweeps, the aft control and the funnels behind allow
+    def fun_fp(x):
+        return _fp_rect(x - fl / 2, -fw / 2, x + fl / 2, fw / 2)
+
+    by_seg = {}
+    for i, si in enumerate(f_seg):
+        by_seg.setdefault(si, []).append(i)
+    fx_final = list(fxs)
+    for si in sorted(by_seg, key=lambda s: mach_placed[s][1]):     # aft-most group first
+        idx = by_seg[si]
+        want = 0.0
+        if mach_placed[si][0] == "boiler":
+            want = min(0.0, mach_placed[si][1] - (fxs[idx[0]] + fxs[idx[-1]]) / 2)
+        off = want
+        while off < 0.0 and not all(lay.clear(fun_fp(fxs[i] + off), fun_top) and lay.free(fun_fp(fxs[i] + off), 0.0)
+                                    for i in idx):
+            off = min(0.0, off + 0.25)
+        for i in idx:
+            fx_final[i] = fxs[i] + off
+            lay.occupy(fun_fp(fx_final[i]), 0, fun_top, f"Funnel {i + 1}")
+
     funnels = []
-    for i, fx in enumerate(fxs):
+    for i, fx in enumerate(fx_final):
         fid = f"Funnel {i + 1}"
-        fp = _fp_rect(fx - fl / 2, -fw / 2, fx + fl / 2, fw / 2)
-        if not lay.clear(fp, fun_top) or not lay.free(fp, 0.0):
+        fp = fun_fp(fx)     # already occupied above
+        if not lay.clear(fp, fun_top) or not lay.free(fp, 0.0, ignore=(fid,)):
             lay.fail("length", f"{fid} would stand in a turret's sweep or against the bridge: use fewer funnels "
                                "or midships turrets.")
         funnels.append(dict(id=fid, x=fx, y=0.0, l=fl, w=fw, pipes=2 if fw > 4 else 1, seg=f_seg[i]))
-        lay.occupy(fp, 0, fun_top, fid)
         seg = mach_placed[f_seg[i]]
         add_funnel_weights(lay, funnels[-1], fun_top, (seg[1] + seg[2]) / 2, depth)
 
