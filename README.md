@@ -88,8 +88,7 @@ The side armour is the main belt and up to three secondary pieces. Every design 
 
 `armour.materials` names the armour material per part: `belt`, `upper_belt`, `end_belts`, `bulkheads`, `decks`, `turrets`, `barbettes`, `conning_tower`, `secondary` and, on carriers, `flight_deck`. A deck entry, `upper_belt`, an end belt or a secondary battery may give its own `material`, which wins over the map.
 - **They're plain strings,** passed unchanged to every armour piece in `hitboxes.json` for the game's ballistics, which looks them up. The designer doesn't read them: armour weighs thickness × area × 7.85 t/m³ whatever it's made of, and no material is tied to a period.
-- **The designs use names of the time:**
-  - wrought iron and compound
+- **The designs use names of the time** (`wrought iron` and `compound` suit anything older):
   - `Harvey nickel steel`, `nickel steel`
   - `Krupp cemented`, `Krupp non-cemented`, `Vickers cemented`
   - British `cemented armour` / `non-cemented armour`, and `high-tensile steel`
