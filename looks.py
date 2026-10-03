@@ -233,6 +233,16 @@ NAVIES = {
     "brooklyn": dict(
         desc="US-inspired",
         eras={
+            # US-inspired 1890s-1900s, the Great White Fleet: white hull and turrets, buff upperworks, funnels and masts
+            "victorian": {
+                "from": "generic/victorian", "desc": "US-inspired 1890s-1900s: white hull, buff upperworks and funnels",
+                "palette": {"hull": "#ecebe5", "wood": "#d8c8a0", "deck": "#8c8170",
+                            "levels": ["#cfb07a", "#d6b984", "#ddc28f", "#e4cb9a"],
+                            "turret": "#ecebe5", "barbette": "#d6d3c9", "barrel": "#2b2b2c", "tub": "#dcd9cf",
+                            "funnel": "#c9a04a", "funnel_cap": "#161616", "funnel_band": "#161616",
+                            "boat": "#f4f2ec", "fitting": "#8a7d63", "mast": "#b8913f", "crane": "#8a7d63"},
+                "turrets": "slab",
+                "shapes": {"transom": 0.15, "blocks": "boxy"}},
             # US-inspired 1910s: light blue-tinged grey, cage masts, boxy turrets
             "great_war": {
                 "from": "generic/great_war", "desc": "US-inspired 1910s: light blue-grey, cage masts, boxy turrets",
@@ -275,6 +285,17 @@ NAVIES = {
     "kure": dict(
         desc="Japan-inspired",
         eras={
+            # Japan-inspired 1890s-1900s: the Tsushima war paint, dark green-grey all over, black funnel bands
+            "victorian": {
+                "from": "generic/victorian", "desc": "Japan-inspired 1890s-1900s: dark green-grey war paint, black bands",
+                "palette": {"hull": "#4f534f", "deck": "#5d605b", "wood": "#b9a57f", "deck_line": "#5c4a33",
+                            "steel_line": "#3a3d39",
+                            "levels": ["#6d716c", "#7a7e79", "#878b86", "#949893"],
+                            "turret": "#5f635e", "barbette": "#4f534f", "barrel": "#2a2c2b", "tub": "#5f635e",
+                            "funnel": "#5f635e", "funnel_cap": "#161616", "funnel_band": "#161616",
+                            "boat": "#9fa29b", "fitting": "#4a4d49", "mast": "#3f423e", "crane": "#4a4d49"},
+                "turrets": "round",
+                "shapes": {"bow_flare": 0.04}},
             # Japan-inspired 1910s: British-built lines and turrets, dark grey, tripods, black funnel tops
             "great_war": {
                 "from": "generic/great_war", "desc": "Japan-inspired 1910s: British-built turrets, dark grey, tripods",
@@ -283,11 +304,10 @@ NAVIES = {
                             "styles": NAVAL}],
                 "turrets": "classic",
                 "shapes": {"blocks": "soft", "bow_flare": 0.04}},
-            # Japan-inspired 1920s-30s: the wartime Kure look with pagoda masts built up round the tripods
+            # Japan-inspired 1920s-30s: the Kure look before the rebuilds: smaller early pagodas, finer bows
             "treaty": {
-                "from": "wwii", "desc": "Japan-inspired 1920s-30s: Kure grey, linoleum decks, pagoda masts",
-                "shapes": {"tripod": 1.4, "top_r": 3.2, "top_tiers": 3},
-                "shapes_by_style": _PLAIN_MASTS},
+                "from": "wwii", "desc": "Japan-inspired 1920s-30s: Kure grey, linoleum decks, early pagoda masts",
+                "shapes": {"bow_flare": 0.04, "top_r": 2.6, "top_tiers": 2}},
             # Japan-inspired: dark Kure grey, pale hinoki wood, brown linoleum on steel decks, black-topped funnels,
             # rounded turrets with long rangefinder arms, red and white carrier deck stripes
             "wwii": dict(
@@ -306,7 +326,10 @@ NAVIES = {
                           "planing": {"hull": "#555a5c", "deck": "#6c7173", "deck_line": "#34383a",
                                       "levels": ["#767b7c", "#848989", "#929797", "#a0a4a4"]}},
                 turrets="round",
-                shapes={"bow_flare": 0.08, "funnel": "oval", "blocks": "soft"}),
+                # pagoda masts built up round the tripods
+                shapes={"bow_flare": 0.08, "funnel": "oval", "blocks": "soft", "tripod": 1.4, "top_r": 3.2,
+                        "top_tiers": 3},
+                shapes_by_style=_PLAIN_MASTS),
             # Japan-inspired 1950s-60s: Kure-tinted haze grey, rounded turrets, flared bows
             "cold_war": {
                 "from": "generic/cold_war", "desc": "Japan-inspired 1950s-60s: Kure-tinted haze grey, rounded turrets",
@@ -318,6 +341,13 @@ NAVIES = {
     "portsmouth": dict(
         desc="UK-inspired",
         eras={
+            # UK-inspired 1890s: the Victorian black, white and buff with bright holystoned planking on every deck,
+            # hooded barbettes and military masts with two fighting tops
+            "victorian": {
+                "from": "generic/victorian", "desc": "UK-inspired 1890s: black, white and buff, two-tier fighting tops",
+                "palette": {"wood": "#e4d8b8", "deck": "#cbbd99", "deck_line": "#9a8660", "steel_line": "#8f7b56"},
+                "turrets": "classic",
+                "shapes": {"blocks": "bowfront", "top_r": 1.9, "top_tiers": 2}},
             # UK-inspired 1910s: darker Edwardian grey, weathered teak, tall tripods with spotting tops
             "great_war": {
                 "from": "wwii", "desc": "UK-inspired 1910s: dark grey, weathered teak, tripods with spotting tops",
@@ -360,6 +390,17 @@ NAVIES = {
     "kiel": dict(
         desc="Germany-inspired",
         eras={
+            # German-inspired 1890s: the Kaiserliche Marine's light grey with yellow-buff funnels, heavy military tops
+            "victorian": {
+                "from": "generic/victorian", "desc": "German-inspired 1890s: light grey, yellow-buff funnels",
+                "palette": {"hull": "#a9afb2", "deck": "#7d8386", "wood": "#c2a679", "deck_line": "#6e5a3a",
+                            "steel_line": "#5a6064",
+                            "levels": ["#bfc4c6", "#c9cdcf", "#d3d6d8", "#dde0e1"],
+                            "turret": "#b3b8bb", "barbette": "#8e9497", "barrel": "#2e3134", "tub": "#9fa5a8",
+                            "funnel": "#d8b64e", "funnel_cap": "#161616", "funnel_band": "#161616",
+                            "boat": "#eeeeea", "fitting": "#6a7073", "mast": "#5a5f62", "crane": "#6a7073"},
+                "turrets": "faceted",
+                "shapes": {"funnel": "capped", "blocks": "chamfer", "top_r": 1.8}},
             # German-inspired 1910s: light blue-grey, pole masts with small spotting tops, faceted turrets
             "great_war": {
                 "from": "generic/great_war", "desc": "German-inspired 1910s: light blue-grey, pole masts, faceted turrets",
