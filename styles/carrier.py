@@ -24,7 +24,7 @@ import armament
 import ordnance
 from geometry import polygon_area, polygon_y_span
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
-                    boiler_seg, clamp, hull_spec, plan_funnels, plan_machinery, stack_machinery)
+                    boiler_seg, clamp, finish_layout, hull_spec, plan_funnels, plan_machinery, stack_machinery)
 from navarch import STEEL, Weight
 from geometry import AA_CFG, Hull
 from styles.base import Style
@@ -349,20 +349,6 @@ def _compartments(lay, design, hull, mach, hangar, mounts, extra=()):
         *extra]
 
 
-def _finish(lay, design, hs, hull, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top, **spec_extra):
-    lay.spec = dict(
-        id=design["id"], name=design.get("name", design["id"]), **{"class": design.get("type", "")},
-        length=hull.L, beam=hull.B, bow=hs["bow"], stern=hs["stern"], deck="steel",
-        turret_types=turret_types,
-        turrets=[dict(id=m["id"], type=m["type"], x=m["x"], y=m["y"], z=m["z"], rest=m["rest"]) for m in mounts],
-        superstructure=[{k: v for k, v in b.items() if k not in ("id", "kind")} for b in blocks],
-        funnels=[{k: v for k, v in f_.items() if k not in ("id", "seg", "serves")} for f_ in funnels],
-        masts=masts, aa=[{k: v for k, v in a.items() if k not in ("id", "base")} for a in aa_out],
-        **spec_extra)
-    lay.mounts, lay.blocks, lay.funnels, lay.aa, lay.fun_top = mounts, blocks, funnels, aa_out, fun_top
-    return lay
-
-
 def _flight_deck_layout(design, res, shift):
     shp, depth = res.power_shp, res.depth
     lay, hs, hull, shift = _common(design, shp, shift)
@@ -483,7 +469,7 @@ def _flight_deck_layout(design, res, shift):
     # ---------------- machinery and compartments ----------------
     _machinery_rooms(lay, hull, res)
     _compartments(lay, design, hull, lay.geo["machinery"], dp["hangar"], mounts)
-    return _finish(lay, design, hs, hull, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top,
+    return finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top,
                    flight_deck=fd, sponsons=sponsons, boats=[])
 
 
@@ -580,7 +566,7 @@ def _seaplane_layout(design, res, shift):
 
     _machinery_rooms(lay, hull, res)
     _compartments(lay, design, hull, lay.geo["machinery"], (hx0, hx1, hhw), mounts)
-    return _finish(lay, design, hs, hull, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top,
+    return finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top,
                    fittings=fittings, cranes=cranes, boats=boats,
                    bollards=[L / 2 - 0.05 * L, -L / 2 + 0.06 * L], chain_x=L / 2 - 0.06 * L, hawse_back=0.03 * L + 1.0)
 

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import armament
 import ordnance
-from layout import LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, clamp, plan_machinery
+from layout import LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, clamp, finish_layout, plan_machinery
 from navarch import Weight, volumetric_froude
 from geometry import AA_CFG, Hull
 from styles.base import Style
@@ -167,17 +167,9 @@ def _layout(design, res, shift):
         ordnance.stow(lay, mounts, [dict(x0=lx1 - ordnance.zone_length(ordnance.booked_m3(lay, guns), 2 * lw,
                                                                        lay.geo["plant"], tiers=1, least=0.5),
                                          x1=lx1, half_width=lw, rooms=[dict(id="Ammunition locker", mounts=guns)])])
-    lay.spec = dict(
-        id=design["id"], name=design.get("name", design["id"]), **{"class": design.get("type", "")},
-        length=L, beam=B, bow=hs["bow"], stern=hs["stern"], deck="steel",
-        deck_inset=hs["deck_inset"], plank_spacing=hs["plank_spacing"],
-        turret_types=turret_types,
-        turrets=[dict(id=m["id"], type=m["type"], x=m["x"], y=m["y"], z=m["z"], rest=m["rest"]) for m in mounts],
-        superstructure=[{k: v for k, v in b.items() if k not in ("id", "kind")} for b in blocks],
-        funnels=[], masts=masts, aa=[{k: v for k, v in a.items() if k not in ("id", "base")} for a in aa_out],
-        boats=boats, fittings=fittings)   # no bollards: a small craft's cleats are too small to draw
-    lay.mounts, lay.blocks, lay.funnels, lay.aa, lay.fun_top = mounts, blocks, [], aa_out, 0.0
-    return lay
+    # no bollards: a small craft's cleats are too small to draw
+    return finish_layout(lay, design, hs, mounts, turret_types, blocks, [], masts, aa_out, 0.0,
+                         deck_inset=hs["deck_inset"], plank_spacing=hs["plank_spacing"], boats=boats, fittings=fittings)
 
 
 STYLE = Planing()

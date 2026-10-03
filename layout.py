@@ -374,6 +374,23 @@ def hull_spec(design):
                 stern=dict(taper=0.18, transom=min(0.6, max(0.35, 0.45 + (0.55 - cb) * 0.6))))
 
 
+def finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top, deck="steel",
+                  **extra):
+    """The laid-out ship's renderer spec (lay.spec) and its parts on lay, for every style. extra: style-specific
+    spec keys (boats, bollards, flight deck, fittings, ...)."""
+    lay.spec = dict(
+        id=design["id"], name=design.get("name", design["id"]), **{"class": design.get("type", "")},
+        length=lay.hull.L, beam=lay.hull.B, bow=hs["bow"], stern=hs["stern"], deck=deck,
+        turret_types=turret_types,
+        turrets=[dict(id=m["id"], type=m["type"], x=m["x"], y=m["y"], z=m["z"], rest=m["rest"]) for m in mounts],
+        superstructure=[{k: v for k, v in b.items() if k not in ("id", "kind")} for b in blocks],
+        funnels=[{k: v for k, v in f_.items() if k not in ("id", "seg", "serves")} for f_ in funnels],
+        masts=masts, aa=[{k: v for k, v in a.items() if k not in ("id", "base")} for a in aa_out],
+        **extra)
+    lay.mounts, lay.blocks, lay.funnels, lay.aa, lay.fun_top = mounts, blocks, funnels, aa_out, fun_top
+    return lay
+
+
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
 
@@ -1234,28 +1251,10 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
 
     # ---------------- renderer spec ----------------
     front_edge = (fore[0] + r) if fore else mid_fwd
-    spec = dict(
-        id=design["id"], name=design.get("name", design["id"]), **{"class": design.get("type", "")},
-        length=L, beam=B, bow=hs["bow"], stern=hs["stern"], deck=deck,
-        turret_types=turret_types,
-        turrets=[dict(id=m["id"], type=m["type"], x=m["x"], y=m["y"], z=m["z"], rest=m["rest"]) for m in mounts],
-        superstructure=[{k: v for k, v in b.items() if k not in ("id", "kind")} for b in blocks],
-        funnels=[{k: v for k, v in f_.items() if k not in ("id", "seg", "serves")} for f_ in funnels],
-        masts=masts,
-        aa=[{k: v for k, v in a.items() if k not in ("id", "base")} for a in aa_out],
-        boats=boats,
-        bollards=[L / 2 - 0.05 * L, -L / 2 + 0.06 * L],
-    )
+    extra = dict(boats=boats, bollards=[L / 2 - 0.05 * L, -L / 2 + 0.06 * L])
     if L / 2 - front_edge > 0.08 * L + 6:
-        spec["chain_x"] = front_edge + 0.35 * (L / 2 - front_edge)
-        spec["hawse_back"] = 0.03 * L + 1.0
+        extra.update(chain_x=front_edge + 0.35 * (L / 2 - front_edge), hawse_back=0.03 * L + 1.0)
     if L >= 150 and fore and (L / 2 - front_edge) > 12:
-        spec["breakwater_x"] = front_edge + 3.0
-    lay.spec = spec
-    lay.mounts = mounts
-    lay.blocks = blocks
-    lay.funnels = funnels
-    lay.aa = aa_out
-    lay.hull = hull
-    lay.fun_top = fun_top
-    return lay
+        extra["breakwater_x"] = front_edge + 3.0
+    return finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top, deck=deck,
+                         **extra)

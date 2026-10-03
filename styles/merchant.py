@@ -19,7 +19,7 @@ from __future__ import annotations
 import armament
 import ordnance
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
-                    boiler_seg, clamp, plan_funnels, plan_machinery, stack_machinery)
+                    boiler_seg, clamp, finish_layout, plan_funnels, plan_machinery, stack_machinery)
 from navarch import Weight
 from geometry import AA_CFG, Hull
 from styles.base import Style
@@ -363,19 +363,10 @@ def _layout(design, res, shift):
             rooms=[dict(id="Gun magazine", mounts=guns)])])
     lay.geo["citadel"] = (m0, m1)
 
-    lay.spec = dict(
-        id=design["id"], name=design.get("name", design["id"]), **{"class": design.get("type", "")},
-        length=L, beam=B, bow=hs["bow"], stern=hs["stern"], deck="steel",
-        turret_types=turret_types,
-        turrets=[dict(id=m["id"], type=m["type"], x=m["x"], y=m["y"], z=m["z"], rest=m["rest"]) for m in mounts],
-        superstructure=[{k: v for k, v in b.items() if k not in ("id", "kind")} for b in blocks],
-        funnels=[{k: v for k, v in f_.items() if k not in ("id", "seg", "serves")} for f_ in funnels],
-        masts=masts, aa=[{k: v for k, v in a.items() if k not in ("id", "base")} for a in aa_out],
-        boats=boats, raised_decks=raised, hatches=hatches, fittings=fittings,
-        bollards=[L / 2 - 0.04 * L, -L / 2 + 0.04 * L],
-        chain_x=L / 2 - 0.05 * L, hawse_back=0.025 * L + 1.0)
-    lay.mounts, lay.blocks, lay.funnels, lay.aa, lay.fun_top = mounts, blocks, funnels, aa_out, fun_top
-    return lay
+    return finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top,
+                         boats=boats, raised_decks=raised, hatches=hatches, fittings=fittings,
+                         bollards=[L / 2 - 0.04 * L, -L / 2 + 0.04 * L],
+                         chain_x=L / 2 - 0.05 * L, hawse_back=0.025 * L + 1.0)
 
 
 STYLE = Merchant()
