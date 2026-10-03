@@ -24,7 +24,8 @@ import armament
 import ordnance
 from geometry import polygon_area, polygon_y_span
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
-                    boiler_seg, clamp, finish_layout, hull_spec, plan_funnels, plan_machinery, stack_machinery)
+                    add_steering, boiler_seg, clamp, finish_layout, hull_spec, plan_funnels, plan_machinery, set_citadel,
+                    stack_machinery)
 from navarch import STEEL, Weight
 from geometry import AA_CFG, Hull
 from styles.base import Style
@@ -320,12 +321,11 @@ AVGAS_T_PER_M3 = 0.5   # avgas tanks: petrol at 0.72 t/m3 with the void and wate
 
 
 def _compartments(lay, design, hull, mach, hangar, mounts, extra=()):
-    armour = design.get("armour") or {}
     av = aviation(design)
     L, B = hull.L, hull.B
     m0, m1 = mach
     cit = (m0 - 0.06 * L, m1 + 0.08 * L)
-    lay.geo["citadel"] = cit
+    set_citadel(lay, *cit)
     inner_hw = 0.8 * B / 2
     hx0, hx1, hhw = hangar
     # what burns or blows up stands low (ordnance.stow), under the hangar and the armour deck: the aviation
@@ -333,7 +333,8 @@ def _compartments(lay, design, hull, mach, hangar, mounts, extra=()):
     air_t = av["aircraft"] * av["aircraft_t"]
     st = ordnance.stow(lay, mounts, [
         dict(x0=m1, x1=cit[1], half_width=inner_hw,
-             rooms=[dict(id="Aviation magazines", tonnes=ORDNANCE_K * air_t), dict(id="Gun magazines", mounts=ordnance.guns(mounts))]),
+             rooms=[dict(id="Aviation magazines", tonnes=ORDNANCE_K * air_t),
+                    dict(id="Gun magazines", mounts=ordnance.guns(mounts))]),
         dict(x0=cit[0], x1=m0, half_width=inner_hw,
              rooms=[dict(id="Aviation fuel", kind="fuel_tank", tonnes=AVGAS_K * air_t, t_per_m3=AVGAS_T_PER_M3)])])
     for key, rid in (("magazine", "Aviation magazines"), ("avgas", "Aviation fuel")):
@@ -341,12 +342,10 @@ def _compartments(lay, design, hull, mach, hangar, mounts, extra=()):
             x0, x1, base, top = st[rid]
             lay.geo[f"{key}_x"], lay.geo[f"{key}_z"] = (x0 + x1) / 2, (base + top) / 2
     lay.compartments += [
-        dict(id="Citadel", kind="citadel", x0=cit[0], x1=cit[1], half_width=inner_hw,
-             belt_mm=armour.get("belt_mm", 0)),
         dict(id="Hangar", kind="hangar", x0=hx0, x1=hx1, half_width=hhw, base=0.0,
              top=2 * LEVEL_H if av["flight_deck"] == "none" else HANGAR_H * av["hangar_decks"]),
-        dict(id="Steering gear", kind="steering", x0=-L / 2 + 0.03 * L, x1=-L / 2 + 0.08 * L, half_width=0.5 * B / 2),
         *extra]
+    add_steering(lay)
 
 
 def _flight_deck_layout(design, res, shift):

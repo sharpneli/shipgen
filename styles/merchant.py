@@ -19,7 +19,8 @@ from __future__ import annotations
 import armament
 import ordnance
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
-                    boiler_seg, clamp, finish_layout, plan_funnels, plan_machinery, stack_machinery)
+                    add_steering, boiler_seg, clamp, finish_layout, plan_funnels, plan_machinery,
+                    set_citadel, stack_machinery)
 from navarch import Weight
 from geometry import AA_CFG, Hull
 from styles.base import Style
@@ -351,17 +352,16 @@ def _layout(design, res, shift):
         lay.compartments.append(dict(id=f"{'Tank' if tanker else 'Hold'} {i + 1}",
                                      kind="cargo_tank" if tanker else "hold", x0=h0, x1=h1, half_width=inner_hw))
     add_machinery_rooms(lay, stack_machinery(lay.geo["plant"]["segments"], m1), inner_hw, depth)
-    lay.compartments += [dict(id="Steering gear", kind="steering", x0=-L / 2 + 0.02 * L, x1=-L / 2 + 0.06 * L,
-                              half_width=0.5 * B / 2)]
+    steer = add_steering(lay)
     # the guns' magazine aft, just forward of the steering gear, low on the inner bottom (ordnance.stow)
     guns = ordnance.guns(mounts)
     if guns:
-        mx0 = -L / 2 + 0.06 * L
+        mx0 = steer["x1"]
         mw = min(inner_hw, 0.5 * B / 2)
         ordnance.stow(lay, mounts, [dict(x0=mx0, x1=mx0 + ordnance.zone_length(
             ordnance.booked_m3(lay, guns), 2 * mw, lay.geo["plant"]), half_width=mw,
             rooms=[dict(id="Gun magazine", mounts=guns)])])
-    lay.geo["citadel"] = (m0, m1)
+    set_citadel(lay, m0, m1)
 
     return finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top,
                          boats=boats, raised_decks=raised, hatches=hatches, fittings=fittings,

@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import armament
 import ordnance
-from layout import LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, clamp, finish_layout, plan_machinery
+from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_steering, clamp, finish_layout,
+                    plan_machinery, set_citadel)
 from navarch import Weight, volumetric_froude
 from geometry import AA_CFG, Hull
 from styles.base import Style
@@ -95,7 +96,7 @@ def _layout(design, res, shift):
         lay.fail("length", f"The engines need {L_mach:.1f} m, but the engine room has {m1 - m0:.1f} m.")
     lay.geo["machinery"] = (m0, m1)
     lay.geo["machinery_x"] = (m0 + m1) / 2
-    lay.geo["citadel"] = (m0, m1)
+    set_citadel(lay, m0, m1)
 
     mounts, turret_types = [], {}
     # fixed torpedo tubes on the deck edges, toed out; first pair beside the charthouse
@@ -158,8 +159,8 @@ def _layout(design, res, shift):
     lay.compartments += [
         dict(id="Crew space", kind="accommodation", x0=cx1, x1=L / 2 - 0.08 * L, half_width=inner_hw),
         dict(id="Fuel tanks", kind="fuel_tank", x0=m1, x1=cx0 + 0.05 * L, half_width=inner_hw),
-        dict(id="Engine room", kind="engine_room", x0=m0, x1=m1, half_width=inner_hw),
-        dict(id="Tiller flat", kind="steering", x0=-L / 2, x1=m0, half_width=0.6 * B / 2)]
+        dict(id="Engine room", kind="engine_room", x0=m0, x1=m1, half_width=inner_hw)]
+    add_steering(lay, -L / 2, m0, 0.6 * B / 2, "Tiller flat")      # the whole stern abaft the engines
     # the guns' ammunition in a locker at the forward end of the crew space (ordnance.stow)
     guns = ordnance.guns(mounts)
     if guns:

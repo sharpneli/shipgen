@@ -374,6 +374,27 @@ def hull_spec(design):
                 stern=dict(taper=0.18, transom=min(0.6, max(0.35, 0.45 + (0.55 - cb) * 0.6))))
 
 
+STEERING = (0.03, 0.08, 0.25)   # the steering gear: from 0.03 to 0.08 L forward of the stern, 0.25 B each side
+
+
+def set_citadel(lay, x0, x1):
+    """The citadel: the stretch the vital spaces, belt and citadel armour decks cover (lay.geo["citadel"])."""
+    lay.geo["citadel"] = (x0, x1)
+
+
+def add_steering(lay, x0=None, x1=None, half_width=None, name="Steering gear"):
+    """The steering gear over the rudders, for every style: by default STEERING's stretch forward of the stern.
+    It stands low, on the inner bottom ordnance.TIERS deck spaces tall, under the armour. Returns the room."""
+    L, B = lay.hull.L, lay.hull.B
+    x0 = -L / 2 + STEERING[0] * L if x0 is None else x0
+    x1 = -L / 2 + STEERING[1] * L if x1 is None else x1
+    base, top = ordnance.span(lay.geo["plant"])
+    room = dict(id=name, kind="steering", x0=x0, x1=x1, base=base, top=top,
+                half_width=STEERING[2] * B if half_width is None else half_width)
+    lay.compartments.append(room)
+    return room
+
+
 def finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top, deck="steel",
                   **extra):
     """The laid-out ship's renderer spec (lay.spec) and its parts on lay, for every style. extra: style-specific
@@ -1212,10 +1233,8 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         cit = (min(min(main_x) - r - 2.0, block[0]), max(max(main_x) + r + 2.0, block[1]))
     else:
         cit = block
-    lay.geo["citadel"] = cit
+    set_citadel(lay, *cit)
     inner_hw = 0.8 * B / 2
-    lay.compartments.append(dict(id="Citadel", kind="citadel", x0=cit[0], x1=cit[1], half_width=inner_hw,
-                                 belt_mm=armour.get("belt_mm", 0)))
     mag_x = [(x0, x1) for kind, x0, x1 in mach_placed if kind == "magazine"]
     mag_groups = {}
     if mag_l["fore"] > 0:
@@ -1224,8 +1243,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         mag_groups["aft"] = mag_x[-1]
     add_magazines(lay, mounts, inner_hw, mag_groups)
     add_machinery_rooms(lay, plant_placed, inner_hw, depth)
-    lay.compartments.append(dict(id="Steering gear", kind="steering", x0=-L / 2 + 0.03 * L, x1=-L / 2 + 0.08 * L,
-                                 half_width=0.5 * B / 2))
+    add_steering(lay)
 
     # ---------------- renderer spec ----------------
     front_edge = (fore[0] + r) if fore else mid_fwd

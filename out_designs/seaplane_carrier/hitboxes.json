@@ -4185,7 +4185,7 @@
    "top": 0.0,
    "volume_m3": 61.4,
    "below_waterline": false,
-   "crew": 3,
+   "crew": 2,
    "room": "Quarters 2",
    "permeability": 0.95,
    "neighbours": [
@@ -4445,7 +4445,7 @@
    "top": 0.0,
    "volume_m3": 131.9,
    "below_waterline": false,
-   "crew": 6,
+   "crew": 5,
    "room": "Quarters 4",
    "permeability": 0.95,
    "neighbours": [
@@ -4800,7 +4800,7 @@
    "top": -2.6,
    "volume_m3": 111.4,
    "below_waterline": false,
-   "crew": 5,
+   "crew": 4,
    "room": "Quarters 7",
    "permeability": 0.95,
    "neighbours": [
@@ -5832,7 +5832,7 @@
    "top": -2.6,
    "volume_m3": 162.3,
    "below_waterline": false,
-   "crew": 7,
+   "crew": 6,
    "room": "Quarters 15",
    "permeability": 0.95,
    "neighbours": [
@@ -5962,7 +5962,7 @@
    "top": -2.6,
    "volume_m3": 161.9,
    "below_waterline": false,
-   "crew": 7,
+   "crew": 6,
    "room": "Quarters 16",
    "permeability": 0.95,
    "neighbours": [
@@ -6231,7 +6231,7 @@
     ],
     [
      "18 second C",
-     "open"
+     "Second deck"
     ],
     [
      "17 third C",
@@ -6256,12 +6256,13 @@
    "top": 0.0,
    "volume_m3": 116.8,
    "below_waterline": false,
-   "room": "Steering gear",
-   "permeability": 0.85,
+   "crew": 5,
+   "room": "Quarters 18",
+   "permeability": 0.95,
    "neighbours": [
     [
      "18 third C",
-     "open"
+     "Second deck"
     ],
     [
      "17 second C",
@@ -6458,7 +6459,7 @@
     "2 third C",
     "2 second C"
    ],
-   "crew": 5,
+   "crew": 4,
    "volume_m3": 117.9,
    "x0": 34.329,
    "x1": 39.6,
@@ -6534,7 +6535,7 @@
     "4 third C",
     "4 second C"
    ],
-   "crew": 11,
+   "crew": 10,
    "volume_m3": 253.1,
    "x0": 23.786,
    "x1": 29.058,
@@ -6654,7 +6655,7 @@
     "7 third C",
     "7 second C"
    ],
-   "crew": 10,
+   "crew": 9,
    "volume_m3": 232.6,
    "x0": 11.475,
    "x1": 15.315,
@@ -6911,7 +6912,7 @@
     "15 third C",
     "15 second C"
    ],
-   "crew": 14,
+   "crew": 13,
    "volume_m3": 338.8,
    "x0": -25.774,
    "x1": -20.181,
@@ -6949,7 +6950,7 @@
     "16 third C",
     "16 second C"
    ],
-   "crew": 14,
+   "crew": 13,
    "volume_m3": 338.1,
    "x0": -31.367,
    "x1": -25.774,
@@ -6999,14 +7000,13 @@
    "kind": "steering",
    "cells": [
     "18 hold C",
-    "18 third C",
-    "18 second C"
+    "18 third C"
    ],
-   "volume_m3": 265.5,
+   "volume_m3": 148.7,
    "x0": -41.36,
    "x1": -36.96,
    "base": -6.63,
-   "top": 0.0
+   "top": -2.6
   },
   {
    "id": "Double bottom 18",
@@ -7019,6 +7019,19 @@
    "x1": -36.96,
    "base": -7.63,
    "top": -6.63
+  },
+  {
+   "id": "Quarters 18",
+   "kind": "accommodation",
+   "cells": [
+    "18 second C"
+   ],
+   "crew": 5,
+   "volume_m3": 116.8,
+   "x0": -41.36,
+   "x1": -36.96,
+   "base": -2.6,
+   "top": 0.0
   },
   {
    "id": "Double bottom 19",

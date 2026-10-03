@@ -268,7 +268,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
       - `shared: true` marks a room that only shares a cell.
       - Rooms snap to whole cells: a room owns a cell when it overlaps the cell by at least half the shorter of the two along every axis. Contested cells go by `subdivision.ROOM_PRIORITY` (magazines first, then machinery), then by overlap.
       - Kinds:
-        - All ships: `boiler_room`, `engine_room` and `bunker` (`fuel` is coal, oil, diesel or petrol), and `steering`.
+        - All ships: `boiler_room`, `engine_room` and `bunker` (`fuel` is coal, oil, diesel or petrol), and `steering` (`layout.add_steering`: 0.03–0.08 L forward of the stern, low on the inner bottom; a planing craft's tiller flat fills the stern abaft its engines).
         - Every ship with guns: `magazine` (`tonnes`, and `mount` or `mounts`). Carriers also have aviation magazines and `fuel_tank` (aviation fuel).
           - What burns or explodes sits lowest, under the hangar and the armour deck, so a bomb fused by the armour deck bursts in the decks above. Both are `ordnance.stow` zones, only as many decks tall as their contents need (`tonnes` on the room). Their weights sit at the rooms' heights.
             - The aviation magazines hold the ordnance (`carrier.ORDNANCE_K`, 0.6 t per tonne of air group, at `ordnance.T_PER_M3`).
