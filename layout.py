@@ -1089,9 +1089,17 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
 
     # each boiler group's funnels are trunked aft, toward the boundary with what lies aft of the boilers (the
     # engine rooms), so the funnels don't all crowd the forward end of the machinery: the group's middle goes to the
-    # boundary, or as far toward it as the turrets' sweeps, the aft control and the funnels behind allow
+    # boundary, or as far toward it as the uptakes' reach (each end of the group within reach of a funnel, or no
+    # farther than planned), the turrets' sweeps, the aft control and the funnels behind allow
     def fun_fp(x):
         return _fp_rect(x - fl / 2, -fw / 2, x + fl / 2, fw / 2)
+
+    reach_lim = fplan["reach"] + fl / 2
+
+    def in_reach(si, xs, off):
+        ends = mach_placed[si][1:]
+        return all(min(abs(e - x - off) for x in xs) <= max(reach_lim, min(abs(e - x) for x in xs)) + 1e-6
+                   for e in ends)
 
     by_seg = {}
     for i, si in enumerate(f_seg):
@@ -1103,8 +1111,8 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         if mach_placed[si][0] == "boiler":
             want = min(0.0, mach_placed[si][1] - (fxs[idx[0]] + fxs[idx[-1]]) / 2)
         off = want
-        while off < 0.0 and not all(lay.clear(fun_fp(fxs[i] + off), fun_top) and lay.free(fun_fp(fxs[i] + off), 0.0)
-                                    for i in idx):
+        while off < 0.0 and not (in_reach(si, [fxs[i] for i in idx], off) and all(
+                lay.clear(fun_fp(fxs[i] + off), fun_top) and lay.free(fun_fp(fxs[i] + off), 0.0) for i in idx)):
             off = min(0.0, off + 0.25)
         for i in idx:
             fx_final[i] = fxs[i] + off
@@ -1330,6 +1338,10 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     if mag_l["aft"] > 0:
         mag_groups["aft"] = mag_x[-1]
     add_magazines(lay, mounts, inner_hw, mag_groups)
+    # the funnels' segments count the magazines (mach_placed); the rooms are made from the block less them
+    to_plant = {i: k for k, i in enumerate(i for i, p_ in enumerate(mach_placed) if p_[0] != "magazine")}
+    for f in lay.funnels_planned:
+        f["seg"] = to_plant.get(f.get("seg"))
     add_machinery_rooms(lay, plant_placed, inner_hw, depth)
     add_steering(lay)
 
