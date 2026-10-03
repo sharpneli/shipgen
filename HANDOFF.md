@@ -27,7 +27,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
   - The pre-dreadnoughts came out light (Mikasa 11.3k std against 15.1k t real). The secondary armour brought them closer (Mikasa 12.3k t, Connecticut 14.5k t against 16k t). Any remaining gap is for material and tech inputs (hull construction, plant), never a period factor.
   - Lower and upper guns never stack at the same x (from above, stacked guns would look like one). Stacked British two-storey casemates therefore come out staggered.
   - Connecticut's 203 mm wing turrets need a second main battery, which ties into the French "floating hotels" below.
-  - verify.py flags the 88 mm casemates at the ends of `nassau_casemates` at 0.846 at one 37° angle. It's rasterisation of a 2 px barrel; the other angles score 0.89–0.96.
+  - verify.py flags the 88 mm casemates at the ends of `nassau_casemates` at about 0.85 at one 37° angle. It's rasterisation of a 2 px barrel; the other angles score 0.89–0.96. It flips between pass and fail as the beam moves by a few cm (it failed at 0.849 after the belt band change on 2026-10-03, then passed after the belt taper), so treat it as noise.
 - **French "floating hotel" pre-dreadnoughts** with many different calibres: several main and intermediate batteries, often in wing turrets. The layout will need more than one main or secondary battery.
 - **Powerplant (done; `powerplant.py`, `research/powerplant-model.md`, README "Design input").** All four steps of the session plan are in:
   1. plant size and weight from the tech
@@ -170,10 +170,10 @@ doesn't: the decisions behind the current design, how to work safely here, and w
    - Each cell lists the barbettes, uptakes and casings that pass through it: the flash path from a turret to its magazine, and the leak path through the uptakes.
    - Double-bottom contents: oil or water, by tonnage.
    - Clean up the remaining shared cells.
-4. **Armour schemes on the deck list.** These are design inputs, so agree the knobs with the user first. Several armour decks are done (see above).
+4. **Armour (mostly done 2026-10-03; see "Secondary armour" above).** Done: several armour decks, upper and end belts, belt band and taper, explicit bulkheads, and materials. Left:
+   - An armoured box over the steering gear: side armour aft that stops short of the stern, with its own bulkhead. I offered it; the user hasn't answered yet.
    - Turtleback or sloped decks: the user has shelved them; several flat decks stand in for now.
-   - All-or-nothing versus incremental schemes: done with the secondary armour (2026-10-03).
-   - Belt height (`belt_depth_m`, `belt_height_m`) and end-belt taper: done.
+   - Cells carry one `belt_mm` (the thickest beside them). If the ballistics wants the exact strake hit, it should use `armour.belt` and `armour.strakes` geometry, not the cell summary.
 5. **Links and flags (damage step 3), best done alongside the material inputs:**
    - engine room to shaft
    - generators to fore and aft power networks
@@ -208,6 +208,7 @@ Housekeeping, whenever convenient:
   - `destroyer.json` has `calibre_mm: 1270`, probably a deliberate silly test. Sized, it comes out at 418 m and 163k t.
   - `murica.json` has block coefficient 0.34 (needs `--no-limits`).
   - The user asked for `length` and `beam` to be removed from every design. That was done on 2026-10-02, and nothing else in the designs was touched.
+- **Adding a key to every design:** the designs are hand-formatted JSON. Edit only the substring of the object you change (find `"armour": {`, match the braces, `json.loads` it, check `json.dumps` reproduces it exactly, then splice the new dump back in). `gangut.json` is multi-line, so insert lines there instead. Never re-dump whole files: it would reformat the user's designs.
 - Output folders are named after the design's `id`, not its file name. Duplicate ids overwrite each other; this already happened once.
 
 ## Known gaps and ideas
