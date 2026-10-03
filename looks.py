@@ -24,12 +24,40 @@ Each look (one navy in one era) has:
                           "chamfer" (default: as laid out)
                  mast     "pole": no tripod legs; "fighting_top": pole masts with a round fighting top
     shapes_by_style   further shape overrides for one style (optional)
+    adjust     colour nudges applied over the finished palette (optional, see below)
+    from       inherit another look and list only the differences (optional, see below)
+
+Nudging instead of repainting. An era step is often a small change: a lighter grey, a weathered deck, legs
+taken off the tripods. Two keys let a look say only that:
+
+    from      "era" (the same navy in another era) or "navy/era". The look starts as a copy of that one, then
+              its own keys merge over it: palette, shapes and each style's by_style / shapes_by_style key by
+              key, turrets replaced, adjust appended after the parent's. Chains are fine
+    adjust    a list of colour operations, run in order over the finished palette (every key, style colours
+              included), before the design's own "palette". Each is a dict:
+                 keys      which colours: "all" (default), a GROUPS name, a palette key, or a list of these
+                 lighten   -1..1: toward white (+) or black (-)
+                 saturate  -1..1: toward grey (-) or away from it (+)
+                 tint      [colour, amount]: blend toward the colour by amount (0..1)
+              e.g. [{"keys": "upperworks", "lighten": 0.15}, {"keys": "hull", "tint": ["#3e4b59", 0.2]}]
+    adjust_by_style   further operations for one style, run after adjust (optional)
+
+Shapes take numbers as well as the named modes (a named mode is a preset of the numbers, and a number given
+beside it wins):
+    block_round        [fore, aft] corner radius factors (boxy 0.35/0.35, soft 1.6/1.4, bowfront 1.5/0.4,
+                       default 1/1)
+    funnel_round       0..1 corner radius as a fraction of the funnel's half-width (box 0.44, default 1)
+    funnel_squareness  superellipse exponent of the oval funnel (2.6; 2 = ellipse, higher = squarer)
+    funnel_band_w      width of the painted top band in m (0.25)
+    tripod             tripod leg length factor (1; 0 = pole masts; pole and fighting_top give 0)
+    top_r              fighting top radius in m (0 = none; fighting_top gives 1.6)
+    deck_line_opacity  planking and plate seam lines (0.45; 0 = a plain deck)
 
 Precedence, lowest first: DEFAULT_PALETTE, look palette, STYLE_PALETTES[style], look by_style, design "palette".
 All colours live here: the design side (shipdesign, styles) has none.
 
-To add a look: add an era entry under a navy in NAVIES (a new navy or era also goes in NAVIES or ERAS). A new
-turret style also needs a branch in shipgen.look_turret_body.
+To add a look: add an era entry under a navy in NAVIES (a new navy or era also goes in NAVIES or ERAS), often
+just a "from" and a few nudges. A new turret style also needs a branch in shipgen.look_turret_body.
 """
 from __future__ import annotations
 
@@ -69,6 +97,70 @@ STYLE_PALETTES = {
     "planing": {"deck": "#6f7a72", "deck_line": "#2f3530", "hull": "#4d5650",
                 "levels": ["#8b958e", "#9da69f", "#b0b8b2", "#c3cac5"]},
 }
+
+# Colour groups an adjust operation can name (any palette key works too)
+GROUPS = {
+    "hull": ["hull"],
+    "decks": ["deck", "wood", "deck_line", "steel_line", "flight_deck"],
+    "upperworks": ["levels", "boat", "fitting", "crane"],
+    "armament": ["turret", "barbette", "barrel", "tube", "tub"],
+    "funnels": ["funnel", "funnel_cap", "funnel_band"],
+    "rigging": ["mast", "chain"],
+    "markings": ["marking", "stripe", "track"],
+    "cargo": ["hatch", "hatch_coaming"],
+}
+
+
+def _rgb(c):
+    return [int(c[i:i + 2], 16) for i in (1, 3, 5)]
+
+
+def _hex(c):
+    return "#" + "".join(f"{max(0, min(255, round(v))):02x}" for v in c)
+
+
+def _mix(a, b, t):
+    return [x + (y - x) * t for x, y in zip(a, b)]
+
+
+def adjust_colour(c: str, op: dict) -> str:
+    """One adjust operation (lighten, saturate, tint; any of them, in that order) on one #rrggbb colour."""
+    rgb = _rgb(c)
+    k = op.get("lighten", 0.0)
+    if k:
+        rgb = _mix(rgb, [255] * 3 if k > 0 else [0] * 3, abs(k))
+    k = op.get("saturate", 0.0)
+    if k:
+        grey = [0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]] * 3
+        rgb = _mix(rgb, grey, -k) if k < 0 else [v + (v - g) * k for v, g in zip(rgb, grey)]
+    if op.get("tint"):
+        col, t = op["tint"]
+        rgb = _mix(rgb, _rgb(col), t)
+    return _hex(rgb)
+
+
+def _op_keys(keys) -> set | None:
+    """The palette keys an operation touches (None: all of them)."""
+    keys = keys or "all"
+    out = set()
+    for k in [keys] if isinstance(keys, str) else keys:
+        if k == "all":
+            return None
+        out.update(GROUPS.get(k, [k]))
+    return out
+
+
+def adjust_palette(pal: dict, ops: list) -> dict:
+    """pal with each adjust operation applied in turn. List values (levels) are adjusted item by item."""
+    pal = dict(pal)
+    for op in ops:
+        keys = _op_keys(op.get("keys"))
+        for k, v in pal.items():
+            if keys is not None and k not in keys:
+                continue
+            pal[k] = [adjust_colour(c, op) for c in v] if isinstance(v, list) else adjust_colour(v, op)
+    return pal
+
 
 # The eras a look can be drawn in, oldest first
 ERAS = ("victorian", "wwii")
@@ -219,9 +311,33 @@ def look_label(design) -> str:
     return f"{lk['navy']} / {lk['era']}" + (" (drawn as generic)" if navy != lk["navy"] else "")
 
 
+def _by_style_merge(a: dict, b: dict) -> dict:
+    return {s_: {**a.get(s_, {}), **b.get(s_, {})} for s_ in {**a, **b}}
+
+
+def look(navy: str, era: str, _seen=()) -> dict:
+    """One look with its "from" chain resolved: every key filled in, adjust lists concatenated."""
+    if (navy, era) in _seen:
+        raise ValueError(f"look {navy}/{era}: 'from' loops back on itself")
+    lk = NAVIES[navy]["eras"][era]
+    if "from" not in lk:
+        return {"palette": {}, "by_style": {}, "turrets": "standard", "shapes": {}, **lk}
+    src = lk["from"]
+    pn, pe = src.split("/") if "/" in src else (navy, src)
+    base = look(pn, pe, _seen + ((navy, era),))
+    out = {**base, **{k: v for k, v in lk.items() if k != "from"}}
+    for k in ("palette", "shapes"):
+        out[k] = {**base.get(k, {}), **lk.get(k, {})}
+    for k in ("by_style", "shapes_by_style"):
+        out[k] = _by_style_merge(base.get(k, {}), lk.get(k, {}))
+    out["adjust"] = base.get("adjust", []) + lk.get("adjust", [])
+    ab, al = base.get("adjust_by_style", {}), lk.get("adjust_by_style", {})
+    out["adjust_by_style"] = {s_: ab.get(s_, []) + al.get(s_, []) for s_ in {**ab, **al}}
+    return out
+
+
 def get(design) -> dict:
-    navy, era = resolve(design)
-    return NAVIES[navy]["eras"][era]
+    return look(*resolve(design))
 
 
 def validate(design) -> list[str]:
@@ -246,4 +362,15 @@ def shapes(design) -> dict:
 def palette(design) -> dict:
     """The design's palette overrides (merged over DEFAULT_PALETTE by the renderer)."""
     lk, st = get(design), style_name(design)
-    return {**lk["palette"], **STYLE_PALETTES.get(st, {}), **lk["by_style"].get(st, {}), **design.get("palette", {})}
+    pal = {**lk["palette"], **STYLE_PALETTES.get(st, {}), **lk["by_style"].get(st, {})}
+    ops = lk.get("adjust", []) + lk.get("adjust_by_style", {}).get(st, [])
+    if ops:
+        pal = adjust_palette({**DEFAULT_PALETTE, **pal}, ops)
+    return {**pal, **design.get("palette", {})}
+
+
+# Catch a mistyped "from" or era name when the module loads, not halfway through a render
+for _navy, _n in NAVIES.items():
+    for _era in _n["eras"]:
+        assert _era in ERAS, f"look {_navy}/{_era}: {_era!r} is not in ERAS"
+        look(_navy, _era)

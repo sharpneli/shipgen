@@ -168,7 +168,8 @@ class Painter:
             d = poly([(x0 + cb, y - h), (x1 - cf, y - h), (x1, y - h + cf), (x1, y + h - cf), (x1 - cf, y + h),
                       (x0 + cb, y + h), (x0, y + h - cb), (x0, y - h + cb)])
         else:
-            kf, kb = {"boxy": (0.35, 0.35), "soft": (1.6, 1.4), "bowfront": (1.5, 0.4)}.get(mode, (1.0, 1.0))
+            kf, kb = self.shapes.get("block_round") or \
+                {"boxy": (0.35, 0.35), "soft": (1.6, 1.4), "bowfront": (1.5, 0.4)}.get(mode, (1.0, 1.0))
             d = rrect_path(x0, y - w / 2, x1, y + w / 2, rf * kf, rb * kb)
         cols = self.p["levels"]
         col = cols[min(lvl, len(cols)) - 1]
@@ -188,12 +189,12 @@ class Painter:
         x, y, l, w = fn["x"], fn.get("y", 0), fn["l"], fn["w"]
         p = self.p
         mode = self.shapes.get("funnel")
-        r = w / 2 if mode != "box" else 0.22 * w
+        r = w / 2 * self.shapes.get("funnel_round", 0.44 if mode == "box" else 1.0)
         d = rrect_path(x - l / 2, y - w / 2, x + l / 2, y + w / 2, r, r)
         inner = rrect_path(x - l / 2 + 0.6, y - w / 2 + 0.6, x + l / 2 - 0.6, y + w / 2 - 0.6, max(0.0, r - 0.6),
                            max(0.0, r - 0.6))
         if mode == "oval":       # a smooth superellipse, fuller than an ellipse
-            def sup(a, b_, n=2.6, k=48):
+            def sup(a, b_, n=self.shapes.get("funnel_squareness", 2.6), k=48):
                 return poly([(x + a * math.copysign(abs(math.cos(t)) ** (2 / n), math.cos(t)),
                               y + b_ * math.copysign(abs(math.sin(t)) ** (2 / n), math.sin(t)))
                              for t in (2 * math.pi * i / k for i in range(k))])
@@ -205,7 +206,8 @@ class Painter:
              f'<path d="{inner}" fill="{p["funnel_cap"]}"/>']
         if p.get("funnel_band"):   # a painted top band (a look's funnel marking), seen from above as a rim
             band = rrect_path(x - l / 2 + 0.2, y - w / 2 + 0.2, x + l / 2 - 0.2, y + w / 2 - 0.2, r - 0.2, r - 0.2)
-            s.append(f'<path d="{band}" fill="none" stroke="{p["funnel_band"]}" stroke-width="0.25"/>')
+            s.append(f'<path d="{band}" fill="none" stroke="{p["funnel_band"]}" '
+                     f'stroke-width="{f(self.shapes.get("funnel_band_w", 0.25))}"/>')
         # uptake openings
         n = fn.get("pipes", 2)
         for i in range(n):
@@ -230,14 +232,18 @@ class Painter:
             s.append(f'<line x1="{f(x)}" y1="{f(y)}" x2="{f(bx)}" y2="{f(by)}" stroke="{p["mast"]}" '
                      f'stroke-width="{f(max(self.sw * 1.4, 0.3))}" stroke-linecap="round"/>'
                      f'<circle cx="{f(bx)}" cy="{f(by)}" r="0.3" fill="{p["mast"]}"/>')
-        if m.get("tripod", True) and self.shapes.get("mast") not in ("pole", "fighting_top"):   # a look may make every mast a pole
+        mode = self.shapes.get("mast")
+        legs = self.shapes.get("tripod", 0.0 if mode in ("pole", "fighting_top") else 1.0)   # 0: every mast a pole
+        if m.get("tripod", True) and legs:
             for ang in (150, 210):
-                lx = x + 4.0 * math.cos(math.radians(ang))
-                s.append(f'<line x1="{f(x)}" y1="{f(y)}" x2="{f(lx)}" y2="{f(y + 3.0 * (1 if ang == 150 else -1))}" '
+                lx = x + 4.0 * legs * math.cos(math.radians(ang))
+                ly = y + 3.0 * legs * (1 if ang == 150 else -1)
+                s.append(f'<line x1="{f(x)}" y1="{f(y)}" x2="{f(lx)}" y2="{f(ly)}" '
                          f'stroke="{p["mast"]}" stroke-width="{f(max(self.sw * 1.3, 0.3))}" stroke-linecap="round"/>')
-        if self.shapes.get("mast") == "fighting_top":   # a round fighting top on the mast
-            s.append(f'<circle cx="{f(x)}" cy="{f(y)}" r="1.6" fill="{shade(p["mast"], 0.75)}" {self.stroke(0.8)}/>'
-                     f'<circle cx="{f(x)}" cy="{f(y)}" r="1.25" fill="none" stroke="{shade(p["mast"], 1.2)}" '
+        top = self.shapes.get("top_r", 1.6 if mode == "fighting_top" else 0.0)
+        if top:   # a round fighting top on the mast
+            s.append(f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(top)}" fill="{shade(p["mast"], 0.75)}" {self.stroke(0.8)}/>'
+                     f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(top - 0.35)}" fill="none" stroke="{shade(p["mast"], 1.2)}" '
                      f'stroke-width="0.2"/>')
         s.append(f'<circle cx="{f(x)}" cy="{f(y)}" r="0.7" fill="{p["mast"]}" {self.stroke(0.6)}/>')
         return "".join(s)
@@ -422,7 +428,7 @@ def build_hull_layers(spec, scale, align=2, shadows=True):
         xx += seam
     line_col = pal["deck_line"] if spec.get("deck") == "wood" else pal.get("steel_line", pal["deck_line"])
     base.append(f'<g clip-path="url(#deckclip)" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '
-                f'stroke-opacity="0.45">{"".join(lines)}</g>')
+                f'stroke-opacity="{f(P.shapes.get("deck_line_opacity", 0.45))}">{"".join(lines)}</g>')
 
     # raised decks (forecastle, bridge deck, poop): the hull outline between x0 and x1, a step up
     for i, rd in enumerate(spec.get("raised_decks", [])):
