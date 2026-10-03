@@ -33,7 +33,7 @@ from hitbox import ARC_BEAM
 from geometry import Hull, AA_CFG
 
 LEVEL_H = 2.6  # height of one superstructure level, metres
-CASEMATE_BEAM = 0.85   # casemates stand where the hull is at least this fraction of its full beam
+CASEMATE_BEAM = 0.7    # casemates stand where the hull is at least this fraction of its full beam
 
 
 # ---------------------------------------------------------------------------
@@ -366,12 +366,33 @@ def block_top(b):
     return b.get("z0", 0.0) + LEVEL_H * b["level"]
 
 
+# Warship and carrier planform. The main deck fills DECK_FLARE more of its L x B box than the waterplane
+# (navarch.cwp), since the sides flare out above water. The parallel midbody is MIDBODY_K x (Cb - 0.5) of the
+# length; the rest is BOW_SHARE bow taper and the remainder stern taper, both with one power solved for the fill.
+# At Cb 0.6 this comes close to Dreadnought's deck (fill 0.78 against her 0.76).
+DECK_FLARE, MIDBODY_K, BOW_SHARE, STERN_TRANSOM = 0.08, 1.5, 0.5, 0.1
+
+
+def planform(cb, flare=DECK_FLARE, midbody_k=MIDBODY_K, bow_share=BOW_SHARE, transom=STERN_TRANSOM):
+    """Bow and stern tapers for a deck whose plan fills cwp(cb) + flare of its L x B box."""
+    from navarch import cwp
+    mid = min(0.4, max(0.0, (cb - 0.5) * midbody_k))
+    bt, st = (1 - mid) * bow_share, (1 - mid) * (1 - bow_share)
+    target = min(0.97, cwp(cb) + flare)
+
+    def fill(p):
+        return mid + bt * Hull.end_fill(p, "pointed") + st * (transom + (1 - transom) * Hull.end_fill(p, "round"))
+    lo, hi = 1.05, 12.0
+    for _ in range(30):
+        p = (lo + hi) / 2
+        lo, hi = (p, hi) if fill(p) < target else (lo, p)
+    p = (lo + hi) / 2
+    return dict(bow=dict(taper=bt, power=p), stern=dict(taper=st, power=p, transom=transom, shape="round"))
+
+
 def hull_spec(design):
     h = design["hull"]
-    cb = h["block_coefficient"]
-    return dict(length=h["length"], beam=h["beam"],
-                bow=dict(taper=min(0.42, max(0.25, 0.30 + (0.58 - cb) * 0.6)), power=1.6),
-                stern=dict(taper=0.18, transom=min(0.6, max(0.35, 0.45 + (0.55 - cb) * 0.6))))
+    return dict(length=h["length"], beam=h["beam"], **planform(h["block_coefficient"]))
 
 
 STEERING = (0.03, 0.08, 0.25)   # the steering gear: from 0.03 to 0.08 L forward of the stern, 0.25 B each side
@@ -913,8 +934,37 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     # ---------------- the plan placed: machinery, funnels, midships and wing turrets ----------------
     fz0 = mid_aft + (la + 1.5 if la else 1.0)
     fz1 = bx0 - 1.5
-    # wing turrets stand as far outboard as the narrowest hull section of the middle allows
+    # wing turrets stand as far outboard as the narrowest hull section of the middle allows, then as far as the
+    # hull allows where they end up: a hull narrowing to its ends is wider where the pairs stand
     y_w = min(hull.half_width(fz0 + (fz1 - fz0) * k / 20) for k in range(21)) - reach - 0.6
+
+    def plan_front(widths):
+        """Where the plan's front stands for these item lengths: (lo_x, hi_x, x)."""
+        before_core = sum(widths[:core[0]]) if core else 0.0
+        core_l = sum(widths[i] for i in core)
+        lo_x = max(fz0 + sum(widths), mid_aft + 1.0 + trail_l + core_l + before_core)
+        hi_x = min(fz1, mid_fwd - 1.0 - lead_l + before_core)
+        return lo_x, hi_x, (lo_x + hi_x) / 2 if hi_x >= lo_x else hi_x
+
+    def wing_room(y):
+        """How far out the wing turrets could stand where a plan with them at y puts them."""
+        widths = plan_widths(y)
+        xx, room = plan_front(widths)[2], B
+        for i, (it, w_) in enumerate(zip(seq, widths)):
+            if it == "W":
+                x = xx - wing_side(i, -1, y)
+                for xw in ((x, x - wing_stagger(y)) if echelon else (x,)):
+                    room = min(room, *(hull.half_width(xw + d) for d in (-reach, 0.0, reach)))
+            xx -= w_
+        return room - reach - 0.6
+    if nw:
+        lo_y, hi_y = y_w, min(wing_room(y_w), B / 2 - reach - 0.6)
+        for _ in range(8):     # the farthest out that still fits where it puts them
+            if hi_y - lo_y < 0.05:
+                break
+            mid_y = (lo_y + hi_y) / 2
+            lo_y, hi_y = (mid_y, hi_y) if wing_room(mid_y) >= mid_y else (lo_y, mid_y)
+        y_w = lo_y
     if nw and not echelon and y_w < reach + 0.25:
         lay.fail("beam", f"Wing turrets are {2 * reach:.1f} m across: a pair cannot stand abreast on this beam "
                          f"(needs about {4 * reach + 1.7:.1f} m). Set \"echelon\": true or use smaller guns.")
@@ -926,13 +976,11 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     # (core plus end segments) between the end turret groups
     before_core = sum(widths[:core[0]]) if core else 0.0
     core_l = sum(widths[i] for i in core)
-    lo_x = max(fz0 + sum(widths), mid_aft + 1.0 + trail_l + core_l + before_core)
-    hi_x = min(fz1, mid_fwd - 1.0 - lead_l + before_core)
+    lo_x, hi_x, xx = plan_front(widths)
     if hi_x < lo_x - 0.5:
         what = [f"{nm} midships turret(s)"] * bool(nm) + [f"{nw} wing turret pair(s)"] * bool(nw)
         lay.fail("length", f"No room for the machinery, {nfun} funnel(s){' and ' + ' and '.join(what) if what else ''}"
                            " between the end turret groups.")
-    xx = (lo_x + hi_x) / 2 if hi_x >= lo_x else hi_x
     core_front = xx - before_core
     fxs, f_seg, mids, wings, seg_span = [], [], [], [], {}
     for i, (it, w_) in enumerate(zip(seq, widths)):
@@ -1066,12 +1114,19 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             x_hi = min(mid_fwd, dh["x1"]) - rs_reach - 0.5
         inner = max([b["w"] / 2 for b in blocks if b["level"] >= 2] + [fw / 2] + ([reach] if nm else [])) \
             + rs_reach + 0.4
-        xs_probe = [x_lo + (x_hi - x_lo) * k / 20 for k in range(21)]
-        outer = min(hull.half_width(x) for x in xs_probe) - rs_reach - 0.6
-        if outer < inner:
+
+        def outer_at(x):   # how far out a mount at x may stand: inside the deck edge over its whole footprint
+            return min(hull.half_width(x + d) for d in (-rs_reach, 0.0, rs_reach)) - rs_reach - 0.6
+
+        def y_at(x):       # mounts follow the deck edge, 0.55 of the way out from the inner limit
+            return max(inner, inner + 0.55 * (outer_at(x) - inner))
+        xs_probe = [x_lo + (x_hi - x_lo) * k / 40 for k in range(41)]
+        if max(outer_at(x) for x in xs_probe) < inner:
             lay.fail("beam", f"Hull too narrow for {cal} secondary mounts: they need about "
                              f"{2 * (inner + rs_reach + 0.6):.1f} m of beam amidships.")
-        y_s = max(inner, inner + 0.55 * (outer - inner))
+        else:   # keep to the stretch where they fit across; a hull narrowing to its ends asks for length instead
+            fits = [x for x in xs_probe if outer_at(x) >= inner]
+            x_lo, x_hi = min(fits), max(fits)
         pitch_s = 2.1 * rs_reach + 1.0
         if x_hi <= x_lo:
             lay.fail("length", "No room amidships for the secondary battery.")
@@ -1085,7 +1140,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             # wing turrets (or the batteries placed before) break up the middle: take the free spots nearest
             # amidships, at the preferred pitch if they fit, else the minimum
             def spot_ok(x):
-                fps = [_fp_circle(x, s * y_s, rs_reach) for s in (1, -1)]
+                fps = [_fp_circle(x, s * y_at(x), rs_reach) for s in (1, -1)]
                 return all(lay.free(fp, 0.4) and lay.clear(fp, sec_base + ths) for fp in fps)
             spots = sorted((x for x in (x_lo + 0.5 * k for k in range(int(max(0.0, x_hi - x_lo) * 2) + 1))
                             if spot_ok(x)), key=lambda x: abs(x - c))
@@ -1102,6 +1157,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                                    f"fit {where}.")
             sxs.sort()
         for i, sx in enumerate(sxs):
+            y_s = y_at(sx)
             if not lay.clear(_fp_circle(sx, y_s, rs_reach), sec_base + ths):
                 lay.fail("length", f"Secondary mounts {pre}{i + 1} would stand in a main turret's sweep: use fewer "
                                    "secondaries.")
@@ -1110,7 +1166,8 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                 armament.add_mount(lay, mounts, "secondary", ts_id, ts, mid, sx, side * y_s, sec_base, 90 * side, 3,
                                    armour_mm=sec.get("armour_mm", 25), depth=depth, top=sec_base + ths,
                                    footprint_r=rs_reach, material=sec.get("material"))
-        if wide:
+        if wide and sxs:
+            y_s = max(y_at(sx) for sx in sxs)
             dh_w = max(dh_w, 2 * (y_s + rs_reach + 0.6)) if not first else 2 * (y_s + rs_reach + 0.6)
         first = False
     if wide:

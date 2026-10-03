@@ -87,6 +87,13 @@ class Hull:
         base = max(0.0, 1.0 - t ** power)
         return math.sqrt(base) if shape == "round" else base
 
+    @staticmethod
+    def end_fill(power, shape):
+        """The mean of _end over a taper (0..1): the share of the taper's L x B box its end fills."""
+        if shape == "round":   # integral of sqrt(1 - t^p): a Beta function
+            return math.gamma(1 + 1 / power) * math.gamma(1.5) / math.gamma(1 / power + 1.5)
+        return power / (power + 1)
+
     def half_width(self, x: float) -> float:
         u = (x + self.L / 2) / self.L
         b, s = self.bow, self.stern
