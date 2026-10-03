@@ -1,7 +1,8 @@
 """
 looks — visual styles: how a navy paints and builds its ships in a given era, with no effect on the design.
 
-A design picks one with "look": {"navy": "kure", "era": "wwii"} (default generic, wwii). A look changes only the
+A design picks one with "look": {"navy": "kure", "era": "wwii"} (default generic, wwii), optionally with a
+"number" (a pennant number, drawn by looks with hull_number). A look changes only the
 sprites: colours, deck finish, funnel bands, how turrets are drawn and the silhouette. It never touches the
 layout, the physics, the hitboxes or the sprite sizes, so the same design in two looks plays identically.
 
@@ -14,16 +15,27 @@ Each look (one navy in one era) has:
                "funnel_band" and "steel_line")
     by_style   further overrides for one style (merchant, planing, ...), applied over that style's own
                STYLE_PALETTES entry: a merchant keeps its merchant colours unless the look says otherwise
-    turrets    how armoured (bb) turrets are drawn: "standard", "slab", "round", "classic", "faceted" or "drum"
+    turrets    how armoured (bb) turrets are drawn: "standard", "slab", "round", "classic", "faceted", "drum",
+               "hooded" (an open Victorian barbette with a hood over the guns), "lancia" (long, a wedge face),
+               "champignon" (a drum under a mushroom roof) or "quadruple" (wide, split in two halves for four guns)
                (shipgen.build_turret). The outline stays close to the hitbox shape (geometry.turret_shapes).
     shapes     silhouette variations, all drawn only (shipgen.look_hull_spec, Painter):
                  bow_power, bow_flare, transom   a fuller bow, a flared shoulder, a wider transom. Only ever
                                                  fuller than the layout's hull, so deck-edge fittings stay on deck
                  funnel   "box", "oval" or "capped" (default: stadium)
-                 blocks   superstructure corners: "boxy", "soft", "bowfront" (round fronts, square backs) or
-                          "chamfer" (default: as laid out)
+                 blocks   superstructure corners: "boxy", "soft", "bowfront" (round fronts, square backs),
+                          "chamfer" or "tower" (the top levels a round-fronted tower bridge) (default: as laid out)
                  mast     "pole": no tripod legs; "fighting_top": pole masts with a round fighting top;
-                          "cage": US lattice masts
+                          "cage": US cage masts; "lattice": square braced lattice masts
+               Features painted on (the colours are palette keys, shipgen.deck_paint and dazzle_panels):
+                 dazzle         true: dazzle panels in palette "camo" colours over the hull, superstructure and
+                                funnels, a repeatable pattern per design
+                 deck_stripes   {"ends": "fore" | "both", "pattern": "chevron" | "diagonal", "n": 5, "slope": 0.8,
+                                "colours": ["recog_a", "recog_b"]}: recognition stripes on the open foredeck
+                                (and quarterdeck)
+                 turret_bands   palette keys, e.g. ["recog_a", "recog_b"]: bands across armoured turret roofs
+                 awnings        true: canvas ("awning") over the open quarterdeck
+                 hull_number    true: a number across the foredeck, the look's "number" or one made from the id
     shapes_by_style   further shape overrides for one style (optional)
     adjust     colour nudges applied over the finished palette (optional, see below)
     from       inherit another look and list only the differences (optional, see below)
@@ -55,6 +67,12 @@ beside it wins):
     top_r              fighting top radius in m (0 = none; fighting_top gives 1.6)
     top_tiers          stacked tops, each smaller and lighter (1; 3 or so reads as a pagoda)
     cage_r             US cage mast foot radius in m (0 = none; mast "cage" gives 3)
+    lattice_r          lattice mast half-width in m (0 = none; mast "lattice" gives 2.2)
+    tower_level        the lowest superstructure level drawn as a tower by blocks "tower" (3)
+    funnel_rake        how far aft a raked funnel's top stands from its foot, in m (0)
+    funnel_cap         "pan" (an Italian flat plate overhanging aft) or "hat" (a broad black French cap)
+    tumblehome         the hull drawn this much wider than the deck (a fraction of the beam): sides that bulge
+                       out below a narrow deck
     deck_line_opacity  planking and plate seam lines (0.45; 0 = a plain deck)
 
 Precedence, lowest first: DEFAULT_PALETTE, look palette, STYLE_PALETTES[style], look by_style, design "palette".
@@ -91,6 +109,11 @@ DEFAULT_PALETTE = {
     "hatch": "#5d6650",          # cargo hatch tarpaulins
     "hatch_coaming": "#4a5157",
     "crane": "#3a4045",
+    # look features, used only when a look's shapes ask for them
+    "camo": ["#4d565d", "#76838f"],   # dazzle panel colours (shapes "dazzle")
+    "recog_a": "#c22f27",        # recognition stripes and turret-roof bands (shapes "deck_stripes", "turret_bands")
+    "recog_b": "#f1efe8",
+    "awning": "#ece7d6",         # quarterdeck awnings (shapes "awnings")
 }
 
 # Each style's own colours, under any look (formerly the styles' PALETTE): merchants are not navy grey
@@ -110,8 +133,10 @@ GROUPS = {
     "armament": ["turret", "barbette", "barrel", "tube", "tub"],
     "funnels": ["funnel", "funnel_cap", "funnel_band"],
     "rigging": ["mast", "chain"],
-    "markings": ["marking", "stripe", "track"],
+    "markings": ["marking", "stripe", "track", "recog_a", "recog_b", "number"],
     "cargo": ["hatch", "hatch_coaming"],
+    "camouflage": ["camo"],
+    "canvas": ["awning"],
 }
 
 
@@ -440,6 +465,134 @@ NAVIES = {
                 "shapes": {"bow_power": 0.2, "bow_flare": 0.04, "funnel": "capped",
                            "blocks": "chamfer"}},
         }),
+    "la_spezia": dict(
+        desc="Italy-inspired",
+        eras={
+            # Italy-inspired 1890s: black, white and yellow-buff, the guns under white hoods on open barbettes,
+            # single military masts with one big top
+            "victorian": {
+                "from": "generic/victorian", "desc": "Italy-inspired 1890s: black and white, hooded barbettes, big tops",
+                "palette": {"hull": "#17181a", "wood": "#e2d6b2", "deck_line": "#9a8660", "steel_line": "#8f7b56",
+                            "turret": "#3c3d40", "barbette": "#2c2d30", "turret_hood": "#ece9e0",
+                            "funnel": "#d9b25a", "funnel_band": "#f2efe6", "mast": "#3a3631"},
+                "turrets": "hooded",
+                "shapes": {"bow_power": 0.3, "funnel_band_w": 0.5, "top_r": 2.3}},
+            # Italy-inspired 1910s: light grey, white teak, tall pole masts with small tops, the first long turrets
+            "great_war": {
+                "from": "wwii", "desc": "Italy-inspired 1910s: light grey, white teak, pole masts, long turrets",
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": -0.08, "styles": NAVAL}],
+                "shapes": {"blocks": "soft", "funnel_rake": 0.0, "funnel_cap": None, "dazzle": False,
+                           "deck_stripes": None, "top_r": 0.9, "deck_line_opacity": 0.55}},
+            # Italy-inspired 1920s-30s: the palest grey afloat, raked funnels with frying-pan caps, tower bridges,
+            # peacetime awnings
+            "treaty": {
+                "from": "wwii", "desc": "Italy-inspired 1920s-30s: palest grey, raked pan-capped funnels, awnings",
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.14, "styles": NAVAL},
+                           {"keys": "wood", "tint": ["#ece2c6", 0.35], "styles": NAVAL}],
+                "shapes": {"dazzle": False, "deck_stripes": None, "awnings": True, "top_r": 1.0}},
+            # Italy-inspired: light grey under dark grey and blue-grey dazzle panels, red and white recognition chevrons
+            # fore and aft, long wedge-faced turrets, round tower bridges, raked funnels with frying-pan caps
+            "wwii": dict(
+                desc="Italy-inspired: light grey, dazzle, red and white bow stripes, long wedge turrets",
+                palette={"hull": "#8d9599", "deck": "#878d90", "wood": "#cdb98d", "deck_line": "#7a6644",
+                         "steel_line": "#5f6669",
+                         "levels": ["#b2b9bc", "#bec4c7", "#cacfd1", "#d6dadc"],
+                         "turret": "#b5bcbf", "barbette": "#868d91", "barrel": "#41474a", "tub": "#959c9f",
+                         "funnel": "#b2b9bc", "funnel_cap": "#1f2224", "funnel_band": "#1f2224", "boat": "#ebe9e2",
+                         "fitting": "#6f777b", "mast": "#3a4145", "flight_deck": "#8a8270", "stripe": "#c7352c",
+                         "marking": "#f1efe8", "camo": ["#4d565d", "#6d8496"], "recog_a": "#c22f27",
+                         "recog_b": "#f1efe8"},
+                # merchants: black hull, white house, white funnel with a red top band; MAS boats light grey
+                by_style={"merchant": {"hull": "#1c1c1d", "deck": "#a8977a", "deck_line": "#55493a",
+                                       "levels": ["#ece9e1", "#f0ede6", "#f3f1eb", "#f6f4ef"], "funnel": "#ece9e1",
+                                       "funnel_band": "#b73328", "hatch": "#545a48", "mast": "#7a5c3a"},
+                          "planing": {"hull": "#8d9599", "deck": "#9aa1a4", "deck_line": "#5f6669",
+                                      "levels": ["#b2b9bc", "#bec4c7", "#cacfd1", "#d6dadc"]}},
+                turrets="lancia",
+                shapes={"funnel": "oval", "funnel_rake": 1.6, "funnel_cap": "pan", "blocks": "tower", "mast": "pole",
+                        "bow_power": 0.1, "funnel_band_w": 0.4, "dazzle": True,
+                        "deck_stripes": {"ends": "both", "pattern": "chevron", "n": 4}},
+                shapes_by_style={"merchant": {"funnel_rake": 0.0, "funnel_cap": None, "blocks": "soft",
+                                              "dazzle": False, "awnings": False, "deck_stripes": None},
+                                 "carrier": {"top_r": 0.0}}),
+            # Italy-inspired 1950s-60s: light haze grey, black funnel tops, lattice masts, pennant numbers
+            "cold_war": {
+                "from": "generic/cold_war", "desc": "Italy-inspired 1950s-60s: light haze grey, lattice masts, numbers",
+                "palette": {"funnel_band": "#1f2224", "funnel_cap": "#1f2224"},
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.12, "styles": NAVAL}],
+                "turrets": "lancia",
+                "shapes": {"funnel": "oval", "funnel_rake": 1.0, "funnel_cap": "pan", "blocks": "tower",
+                           "mast": "lattice", "funnel_band_w": 0.6, "hull_number": True},
+                "shapes_by_style": {"merchant": {"funnel_rake": 0.0, "funnel_cap": None, "mast": "pole"},
+                                    "carrier": {"mast": "pole"}}},
+        }),
+    "toulon": dict(
+        desc="France-inspired",
+        eras={
+            # France-inspired 1890s, the "floating hotels": black hull bulging out in a great tumblehome under ochre
+            # upperworks and funnels, mushroom-roofed drum turrets, military masts with stacked tops, awnings aft
+            "victorian": {
+                "from": "generic/victorian",
+                "desc": "France-inspired 1890s: black and ochre, tumblehome, mushroom turrets, stacked tops, awnings",
+                "palette": {"hull": "#161618", "wood": "#d9c9a0", "deck_line": "#8a7650",
+                            "levels": ["#c49a52", "#cba45e", "#d2ae6b", "#d9b878"],
+                            "turret": "#3a3b3e", "barbette": "#2b2c2f", "funnel": "#c49a52", "mast": "#8f6a33",
+                            "boat": "#f3f0e8", "awning": "#f1ecdc"},
+                "turrets": "champignon",
+                "shapes": {"tumblehome": 0.07, "bow_power": 0.2, "top_r": 2.1, "top_tiers": 3, "awnings": True,
+                           "blocks": "soft"},
+                "shapes_by_style": {"merchant": {"tumblehome": 0.0, "awnings": False},
+                                    "planing": {"tumblehome": 0.0, "awnings": False}}},
+            # France-inspired 1910s: "gris bleu", weathered teak, a little tumblehome left, tall pole masts
+            "great_war": {
+                "from": "wwii", "desc": "France-inspired 1910s: gris bleu, teak, tall pole masts, a little tumblehome",
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.14, "styles": NAVAL},
+                           {"keys": "decks", "tint": ["#8a6a3e", 0.2], "styles": NAVAL}],
+                "shapes": {"funnel": "oval", "funnel_rake": 0.0, "turret_bands": None, "tumblehome": 0.03,
+                           "top_r": 0.9, "deck_line_opacity": 0.6, "funnel_band_w": 0.5},
+                "shapes_by_style": {"merchant": {"tumblehome": 0.0}, "planing": {"tumblehome": 0.0},
+                                    "carrier": {"tumblehome": 0.0}}},
+            # France-inspired 1920s-30s: light blue-grey, white teak, tripods with director tops, awnings aft
+            "treaty": {
+                "from": "wwii", "desc": "France-inspired 1920s-30s: light blue-grey, white teak, tripods, awnings",
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.3, "styles": NAVAL},
+                           {"keys": "wood", "tint": ["#e6dcc0", 0.35], "styles": NAVAL}],
+                "shapes": {"funnel_rake": 1.0, "turret_bands": None, "awnings": True, "mast": None, "tripod": 1.2,
+                           "top_r": 1.1},
+                "shapes_by_style": {**_PLAIN_MASTS, "merchant": {**_PLAIN_MASTS["merchant"], "awnings": False}}},
+            # France-inspired: dark blue-grey, wide split quadruple turrets with red and yellow roof bands (1940-42),
+            # funnels raked far back into a mack, very round-fronted upperworks
+            "wwii": dict(
+                desc="France-inspired: dark blue-grey, split quadruple turrets, red and yellow roof bands, raked mack",
+                palette={"hull": "#4c5866", "deck": "#5b6570", "wood": "#b49c72", "deck_line": "#4a3b28",
+                         "steel_line": "#38414b",
+                         "levels": ["#66717d", "#727d89", "#7e8995", "#8a95a0"],
+                         "turret": "#6f7a86", "barbette": "#4f5a66", "barrel": "#2f363d", "tub": "#5d6874",
+                         "funnel": "#6c7783", "funnel_cap": "#1a1d20", "funnel_band": "#1a1d20", "boat": "#a8b1ba",
+                         "fitting": "#4a545e", "mast": "#272e35", "flight_deck": "#4f5a63", "stripe": "#d8b23a",
+                         "marking": "#eef0ea", "recog_a": "#d9b52e", "recog_b": "#b6322b"},
+                # merchants: black hull, white house, red funnel with a black top; patrol boats blue-grey
+                by_style={"merchant": {"hull": "#1b1b1c", "deck": "#a8977a", "deck_line": "#55493a",
+                                       "levels": ["#ece9e1", "#f0ede6", "#f3f1eb", "#f6f4ef"], "funnel": "#c0392b",
+                                       "funnel_band": "#141414", "hatch": "#4d5146", "mast": "#6b5236"},
+                          "planing": {"hull": "#4c5866", "deck": "#5b6570", "deck_line": "#38414b",
+                                      "levels": ["#66717d", "#727d89", "#7e8995", "#8a95a0"]}},
+                turrets="quadruple",
+                shapes={"funnel_rake": 3.0, "block_round": [2.2, 0.2], "mast": "pole", "funnel_band_w": 0.5,
+                        "turret_bands": ["recog_a", "recog_b"]},
+                shapes_by_style={"merchant": {"funnel_rake": 0.0, "block_round": None}}),
+            # France-inspired 1950s-60s: deep blue-grey, broad black funnel hats, lattice masts, pennant numbers
+            "cold_war": {
+                "from": "generic/cold_war", "desc": "France-inspired 1950s-60s: deep blue-grey, black funnel hats, lattice masts",
+                "palette": {"funnel_cap": "#141618", "funnel_band": "#141618"},
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "tint": ["#3f5064", 0.3],
+                            "styles": NAVAL}],
+                "turrets": "quadruple",
+                "shapes": {"funnel": "box", "funnel_cap": "hat", "block_round": [2.2, 0.2], "mast": "lattice",
+                           "hull_number": True},
+                "shapes_by_style": {"merchant": {"funnel_cap": None, "mast": "pole", "block_round": None},
+                                    "carrier": {"mast": "pole"}}},
+        }),
 }
 
 DEFAULT_LOOK = {"navy": "generic", "era": "wwii"}
@@ -464,7 +617,7 @@ def resolve(design) -> tuple[str, str]:
 def look_label(design) -> str:
     """The look as text for the preview sheet, e.g. "kure / wwii" ("" for the default look)."""
     lk = look_of(design)
-    if lk == DEFAULT_LOOK:
+    if {k: lk[k] for k in DEFAULT_LOOK} == DEFAULT_LOOK:
         return ""
     navy, _ = resolve(design)
     return f"{lk['navy']} / {lk['era']}" + (" (drawn as generic)" if navy != lk["navy"] else "")
@@ -503,7 +656,7 @@ def validate(design) -> list[str]:
     lk = design.get("look", {})
     if not isinstance(lk, dict):
         return [f'look = {lk!r}: give {{"navy": ..., "era": ...}}']
-    extra = sorted(set(lk) - set(DEFAULT_LOOK))
+    extra = sorted(set(lk) - set(DEFAULT_LOOK) - {"number"})
     errs = [f"look has unknown keys: {', '.join(extra)}"] if extra else []
     lk = look_of(design)
     if lk["navy"] not in NAVIES:
@@ -515,7 +668,10 @@ def validate(design) -> list[str]:
 
 def shapes(design) -> dict:
     lk = get(design)
-    return {**lk["shapes"], **lk.get("shapes_by_style", {}).get(style_name(design), {})}
+    out = {**lk["shapes"], **lk.get("shapes_by_style", {}).get(style_name(design), {})}
+    if look_of(design).get("number"):
+        out["number"] = str(look_of(design)["number"])
+    return out
 
 
 def palette(design) -> dict:

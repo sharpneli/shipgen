@@ -28,6 +28,7 @@ import json
 import math
 import os
 import random
+import zlib
 
 import cairosvg
 from PIL import Image, ImageDraw, ImageFont
@@ -118,8 +119,19 @@ class Painter:
         self.p = palette
         self.shapes = shapes or {}   # a look's drawing variations (looks.py)
         self.shadows = shadows  # bake drop shadows in; off when the game casts them from a height map
+        self.dazzle = []        # dazzle camouflage panels [(points, colour)], set by build_hull_layers
+        self._clip_n = 0
         # keep outlines at least ~0.6 px wide whatever the scale
         self.sw = max(0.12, 0.6 / scale)
+
+    def dazzled(self, d):
+        """The dazzle panels clipped to the outline d (an SVG path), or "" with no dazzle."""
+        if not self.dazzle:
+            return ""
+        self._clip_n += 1
+        cid = f"dz{self._clip_n}"
+        return (f'<clipPath id="{cid}"><path d="{d}"/></clipPath><g clip-path="url(#{cid})">'
+                + "".join(f'<path d="{poly(pts)}" fill="{col}"/>' for pts, col in self.dazzle) + "</g>")
 
     def stroke(self, k=1.0):
         return f'stroke="{self.p["line"]}" stroke-width="{f(self.sw * k)}" stroke-linejoin="round"'
@@ -167,9 +179,11 @@ class Painter:
             cf, cb = min(rf, h, (x1 - x0) / 2), min(rb, h, (x1 - x0) / 2)
             d = poly([(x0 + cb, y - h), (x1 - cf, y - h), (x1, y - h + cf), (x1, y + h - cf), (x1 - cf, y + h),
                       (x0 + cb, y + h), (x0, y + h - cb), (x0, y - h + cb)])
+        elif mode == "tower" and lvl >= self.shapes.get("tower_level", 3):   # a round-fronted tower bridge
+            d = rrect_path(x0, y - w / 2, x1, y + w / 2, min(w / 2, (x1 - x0) * 0.6), rb * 0.4)
         else:
             kf, kb = self.shapes.get("block_round") or \
-                {"boxy": (0.35, 0.35), "soft": (1.6, 1.4), "bowfront": (1.5, 0.4)}.get(mode, (1.0, 1.0))
+                {"boxy": (0.35, 0.35), "soft": (1.6, 1.4), "bowfront": (1.5, 0.4), "tower": (1.2, 0.5)}.get(mode, (1.0, 1.0))
             d = rrect_path(x0, y - w / 2, x1, y + w / 2, rf * kf, rb * kb)
         cols = self.p["levels"]
         col = cols[min(lvl, len(cols)) - 1]
@@ -180,6 +194,7 @@ class Painter:
             s.append(f'<g{cl}><path d="{d}" transform="translate({f(off * 0.6)},{f(off)})" '
                      f'fill="#000" fill-opacity="0.28"/></g>')
         s.append(f'<path d="{d}" fill="{col}" {self.stroke()}/>')
+        s.append(self.dazzled(d))
         # a thin lighter rim on the port/fwd edge suggests light from the upper-left
         s.append(f'<path d="{d}" fill="none" stroke="{shade(col, 1.25)}" stroke-width="{f(self.sw * 0.9)}" '
                  f'transform="translate({f(-self.sw * 0.6)},{f(-self.sw * 0.6)})" stroke-opacity="0.7"/>')
@@ -200,10 +215,18 @@ class Painter:
                              for t in (2 * math.pi * i / k for i in range(k))])
             d, inner = sup(l / 2, w / 2), sup(l / 2 - 0.6, w / 2 - 0.6)
         cl = f' clip-path="url(#{clip})"' if clip else ""
+        rake = self.shapes.get("funnel_rake", 0.0)   # a raked funnel: the top seen displaced aft of its foot
         s = [f'<g{cl}><path d="{d}" transform="translate({f(w * 0.3)},{f(w * 0.5)})" fill="#000" fill-opacity="0.25"/></g>'
-             if self.shadows else "",
-             f'<path d="{d}" fill="{p["funnel"]}" {self.stroke()}/>',
-             f'<path d="{inner}" fill="{p["funnel_cap"]}"/>']
+             if self.shadows else ""]
+        if rake:   # the foot, then the casing's forward face sloping back to the top
+            s.append(f'<path d="{d}" fill="{shade(p["funnel"], 0.9)}" {self.stroke()}/>'
+                     f'<rect x="{f(x - rake)}" y="{f(y - w / 2)}" width="{f(rake)}" height="{f(w)}" '
+                     f'fill="{shade(p["funnel"], 0.9)}"/>'
+                     f'<line x1="{f(x - rake)}" y1="{f(y - w / 2)}" x2="{f(x)}" y2="{f(y - w / 2)}" {self.stroke()}/>'
+                     f'<line x1="{f(x - rake)}" y1="{f(y + w / 2)}" x2="{f(x)}" y2="{f(y + w / 2)}" {self.stroke()}/>')
+            s.append(f'<g transform="translate({f(-rake)},0)">')
+        s += [f'<path d="{d}" fill="{p["funnel"]}" {self.stroke()}/>', self.dazzled(d),
+              f'<path d="{inner}" fill="{p["funnel_cap"]}"/>']
         if p.get("funnel_band"):   # a painted top band (a look's funnel marking), seen from above as a rim
             band = rrect_path(x - l / 2 + 0.2, y - w / 2 + 0.2, x + l / 2 - 0.2, y + w / 2 - 0.2, r - 0.2, r - 0.2)
             s.append(f'<path d="{band}" fill="none" stroke="{p["funnel_band"]}" '
@@ -217,9 +240,31 @@ class Painter:
         if mode == "capped":     # a cowl cap: a lighter ring standing proud round the top
             cap = rrect_path(x - l / 2 + 0.35, y - w / 2 + 0.35, x + l / 2 - 0.35, y + w / 2 - 0.35, r - 0.35, r - 0.35)
             s.append(f'<path d="{cap}" fill="none" stroke="{shade(p["funnel"], 1.25)}" stroke-width="0.45"/>')
+        cap = self.shapes.get("funnel_cap")
+        if cap == "pan":         # an Italian "frying pan": a flat plate over the top, overhanging aft, open forward
+            pl, pw = l * 0.8, w * 1.08
+            px = x - l * 0.22
+            s.append(f'<path d="{rrect_path(px - pl / 2, y - pw / 2, px + pl / 2, y + pw / 2, pw * 0.3, pw / 2)}" '
+                     f'fill="{shade(p["funnel"], 0.8)}" {self.stroke(0.9)}/>')
+            for i in range(1, 4):   # the plate's stiffeners
+                gx = px - pl / 2 + pl * i / 4
+                s.append(f'<line x1="{f(gx)}" y1="{f(y - pw / 2 + 0.3)}" x2="{f(gx)}" y2="{f(y + pw / 2 - 0.3)}" '
+                         f'stroke="{shade(p["funnel"], 0.6)}" stroke-width="{f(self.sw * 0.8)}"/>')
+        elif cap == "hat":       # a French "chapeau": a broad black cap with smoke vanes all round
+            hl, hw_ = l + 1.2, w + 1.2
+            hd = rrect_path(x - hl / 2, y - hw_ / 2, x + hl / 2, y + hw_ / 2, min(hw_ / 2, r + 0.6), min(hw_ / 2, r + 0.6))
+            s.append(f'<path d="{hd}" fill="{p["funnel_cap"]}" {self.stroke()}/>')
+            s.append(f'<path d="{inner}" fill="{shade(p["funnel_cap"], 1.25)}" transform="translate({f(x * 0.12)},'
+                     f'{f(y * 0.12)}) scale(0.88)"/>')
+            for i in range(max(2, int(l / 1.5))):   # vanes across the cap
+                vx = x - l / 2 + 0.3 + (l - 0.6) * (i + 0.5) / max(2, int(l / 1.5))
+                s.append(f'<line x1="{f(vx)}" y1="{f(y - w / 2 - 0.4)}" x2="{f(vx)}" y2="{f(y + w / 2 + 0.4)}" '
+                         f'stroke="{shade(p["funnel_cap"], 2.2)}" stroke-width="{f(self.sw * 0.7)}" stroke-opacity="0.7"/>')
         # cap grating highlight
         s.append(f'<path d="{d}" fill="none" stroke="{shade(p["funnel"], 1.3)}" stroke-width="{f(self.sw)}" '
                  f'transform="translate({f(-self.sw * 0.6)},{f(-self.sw * 0.6)})" stroke-opacity="0.6"/>')
+        if rake:
+            s.append("</g>")
         return "".join(s)
 
     def mast(self, m):
@@ -233,7 +278,7 @@ class Painter:
                      f'stroke-width="{f(max(self.sw * 1.4, 0.3))}" stroke-linecap="round"/>'
                      f'<circle cx="{f(bx)}" cy="{f(by)}" r="0.3" fill="{p["mast"]}"/>')
         mode = self.shapes.get("mast")
-        legs = self.shapes.get("tripod", 0.0 if mode in ("pole", "fighting_top", "cage") else 1.0)   # 0: every mast a pole
+        legs = self.shapes.get("tripod", 0.0 if mode in ("pole", "fighting_top", "cage", "lattice") else 1.0)   # 0: every mast a pole
         if m.get("tripod", True) and legs:
             for ang in (150, 210):
                 lx = x + 4.0 * legs * math.cos(math.radians(ang))
@@ -250,6 +295,19 @@ class Painter:
             s.append(f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(cage)}" fill="none" stroke="{p["mast"]}" '
                      f'stroke-width="{f(max(self.sw * 0.8, 0.15))}"/>'
                      f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(0.45 * cage)}" fill="{shade(p["mast"], 0.85)}" {self.stroke(0.6)}/>')
+        lat = self.shapes.get("lattice_r", 2.2 if mode == "lattice" else 0.0)
+        if lat and m.get("tripod", True):   # a lattice mast: a square braced truss narrowing to a radar platform
+            for k in (1.0, 0.55):
+                q = lat * k
+                s.append(f'<rect x="{f(x - q)}" y="{f(y - q)}" width="{f(2 * q)}" height="{f(2 * q)}" fill="none" '
+                         f'stroke="{p["mast"]}" stroke-width="{f(max(self.sw * 0.9, 0.18))}"/>')
+            for sx, sy in ((1, 1), (1, -1), (-1, 1), (-1, -1)):
+                s.append(f'<line x1="{f(x + sx * lat)}" y1="{f(y + sy * lat)}" x2="{f(x - sx * 0.55 * lat)}" '
+                         f'y2="{f(y + sy * 0.55 * lat)}" stroke="{p["mast"]}" stroke-width="{f(max(self.sw * 0.7, 0.14))}"/>')
+            s.append(f'<rect x="{f(x - 0.4 * lat)}" y="{f(y - 0.4 * lat)}" width="{f(0.8 * lat)}" height="{f(0.8 * lat)}" '
+                     f'fill="{shade(p["mast"], 1.3)}" {self.stroke(0.6)}/>'
+                     f'<line x1="{f(x)}" y1="{f(y - 1.3 * lat)}" x2="{f(x)}" y2="{f(y + 1.3 * lat)}" '
+                     f'stroke="{shade(p["mast"], 0.8)}" stroke-width="{f(max(self.sw * 1.6, 0.35))}"/>')
         top = self.shapes.get("top_r", 1.6 if mode == "fighting_top" else 0.0)
         for i in range(self.shapes.get("top_tiers", 1) if top else 0):   # a fighting top; tiers stack a pagoda
             r = top * (1 - 0.3 * i)
@@ -393,6 +451,123 @@ def vents(spec, hull, P):
     return "".join(out)
 
 
+def deck_obstacles(spec, hull, small=False):
+    """Footprints (x0, x1, y0, y1) of what stands on deck: turrets, superstructure and funnels; with small, also
+    AA, boats, masts and fittings. The look features that paint the open deck (stripes, awnings, numbers) keep
+    clear of them."""
+    out = []
+    for m in expand(spec.get("turrets"), hull):
+        r = turret_types(spec)[m["type"]]["r"] * 1.15
+        out.append((m["x"] - r, m["x"] + r, m.get("y", 0) - r, m.get("y", 0) + r))
+    for b in expand(spec.get("superstructure"), hull):
+        out.append((b["x0"], b["x1"], b.get("y", 0) - b["w"] / 2, b.get("y", 0) + b["w"] / 2))
+    for fn in expand(spec.get("funnels"), hull):
+        out.append((fn["x"] - fn["l"] / 2, fn["x"] + fn["l"] / 2, fn.get("y", 0) - fn["w"] / 2, fn.get("y", 0) + fn["w"] / 2))
+    if small:
+        for a in expand(spec.get("aa"), hull):
+            out.append((a["x"] - 2.0, a["x"] + 2.0, a["y"] - 2.0, a["y"] + 2.0))
+        for it in expand(spec.get("boats"), hull) + expand(spec.get("fittings"), hull):
+            l, w = it.get("l", 7), it.get("w", 2.2)
+            out.append((it["x"] - l / 2, it["x"] + l / 2, it["y"] - w / 2, it["y"] + w / 2))
+        for m in expand(spec.get("masts"), hull):
+            out.append((m["x"] - 1.0, m["x"] + 1.0, m.get("y", 0) - 1.0, m.get("y", 0) + 1.0))
+    return out
+
+
+def open_ends(spec, hull, half_y=None, small=False):
+    """The open foredeck and quarterdeck: (front of the foremost obstacle, back of the aftmost), counting only
+    obstacles within half_y of the centreline when given."""
+    obs = [o for o in deck_obstacles(spec, hull, small) if half_y is None or (o[2] < half_y and o[3] > -half_y)]
+    if not obs:
+        return 0.0, 0.0
+    return max(o[1] for o in obs), min(o[0] for o in obs)
+
+
+def dazzle_panels(spec, hull, colours):
+    """Dazzle camouflage: slanted panels cut across the whole ship, in a repeatable pattern per design (seeded by
+    its id). Panels are clipped to the hull band, the superstructure and the funnels as they're drawn."""
+    rng = random.Random(f'{spec["id"]}/dazzle')
+    L, Y = hull.L, hull.B / 2 + 2.0
+    n = max(5, round(L / 18))
+    step = L / n
+    cuts = [(-L / 2 - 2.0, 0.0)] + [(-L / 2 + step * i + rng.uniform(-0.2, 0.2) * step,
+                                     rng.uniform(-0.45, 0.45) * step / Y) for i in range(1, n)] + [(L / 2 + 2.0, 0.0)]
+    out, last = [], None
+    for (c0, k0), (c1, k1) in zip(cuts, cuts[1:]):
+        col = rng.choice([c for c in [None] + list(colours) if c != last])
+        last = col
+        if col:
+            out.append(([(c0 - k0 * Y, -Y), (c1 - k1 * Y, -Y), (c1 + k1 * Y, Y), (c0 + k0 * Y, Y)], col))
+        if rng.random() < 0.5:   # a wedge from one side into the panel, in another colour
+            side = rng.choice((-1, 1))
+            mid = (c0 + c1) / 2
+            wcol = rng.choice([c for c in colours if c != col])
+            out.append(([(mid - 0.35 * step, side * Y), (mid + 0.35 * step, side * Y),
+                         (mid + rng.uniform(-0.3, 0.3) * step, side * Y * rng.uniform(-0.2, 0.4))], wcol))
+    return out
+
+
+def deck_paint(spec, hull, P):
+    """A look's paint and canvas on the open deck (P.shapes): recognition stripes on the forecastle (and
+    quarterdeck) and peacetime awnings over the quarterdeck; then, separately (drawn over the anchor chains),
+    a hull number on the foredeck."""
+    sh, pal, L = P.shapes, P.p, hull.L
+    out = []
+    tip = L / 2 - 0.04 * L
+    st = sh.get("deck_stripes")
+    if st and not spec.get("flight_deck"):   # alternating bands, chevrons pointing ahead by default
+        fwd, aft = open_ends(spec, hull)
+        n, k = st.get("n", 5), (st.get("slope", 0.8) if st.get("pattern", "chevron") == "chevron" else 0.0)
+        cols = [pal.get(c, c) for c in st.get("colours", ("recog_a", "recog_b"))]
+        Y = hull.B / 2
+        spans = [(fwd + 1.0, tip + 0.04 * L, 1)] + ([(-L / 2, aft - 1.0, -1)] if st.get("ends") == "both" else [])
+        for i, (x0, x1, dirn) in enumerate(spans):
+            if x1 - x0 < 4.0:
+                continue
+            band = (x1 - x0) / (2 * n)
+            g = [f'<clipPath id="stripe{i}"><rect x="{f(x0)}" y="{f(-Y)}" width="{f(x1 - x0)}" height="{f(2 * Y)}"/></clipPath>'
+                 f'<g clip-path="url(#deckclip)"><g clip-path="url(#stripe{i})">']
+            for j in range(int((x1 - x0 + k * Y) / band) + 4):
+                u0 = (x0 if dirn > 0 else x1) + dirn * band * (j - 1)
+                u1 = u0 + dirn * band
+                pts = [(u0, 0), (u0 - dirn * k * Y, -Y), (u1 - dirn * k * Y, -Y), (u1, 0), (u1 - dirn * k * Y, Y),
+                       (u0 - dirn * k * Y, Y)] if k else [(u0 - 0.6 * Y, -Y), (u1 - 0.6 * Y, -Y), (u1 + 0.6 * Y, Y),
+                                                          (u0 + 0.6 * Y, Y)]
+                out_col = cols[j % len(cols)]
+                g.append(f'<path d="{poly(pts)}" fill="{out_col}"/>')
+            out.append("".join(g) + "</g></g>")
+    aw = sh.get("awnings")
+    if aw and not spec.get("flight_deck"):   # canvas on stanchions over the quarterdeck, ridged along the centreline
+        _, aft = open_ends(spec, hull)
+        x0, x1 = -L / 2 + 0.03 * L, aft - 1.2
+        if x1 - x0 > 6.0:
+            d = hull_path(hull, inset=1.1, x_min=x0, x_max=x1)
+            col = pal.get("awning", "#ece7d6")
+            ribs = "".join(f'<line x1="{f(x)}" y1="{f(-hull.B)}" x2="{f(x)}" y2="{f(hull.B)}"/>'
+                           for x in [x0 + 2.5 * i for i in range(1, int((x1 - x0) / 2.5) + 1)])
+            out.append(f'<clipPath id="awning"><path d="{d}"/></clipPath>'
+                       f'<path d="{d}" fill="{col}" {P.stroke(0.9)}/>'
+                       f'<g clip-path="url(#awning)"><rect x="{f(x0)}" y="0" width="{f(x1 - x0)}" height="{f(hull.B)}" '
+                       f'fill="#000" fill-opacity="0.1"/>'
+                       f'<g stroke="{shade(col, 0.72)}" stroke-width="{f(P.sw * 0.8)}">{ribs}</g>'
+                       f'<line x1="{f(x0)}" y1="0" x2="{f(x1)}" y2="0" stroke="{shade(col, 0.65)}" '
+                       f'stroke-width="{f(P.sw * 1.2)}"/></g>')
+    num = []
+    if sh.get("hull_number") and not spec.get("flight_deck"):   # painted big across the foredeck
+        text = str(sh.get("number") or 100 + zlib.crc32(spec["id"].encode()) % 900)
+        hw = hull.half_width(L / 2 - 0.15 * L)
+        size = 0.75 * 2 * hw / (0.62 * len(text))
+        fwd, _ = open_ends(spec, hull, half_y=0.62 * len(text) * size / 2, small=True)
+        x1 = L / 2 - 0.12 * L
+        size = min(size, (x1 - fwd) * 0.8, 0.05 * L)
+        if size > 1.2:
+            nx = x1 - size * 0.6
+            num.append(f'<text x="{f(nx)}" y="0" font-family="DejaVu Sans" font-weight="bold" font-size="{f(size)}" '
+                       f'fill="{pal.get("number", pal["marking"])}" fill-opacity="0.92" text-anchor="middle" '
+                       f'dominant-baseline="central" transform="rotate(90 {f(nx)} 0)">{text}</text>')
+    return "".join(out), "".join(num)
+
+
 def look_hull_spec(spec):
     """The hull as a look draws it (spec["shapes"]: bow_power and transom added, bow_flare). Drawing only, and only
     ever fuller than the layout's hull, so deck-edge fittings stay on deck; the hitbox keeps the layout's hull."""
@@ -408,16 +583,22 @@ def look_hull_spec(spec):
 def build_hull_layers(spec, scale, align=2, shadows=True):
     pal = {**DEFAULT_PALETTE, **spec.get("palette", {})}
     P = Painter(pal, scale, shadows, spec.get("shapes"))
+    sh = P.shapes
     hull = Hull(look_hull_spec(spec))
     hx, hy = ship_extent(spec, hull, scale, align)
     vb = (-hx, -hy, 2 * hx, 2 * hy)
-    hull_d = hull_path(hull)
+    # tumblehome: the hull's sides bulge out below a narrower deck, seen from above as a wide band round the deck
+    outer = Hull({**look_hull_spec(spec), "beam": hull.B * (1 + sh["tumblehome"])}) if sh.get("tumblehome") else hull
+    hull_d = hull_path(outer)
     defs = f'<clipPath id="hullclip"><path d="{hull_d}"/></clipPath>'
+    if sh.get("dazzle") and pal.get("camo"):
+        P.dazzle = dazzle_panels(spec, hull, pal["camo"])
 
     base, upper = [], []
 
     # --- hull and deck -------------------------------------------------------
     base.append(f'<path d="{hull_d}" fill="{pal["hull"]}" {P.stroke(1.4)}/>')
+    base.append(P.dazzled(hull_d))
     inset = spec.get("deck_inset", 0.55)
     deck_d = hull_path(hull, inset=inset, max_hw=spec.get("deck_max_hw"),
                           x_min=spec.get("deck_x0"), x_max=spec.get("deck_x1"))
@@ -451,6 +632,8 @@ def build_hull_layers(spec, scale, align=2, shadows=True):
                     f'stroke-opacity="0.45">{"".join(lines)}</g>')
     for ht in spec.get("hatches", []):
         base.append(P.hatch(ht))
+    paint, number = deck_paint(spec, hull, P)
+    base.append(paint)
 
     # bow details: anchor chains, breakwater, bollards
     bx = spec.get("chain_x")
@@ -473,6 +656,8 @@ def build_hull_layers(spec, scale, align=2, shadows=True):
             by = side * (hull.half_width(bxx) - 1.1)
             base.append(f'<circle cx="{f(bxx)}" cy="{f(by)}" r="0.35" fill="{pal["fitting"]}" {P.stroke(0.6)}/>'
                         f'<circle cx="{f(bxx + 0.9)}" cy="{f(by)}" r="0.35" fill="{pal["fitting"]}" {P.stroke(0.6)}/>')
+
+    base.append(number)   # over the chains, so it stays readable
 
     # --- aircraft carrier flight deck ---------------------------------------
     fd = spec.get("flight_deck")
@@ -594,13 +779,30 @@ def look_turret_body(look, r):
         body = [((-0.05 + 0.9 * math.cos(math.radians(a))) * r, 0.9 * math.sin(math.radians(a)) * r)
                 for a in range(0, 360, 10)]
         return body, ears(-0.55, -0.35, -0.98, -0.72, 0.08), 0.85 * r, 0.0
+    if look == "hooded":     # an open Victorian barbette ring, the guns under a pear-shaped hood on the turntable
+        body = [((-0.05 + 0.93 * math.cos(math.radians(a))) * r, 0.93 * math.sin(math.radians(a)) * r)
+                for a in range(0, 360, 10)]
+        return body, [], 0.88 * r, 0.0
+    if look == "lancia":     # long and narrow: a wedge prow of a face, flat sides, a rounded bustle; rangefinder across
+        rear = [(-0.6 - 0.36 * math.sin(math.radians(a)), -0.82 * math.cos(math.radians(a))) for a in range(0, 91, 15)]
+        body = mirror([(0.96, 0.0), (0.84, -0.42), (0.5, -0.82)] + rear)
+        return body, [rrect_polygon(-0.64 * r, -1.04 * r, -0.46 * r, 1.04 * r, 0.07 * r, 0.07 * r, seg=4)], 0.9 * r, 0.0
+    if look == "champignon":  # a French drum under an overhanging mushroom roof, a conical sighting hood on top
+        body = [((-0.05 + 0.95 * math.cos(math.radians(a))) * r, 0.95 * math.sin(math.radians(a)) * r)
+                for a in range(0, 360, 10)]
+        return body, [], 0.9 * r, 0.0
+    if look == "quadruple":  # a wide flat face, chamfered front corners, a tapering rear; two halves for four guns
+        body = mirror([(0.86, -0.76), (0.72, -0.9), (-0.5, -0.9), (-0.95, -0.48), (-0.95, 0.0)])
+        return body, ears(-0.62, -0.46, -1.02, -0.86), 0.86 * r, 0.76 * r
     raise ValueError(f"unknown turret look {look!r}")
 
 
-def build_turret(t, palette, scale, align=2, shadows=True, look="standard"):
+def build_turret(t, palette, scale, align=2, shadows=True, look="standard", shapes=None):
     """Turret sprite. Outlines come from geometry.turret_shapes, the same polygons used for hitboxes; a look
-    other than "standard" redraws armoured turrets in its own style (look_turret_body)."""
-    P = Painter(palette, scale, shadows)
+    other than "standard" redraws armoured turrets in its own style (look_turret_body). shapes: the look's
+    drawing variations (turret_bands: recognition bands painted across armoured turret roofs)."""
+    P = Painter(palette, scale, shadows, shapes)
+    defs = ""
     p = palette
     r = t["r"]
     n, bl, bw, sp = t["barrels"], t["barrel_len"], t["barrel_w"], t["spacing"]
@@ -630,6 +832,8 @@ def build_turret(t, palette, scale, align=2, shadows=True, look="standard"):
     if shape == "bb" and look != "standard":
         pts, parts, xf, hf = look_turret_body(look, r)
         body = poly(pts)
+        if P.shapes.get("turret_bands"):
+            defs = f'<clipPath id="tbody"><path d="{body}"/></clipPath>'
         s.append(barrels(BARREL_ROOT["bb"] * r))
         for i in range(n):   # gun ports
             y = (i - (n - 1) / 2) * sp
@@ -671,6 +875,45 @@ def build_turret(t, palette, scale, align=2, shadows=True, look="standard"):
                          f'fill="{shade(body_col, 1.2)}"/>')
             s.append(f'<rect x="{f(-0.62 * r)}" y="{f(-0.68 * r)}" width="{f(0.2 * r)}" height="{f(1.36 * r)}" '
                      f'rx="{f(0.06 * r)}" fill="{hood}" {P.stroke(0.5)}/>')
+        elif look == "hooded":   # the ring's dark well, then the light hood over the guns' breeches
+            cx = -0.05 * r
+            s.append(f'<circle cx="{f(cx)}" cy="0" r="{f(0.74 * r)}" fill="{shade(body_col, 0.5)}" {P.stroke(0.5)}/>')
+            hw = min(0.6 * r, (n - 1) / 2 * sp + 0.35 * r)
+            pear = [(0.62 * r, -hw * 0.8), (0.72 * r, 0.0), (0.62 * r, hw * 0.8), (0.2 * r, hw), (-0.45 * r, hw * 0.55),
+                    (-0.6 * r, 0.0), (-0.45 * r, -hw * 0.55), (0.2 * r, -hw)]
+            hood_col = p.get("turret_hood", shade(body_col, 1.35))
+            s.append(f'<path d="{poly(pear)}" fill="{hood_col}" {P.stroke(0.8)}/>'
+                     f'<path d="{poly(pear)}" fill="{shade(hood_col, 1.15)}" transform="translate({f(0.04 * r)},0) scale(0.7)"/>'
+                     f'<circle cx="{f(-0.2 * r)}" cy="0" r="{f(0.1 * r)}" fill="{shade(hood_col, 0.85)}" {P.stroke(0.5)}/>')
+        elif look == "lancia":   # the wedge's crease, two low cupolas forward, a hatch on the bustle
+            s.append(f'<path d="M{f(0.96 * r)},0 L{f(-0.4 * r)},0" stroke="{shade(body_col, 0.7)}" '
+                     f'stroke-width="{f(0.05 * r)}"/>')
+            for yy in (-0.45 * r, 0.45 * r):
+                s.append(f'<ellipse cx="{f(0.3 * r)}" cy="{f(yy)}" rx="{f(0.16 * r)}" ry="{f(0.09 * r)}" fill="{hood}" '
+                         f'{P.stroke(0.5)}/>')
+            s.append(f'<circle cx="{f(-0.8 * r)}" cy="0" r="{f(0.1 * r)}" fill="{hood}" {P.stroke(0.5)}/>')
+        elif look == "champignon":  # the mushroom roof's lip, the cone rising to a sighting hood at the centre
+            for k, rr in ((0.85, 0.78), (1.15, 0.52), (1.3, 0.3)):
+                s.append(f'<circle cx="{f(-0.05 * r)}" cy="0" r="{f(rr * r)}" fill="{shade(body_col, k)}" '
+                         f'{P.stroke(0.5)}/>')
+            s.append(f'<rect x="{f(-0.05 * r)}" y="{f(-0.11 * r)}" width="{f(0.32 * r)}" height="{f(0.22 * r)}" '
+                     f'rx="{f(0.06 * r)}" fill="{shade(body_col, 0.75)}" {P.stroke(0.5)}/>')
+            for a in range(0, 360, 30):   # rivets round the lip
+                s.append(f'<circle cx="{f((-0.05 + 0.87 * math.cos(math.radians(a))) * r)}" '
+                         f'cy="{f(0.87 * math.sin(math.radians(a)) * r)}" r="{f(0.025 * r)}" fill="{shade(body_col, 0.6)}"/>')
+        elif look == "quadruple":   # the wall between the two halves, a periscope hood over each gun pair
+            if n >= 4:
+                s.append(f'<rect x="{f(-0.95 * r)}" y="{f(-0.05 * r)}" width="{f(1.79 * r)}" height="{f(0.1 * r)}" '
+                         f'fill="{shade(body_col, 0.65)}" {P.stroke(0.4)}/>')
+            for yy in ((-0.48 * r, 0.48 * r) if n >= 2 else (0.0,)):
+                s.append(f'<rect x="{f(0.18 * r)}" y="{f(yy - 0.1 * r)}" width="{f(0.32 * r)}" height="{f(0.2 * r)}" '
+                         f'rx="{f(0.05 * r)}" fill="{hood}" {P.stroke(0.5)}/>')
+            s.append(f'<rect x="{f(-0.85 * r)}" y="{f(-0.2 * r)}" width="{f(0.18 * r)}" height="{f(0.4 * r)}" '
+                     f'rx="{f(0.04 * r)}" fill="{hood}" {P.stroke(0.5)}/>')
+        for i, key in enumerate(P.shapes.get("turret_bands") or []):   # recognition bands across the roof
+            bx = (-0.1 - 0.26 * i) * r
+            s.append(f'<g clip-path="url(#tbody)"><rect x="{f(bx - 0.1 * r)}" y="{f(-1.2 * r)}" width="{f(0.2 * r)}" '
+                     f'height="{f(2.4 * r)}" fill="{p.get(key, key)}" fill-opacity="0.92"/></g>')
 
     elif shape == "bb":
         body = poly(G["body"])
@@ -744,7 +987,7 @@ def build_turret(t, palette, scale, align=2, shadows=True, look="standard"):
         raise ValueError(f"unknown turret shape {shape}")
 
     vb = (-half, -half, 2 * half, 2 * half)
-    return svg_doc("".join(s), vb, scale)
+    return svg_doc("".join(s), vb, scale, defs)
 
 
 # ----------------------------------------------------------------------------

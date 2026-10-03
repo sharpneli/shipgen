@@ -117,7 +117,8 @@ def render_ship(ship, out_dir, S, mips=0, look=None, previews=True):
     tmeta = {}
     for tid, t in spec["turret_types"].items():
         png = os.path.join(out_dir, "turrets", f"{tid}.png")
-        render(build_turret(t, pal, S, align, shadows=False, look=turret_look), png, png.replace(".png", ".svg"))
+        render(build_turret(t, pal, S, align, shadows=False, look=turret_look, shapes=spec["shapes"]), png,
+               png.replace(".png", ".svg"))
         turret_pngs[tid] = png
         w, h = Image.open(png).size
         tmeta[tid] = dict(file=f"turrets/{tid}.png", size_px=[w, h], pivot_px=[w / 2, h / 2], desc=t["desc"])
