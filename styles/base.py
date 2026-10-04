@@ -33,8 +33,8 @@ COMMON_LIMITS = {
     ("fire_control", "search_radar_t"): (0, 500),
 }
 
-SUPERSTRUCTURE_KEYS = ("t_per_m2", "material", "tower_levels", "deckhouse_levels", "deckhouse")
-DECKHOUSE_KINDS = ("full", "centre")
+SUPERSTRUCTURE_KEYS = ("t_per_m2", "material", "tower_levels", "deckhouse_levels")
+STANDS_ON = ("deck", "deckhouse")   # what a raisable battery stands on (layout.stands_on)
 
 
 def superstructure_errors(design, style) -> list[str]:
@@ -56,10 +56,8 @@ def superstructure_errors(design, style) -> list[str]:
         elif not isinstance(s["deckhouse_levels"], int) or s["deckhouse_levels"] < 1:
             errs.append("superstructure.deckhouse_levels: use a whole number, 1 or more")
     if "deckhouse" in s:
-        if not style.DECKHOUSE_LEVELS:
-            errs.append(f"superstructure.deckhouse: the {style.name} style has no deckhouse amidships yet")
-        elif s["deckhouse"] not in DECKHOUSE_KINDS:
-            errs.append(f"superstructure.deckhouse: use one of {', '.join(DECKHOUSE_KINDS)}")
+        errs.append("superstructure.deckhouse is gone: say what each battery stands on instead (secondary.stands_on, "
+                    "main.amidships_stands_on: \"deck\" or \"deckhouse\"); level 1 is built under what needs it")
     if "tower_levels" in s:
         if not style.MIN_TOWER:
             errs.append(f"superstructure.tower_levels: the {style.name} style has no bridge tower")
@@ -173,11 +171,23 @@ class Style:
                 errs.append(f"secondary.mount: the {self.name} style has no casemates")
             if b.get("tier", "lower") not in ("lower", "upper"):
                 errs.append(f"secondary.tier = {b['tier']!r}: use lower or upper (casemates only)")
+            if "stands_on" in b:
+                if not self.RAISED_MOUNTS:
+                    errs.append(f"secondary.stands_on: the {self.name} style has no deckhouse to raise guns on")
+                elif mount != "deck":
+                    errs.append("secondary.stands_on: deck batteries only (casemates use tier)")
+                elif b["stands_on"] not in STANDS_ON:
+                    errs.append(f"secondary.stands_on = {b['stands_on']!r}: use {' or '.join(STANDS_ON)}")
         main = design.get("main") or {}
         if main.get("mid") and not self.MIDSHIPS_TURRETS:
             errs.append(f"main.mid: the {self.name} style has no midships turrets")
         if main.get("wing") and not self.WING_TURRETS:
             errs.append(f"main.wing: the {self.name} style has no wing turrets")
+        if "amidships_stands_on" in main:
+            if not self.RAISED_MOUNTS:
+                errs.append(f"main.amidships_stands_on: the {self.name} style has no deckhouse to raise guns on")
+            elif main["amidships_stands_on"] not in STANDS_ON:
+                errs.append(f"main.amidships_stands_on = {main['amidships_stands_on']!r}: use {' or '.join(STANDS_ON)}")
         if not isinstance(main.get("echelon", False), bool):
             errs.append("main.echelon: use true or false")
         sf = main.get("superfire", True)
@@ -193,6 +203,7 @@ class Style:
     CASEMATES = False           # may a secondary battery be "mount": "casemate" (guns in the hull side)
     MIN_TOWER = 0               # the lowest superstructure.tower_levels the style's bridge tower takes (0: no tower)
     DECKHOUSE_LEVELS = False    # does the layout take superstructure.deckhouse_levels
+    RAISED_MOUNTS = False       # may wing / midships turrets and deck secondaries stand on the deckhouse (stands_on)
 
     def tuning(self, design) -> dict:
         """Overrides of navarch.TUNING for this design."""

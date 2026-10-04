@@ -906,11 +906,12 @@ def stepped_counts(main):
     return sf.get("fore", nf), sf.get("aft", na)
 
 
-def deckhouse_kind(design):
-    """superstructure.deckhouse: "full" (the default), a level-1 deckhouse over the whole middle of a big ship
-    carrying its secondaries and wing turrets, or "centre", as on a narrow ship: the guns on the main deck and the
-    deckhouse under the bridge, carried along the centreline by deckhouse_levels."""
-    return (design.get("superstructure") or {}).get("deckhouse", "full")
+def stands_on(spec, key="stands_on"):
+    """What a battery stands on (a deck secondary battery's "stands_on", the main battery's "amidships_stands_on" for
+    its wing and midships turrets): "deck", the main deck (the default), or "deckhouse", the roof of level 1, a level
+    higher. Raised guns are drier and stand over what is on the main deck (boats, torpedoes, AA) instead of sweeping
+    it, at the price of topweight and the deckhouse built under them."""
+    return spec.get(key, "deck")
 
 
 def deckhouse_levels(design):
@@ -1415,7 +1416,11 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     lay.geo["bridge"] = dict(level=nb, floor=LEVEL_H * (nb - 1), need=nb_need, tower=n_tower,
                              turret_roof=fwd_roof)
     hood = firecontrol.HOOD_H if firecontrol.spec(design)["main"]["directors"] else 0.0
-    wide = B >= 15 and deckhouse_kind(design) == "full"    # big ships' guns stand on a full-width deckhouse
+    mid_raised = stands_on(main, "amidships_stands_on") == "deckhouse"   # wing and midships turrets on the deckhouse
+    secs = design.get("secondary") or []
+    secs = [{**b, "prefix": battery_prefix(k)} for k, b in enumerate(secs if isinstance(secs, list) else [secs])]
+    deck_secs = [b for b in secs if b.get("mount", "deck") == "deck" and b.get("per_side", b.get("count", 0) // 2)]
+    wide = (mid_raised and bool(nm or nw)) or any(stands_on(b) == "deckhouse" for b in deck_secs)
 
     # ---------------- the middle's plan: machinery, funnels, midships and wing turrets ----------------
     # The machinery block (boiler rooms, engine rooms, bunkers; powerplant.segments) runs forward to aft under the
@@ -1802,7 +1807,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     lay.geo["machinery"] = (min(p_[1] for p_ in plant_placed), max(p_[2] for p_ in plant_placed))
     lay.geo["machinery_x"] = mach_c
     if nm or nw:
-        mid_base = (LEVEL_H if wide else 0.0) + 1.2
+        mid_base = (LEVEL_H if mid_raised else 0.0) + 1.2
 
         def main_mount(mid, x, y, rest, **kw):
             lay.reserve_sweep(armament.add_mount(lay, mounts, "main", tm_id, tm, mid, x, y, mid_base, rest, 1,
@@ -1950,23 +1955,22 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     # ---------------- secondaries on deck ----------------
     # one battery or a list; deck batteries stand on the deckhouse amidships (the first spread evenly, the rest in
     # the free spots nearest amidships), casemate batteries go in the hull sides once the deckhouse is laid out
-    secs = design.get("secondary") or []
-    secs = [{**b, "prefix": battery_prefix(k)} for k, b in enumerate(secs if isinstance(secs, list) else [secs])]
     dh_w = 0.62 * B
-    sec_base = LEVEL_H if wide else 0.0
     first = True
     for sec in secs:
         nsec = sec.get("per_side", sec.get("count", 0) // 2)
         if sec.get("mount", "deck") != "deck" or not nsec:
             continue
         pre, cal = sec["prefix"], f"{sec['calibre_mm']:g} mm"
+        raised = stands_on(sec) == "deckhouse"
+        sec_base = LEVEL_H if raised else 0.0
         ts_id, ts = make_turret_type(sec["calibre_mm"], sec["calibre_length"], sec["barrels"])
         turret_types[ts_id] = ts
         rs = ts["r"]
         rs_reach = max(rs, turret_reach({**ts, "barrel_len": 0}))
         ths = turret_height(ts)
         x_lo, x_hi = mid_aft + rs_reach + 0.5, mid_fwd - rs_reach - 0.5
-        if wide:   # they stand on the deckhouse: stay on what is left of it after trimming
+        if raised:   # they stand on the deckhouse: stay on what is left of it after trimming
             x_lo = max(mid_aft, dh["x0"]) + rs_reach + 0.5
             x_hi = min(mid_fwd, dh["x1"]) - rs_reach - 0.5
         inner = max([b["w"] / 2 for b in blocks if b["level"] >= 2] + [fw / 2] + ([reach] if nm else [])) \
@@ -2023,12 +2027,12 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                 armament.add_mount(lay, mounts, "secondary", ts_id, ts, mid, sx, side * y_s, sec_base, 90 * side, 3,
                                    armour_mm=sec.get("armour_mm", 25), depth=depth, top=sec_base + ths,
                                    footprint_r=rs_reach, material=sec.get("material"))
-        if wide and sxs:
+        if raised and sxs:
             y_s = max(y_at(sx) for sx in sxs)
             dh_w = max(dh_w, 2 * (y_s + rs_reach + 0.6)) if not first else 2 * (y_s + rs_reach + 0.6)
         first = False
     if wide:
-        if nw:   # wing turrets stand on the deckhouse
+        if nw and mid_raised:   # wing turrets stand on the deckhouse
             dh_w = max(dh_w, 2 * (y_w + reach + 0.6))
         hw_max = max(hull.half_width(dh["x0"] + (dh["x1"] - dh["x0"]) * k / 20) for k in range(21))
         dh_w = min(dh_w, 2 * (hw_max - DH_INSET))     # the sides follow the deck edge (level_outline)
