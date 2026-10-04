@@ -47,7 +47,7 @@ class Planing(Style):
               ("speed_kn",): (15, 60), ("range_nm",): (100, 3000)}
 
     def tuning(self, design):
-        return dict(super().tuning(design), power_model="planing", hull_k=0.06, freeboard_a=0.04,
+        return dict(super().tuning(design), power_model="planing", hull_model="box", hull_k=0.06, freeboard_a=0.04,
                     freeboard_b=0.8, misc_frac=0.07, cruise_kn=25.0, lcb_frac=-0.11, gm_stiff_frac=0.5,
                     fn_warn=99.0, lb_warn=2.8, trim_tol_frac=0.025, trim_warn_frac=0.01)
 

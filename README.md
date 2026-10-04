@@ -19,6 +19,7 @@ design JSON (player input: counts, calibres, armour, speed, look)
    shipdesign.py  validate(design) -> errors;  build(design) -> ship (plain, JSON-serialisable dict)
    ├─ styles/      the design style: warship, carrier, merchant, planing (limits, tuning, layout, extra weights)
    ├─ navarch.py   weights → displacement, draught, power, fuel, GM, trim   (iterates to a fixed point)
+   ├─ hullweight.py  hull structure from plate area × thickness, construction tech and the hull girder
    ├─ layout.py    warship layout + shared layout primitives; balances CG over CB by shifting the arrangement
    ├─ armament.py  style-neutral gun, torpedo and AA placement; every style books its mounts with add_mount
    ├─ ordnance.py  magazines for every style: ammunition (and a carrier's bombs and avgas) stowed low
@@ -39,7 +40,7 @@ design.py      the command line: validate, shipdesign.build, write report.json a
 - Use the design side alone (a game's designer UI): `ship = shipdesign.build(design)` gives the report and hitboxes
   in about 5–170 ms (sizing the hull is most of it). After a small change, pass the previous result's length,
   `shipdesign.build(design, hint=ship["report"]["results"]["length_m"])`, to make it about twice as fast with the
-  same result. `render.render_ship(ship, ...)` can run later, elsewhere, or from the same dict loaded `render.render_ship(ship, ...)` can run later, elsewhere, or from the same dict loaded
+  same result. `render.render_ship(ship, ...)` can run later, elsewhere, or from the same dict loaded
   from JSON.
 - The rules that keep the halves apart: nothing on the design side imports the renderer, PIL, cairosvg or numpy;
   the renderer imports no design-side module (only `geometry` and `looks`); and the renderer reads nothing but
@@ -139,6 +140,14 @@ The crew lives wherever the ship has empty volume (`crew.crew_space`):
   - This is what makes many centreline turrets hard with early plants (a Gangut).
 - **Smoke:** a bridge, director or aft control standing in a funnel's smoke (`powerplant.smoke_reach`, which is shortest for oil with air heaters) is flagged in its hitbox and warned about.
 The design gives no size. The designer works out the hull from what it carries (`shipdesign.size`), and hitting a tonnage or length target is the player's job, by trading the inputs off. `hull.block_coefficient` (the hull form) is optional, with a default per style.
+
+`hull.construction` is how the hull is built (`hullweight.py`, from `research/hull-weight-model.md`): `yield_mpa` (the hull-girder steel), `join_factor` (riveted above 1, all welded 1.0) and `standard` (minimum plate gauge: 0.85 light, 1.0 naval, 1.25 robust), with an optional `name`. Like the plant, it's numbers, not a year. `hull-templates.md` (`python hull_templates.py`) has a block for each period from wrought iron to HY-80; a design without one gets the all-welded 1945 block. What it decides:
+- **The hull structure weight** is plate area × thickness, not a volume law. Small hulls are built to minimum gauge (4 + 0.03 L mm), whatever the steel. Long, heavy hulls also need strength plating to resist bending as a girder (moment Δ g L / 40), and that's where better steel and welding save weight: an Iowa-sized hull weighs about a third more in 1900 mild steel than in 1942 practice, a Fletcher-sized one about 15%.
+- **Armour decks are part of the girder.** The `citadel` and `full` plates over amidships stand in for strength plating, the more the thicker they are and the farther from the neutral axis (0.45 D). A thick, high armour deck can carry the whole girder: the WWII battleships need no strength plating beyond minimum gauge.
+- Internal decks come from the deck stack (`navarch.STACK_DECK`, 0.6 of a full deck per level, since many are platforms), and the inner bottom's weight comes in from 4,000 to 10,000 t full load (`navarch.INNER_BOTTOM_T`). Both are smooth so the size search doesn't jump.
+- Beyond 350 m (`hullweight.LONG`, not in the research) a hull bends like 350 m of itself, since no ocean wave is longer, and minimum gauge stops growing. Only absurd designs get there.
+- A hull that needs more strength plating than everything else together warns that it's very long for its depth.
+- Planing craft ignore it and keep the volume law (`hull_k`) until light hulls are researched.
 - **Length:** the shortest hull, on a half-metre grid, that meets two rules:
   - Everything fits, at the layout's comfortable clearances. Warship end groups keep their preferred bow and stern room, which leaves room to shift for trim. Each layout failure is tagged with whether more length or more beam fixes it (`Layout.fail`).
   - It is at least as slender as its speed asks (`shipdesign.min_length`). Slenderness, length over the cube root of the underwater volume, rises with the volumetric Froude number from 5.25 (Liberty, Mikasa) to 8.2 (Fletcher). The rule is fitted to 16 real ships and lands within about 5% for most. Planing craft skip it.
@@ -255,6 +264,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
     - volumes: living, provisions, water (and how much of it is in the double bottom), distiller output
     - space: needed against usable
     - the comfort inputs: sleeping area per man against the standard's, headroom against deck height, berth ratio, sickbay beds, tolerance days, endurance against fuel range
+  - `hull`: the structure (`construction` name, `structure_t`, split into `min_gauge_t` and `strength_t`), its plating (`plate_min_mm`, `plate_strength_mm`) and its `girder` amidships: `allowable_stress_mpa`, the moment of inertia it needs (`required_m4`) and what carries it (`plating_m4`, `armour_decks_m4`). For the damage model: the hull breaks when what's left of plating plus armour decks falls well below what's needed. Planing craft give only `structure_t`.
   - `plant`: the plant's static numbers for the game (`powerplant.published`), and how it sits in the hull:
     - power: rated and continuous kW, overload headroom, shafts and units
     - fuel: fuel rate and the part-load curve
@@ -353,29 +363,30 @@ The sun is dynamic, so the game casts the shadows. `shadow.py`'s docstring has t
 
 ## Tuning
 - `navarch.TUNING`: the weight and power constants.
+- `hullweight.py`: the hull-structure constants (fitted in `research/hull-weight-model.md`; `research/hull_weight_ref.py` is the reference implementation).
 - `layout.py`: the clearances (bow_pref/min, st_pref/min), turret spacing, bridge size and AA spacing.
-- Each style's `tuning()` overrides `TUNING` for its designs: hull weight, freeboard, outfit fraction, hull CG height, the draught limit, and so on.
-- Calibration (std / full displacement, t; real values in brackets):
+- Each style's `tuning()` overrides `TUNING` for its designs: the volume-law hull weight (planing craft), freeboard, outfit fraction, hull CG height, the draught limit, and so on.
+- Calibration (std / full displacement, t; as of the hull-structure model, 2026-10-04). The new hull weight is 10–40% lighter than the old volume law, so most ships dropped; the outfit and protective plating that no group models yet (`research/hull-weight-model.md` §6.7) are the next recalibration:
 
   | design | model | real ship |
   |---|---|---|
-  | `battleship` (Iowa-like) | 47.7k std | ~45k std |
-  | `heavy_cruiser` (Baltimore-like) | 13.9k std | 14.5k std |
-  | `destroyer` (Fletcher-like) | 1.9k std | 2.05k std |
-  | `fleet_carrier` (Essex-like) | 27.2k / 32.5k, 154k shp, crew 2,660, 90 aircraft | 27.1k / 36.4k, 150k shp, ~2,600 crew, 90–100 aircraft |
-  | `supercarrier` (Forrestal-like) | 54.6k / 63.5k | 59k / 81k |
-  | `escort_carrier` (Casablanca-like) | 9.1k / 10.3k | 7.8k / 10.9k |
-  | `liberty` (Liberty ship) | 3.3k / 14.0k, 2,300 shp | 3.4k / 14.2k, 2,500 ihp |
-  | `tanker` (T2-like) | 5.1k / 22.1k | ~5.3k / 21.9k |
-  | `gangut` (Gangut-like) | 20.4k std, 38.9k shp | 23.3k normal, 42k shp |
-  | `dreadnought` (HMS Dreadnought-like, 21 kn) | 17.4k std, 26.7k shp | 18.1k normal, 23k shp |
-  | `nassau` (Nassau-like, 19.5 kn) | 17.1k std, 21.8k shp | 18.6k normal, 22k ihp |
-  | `nassau_casemates` (casemated secondaries) | 18.3k std, 22.7k shp | 18.6k normal, 22k ihp |
-  | `mikasa` (Mikasa-like, 18 kn, `steam_recip`) | 11.4k std, 12.6k shp | 15.1k normal, 15k ihp |
-  | `connecticut` (Connecticut-like, no 8" turrets, `steam_recip`) | 13.8k std, 13.8k shp | 16.0k normal, 16.5k ihp |
-  | `kongo` (Kongo as built, 27.5 kn) | 29.2k std, 87.2k shp | 27.5k normal, 64k shp |
-  | `invincible` (Invincible-like, 25.5 kn) | 16.9k std, 48.1k shp | 17.3k normal, 41k shp |
-  | `battlecruiser` (Lion-like, 28 kn) | 28.9k std, 90.6k shp | 26.3k normal; ~92k shp for 28 kn on trials |
+  | `battleship` (Iowa-like) | 37.2k std | ~45k std |
+  | `heavy_cruiser` (Baltimore-like) | 13.3k std | 14.5k std |
+  | `destroyer` (Fletcher-like) | 2.1k std | 2.05k std |
+  | `fleet_carrier` (Essex-like) | 26.0k / 33.4k, 156k shp, crew 1,972, 90 aircraft | 27.1k / 36.4k, 150k shp, ~2,600 crew, 90–100 aircraft |
+  | `supercarrier` (Forrestal-like) | 50.7k / 60.6k | 59k / 81k |
+  | `escort_carrier` (Casablanca-like) | 4.4k / 5.4k | 7.8k / 10.9k |
+  | `liberty` (Liberty ship) | 3.2k / 13.3k, 2,100 shp | 3.4k / 14.2k, 2,500 ihp |
+  | `tanker` (T2-like) | 4.2k / 20.5k | ~5.3k / 21.9k |
+  | `gangut` (Gangut-like, now a silly 22-turret test) | 271k std, 108k shp | 23.3k normal, 42k shp |
+  | `dreadnought` (HMS Dreadnought-like, 21 kn) | 22.8k std, 31.9k shp | 18.1k normal, 23k shp |
+  | `nassau` (Nassau-like, 19.5 kn) | 17.4k std, 21.5k shp | 18.6k normal, 22k ihp |
+  | `nassau_casemates` (casemated secondaries) | 18.7k std, 22.1k shp | 18.6k normal, 22k ihp |
+  | `mikasa` (Mikasa-like, 18 kn, `steam_recip`) | 11.1k std, 12.2k shp | 15.1k normal, 15k ihp |
+  | `connecticut` (Connecticut-like, no 8" turrets, `steam_recip`) | 12.5k std, 13.5k shp | 16.0k normal, 16.5k ihp |
+  | `kongo` (Kongo as built, 27.5 kn) | 35.5k std, 96.9k shp | 27.5k normal, 64k shp |
+  | `invincible` (Invincible-like, 25.5 kn) | 17.0k std, 46.7k shp | 17.3k normal, 41k shp |
+  | `battlecruiser` (Lion-like, 28 kn) | 28.7k std, 87.6k shp | 26.3k normal; ~92k shp for 28 kn on trials |
   | `mtb` (Vosper 70 ft-like) | 35 / 44 t, 3,000 hp at 39 kn | ~47 t, 3,750 hp |
   | `pt_boat` (Elco 80 ft-like) | 60 / 72 t, 5,300 hp at 41 kn | ~46 / 56 t, 4,500 hp |
 

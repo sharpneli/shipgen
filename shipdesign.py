@@ -7,7 +7,7 @@ shipdesign: the design side. A player's design (JSON) in, the designed ship out 
 
 ship = {
   "design":   the input design, unchanged (its "look" is passed through for the renderer, never read here)
-  "report":   validity, errors, warnings, displacement, power, stability, weights (report.json)
+  "report":   validity, errors, warnings, displacement, power, stability, hull structure and girder, weights (report.json)
   "hitboxes": hull, components with heights and firing arcs, subdivision cells and rooms (hitboxes.json)
   "render":   what the renderer needs to draw the ship, all in ship-local metres:
       spec      the drawing spec: hull form, turret types and mounts, superstructure, funnels, masts, boats,
@@ -29,6 +29,7 @@ from __future__ import annotations
 import copy
 
 import crew
+import hullweight
 import navarch
 import styles
 from geometry import AA_CFG, rrect_polygon
@@ -191,6 +192,8 @@ def solve(design, iterations=6, hint=None):
             B = min(b_max, round(B * 1.03, 2))
         if "length" in lay.short:
             L = min(l_max, max(L + 0.5, round(L * 1.01 * 2) / 2))
+    if "length" in lay.short and L >= l_max and not lay.errors:
+        lay.errors.append(f"Not everything fits even on the longest hull ({l_max:,.0f} m). Carry less.")
     return lay, r, sized
 
 
@@ -245,6 +248,21 @@ def plant_report(lay, r):
     return powerplant.published(r.plant, r.power_shp, extra)
 
 
+def hull_report(design, r):
+    """The hull structure (navarch.hull_structure) and its girder amidships, for the damage model: the girder
+    holds while its moment of inertia (plating plus armour decks; losing either takes its part away) stays above
+    required_m4."""
+    h = r.hull
+    if "t_min_mm" not in h:     # a style that keeps the volume law (planing craft)
+        return dict(structure_t=round(h["t"]))
+    return dict(
+        construction=hullweight.construction(design).get("name"), structure_t=round(h["t"]),
+        min_gauge_t=round(h["min_gauge_t"]), strength_t=round(h["strength_t"]),
+        plate_min_mm=round(h["t_min_mm"], 1), plate_strength_mm=round(h["t_str_mm"], 1),
+        girder=dict(allowable_stress_mpa=round(h["stress_mpa"], 1), required_m4=round(h["i_req_m4"], 2),
+                    plating_m4=round(h["i_plating_m4"], 2), armour_decks_m4=round(h["i_armour_m4"], 2)))
+
+
 def report_dict(design, lay, r, sized):
     """design: the player's input (echoed in "inputs"); sized: the same with the hull the designer chose."""
     h = sized["hull"]
@@ -263,6 +281,7 @@ def report_dict(design, lay, r, sized):
             **styles.get(design).results(sized, lay, r),
         ),
         plant=plant_report(lay, r),
+        hull=hull_report(design, r),
         crew=lay.crew,
         weight_groups_t={k: round(v) for k, v in sorted(r.groups.items(), key=lambda kv: -kv[1])},
         weights=[dict(name=w.name, group=w.group, t=round(w.w, 1), x=round(w.x, 2), z=round(w.z, 2))

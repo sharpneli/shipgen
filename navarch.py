@@ -16,14 +16,15 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
+import hullweight
 import powerplant
 
 STEEL = 7.85  # t/m^3
 SEAWATER = 1.025  # t/m^3
 
 TUNING = dict(
-    hull_k=0.112,           # structure weight = hull_k * (L*B*D)^hull_exp
-    hull_exp=1.0,
+    hull_k=0.112,           # styles with hull_model "box" (planing craft): structure = hull_k * (L*B*D)^hull_exp;
+    hull_exp=1.0,           # the rest weigh their plating (hull_structure)
     freeboard_a=0.018,      # design freeboard = a*L + b
     freeboard_b=1.5,
     admiralty_a=111.0,      # admiralty coefficient C = a * Fn^-b * (form corrections)
@@ -69,6 +70,7 @@ class Result:
     cruise_kn: float = 0.0     # range is computed at this speed
     plant: dict = field(default_factory=dict)       # powerplant.spec of the design
     plant_rated: dict = field(default_factory=dict)  # powerplant.rated at power_shp
+    hull: dict = field(default_factory=dict)         # hullweight.weight: the structure and its hull girder
     gm_full: float = 0.0
     gm_light: float = 0.0
     lcg: float = 0.0
@@ -192,8 +194,13 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         T = disp / (SEAWATER * L * B * cb)
         D = T + design_freeboard(L, tun)
         items: list[Weight] = []
-        items.append(Weight("Hull structure", "hull", tun["hull_k"] * (L * B * D) ** tun["hull_exp"],
-                            x=-0.01 * L, z_rel=("frac", tun.get("hull_z_frac", 0.58))))
+        arm = armour_geometry(design, L, T, D, geo)
+        if tun.get("hull_model") == "box":
+            hull = dict(t=tun["hull_k"] * (L * B * D) ** tun["hull_exp"])
+        else:
+            hull = hull_structure(design, L, B, cb, D, disp, arm)
+        items.append(Weight("Hull structure", "hull", hull["t"], x=-0.01 * L,
+                            z_rel=("frac", tun.get("hull_z_frac", 0.58))))
         shp = power_required(disp, V, L, B, cb, tun)
         items.append(Weight("Machinery", "machinery", powerplant.rated(plant, shp)["weight_t"],
                             x=geo.get("machinery_x", -0.02 * L), z_rel=("frac", 0.32)))
@@ -202,7 +209,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         else:
             items += own
         # armour that depends on draught / depth
-        items += armour_weights(design, L, B, T, D, geo)
+        items += armour_weights(design, L, B, D, arm)
         items += style.structure_weights(design, L, B, T, D, geo, tun)
         std_wo_misc = sum(w.w for w in items)
         std = std_wo_misc / (1 - tun["misc_frac"])
@@ -237,6 +244,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
     res.power_shp = shp
     res.cruise_kn = vc
     res.plant, res.plant_rated = plant, powerplant.rated(plant, shp)
+    res.hull = hull
     res.weights = items
     groups = {}
     for w in items:
@@ -305,9 +313,31 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
             design, L, res.draught, res.depth, geo)["strakes"]):
         res.warnings.append(f"The {ub['mm']} mm upper belt has no height: the belt below it already reaches the "
                             f"{deck_name(ub.get('to_deck', 0)).lower()}.")
+    h = res.hull
+    if h.get("strength_t", 0.0) > h.get("min_gauge_t", float("inf")):
+        res.warnings.append(f"The hull is very long for its depth: {h['strength_t']:,.0f} t of its plating (strength "
+                            f"deck and shell {h['t_str_mm']:.0f} mm, where {h['t_min_mm']:.0f} mm would do) only "
+                            "keeps it from breaking in two. A shorter hull or an armour deck high in it would help.")
     if fn > tun.get("fn_warn", 0.62):
         res.warnings.append(f"Speed {V} kn is extreme for a {L:.0f} m hull (Froude {fn:.2f}); power is enormous.")
     return res
+
+
+STACK_DECK = 0.6       # a level of the deck stack weighs this much of a full internal deck: many are platforms and
+                       # flats (fitted so the stack reproduces the hull-weight research's calibration)
+INNER_BOTTOM_T = (4000.0, 10000.0)  # full displacement (t) over which the inner bottom's weight comes in: escorts
+                                    # are calibrated without one, cruisers and capital ships with one
+
+
+def hull_structure(design, L, B, cb, D, full, arm):
+    """The hull's structure weight and girder (hullweight.weight). Internal decks come from the deck stack's depth
+    and the inner bottom from the displacement, both smoothly (a step would make the solver and the size search
+    jump); the armour-deck plates over amidships (arm: armour_geometry) count in the girder."""
+    n_int = STACK_DECK * max(0.0, (D - powerplant.double_bottom(D) - MIN_TIER) / DECK_PITCH)
+    lo, hi = INNER_BOTTOM_T
+    inner = min(1.0, max(0.0, (full - lo) / (hi - lo)))
+    plates = [(d["mm"], d["z"]) for d in arm["decks"] if d["x0"] <= 0.0 <= d["x1"]]
+    return hullweight.weight(L, B, D, cb, full, hullweight.construction(design), n_int, inner, plates)
 
 
 DECK_PITCH = 2.6       # m between the hull's decks below the main deck (one superstructure level, the lower casemates)
@@ -470,8 +500,8 @@ def armour_geometry(design, L, T, D, geo):
                 bulkhead_top=bh_top)
 
 
-def armour_weights(design, L, B, T, D, geo):
-    g = armour_geometry(design, L, T, D, geo)
+def armour_weights(design, L, B, D, g):
+    """The armour's weights from its geometry (armour_geometry)."""
     lc = g["x1"] - g["x0"]
     xc = (g["x0"] + g["x1"]) / 2
     zf = lambda lo, hi: ("frac", (lo + hi) / 2 / D if D else 0.5)

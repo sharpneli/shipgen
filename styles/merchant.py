@@ -122,7 +122,7 @@ class Merchant(Style):
         return errs
 
     def tuning(self, design):
-        return dict(super().tuning(design), hull_k=0.10, freeboard_a=0.011, freeboard_b=1.0, misc_frac=0.03,
+        return dict(super().tuning(design), freeboard_a=0.011, freeboard_b=1.0, misc_frac=0.03,
                     cruise_at_service=True, tb_max=0.62, lcb_frac=0.012,
                     gm_stiff_frac=0.2)
 
