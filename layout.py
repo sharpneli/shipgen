@@ -1235,21 +1235,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         turret_types[tt_id] = tt
         sweep = tt["barrel_len"] / 2 + 0.3
         placed = 0
-        if not wide:
-            cands = sorted([mid_aft + 0.5 * k for k in range(int((mid_fwd - mid_aft) * 2) + 1)],
-                           key=lambda x: abs(x - mach_c))
-            for x in cands:
-                if placed >= ntp:
-                    break
-                fp = _fp_circle(x, 0, sweep)
-                if lay.free(fp, 0.3) and lay.clear(fp, 1.4) and hull.half_width(x) > tt["r"] + 0.5:
-                    mid = f"T{placed + 1}"
-                    mounts.append(dict(id=mid, kind="torpedo", type=tt_id, t=tt, x=x, y=0.0, level=0, base=0.3,
-                                       top=1.4, rest=90, z=1))
-                    lay.occupy(fp, 0, 1.4, mid)
-                    lay.weights.append(Weight(mid, "armament", torpedo_weight(tt["barrels"]), x=x, z_rel=("deck", 1)))
-                    placed += 1
-        else:
+        if wide:
             if ntp % 2:
                 lay.warnings.append("Wide hulls carry torpedo mounts in pairs; rounded up to an even number.")
                 ntp += 1
@@ -1270,6 +1256,35 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                         lay.weights.append(Weight(mid, "armament", torpedo_weight(tt["barrels"]), x=x,
                                                   z_rel=("deck", 1)))
                         placed += 1
+        if placed < ntp:     # narrow hulls, and wide ones whose deck edges are taken: on the centreline
+            cands = sorted([mid_aft + 0.5 * k for k in range(int((mid_fwd - mid_aft) * 2) + 1)],
+                           key=lambda x: abs(x - mach_c))
+            for x in cands:
+                if placed >= ntp:
+                    break
+                fp = _fp_circle(x, 0, sweep)
+                if lay.free(fp, 0.3) and lay.clear(fp, 1.4) and hull.half_width(x) > tt["r"] + 0.5:
+                    mid = f"T{placed + 1}"
+                    mounts.append(dict(id=mid, kind="torpedo", type=tt_id, t=tt, x=x, y=0.0, level=0, base=0.3,
+                                       top=1.4, rest=90, z=1))
+                    lay.occupy(fp, 0, 1.4, mid)
+                    lay.weights.append(Weight(mid, "armament", torpedo_weight(tt["barrels"]), x=x, z_rel=("deck", 1)))
+                    placed += 1
+        if placed < ntp and wide:   # the deck is taken: on the deckhouse roof, on its centreline
+            cands = sorted([dh["x0"] + sweep + 0.5 * k for k in range(int((dh["x1"] - dh["x0"] - 2 * sweep) * 2) + 1)],
+                           key=lambda x: abs(x - mach_c))
+            for x in cands:
+                if placed >= ntp:
+                    break
+                fp = _fp_circle(x, 0, sweep)
+                if lay.free(fp, 0.3, ignore=("Deckhouse",)) and lay.clear(fp, LEVEL_H + 1.4):
+                    mid = f"T{placed + 1}"
+                    mounts.append(dict(id=mid, kind="torpedo", type=tt_id, t=tt, x=x, y=0.0, level=1,
+                                       base=LEVEL_H + 0.3, top=LEVEL_H + 1.4, rest=90, z=1))
+                    lay.occupy(fp, LEVEL_H, LEVEL_H + 1.4, mid)
+                    lay.weights.append(Weight(mid, "armament", torpedo_weight(tt["barrels"]), x=x,
+                                              z_rel=("deck", LEVEL_H + 1)))
+                    placed += 1
         if placed < ntp:
             lay.fail("length", f"Only {placed} of {ntp} torpedo mounts fit on deck.")
 

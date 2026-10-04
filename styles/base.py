@@ -10,7 +10,7 @@ from __future__ import annotations
 COMMON_LIMITS = {
     ("hull", "block_coefficient"): (0.42, 0.68),
     ("hull", "construction", "yield_mpa"): (100, 1500), ("hull", "construction", "join_factor"): (0.8, 1.5),
-    ("hull", "construction", "standard"): (0.5, 2.0),
+    ("hull", "construction", "standard"): (0.5, 2.0), ("hull", "freeboard"): (0.3, 2.0),
     ("speed_kn",): (8, 42), ("range_nm",): (1000, 25000),
     ("main", "calibre_mm"): (1, 2000), ("main", "calibre_length"): (1, 200), ("main", "barrels"): (1, 20),
     ("main", "fore"): (0, 40), ("main", "aft"): (0, 40), ("main", "mid"): (0, 40),

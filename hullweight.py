@@ -106,6 +106,13 @@ def weight(L, B, D, cb, full, c, n_int, double_bottom, armour_decks=(), bulkhead
 
 
 def validate(design):
+    f = (design.get("hull") or {}).get("freeboard", 1.0)
+    ok = isinstance(f, (int, float)) and f > 0
+    errs = [] if ok else ["hull.freeboard: a factor above 0 on the style's standard freeboard (1.0)"]
+    return errs + _construction_errors(design)
+
+
+def _construction_errors(design):
     c = (design.get("hull") or {}).get("construction")
     if c is None:
         return []

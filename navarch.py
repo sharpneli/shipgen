@@ -162,6 +162,7 @@ def planing_power(disp, v_kn, tun=TUNING):
 
 
 def design_freeboard(L, tun=TUNING):
+    """The style's standard freeboard at full load for an ocean-going hull; hull.freeboard scales it."""
     return tun["freeboard_a"] * L + tun["freeboard_b"]
 
 
@@ -197,7 +198,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
     own = [Weight(**w.__dict__) for w in placed] if placed is not None else None   # z is set on these below
     for _ in range(60):
         T = disp / (SEAWATER * L * B * cb)
-        D = T + design_freeboard(L, tun)
+        D = T + design_freeboard(L, tun) * design["hull"].get("freeboard", 1.0)
         items: list[Weight] = []
         arm = armour_geometry(design, L, T, D, geo)
         if tun.get("hull_model") == "box":

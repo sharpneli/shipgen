@@ -14,7 +14,8 @@
     "type": "PT",
     "style": "planing",
     "hull": {
-      "block_coefficient": 0.45
+      "block_coefficient": 0.45,
+      "freeboard": 1.0
     },
     "armour": {
       "belt_mm": 0,
@@ -142,10 +143,10 @@
     "power_shp": 9000.0,
     "fuel_t": 16,
     "crew": 32,
-    "gm_full_m": 2.24,
-    "gm_light_m": 2.5,
-    "trim_m": -0.0,
-    "lcg_m": -3.69,
+    "gm_full_m": 2.23,
+    "gm_light_m": 2.49,
+    "trim_m": -0.01,
+    "lcg_m": -3.7,
     "lcb_m": -3.69,
     "layout_shift_m": 0.0,
     "volumetric_froude": 3.03,
@@ -155,13 +156,13 @@
   "plant": {
     "name": "Petrol engines (1940)",
     "fuel": "petrol",
-    "rated_kw": 6696,
-    "rated_shp": 8980.0,
-    "continuous_kw": 5692,
+    "rated_kw": 6707,
+    "rated_shp": 8990.0,
+    "continuous_kw": 5701,
     "overload_max": 1.0,
     "shafts": 3,
     "units": 9,
-    "unit_mw": 0.74,
+    "unit_mw": 0.75,
     "weight_t": 30.5,
     "sfc_g_per_kwh": 314.3,
     "part_load": {
@@ -186,7 +187,7 @@
     "stress": 1.0,
     "transmission": "mechanical",
     "arrangement": "grouped",
-    "crew": 12,
+    "crew": 13,
     "machinery_length_m": 5.6,
     "boiler_rooms": 0,
     "engine_rooms": 1,
@@ -239,7 +240,7 @@
   },
   "weight_groups_t": {
     "hull": 48,
-    "machinery": 30,
+    "machinery": 31,
     "fuel": 16,
     "armament": 15,
     "misc": 12,
@@ -298,7 +299,7 @@
     {
       "name": "Mount Y",
       "group": "armament",
-      "t": 0.9,
+      "t": 1.0,
       "x": -13.91,
       "z": 3.98
     },
@@ -354,7 +355,7 @@
     {
       "name": "Equipment, outfit, crew & stores",
       "group": "misc",
-      "t": 7.5,
+      "t": 7.6,
       "x": 0.0,
       "z": 1.61
     },

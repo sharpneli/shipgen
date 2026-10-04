@@ -65,6 +65,7 @@ design.py      the command line: validate, shipdesign.build, write report.json a
 }
 ```
 `armour` holds the belt, turret and torpedo protection (`tds_m`) values, and `decks`: the armour decks, top down. Every design lists them, even an empty list.
+- **Torpedo protection** is weighed as longitudinal bulkheads totalling `TUNING tds_mm_per_m` (12 mm) per metre of `tds_m`, each side over the citadel, from the inner bottom to the roof deck (Bismarck: a 45 mm torpedo bulkhead and thinner ones, 5.5 m deep). An armoured ship's **conning tower** (the hitbox's cylinder, walls as thick as the belt, a roof half that) is weighed too.
 - **The deck stack:** the hull's decks lie every `navarch.DECK_PITCH` (2.6 m) down from the main deck to the inner bottom. Deck 0 is the main deck (a carrier's hangar deck), deck 1 the second deck, and so on. A deck closer than 1 m to the inner bottom is left out, so the hold is 1–3.6 m tall.
 - **An armour deck** is `{"deck": n, "mm": thickness, "extent": "citadel" | "full" | "fore" | "aft" | "ends"}`. `citadel` covers the citadel, `full` the whole length, and `fore`, `aft` and `ends` (both) the hull beyond the citadel's ends: the protective deck at a pre-dreadnought's ends, or the deck over an all-or-nothing ship's steering gear. List the decks top down. A deck may appear twice only over different stretches (the citadel and its ends, say 76 mm on the second deck amidships and 51 mm on it at the ends). A deck the hull is too shallow for lies on its lowest deck, with a warning; overlapping decks pushed onto the same one add up.
 - **What the decks decide:**
@@ -148,6 +149,8 @@ The design gives no size. The designer works out the hull from what it carries (
 - Beyond 350 m (`hullweight.LONG`, not in the research) a hull bends like 350 m of itself, since no ocean wave is longer, and minimum gauge stops growing. Only absurd designs get there.
 - A hull that needs more strength plating than everything else together warns that it's very long for its depth.
 - Planing craft ignore it and keep the volume law (`hull_k`) until light hulls are researched.
+
+`hull.freeboard` scales the style's standard freeboard (1.0, an ocean-going ship; `navarch.design_freeboard`, which grows with length). A navy fighting in sheltered water can trade sea-keeping for a cheaper ship: a lower freeboard means less side shell, fewer decks and a shorter upper belt and bulkheads, so less hull and armour weight, and a lower centre of gravity. Against that, the shallower girder needs more strength plating, and there is less room inside. Machinery taller than the space stands in a casing above the deck rather than lengthening the rooms. Crew and cargo need volume, so a crowded ship (the destroyer) or a merchant gets longer instead. The designer allows any value; the game handles wetness and sea-keeping. Examples at 0.5: battleship 43.5k → 39.4k t std, heavy cruiser 14.0k → 12.9k t, Mikasa 11.6k → 10.6k t.
 - **Length:** the shortest hull, on a half-metre grid, that meets two rules:
   - Everything fits, at the layout's comfortable clearances. Warship end groups keep their preferred bow and stern room, which leaves room to shift for trim. Each layout failure is tagged with whether more length or more beam fixes it (`Layout.fail`).
   - It is at least as slender as its speed asks (`shipdesign.min_length`). Slenderness, length over the cube root of the underwater volume, rises with the volumetric Froude number from 5.25 (Liberty, Mikasa) to 8.2 (Fletcher). The rule is fitted to 16 real ships and lands within about 5% for most. Planing craft skip it.
@@ -214,7 +217,8 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
   - `torpedoes` and `aa` work on every style. A merchant with guns is a Q-ship or a DEMS-armed freighter.
 - `machinery` works on every style (see Design input above).
 - Guns under 76 mm are drawn as open mounts.
-- **carrier**: `"aviation": {"flight_deck": "axial" | "angled" | "none", "aircraft": 90, "aircraft_t": 6, "hangar_decks": 1, "elevators": 2, "deck_edge_elevators": 1, "catapults": 2, "cranes": 0, "number": "9"}`.
+- **carrier**: `"aviation": {"flight_deck": "axial" | "angled" | "none", "aircraft": 90, "aircraft_t": 6, "hangar_decks": 1, "elevators": 2, "deck_edge_elevators": 1, "catapults": 2, "cranes": 0, "number": "9", "hangar": "open" | "closed"}`.
+  - `hangar` picks which deck carries the hull girder. `open` (Essex, Yorktown, escort carriers): the hangar deck is the strength deck, and the flight deck is superstructure over an open-sided hangar. `closed` (Forrestal, Midway, Illustrious): the flight deck is the strength deck (`Style.strength_deck`), so the girder is the hangar's height deeper and an armoured flight deck counts in it. The hangar sides then become hull shell, and the hangar deck an ordinary internal deck. A closed hangar saves a long carrier its strength plating (Forrestal-size about 10% lighter) but costs a short one shell plating high up (an Essex is about as heavy, with GM 1.6 → 1.1 m; an escort carrier is heavier). The game handles the rest: no engine warm-up in the hangar, and flight-deck hits weaken the girder.
   - `none` is a seaplane carrier: a hangar aft, an aircraft deck over the stern, cranes and catapults.
   - Aircraft capacity comes from hangar and flight deck area, at about 20 × aircraft_t^(2/3) m² per aircraft. Too many aircraft is an error.
   - The main deck is the hangar deck. The flight deck sits 5.6 m × hangar decks + 2 m above it.
@@ -366,30 +370,36 @@ The sun is dynamic, so the game casts the shadows. `shadow.py`'s docstring has t
 - `hullweight.py`: the hull-structure constants (fitted in `research/hull-weight-model.md`; `research/hull_weight_ref.py` is the reference implementation).
 - `layout.py`: the clearances (bow_pref/min, st_pref/min), turret spacing, bridge size and AA spacing.
 - Each style's `tuning()` overrides `TUNING` for its designs: the volume-law hull weight (planing craft), freeboard, outfit fraction, hull CG height, the draught limit, and so on.
-- Calibration (std / full displacement, t; as of the hull-structure model, 2026-10-04). The new hull weight is 10–40% lighter than the old volume law, so most ships dropped; the outfit and protective plating that no group models yet (`research/hull-weight-model.md` §6.7) are the next recalibration:
+- Calibration (2026-10-04). Two checks, standard displacement in tonnes:
+  - **At the real ship's size** (`python calibrate.py`, `-g` for weight groups) the weights alone are tested. Mean error 11%.
+  - **Sized** is what the designer makes of the design, so its size search's errors (beams come out narrow) add to it.
 
-  | design | model | real ship |
-  |---|---|---|
-  | `battleship` (Iowa-like) | 37.2k std | ~45k std |
-  | `heavy_cruiser` (Baltimore-like) | 13.3k std | 14.5k std |
-  | `destroyer` (Fletcher-like) | 2.1k std | 2.05k std |
-  | `fleet_carrier` (Essex-like) | 26.0k / 33.4k, 156k shp, crew 1,972, 90 aircraft | 27.1k / 36.4k, 150k shp, ~2,600 crew, 90–100 aircraft |
-  | `supercarrier` (Forrestal-like) | 50.7k / 60.6k | 59k / 81k |
-  | `escort_carrier` (Casablanca-like) | 4.4k / 5.4k | 7.8k / 10.9k |
-  | `liberty` (Liberty ship) | 3.2k / 13.3k, 2,100 shp | 3.4k / 14.2k, 2,500 ihp |
-  | `tanker` (T2-like) | 4.2k / 20.5k | ~5.3k / 21.9k |
-  | `gangut` (Gangut-like, now a silly 22-turret test) | 271k std, 108k shp | 23.3k normal, 42k shp |
-  | `dreadnought` (HMS Dreadnought-like, 21 kn) | 22.8k std, 31.9k shp | 18.1k normal, 23k shp |
-  | `nassau` (Nassau-like, 19.5 kn) | 17.4k std, 21.5k shp | 18.6k normal, 22k ihp |
-  | `nassau_casemates` (casemated secondaries) | 18.7k std, 22.1k shp | 18.6k normal, 22k ihp |
-  | `mikasa` (Mikasa-like, 18 kn, `steam_recip`) | 11.1k std, 12.2k shp | 15.1k normal, 15k ihp |
-  | `connecticut` (Connecticut-like, no 8" turrets, `steam_recip`) | 12.5k std, 13.5k shp | 16.0k normal, 16.5k ihp |
-  | `kongo` (Kongo as built, 27.5 kn) | 35.5k std, 96.9k shp | 27.5k normal, 64k shp |
-  | `invincible` (Invincible-like, 25.5 kn) | 17.0k std, 46.7k shp | 17.3k normal, 41k shp |
-  | `battlecruiser` (Lion-like, 28 kn) | 28.7k std, 87.6k shp | 26.3k normal; ~92k shp for 28 kn on trials |
-  | `mtb` (Vosper 70 ft-like) | 35 / 44 t, 3,000 hp at 39 kn | ~47 t, 3,750 hp |
-  | `pt_boat` (Elco 80 ft-like) | 60 / 72 t, 5,300 hp at 41 kn | ~46 / 56 t, 4,500 hp |
+  | design | at real size | sized (std / full, power) | real ship |
+  |---|---|---|---|
+  | `bismarck` (as completed) | 44.2k (+6%) | 39.8k / 43.8k, 224 × 32.3 m | 41.7k std, 241.6 × 36 m |
+  | `battleship_layered` (Iowa-style) | 54.0k (+17%) | 54.1k / 62.3k | ~45–48k std |
+  | `battleship` (30 kn Iowa-like) | – | 43.5k / 50.1k | ~45k std |
+  | `heavy_cruiser` (Baltimore-like) | 14.7k (0%) | 14.0k / 16.3k | 14.7k std |
+  | `destroyer` (Fletcher-like, 80 mm guns) | 1.9k (−8%) | 2.1k / 2.6k | 2.08k std |
+  | `fleet_carrier` (Essex-like, open hangar) | 27.0k (−2%) | 26.9k / 34.5k, 162k shp | 27.5k std, 150k shp |
+  | `supercarrier` (Forrestal-like, closed hangar) | 44.1k (−27%) | 46.4k / 55.8k | 60.6k std |
+  | `escort_carrier` (Casablanca-like) | 6.1k (−22%) | 4.4k / 5.4k | 7.9k std |
+  | `liberty` (Liberty ship) | 3.0k (−12%) | 3.2k / 13.3k, 2,100 shp | 3.4k light, 2,500 ihp |
+  | `tanker` (T2-like) | – | 4.2k / 20.5k | ~5.3k light |
+  | `dreadnought` (21 kn) | 21.4k (+22%) | 23.9k, 33.1k shp | 17.5k (18.4k normal less coal), 23k shp |
+  | `nassau` (19.5 kn) | 18.2k (+2%) | 18.3k, 22.1k shp | 17.9k (18.9k normal less coal), 22k ihp |
+  | `nassau_casemates` | – | 19.7k, 23.0k shp | as above |
+  | `mikasa` (18 kn) | 11.8k (−19%) | 11.6k, 12.9k shp | 14.7k (15.4k normal less coal), 15k ihp |
+  | `connecticut` (no 8" turrets) | 14.2k (−7%) | 13.5k, 14.3k shp | 15.4k (16.3k normal less coal), 16.5k ihp |
+  | `kongo` (as built, 27.5 kn) | 30.5k (+16%) | 37.0k, 99.9k shp | 26.4k (27.4k normal less coal), 64k shp |
+  | `invincible` (25.5 kn) | 16.7k (+1%) | 17.9k, 48.5k shp | 16.5k (17.5k normal less coal), 41k shp |
+  | `battlecruiser` (Lion-like, 28 kn) | 26.7k (+4%) | 30.0k, 90.5k shp | 25.7k (26.7k normal less coal); ~92k shp on trials |
+  | `gangut` (a silly 22-turret test) | – | 275k | – |
+  | `mtb` (Vosper 70 ft-like) | – | 35 / 44 t, 3,000 hp at 39 kn | ~47 t, 3,750 hp |
+  | `pt_boat` (Elco 80 ft-like) | – | 60 / 72 t, 5,300 hp at 41 kn | ~46 / 56 t, 4,500 hp |
 
+  - Bismarck's weight statement (kbismarck.com) checks the groups: hull and superstructure +13% (the research found +15%), armour without turrets +8%, outfit, crew and stores within 3%, turrets (with `gun_k`, `mount_k`, `turret_t_avg`) about −6%.
+  - Known causes of the big misses: Dreadnought's and Kongo's armour inputs are heavier than the real schemes; the Iowa-style citadel is longer than Iowa's (deck armour 6.6k t); the pre-dreadnoughts and the Forrestal- and Casablanca-like carriers are light, and there's no group data yet to say where.
   - The tanker needs about 30% more power than a real T2: the Admiralty-coefficient power model is pessimistic for full hulls above Froude 0.18.
   - Carrier full loads run light because the range model burns less fuel at cruise than these ships actually carried.
   - The planing numbers rest on the placeholder power model; the PT boat comes out heavy.

@@ -14,7 +14,8 @@
     "type": "MTB",
     "style": "planing",
     "hull": {
-      "block_coefficient": 0.45
+      "block_coefficient": 0.45,
+      "freeboard": 1.0
     },
     "armour": {
       "belt_mm": 0,
@@ -136,18 +137,18 @@
     "block_coefficient": 0.45,
     "standard_displacement_t": 66,
     "full_displacement_t": 78,
-    "draught_m": 0.93,
+    "draught_m": 0.94,
     "depth_m": 2.88,
     "freeboard_m": 1.95,
     "power_shp": 5400.0,
     "fuel_t": 12,
-    "crew": 20,
-    "gm_full_m": 1.83,
-    "gm_light_m": 2.1,
+    "crew": 21,
+    "gm_full_m": 1.82,
+    "gm_light_m": 2.08,
     "trim_m": 0.06,
     "lcg_m": -3.03,
     "lcb_m": -3.14,
-    "layout_shift_m": -1.01,
+    "layout_shift_m": -1.0,
     "volumetric_froude": 3.11,
     "power_to_weight_hp_per_t": 69.0,
     "power_model": "planing placeholder"
@@ -155,9 +156,9 @@
   "plant": {
     "name": "Petrol engines (1940)",
     "fuel": "petrol",
-    "rated_kw": 3993,
-    "rated_shp": 5360.0,
-    "continuous_kw": 3394,
+    "rated_kw": 4010,
+    "rated_shp": 5380.0,
+    "continuous_kw": 3409,
     "overload_max": 1.0,
     "shafts": 2,
     "units": 4,
@@ -186,7 +187,7 @@
     "stress": 1.0,
     "transmission": "mechanical",
     "arrangement": "grouped",
-    "crew": 8,
+    "crew": 9,
     "machinery_length_m": 4.5,
     "boiler_rooms": 0,
     "engine_rooms": 1,
@@ -207,12 +208,12 @@
     "structure_t": 31
   },
   "crew": {
-    "complement": 20,
+    "complement": 21,
     "officers": 3,
     "cpos": 0,
-    "ratings": 17,
+    "ratings": 18,
     "departments": {
-      "engineering": 8,
+      "engineering": 9,
       "weapons": 9,
       "deck_and_command": 3,
       "hotel": 0
@@ -222,12 +223,12 @@
     "range_days": 1,
     "distiller": true,
     "berth_ratio": 1.0,
-    "living_m3": 39,
+    "living_m3": 40,
     "provisions_m3": 0,
     "water_m3": 0,
     "water_in_double_bottom_m3": 0,
     "distiller_m3_per_day": 0.2,
-    "space_needed_m3": 39,
+    "space_needed_m3": 40,
     "space_usable_m3": 55,
     "space_free_m3": 85,
     "sleep_m2_per_man": 0.73,
@@ -264,21 +265,21 @@
       "name": "Charthouse",
       "group": "superstructure",
       "t": 1.7,
-      "x": 2.12,
+      "x": 2.13,
       "z": 4.18
     },
     {
       "name": "T1S",
       "group": "armament",
       "t": 2.6,
-      "x": -0.13,
+      "x": -0.12,
       "z": 3.58
     },
     {
       "name": "T1P",
       "group": "armament",
       "t": 2.6,
-      "x": -0.13,
+      "x": -0.12,
       "z": 3.58
     },
     {
@@ -286,7 +287,7 @@
       "group": "armament",
       "t": 0.1,
       "x": -11.59,
-      "z": 3.55
+      "z": 3.56
     },
     {
       "name": "Magazine Y",
@@ -312,7 +313,7 @@
     {
       "name": "Crew and effects",
       "group": "misc",
-      "t": 2.4,
+      "t": 2.5,
       "x": 0.0,
       "z": 1.38
     },

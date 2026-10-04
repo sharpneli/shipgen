@@ -181,13 +181,14 @@ def space(p, shp, w_avail, h_avail):
     deck): its length, split into boiler and engine rooms, and how the units fit. The plant's volume splits by
     boiler_fraction. Boiler rooms use the whole height (boilers, drums, fans and uptake trunks reach up to the
     deck); engine rooms use the units' height plus one flat of auxiliaries above them, so low turbines leave
-    height unused. A plant taller than h_avail protrudes above it (the layout covers that with a casing); one with
+    height unused. A plant taller than h_avail protrudes above it, boilers too (the layout covers that with a
+    casing), so a shallow hull doesn't stretch the boiler rooms; one with
     no row of units across is infeasible."""
     t = p["tech"]
     r = rated(p, shp)
     k = (r["unit_mw"] / t["unit"]["mw"]) ** (1 / 3)        # units scale with the cube root of their power
     h_u, w_u, l_u = t["unit"]["height_m"] * k, t["unit"]["width_m"] * k, t["unit"]["length_m"] * k
-    h_eff = max(1.0, min(h_avail, h_u + 2.5))
+    h_eff = max(1.0, h_u, min(h_avail, h_u + 2.5))
     pitch = w_u + 0.8
     split = p["centreline_bulkhead"]
     w_side = w_avail / 2 if split else w_avail
@@ -196,7 +197,7 @@ def space(p, shp, w_avail, h_avail):
     w_eff = (used + 0.5 * (w_side - used)) * (2 if split else 1)
     volume = r["weight_t"] / r["density"]
     bf = t["boiler_fraction"]
-    h_boil = max(1.0, h_avail)
+    h_boil = max(1.0, h_avail, h_u)    # boilers stand at least as tall as the units, in a casing if they must
     unit_k = 1.10 if p["arrangement"] == "unit" else 1.0
     boilers = bf * volume / max(w_eff, 0.5) / h_boil * unit_k
     engines = max((1 - bf) * volume / max(w_eff, 0.5) / h_eff * unit_k, l_u + 2.0)
