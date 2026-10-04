@@ -162,6 +162,10 @@ class Style:
         """First-pass weights of style-specific items, before the layout exists."""
         return []
 
+    def strength_deck(self, design, D):
+        """A strength deck above the main deck (navarch.hull_structure): dict(h, decks, plates) or None."""
+        return None
+
     def structure_weights(self, design, L, B, T, D, geo, tun) -> list:
         """Style structure that depends on the hull (counted in standard displacement, before outfit)."""
         return []

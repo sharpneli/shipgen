@@ -65,7 +65,17 @@ def allowable_stress(c):
     return min(c["yield_mpa"] / SF, SIG_CAP)
 
 
-def weight(L, B, D, cb, full, c, n_int, double_bottom, armour_decks=()):
+def deck_area(L, B, cb):
+    """The strength deck's area, as the model takes it."""
+    return B * L * (0.66 + 0.33 * cb)
+
+
+def deck_t_per_m2(L, c):
+    """What the model weighs per m^2 of strength deck at minimum gauge (framing, fittings and joints included)."""
+    return RHO * K_S * (T_MIN[0] + T_MIN[1] * min(L, LONG)) * c["standard"] * (1 + F_FIT) * c["join_factor"]
+
+
+def weight(L, B, D, cb, full, c, n_int, double_bottom, armour_decks=(), bulkhead_depth=None):
     """The hull structure: dict(t, min_gauge_t, strength_t, t_min_mm, t_str_mm, stress_mpa, i_req_m4, i_armour_m4,
     i_plating_m4). The girder's moment of inertia amidships is i_plating_m4 + i_armour_m4, at least i_req_m4: the
     plating is never thinner than t_min, so small hulls have a margin to spare.
@@ -73,12 +83,12 @@ def weight(L, B, D, cb, full, c, n_int, double_bottom, armour_decks=()):
                  standard (scales t_min: 0.85 light, 1.0 naval, 1.25 robust)
     n_int        internal decks and platforms below the strength deck (may be fractional)
     double_bottom how much of an inner bottom there is, 0..1
-    armour_decks [(mm, z)] plates over amidships, z above the keel: their section counts in the girder."""
-    cwp = 0.66 + 0.33 * cb
+    armour_decks [(mm, z)] plates over amidships, z above the keel: their section counts in the girder.
+    bulkhead_depth how high the transverse bulkheads reach, if not to the strength deck (a closed hangar)."""
     a_shell = 2 * SHELL_SIDE * D * L + SHELL_BOTTOM * B * L * math.sqrt(cb)
-    a_deck = B * L * cwp
+    a_deck = deck_area(L, B, cb)
     a_int = n_int * INT_DECK * a_deck
-    a_bhd = BULKHEADS * BHD_AREA * B * D
+    a_bhd = BULKHEADS * BHD_AREA * B * (D if bulkhead_depth is None else bulkhead_depth)
     a_db = double_bottom * B * L * cb * DB_AREA
     t_min = (T_MIN[0] + T_MIN[1] * min(L, LONG)) * c["standard"]
     sig = allowable_stress(c)

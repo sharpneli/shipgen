@@ -203,9 +203,9 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         if tun.get("hull_model") == "box":
             hull = dict(t=tun["hull_k"] * (L * B * D) ** tun["hull_exp"])
         else:
-            hull = hull_structure(design, L, B, cb, D, disp, arm)
-        items.append(Weight("Hull structure", "hull", hull["t"], x=-0.01 * L,
-                            z_rel=("frac", tun.get("hull_z_frac", 0.58))))
+            hull = hull_structure(design, L, B, cb, D, disp, arm, style.strength_deck(design, D))
+        z_frac = tun.get("hull_z_frac", 0.58) * (hull.get("depth_m", D) / D)
+        items.append(Weight("Hull structure", "hull", hull["t"], x=-0.01 * L, z_rel=("frac", z_frac)))
         shp = power_required(disp, V, L, B, cb, tun)
         items.append(Weight("Machinery", "machinery", powerplant.rated(plant, shp)["weight_t"],
                             x=geo.get("machinery_x", -0.02 * L), z_rel=("frac", 0.32)))
@@ -334,15 +334,23 @@ INNER_BOTTOM_T = (4000.0, 10000.0)  # full displacement (t) over which the inner
                                     # are calibrated without one, cruisers and capital ships with one
 
 
-def hull_structure(design, L, B, cb, D, full, arm):
+def hull_structure(design, L, B, cb, D, full, arm, above=None):
     """The hull's structure weight and girder (hullweight.weight). Internal decks come from the deck stack's depth
     and the inner bottom from the displacement, both smoothly (a step would make the solver and the size search
-    jump); the armour-deck plates over amidships (arm: armour_geometry) count in the girder."""
+    jump); the armour-deck plates over amidships (arm: armour_geometry) count in the girder.
+    above: the style's strength deck above the main deck (Style.strength_deck: a closed hangar's flight deck),
+    dict(h, decks, plates), or None. The hull's sides then run up to it, the decks between count as full internal
+    decks, and the plates on it count in the girder; the transverse bulkheads still stop at the main deck."""
     n_int = STACK_DECK * max(0.0, (D - powerplant.double_bottom(D) - MIN_TIER) / DECK_PITCH)
     lo, hi = INNER_BOTTOM_T
     inner = min(1.0, max(0.0, (full - lo) / (hi - lo)))
     plates = [(d["mm"], d["z"]) for d in arm["decks"] if d["x0"] <= 0.0 <= d["x1"]]
-    return hullweight.weight(L, B, D, cb, full, hullweight.construction(design), n_int, inner, plates)
+    depth = D
+    if above:
+        depth, n_int, plates = D + above["h"], n_int + above["decks"], plates + above["plates"]
+    out = hullweight.weight(L, B, depth, cb, full, hullweight.construction(design), n_int, inner, plates,
+                            bulkhead_depth=D)
+    return {**out, "depth_m": depth}
 
 
 DECK_PITCH = 2.6       # m between the hull's decks below the main deck (one superstructure level, the lower casemates)

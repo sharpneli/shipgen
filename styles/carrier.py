@@ -21,6 +21,7 @@ from __future__ import annotations
 import math
 
 import armament
+import hullweight
 import ordnance
 from geometry import polygon_area, polygon_y_span
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
@@ -43,7 +44,13 @@ DEFAULTS = {"axial": dict(elevators=2, deck_edge_elevators=1, catapults=1, crane
 def aviation(design):
     a = design.get("aviation") or {}
     kind = a.get("flight_deck", "axial")
-    return {"flight_deck": kind, "aircraft": 0, "aircraft_t": 5.0, "hangar_decks": 1, **DEFAULTS.get(kind, {}), **a}
+    return {"flight_deck": kind, "aircraft": 0, "aircraft_t": 5.0, "hangar_decks": 1, "hangar": "open",
+            **DEFAULTS.get(kind, {}), **a}
+
+
+def closed(design):
+    """A closed hangar: the flight deck is the hull's strength deck, and the hangar sides are its shell."""
+    return aviation(design)["hangar"] == "closed" and aviation(design)["flight_deck"] != "none"
 
 
 def spot_m2(av):
@@ -189,8 +196,16 @@ class Carrier(Style):
 
     def validate(self, design):
         kind = aviation(design)["flight_deck"]
+        hangar = aviation(design)["hangar"]
         return super().validate(design) + guns_are_secondaries(self, design) + (
-            [] if kind in DEFAULTS else [f"aviation.flight_deck = {kind!r}: use axial, angled or none"])
+            [] if kind in DEFAULTS else [f"aviation.flight_deck = {kind!r}: use axial, angled or none"]) + (
+            [] if hangar in ("open", "closed") else [f"aviation.hangar = {hangar!r}: use open or closed"])
+
+    def strength_deck(self, design, D):
+        if not closed(design):
+            return None
+        fd_h, mm = deck_plan(design)["fd_h"], (design.get("armour") or {}).get("flight_deck_mm", 0)
+        return dict(h=fd_h, decks=aviation(design)["hangar_decks"], plates=[(mm, D + fd_h)] if mm else [])
 
     def tuning(self, design):
         # the main deck is the hangar deck, well above a warship's main deck, so the hull's own centre of
@@ -214,8 +229,14 @@ class Carrier(Style):
         out = []
         if dp["kind"] != "none":
             fdx = (dp["x0"] + dp["x1"]) / 2
-            out.append(Weight("Flight deck", "hull", dp["fd_area"] * tun["flight_deck_t_per_m2"], x=fdx,
-                              z_rel=("deck", dp["fd_h"])))
+            # a closed hangar's flight deck is the hull's strength deck (navarch.hull_structure), whose plating the
+            # hull already weighs: here only the rest (the beams that span the hangar, the overhang). Its sides are
+            # the hull's shell; the hangar's own structure (gallery deck, pillars, fire curtains) stays.
+            fd_t = dp["fd_area"] * tun["flight_deck_t_per_m2"]
+            if closed(design):
+                fd_t = max(0.0, fd_t - hullweight.deck_area(L, B, design["hull"]["block_coefficient"])
+                           * hullweight.deck_t_per_m2(L, hullweight.construction(design)))
+            out.append(Weight("Flight deck", "hull", fd_t, x=fdx, z_rel=("deck", dp["fd_h"])))
             mm = (design.get("armour") or {}).get("flight_deck_mm", 0)
             if mm:
                 out.append(Weight("Flight deck armour", "armour", dp["fd_area"] * 0.85 * mm / 1000 * STEEL, x=fdx,
