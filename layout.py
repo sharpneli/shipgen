@@ -882,9 +882,10 @@ def deckhouse_levels(design):
 
 DH_INSET = 0.6         # the deckhouse's sides follow the deck edge this far in
 DH_TURRET_CLEAR = 1.0  # and its ends keep this far from an end turret's body (its swing zone is kept out too)
-DH_FIT = 0.75          # an end's shape is fitted on stations this far apart across the ship
-DH_STEP_COST = 3.0     # m2 (on one side) an extra step or chamfer in an end must win to be worth its corners
-DH_MIN_BAND = 1.5      # m: the narrowest band of an end (half the nose's width at least DH_MIN_BAND / 2)
+DH_FIT = 0.375         # an end's shape is fitted on stations this far apart across the ship
+DH_STEP_COST = 3.0     # m2 (on one side) a swept end must win over a flat one to be worth its corners
+DH_MIN_FACE = 1.5      # m: the narrowest face a swept end has (else it comes to a point)
+DH_MIN_DROP = 0.75     # m: a sweep falls back at least this far, or the end is flat
 
 
 def deckhouse_outline(lay, hull, x0, x1, w, top, end_mounts, keep, grow=True):
@@ -892,10 +893,12 @@ def deckhouse_outline(lay, hull, x0, x1, w, top, end_mounts, keep, grow=True):
     (DH_INSET in); each end starts at x0 / x1 and is shaped by what lies beyond it. The end turrets' bodies (plus
     DH_TURRET_CLEAR) and their barrels' swing at any height stay clear (blast and swing; turrets standing on the
     deckhouse don't count), and so do sweeps lower than its roof (top). Inside a turret's blind arc that makes a
-    nose pointing at the turret with 45-degree shoulders. An end is never farther out than the nearest end
-    turret's body allows on the centreline (nor than x0 / x1 unless grow), nor farther in than the bounding boxes
-    in keep (what stands on its roof). Each end is fitted with at most three bands across the ship, joined by 45-degree chamfers where they
-    fit or square steps, and kept symmetric; an extra band must add DH_STEP_COST m2 a side. Returns the polygon."""
+    nose pointing at the turret with swept shoulders. An end is never farther out than the nearest end turret's
+    body allows on the centreline (nor than x0 / x1 unless grow), nor farther in than the bounding boxes in keep
+    (what stands on its roof). Each end is convex and symmetric: flat, or a face across the ship (at least
+    DH_MIN_FACE wide, or none: a point) with one straight sweep from each edge back to the side, as shallow as the
+    guns allow. A sweep must fall back DH_MIN_DROP and add DH_STEP_COST m2 a side over the flat end. Returns the
+    polygon."""
     import armament     # armament imports layout
     H = w / 2
     st = DH_FIT
@@ -932,70 +935,45 @@ def deckhouse_outline(lay, hull, x0, x1, w, top, end_mounts, keep, grow=True):
                 if ub > uc + floor:
                     d = min(d, ua - uc - 0.3)
             return max(floor, d)
-        fine = [min(raw(k * st / 2), raw(-k * st / 2)) for k in range(2 * n + 2)]
-        A = [min(fine[max(0, 2 * j - 1):2 * j + 2]) for j in range(n + 1)]
+        A = [min(raw(y), raw(-y)) for y in ys]
         # what stands on the roof must stay on it
         req = [floor] * (n + 1)
         for bx0, by0, bx1, by1 in keep:
             far = max(e * bx0, e * bx1) - uc + 0.3
             for j, y in enumerate(ys):
-                if any(lo - st / 2 <= s * y <= hi + st / 2 for s in (1, -1) for lo, hi in ((by0, by1),)):
+                if any(lo - st <= s * y <= hi + st for s in (1, -1) for lo, hi in ((by0, by1),)):
                     req[j] = max(req[j], far)
         A = [max(a, r) for a, r in zip(A, req)]
         # where the deck edge already cuts the station off, the end is free (the hull clips it)
-        dgrid = [floor + st / 2 * i for i in range(int((cap - floor) / (st / 2)) + 1)] + [cap]
+        dgrid = [floor + st * i for i in range(int((cap - floor) / st) + 1)] + [cap]
         hws = [hull.half_width(e * (uc + d)) - DH_INSET for d in dgrid]
         E = [next((d for d, hw in zip(dgrid, hws) if hw < y - 1e-9), cap) for y in ys]
-        Aeff = [cap if Ej <= Aj else Aj for Aj, Ej in zip(A, E)]
-
-        def band_ok(f):
-            return all(f[j] <= Aeff[j] + 1e-9 and f[j] >= req[j] - 1e-9 for j in range(n + 1))
-
-        def fill(i0, i1, d, f):
-            for j in range(i0, i1 + 1):
-                f[j] = d
-
+        Aeff = [min(cap, cap if Ej <= Aj else Aj) for Aj, Ej in zip(A, E)]
+        # a face across the ship out to y_a, then one straight sweep back to the side: the end is convex, with
+        # at most two corners a side (a flat end has none, a pointed one only the sweep)
         best = None
-        nb_min = max(1, int(round(DH_MIN_BAND / st)))
-        inner_min = max(1, int(round(DH_MIN_BAND / 2 / st)))
-        cuts = [()] + [(a,) for a in range(inner_min, n - nb_min + 1)] + \
-               [(a, b) for a in range(inner_min, n - 2 * nb_min + 1) for b in range(a + nb_min, n - nb_min + 1)]
-        for cut in cuts:
-            edges = (0,) + cut + (n,)
-            depths = [min(min(Aeff[edges[i]:edges[i + 1] + 1]), cap) for i in range(len(edges) - 1)]
-            if any(abs(depths[i] - depths[i + 1]) < 0.75 for i in range(len(depths) - 1)):
+        face_min = int(math.ceil(DH_MIN_FACE / 2 / st - 1e-9))
+        for i in [0] + list(range(max(1, face_min), n + 1)):
+            d0 = min(Aeff[:i + 1])
+            if any(r > d0 + 1e-9 for r in req[:i + 1]):
                 continue
-            f = [0.0] * (n + 1)
-            for i, d in enumerate(depths):
-                fill(edges[i], edges[i + 1], d, f)
-            for i, d in enumerate(depths[1:]):     # shared stations take the shallower depth
-                f[edges[i + 1]] = min(depths[i], d)
-            if not band_ok(f):
+            ya, d1, lo = ys[i], d0, -math.inf
+            for k in range(i + 1, n + 1):   # the shallowest sweep that keeps clear, and deep enough for keep
+                t = (ys[k] - ya) / (H - ya)
+                if Aeff[k] < d0:
+                    d1 = min(d1, d0 - (d0 - Aeff[k]) / t)
+                if req[k] > floor:
+                    lo = max(lo, d0 - (d0 - req[k]) / t)
+            if d1 < lo - 1e-9 or d1 < floor:
                 continue
-            pts = [(0.0, depths[0])]
-            for i in range(len(depths) - 1):       # each joint: a chamfer into the shallower band if it fits
-                k, dA, dB = edges[i + 1], depths[i], depths[i + 1]
-                dd = abs(dA - dB)
-                hi, lo = max(dA, dB), min(dA, dB)
-                if dA > dB:      # sloping out from the inner band's edge
-                    y_a, y_b, line = ys[k], ys[k] + dd, (lambda y, k=k, dA=dA: dA - (y - ys[k]))
-                    fits = y_b <= ys[edges[i + 2]] + 1e-9
-                else:            # sloping in to the outer band's edge
-                    y_a, y_b, line = ys[k] - dd, ys[k], (lambda y, k=k, dB=dB: dB - (ys[k] - y))
-                    fits = y_a >= ys[edges[i]] - 1e-9
-                span = [j for j in range(n + 1) if y_a - st / 2 < ys[j] < y_b + st / 2]
-                if fits and all(min(hi, line(ys[j]) + st / 2) <= Aeff[j] + 1e-9 for j in span):
-                    for j in span:
-                        f[j] = max(f[j], min(hi, max(lo, line(ys[j]))))
-                    pts += [(y_a, dA), (y_b, dB)]
-                else:
-                    pts += [(ys[k], dA), (ys[k], dB)]
-            pts.append((H, depths[-1]))
-            area = sum(min(f[j], E[j]) * (st if 0 < j < n else st / 2) for j in range(n + 1))
-            score = area - DH_STEP_COST * len(cut)
+            if d0 - d1 < DH_MIN_DROP and i < n:   # hardly a sweep: the flat end (i == n) covers it
+                continue
+            f = [d0 if k <= i else d0 - (d0 - d1) * (ys[k] - ya) / (H - ya) for k in range(n + 1)]
+            area = sum(min(fk, Ek) * (st if 0 < k < n else st / 2) for k, (fk, Ek) in enumerate(zip(f, E)))
+            score = area - (DH_STEP_COST if i < n else 0.0)
             if best is None or score > best[0] + 1e-6:
-                best = (score, pts)
-        if best is None:      # nothing fits both ways: square, as far out as what stands on it needs
+                best = (score, [(0.0, d0), (H, d0)] if i == n else ([(0.0, d0)] if i else []) + [(ya, d0), (H, d1)])
+        if best is None:      # nothing fits: square, as far out as what stands on it needs
             best = (0.0, [(0.0, max(req)), (H, max(req))])
         prof[e] = [(e * (uc + d), y) for y, d in best[1]]
     half = prof[1] + prof[-1][::-1]          # starboard: the forward end out to the side, then the aft end back in
