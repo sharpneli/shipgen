@@ -35,7 +35,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from fleet import FLEET, TURRET_TYPES
 from looks import DEFAULT_PALETTE
-from geometry import turret_shapes, turret_reach, barrel_shown, BARREL_ROOT, CASEMATE_SHIELD, rrect_polygon, Hull, AA_CFG
+from geometry import turret_shapes, turret_reach, barrel_shown, BARREL_ROOT, CASEMATE_SHIELD, rrect_polygon, Hull, AA_CFG, point_in_polygon
 
 PAD_M = 3.0  # empty margin around each hull sprite, metres
 
@@ -174,7 +174,9 @@ class Painter:
         w = b["w"]
         rf, rb = b.get("rf", 0.8), b.get("rb", 0.8)
         mode = self.shapes.get("blocks")
-        if mode == "chamfer":     # cut corners instead of round ones
+        if b.get("points"):       # the layout's own outline, sharp-cornered
+            d = poly(b["points"])
+        elif mode == "chamfer":     # cut corners instead of round ones
             h = w / 2
             cf, cb = min(rf, h, (x1 - x0) / 2), min(rb, h, (x1 - x0) / 2)
             d = poly([(x0 + cb, y - h), (x1 - cf, y - h), (x1, y - h + cf), (x1, y + h - cf), (x1 - cf, y + h),
@@ -437,6 +439,9 @@ def vents(spec, hull, P):
             if any(math.hypot(x - ox, y - oy) < orr for ox, oy, orr in obstacles):
                 continue
             if any(a <= x <= c and b <= y <= d for a, b, c, d in rects):
+                continue
+            if blk.get("points") and not all(point_in_polygon(x + dx, y + dy, blk["points"])
+                                             for dx in (-1.2, 1.2) for dy in (-1.2, 1.2)):
                 continue
             obstacles.append((x, y, 1.6))
             n -= 1

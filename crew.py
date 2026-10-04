@@ -194,7 +194,7 @@ def crew_space(lay, design, res):
     cit = lay.geo.get("citadel")
     if plan.get("tds") and cit:
         taken += 2 * plan["tds"] * (cit[1] - cit[0]) * low
-    rooms = {b["id"]: (b["x1"] - b["x0"]) * b["w"] * LEVEL_H * 0.9 for b in lay.blocks if b["kind"] != "director"
+    rooms = {b["id"]: b.get("area", (b["x1"] - b["x0"]) * b["w"]) * LEVEL_H * 0.9 for b in lay.blocks if b["kind"] != "director"
              and block_role(b["id"]) not in ("hangar", "director", "casemate", "aa_platform")}
     sup = sum(rooms.values())
     sup += sum(_area(dk["points"]) * (dk["top"] - dk["base"]) for dk in lay.decks if dk["kind"] == "deck")

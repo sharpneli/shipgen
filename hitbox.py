@@ -21,7 +21,7 @@ from __future__ import annotations
 import math
 import re
 
-from geometry import rrect_polygon, turret_shapes, turret_reach, _wrap180, angle_allowed, nearest_allowed  # noqa: F401
+from geometry import rrect_polygon, block_outline, turret_shapes, turret_reach, _wrap180, angle_allowed, nearest_allowed  # noqa: F401
 from geometry import AA_CFG
 import powerplant
 import subdivision
@@ -176,12 +176,14 @@ def export_hitboxes(lay, design, res):
     sup_material = (design.get("superstructure") or {}).get("material")
     quarters = (getattr(lay, "crew", None) or {}).get("superstructure_quarters", {})
     for b in lay.blocks:
-        pts = rrect_polygon(b["x0"], b["y"] - b["w"] / 2, b["x1"], b["y"] + b["w"] / 2, b["rf"], b["rb"])
+        pts = block_outline(b)
         smoke = getattr(lay, "smoke", {}).get(b["id"])
+        # a rounded rectangle also gives its parameters; a polygon block only its points
+        rr = {} if b.get("points") else dict(rrect=dict(
+            x0=round(b["x0"], 3), x1=round(b["x1"], 3), y0=round(b["y"] - b["w"] / 2, 3),
+            y1=round(b["y"] + b["w"] / 2, 3), rf=round(b["rf"], 3), rb=round(b["rb"], 3)))
         comps.append(dict(id=b["id"], kind="superstructure", role=block_role(b["id"]), shape="polygon",
-                          points=[[round(x, 3), round(y, 3)] for x, y in pts],
-                          rrect=dict(x0=round(b["x0"], 3), x1=round(b["x1"], 3), y0=round(b["y"] - b["w"] / 2, 3),
-                                     y1=round(b["y"] + b["w"] / 2, 3), rf=round(b["rf"], 3), rb=round(b["rb"], 3)),
+                          points=[[round(x, 3), round(y, 3)] for x, y in pts], **rr,
                           base=round(block_base(b), 2), top=round(block_top(b), 2)))
         d = directors.get(b["id"])
         if d:       # a fire-control director: which battery it serves, its rangefinder and its hood's armour

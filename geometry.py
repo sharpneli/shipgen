@@ -42,6 +42,65 @@ def rrect_polygon(x0, y0, x1, y1, rf=0.0, rb=0.0, seg=8):
     return pts
 
 
+def block_outline(b):
+    """A superstructure block's outline: its own polygon ("points") when it has one, else its rounded rectangle."""
+    if b.get("points"):
+        return [tuple(p) for p in b["points"]]
+    y = b.get("y", 0.0)
+    return rrect_polygon(b["x0"], y - b["w"] / 2, b["x1"], y + b["w"] / 2, b.get("rf", 0.0), b.get("rb", 0.0))
+
+
+def polygon_centroid(pts):
+    """Area and centroid x of a simple polygon."""
+    a = cx = 0.0
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1]):
+        c = x0 * y1 - x1 * y0
+        a += c
+        cx += (x0 + x1) * c
+    return abs(a) / 2, (cx / (3 * a) if a else sum(x for x, _ in pts) / len(pts))
+
+
+def clip_convex(pts, clip):
+    """Sutherland-Hodgman: the part of polygon pts inside the convex polygon clip (either winding)."""
+    sgn = 1.0 if sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in zip(clip, clip[1:] + clip[:1])) > 0 else -1.0
+    out = list(pts)
+    for (ax, ay), (bx, by) in zip(clip, clip[1:] + clip[:1]):
+        if not out:
+            break
+        def side(p):
+            return sgn * ((bx - ax) * (p[1] - ay) - (by - ay) * (p[0] - ax))
+        src, out = out, []
+        for p, q in zip(src, src[1:] + src[:1]):
+            sp, sq = side(p), side(q)
+            if sp >= 0:
+                out.append(p)
+            if (sp >= 0) != (sq >= 0):
+                t = sp / (sp - sq)
+                out.append((p[0] + t * (q[0] - p[0]), p[1] + t * (q[1] - p[1])))
+    return simplify_polygon(out)
+
+
+def simplify_polygon(pts, tol=1e-3):
+    """Drop repeated and collinear vertices."""
+    out = []
+    for p in pts:
+        if not out or abs(p[0] - out[-1][0]) > tol or abs(p[1] - out[-1][1]) > tol:
+            out.append(p)
+    if len(out) > 1 and abs(out[0][0] - out[-1][0]) <= tol and abs(out[0][1] - out[-1][1]) <= tol:
+        out.pop()
+    changed = True
+    while changed and len(out) > 3:
+        changed = False
+        for i in range(len(out)):
+            a, b, c = out[i - 1], out[i], out[(i + 1) % len(out)]
+            if abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) <= tol * max(
+                    1.0, math.hypot(c[0] - a[0], c[1] - a[1])):
+                out.pop(i)
+                changed = True
+                break
+    return out
+
+
 def circle_polygon(cx, cy, r, seg=32):
     return [(cx + r * math.cos(2 * math.pi * i / seg), cy + r * math.sin(2 * math.pi * i / seg)) for i in range(seg)]
 

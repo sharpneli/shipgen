@@ -33,7 +33,7 @@ import firecontrol
 import hullweight
 import navarch
 import styles
-from geometry import AA_CFG, rrect_polygon
+from geometry import AA_CFG, rrect_polygon, block_outline
 from hitbox import assign_arcs, assign_smoke, export_hitboxes
 import powerplant
 from layout import LEVEL_H, block_top
@@ -327,7 +327,7 @@ def height_columns(lay, deck_m):
         if t.get("barbette", True) and m["base"] > 0.5:
             items.append(dict(top=deck_m + m["base"], shape="circle", cx=m["x"], cy=m["y"], r=t["r"] * 0.95))
     for b in lay.blocks:
-        pts = rrect_polygon(b["x0"], b["y"] - b["w"] / 2, b["x1"], b["y"] + b["w"] / 2, b["rf"], b["rb"])
+        pts = block_outline(b)
         items.append(dict(top=deck_m + block_top(b), shape="polygon", points=pts))
     for a in lay.aa:
         items.append(dict(top=deck_m + a["base"] + 2.0, shape="circle", cx=a["x"], cy=a["y"],

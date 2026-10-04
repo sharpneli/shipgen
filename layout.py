@@ -19,13 +19,14 @@ the renderer spec, the hitboxes and the weight model.
 """
 from __future__ import annotations
 
+import bisect
 import functools
 import math
 import re
 
 from geometry import (make_turret_type, make_torpedo_type, rrect_polygon, rrect_clamped, circle_polygon,
                       turret_shapes, turret_height, turret_reach, point_in_polygon, polygons_intersect,
-                      sector_polygon, superfire_step)
+                      sector_polygon, superfire_step, polygon_centroid, polygon_y_span, clip_convex, simplify_polygon)
 import ordnance
 import powerplant
 from navarch import Weight, mount_weights, torpedo_weight, TUNING
@@ -37,7 +38,7 @@ CASEMATE_BEAM = 0.7    # casemates stand where the hull is at least this fractio
 
 
 # ---------------------------------------------------------------------------
-# small collision helpers (circles and axis-aligned rects)
+# small collision helpers (circles, axis-aligned rects and polygons)
 # ---------------------------------------------------------------------------
 def _fp_circle(x, y, r):
     return ("c", x, y, r)
@@ -47,14 +48,36 @@ def _fp_rect(x0, y0, x1, y1):
     return ("r", x0, y0, x1, y1)
 
 
+def _fp_poly(pts):
+    pts = [tuple(p) for p in pts]
+    return ("p", pts, min(x for x, _ in pts), min(y for _, y in pts), max(x for x, _ in pts), max(y for _, y in pts))
+
+
 def _bbox(fp):
-    """Bounding box (x0, y0, x1, y1) of a circle or rect footprint."""
+    """Bounding box (x0, y0, x1, y1) of a circle, rect or polygon footprint."""
     if fp[0] == "c":
         return fp[1] - fp[3], fp[2] - fp[3], fp[1] + fp[3], fp[2] + fp[3]
+    if fp[0] == "p":
+        return fp[2:]
     return fp[1], fp[2], fp[3], fp[4]
 
 
+def _fp_points(fp, margin=0.0):
+    """A rect or polygon footprint as a polygon (a rect grown by margin)."""
+    if fp[0] == "p":
+        return fp[1]
+    return [(fp[1] - margin, fp[2] - margin), (fp[3] + margin, fp[2] - margin), (fp[3] + margin, fp[4] + margin),
+            (fp[1] - margin, fp[4] + margin)]
+
+
 def _overlap(a, b, margin=0.0):
+    if a[0] == "p" or b[0] == "p":     # polygons: a circle by its distance, rects grown by the margin
+        p, o = (a, b) if a[0] == "p" else (b, a)
+        if o[0] == "c":
+            pts = p[1]
+            return point_in_polygon(o[1], o[2], pts) or min(
+                _seg_dist(o[1], o[2], *pts[i - 1], *pts[i]) for i in range(len(pts))) < o[3] + margin
+        return polygons_intersect(p[1], _fp_points(o, margin))
     if a[0] == "c" and b[0] == "c":
         return math.hypot(a[1] - b[1], a[2] - b[2]) < a[3] + b[3] + margin
     if a[0] == "r" and b[0] == "r":
@@ -144,8 +167,7 @@ class Layout:
         gun sweep lower than it?"""
         circle = poly[1:] if isinstance(poly, tuple) and poly[0] == "c" else None
         if isinstance(poly, tuple):
-            poly = (circle_polygon(poly[1], poly[2], poly[3], 16) if poly[0] == "c" else
-                    [(poly[1], poly[2]), (poly[3], poly[2]), (poly[3], poly[4]), (poly[1], poly[4])])
+            poly = circle_polygon(poly[1], poly[2], poly[3], 16) if poly[0] == "c" else _fp_points(poly)
         xs, ys = [p[0] for p in poly], [p[1] for p in poly]
         x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
         for sw in self.sweeps:
@@ -190,20 +212,31 @@ def _sector_dist(sec, px, py):
 
 
 def add_block(lay, blocks, bid, x0, x1, w, level, rf, rb, y=0.0, z0=0.0, layer=None, kind="superstructure",
-              t_per_m2=None):
+              t_per_m2=None, points=None):
     """Superstructure block standing on z0 (metres above the main deck): footprint, weight, record.
-    Blocks above the main deck go on the upper sprite layer."""
+    Blocks above the main deck go on the upper sprite layer. points: an outline polygon instead of the rounded
+    rectangle; x0, x1, y and w then become its bounding box, and rf, rb are 0 (its corners are sharp)."""
+    if points:
+        points = [(round(px, 3), round(py, 3)) for px, py in points]
+        x0, x1 = min(p[0] for p in points), max(p[0] for p in points)
+        y0, y1 = min(p[1] for p in points), max(p[1] for p in points)
+        y, w, rf, rb = (y0 + y1) / 2, y1 - y0, 0.0, 0.0
     rf_, rb_ = rrect_clamped(x0, y - w / 2, x1, y + w / 2, rf, rb)
     b = dict(id=bid, kind=kind, x0=x0, x1=x1, y=y, w=w, level=level, rf=rf_, rb=rb_)
+    if points:
+        area, xc = polygon_centroid(points)
+        b.update(points=[list(p) for p in points], area=round(area, 2))
+    else:
+        area, xc = (x1 - x0) * w, (x0 + x1) / 2
     if z0:
         b["z0"] = z0
     if layer or z0:
         b["layer"] = layer or "upper"
     blocks.append(b)
-    lay.occupy(_fp_rect(x0, y - w / 2, x1, y + w / 2), block_base(b), block_top(b), bid)
+    lay.occupy(_fp_poly(points) if points else _fp_rect(x0, y - w / 2, x1, y + w / 2), block_base(b), block_top(b), bid)
     t_per_m2 = lay.sup_t if t_per_m2 is None else t_per_m2
-    lay.weights.append(Weight(bid, "superstructure", (x1 - x0) * w * t_per_m2,
-                              x=(x0 + x1) / 2, z_rel=("deck", (block_base(b) + block_top(b)) / 2)))
+    lay.weights.append(Weight(bid, "superstructure", area * t_per_m2,
+                              x=xc, z_rel=("deck", (block_base(b) + block_top(b)) / 2)))
     return b
 
 
@@ -223,11 +256,59 @@ def roof_spots(blocks, l, w, step=0.5):
             n = int((b["x1"] - b["x0"] - l) / step)
             xs = [b["x0"] + l / 2 + k * step for k in range(n + 1)]
         ye = b["w"] / 2 - w / 2
+        slabs = _Slabs(b["points"]) if b.get("points") else None
         for x in xs:
-            out.append((x, b["y"], z0, False))
-            if abs(b["y"]) < 1e-6 and ye > w / 2 + 0.1:
+            # a polygon roof: the spot (both of a pair) inside it across its length
+            spans = [slabs.at(x + dx) for dx in (-l / 2, l / 2)] if slabs else None
+
+            def on_roof(y):
+                if not spans:
+                    return True
+                for s in ((1, -1) if y else (1,)):
+                    a, b_ = s * y - w / 2 + 0.3, s * y + w / 2 - 0.3
+                    for sp in spans:
+                        for lo, hi in sp:
+                            if lo <= a and b_ <= hi:
+                                break
+                        else:
+                            return False
+                return True
+            if on_roof(b["y"]):
+                out.append((x, b["y"], z0, False))
+            if abs(b["y"]) < 1e-6 and ye > w / 2 + 0.1 and on_roof(ye):
                 out.append((x, ye, z0, True))
     return out
+
+
+def _thin(line, tol):
+    """Douglas-Peucker: the polyline's points that keep it within tol of the original."""
+    if len(line) < 3:
+        return list(line)
+    (ax, ay), (bx, by) = line[0], line[-1]
+    i, dmax = max(((i, _seg_dist(*line[i], ax, ay, bx, by)) for i in range(1, len(line) - 1)), key=lambda t: t[1])
+    if dmax <= tol:
+        return [line[0], line[-1]]
+    return _thin(line[:i + 1], tol)[:-1] + _thin(line[i:], tol)
+
+
+class _Slabs:
+    """A polygon cut into slabs between its vertices' x: where a line across the ship is inside it, quickly."""
+    def __init__(self, pts):
+        self.xs = sorted({x for x, _ in pts})
+        edges = [(x0, y0, x1, y1) for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1]) if x0 != x1]
+        self.slabs = []
+        for a, b in zip(self.xs, self.xs[1:]):
+            m = (a + b) / 2
+            self.slabs.append(sorted((e for e in edges if (e[0] > m) != (e[2] > m)),
+                                     key=lambda e: e[1] + (m - e[0]) * (e[3] - e[1]) / (e[2] - e[0])))
+
+    def at(self, x):
+        """The stretches of y inside the polygon at x."""
+        i = bisect.bisect_right(self.xs, x) - 1
+        if i < 0 or i >= len(self.slabs):
+            return []
+        ys = [y0 + (x - x0) * (y1 - y0) / (x1 - x0) for x0, y0, x1, y1 in self.slabs[i]]
+        return [(ys[k], ys[k + 1]) for k in range(0, len(ys) - 1, 2)]
 
 
 def mast_weight(lay, m, top, name):
@@ -797,6 +878,134 @@ def stepped_counts(main):
 def deckhouse_levels(design):
     """superstructure.deckhouse_levels: how many levels the deckhouse amidships has (1 when the design gives none)."""
     return int((design.get("superstructure") or {}).get("deckhouse_levels", 1))
+
+
+DH_INSET = 0.6         # the deckhouse's sides follow the deck edge this far in
+DH_TURRET_CLEAR = 1.0  # and its ends keep this far from an end turret's body (its swing zone is kept out too)
+DH_FIT = 0.75          # an end's shape is fitted on stations this far apart across the ship
+DH_STEP_COST = 3.0     # m2 (on one side) an extra step or chamfer in an end must win to be worth its corners
+DH_MIN_BAND = 1.5      # m: the narrowest band of an end (half the nose's width at least DH_MIN_BAND / 2)
+
+
+def deckhouse_outline(lay, hull, x0, x1, w, top, end_mounts, keep, grow=True):
+    """The level-1 deckhouse's outline: a room laid out like a deck, not a slab. Its sides follow the deck edge
+    (DH_INSET in); each end starts at x0 / x1 and is shaped by what lies beyond it. The end turrets' bodies (plus
+    DH_TURRET_CLEAR) and their barrels' swing at any height stay clear (blast and swing; turrets standing on the
+    deckhouse don't count), and so do sweeps lower than its roof (top). Inside a turret's blind arc that makes a
+    nose pointing at the turret with 45-degree shoulders. An end is never farther out than the nearest end
+    turret's body allows on the centreline (nor than x0 / x1 unless grow), nor farther in than the bounding boxes
+    in keep (what stands on its roof). Each end is fitted with at most three bands across the ship, joined by 45-degree chamfers where they
+    fit or square steps, and kept symmetric; an extra band must add DH_STEP_COST m2 a side. Returns the polygon."""
+    import armament     # armament imports layout
+    H = w / 2
+    st = DH_FIT
+    n = max(1, int(math.ceil(H / st - 1e-6)))
+    ys = [min(H, j * st) for j in range(n + 1)]
+    floor = -0.3 * (x1 - x0)
+    low = [sw for sw in lay.sweeps if sw["axis"] < top]
+    prof = {}
+    for e, xc in ((1, x1), (-1, x0)):
+        ms = [m for m in end_mounts if e * (m["x"] - xc) > 0]
+        rad = {m["id"]: armament.body_reach(m["t"]) + DH_TURRET_CLEAR for m in ms}
+        cap = max(0.0, min((e * (m["x"] - xc) - rad[m["id"]] for m in ms), default=0.0)) if grow else 0.0
+        uc = e * xc
+        owners = {m["id"] for m in ms}
+        sws = [sw for sw in lay.sweeps if sw["owner"] in owners] + [sw for sw in low if sw["owner"] not in owners]
+
+        def raw(y):
+            """How far the end may move out (negative: in) along the line at y."""
+            ivs = []
+            for sw in sws:
+                for p, (a0, b0, a1, b1) in zip(sw["polys"], sw["boxes"]):
+                    if not b0 <= y <= b1:
+                        continue
+                    xs = sorted(px + (y - py) * (qx - px) / (qy - py)
+                                for (px, py), (qx, qy) in zip(p, p[1:] + p[:1]) if (py > y) != (qy > y))
+                    ivs += [tuple(sorted((e * xs[i], e * xs[i + 1]))) for i in range(0, len(xs) - 1, 2)]
+            for m in ms:
+                dy = y - m["y"]
+                if abs(dy) < rad[m["id"]]:
+                    h = math.sqrt(rad[m["id"]] ** 2 - dy * dy)
+                    ivs.append((e * m["x"] - h, e * m["x"] + h))
+            d = cap
+            for ua, ub in ivs:
+                if ub > uc + floor:
+                    d = min(d, ua - uc - 0.3)
+            return max(floor, d)
+        fine = [min(raw(k * st / 2), raw(-k * st / 2)) for k in range(2 * n + 2)]
+        A = [min(fine[max(0, 2 * j - 1):2 * j + 2]) for j in range(n + 1)]
+        # what stands on the roof must stay on it
+        req = [floor] * (n + 1)
+        for bx0, by0, bx1, by1 in keep:
+            far = max(e * bx0, e * bx1) - uc + 0.3
+            for j, y in enumerate(ys):
+                if any(lo - st / 2 <= s * y <= hi + st / 2 for s in (1, -1) for lo, hi in ((by0, by1),)):
+                    req[j] = max(req[j], far)
+        A = [max(a, r) for a, r in zip(A, req)]
+        # where the deck edge already cuts the station off, the end is free (the hull clips it)
+        dgrid = [floor + st / 2 * i for i in range(int((cap - floor) / (st / 2)) + 1)] + [cap]
+        hws = [hull.half_width(e * (uc + d)) - DH_INSET for d in dgrid]
+        E = [next((d for d, hw in zip(dgrid, hws) if hw < y - 1e-9), cap) for y in ys]
+        Aeff = [cap if Ej <= Aj else Aj for Aj, Ej in zip(A, E)]
+
+        def band_ok(f):
+            return all(f[j] <= Aeff[j] + 1e-9 and f[j] >= req[j] - 1e-9 for j in range(n + 1))
+
+        def fill(i0, i1, d, f):
+            for j in range(i0, i1 + 1):
+                f[j] = d
+
+        best = None
+        nb_min = max(1, int(round(DH_MIN_BAND / st)))
+        inner_min = max(1, int(round(DH_MIN_BAND / 2 / st)))
+        cuts = [()] + [(a,) for a in range(inner_min, n - nb_min + 1)] + \
+               [(a, b) for a in range(inner_min, n - 2 * nb_min + 1) for b in range(a + nb_min, n - nb_min + 1)]
+        for cut in cuts:
+            edges = (0,) + cut + (n,)
+            depths = [min(min(Aeff[edges[i]:edges[i + 1] + 1]), cap) for i in range(len(edges) - 1)]
+            if any(abs(depths[i] - depths[i + 1]) < 0.75 for i in range(len(depths) - 1)):
+                continue
+            f = [0.0] * (n + 1)
+            for i, d in enumerate(depths):
+                fill(edges[i], edges[i + 1], d, f)
+            for i, d in enumerate(depths[1:]):     # shared stations take the shallower depth
+                f[edges[i + 1]] = min(depths[i], d)
+            if not band_ok(f):
+                continue
+            pts = [(0.0, depths[0])]
+            for i in range(len(depths) - 1):       # each joint: a chamfer into the shallower band if it fits
+                k, dA, dB = edges[i + 1], depths[i], depths[i + 1]
+                dd = abs(dA - dB)
+                hi, lo = max(dA, dB), min(dA, dB)
+                if dA > dB:      # sloping out from the inner band's edge
+                    y_a, y_b, line = ys[k], ys[k] + dd, (lambda y, k=k, dA=dA: dA - (y - ys[k]))
+                    fits = y_b <= ys[edges[i + 2]] + 1e-9
+                else:            # sloping in to the outer band's edge
+                    y_a, y_b, line = ys[k] - dd, ys[k], (lambda y, k=k, dB=dB: dB - (ys[k] - y))
+                    fits = y_a >= ys[edges[i]] - 1e-9
+                span = [j for j in range(n + 1) if y_a - st / 2 < ys[j] < y_b + st / 2]
+                if fits and all(min(hi, line(ys[j]) + st / 2) <= Aeff[j] + 1e-9 for j in span):
+                    for j in span:
+                        f[j] = max(f[j], min(hi, max(lo, line(ys[j]))))
+                    pts += [(y_a, dA), (y_b, dB)]
+                else:
+                    pts += [(ys[k], dA), (ys[k], dB)]
+            pts.append((H, depths[-1]))
+            area = sum(min(f[j], E[j]) * (st if 0 < j < n else st / 2) for j in range(n + 1))
+            score = area - DH_STEP_COST * len(cut)
+            if best is None or score > best[0] + 1e-6:
+                best = (score, pts)
+        if best is None:      # nothing fits both ways: square, as far out as what stands on it needs
+            best = (0.0, [(0.0, max(req)), (H, max(req))])
+        prof[e] = [(e * (uc + d), y) for y, d in best[1]]
+    half = prof[1] + prof[-1][::-1]          # starboard: the forward end out to the side, then the aft end back in
+    pts = half + [(x, -y) for x, y in half[::-1]]
+    xa, xb = min(p[0] for p in pts) - 1.0, max(p[0] for p in pts) + 1.0
+    k = max(2, int((xb - xa) / 1.0))
+    xs = [xa + (xb - xa) * i / k for i in range(k + 1)]
+    band = _thin([(x, max(0.1, hull.half_width(x) - DH_INSET)) for x in xs], 0.05)
+    band += [(x, -y) for x, y in band[::-1]]
+    return clip_convex(simplify_polygon(pts), band)
 
 
 DH_CELL = 0.5          # deckhouse levels are found in cells this long
@@ -1531,13 +1740,18 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     if wide:
         if nw:   # wing turrets stand on the deckhouse
             dh_w = max(dh_w, 2 * (y_w + reach + 0.6))
-        hw_min = min(hull.half_width(dh["x0"]), hull.half_width(dh["x1"]))
-        dh_w = min(dh_w, 2 * (hw_min - 0.6))
-    deckhouse = block("Deckhouse", dh["x0"], dh["x1"], dh_w, 1, 0.12 * dh_w if wide else 2.0, 0.1 * dh_w if wide else 1.0)
+        hw_max = max(hull.half_width(dh["x0"] + (dh["x1"] - dh["x0"]) * k / 20) for k in range(21))
+        dh_w = min(dh_w, 2 * (hw_max - DH_INSET))     # the sides follow the deck edge (deckhouse_outline)
+    # its outline: sides along the deck edge, ends shaped round the end turrets, over what stands on it
+    end_mounts = [m for m in mounts if m["kind"] == "main" and not mid_aft <= m["x"] <= mid_fwd]
+    keep = [_bbox(o[0]) for o in lay.footprints if o[1] >= LEVEL_H - 0.01 and o[3] != "Deckhouse"
+            and dh["x0"] <= (_bbox(o[0])[0] + _bbox(o[0])[2]) / 2 <= dh["x1"]]
+    dh_pts = deckhouse_outline(lay, hull, dh["x0"], dh["x1"], dh_w, LEVEL_H, end_mounts, keep, grow=wide)
+    deckhouse = block("Deckhouse", dh["x0"], dh["x1"], dh_w, 1, 0.0, 0.0, points=dh_pts)
     blocks.insert(0, blocks.pop())  # draw the deckhouse first, under the bridge
     # the deckhouse is under everything else in the middle; secondaries stand on it
     lay.footprints = [fp for fp in lay.footprints if fp[3] != "Deckhouse"] + \
-                     [(_fp_rect(dh["x0"], -dh_w / 2, dh["x1"], dh_w / 2), 0, LEVEL_H, "Deckhouse")]
+                     [(_fp_poly(dh_pts), 0, LEVEL_H, "Deckhouse")]
 
     # ---------------- casemates: guns in the hull side, below the main deck ----------------
     place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth)
