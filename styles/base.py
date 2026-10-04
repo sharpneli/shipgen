@@ -33,7 +33,8 @@ COMMON_LIMITS = {
     ("fire_control", "search_radar_t"): (0, 500),
 }
 
-SUPERSTRUCTURE_KEYS = ("t_per_m2", "material", "tower_levels", "deckhouse_levels")
+SUPERSTRUCTURE_KEYS = ("t_per_m2", "material", "tower_levels", "deckhouse_levels", "deckhouse")
+DECKHOUSE_KINDS = ("full", "centre")
 
 
 def superstructure_errors(design, style) -> list[str]:
@@ -54,6 +55,11 @@ def superstructure_errors(design, style) -> list[str]:
             errs.append(f"superstructure.deckhouse_levels: the {style.name} style has no deckhouse levels yet")
         elif not isinstance(s["deckhouse_levels"], int) or s["deckhouse_levels"] < 1:
             errs.append("superstructure.deckhouse_levels: use a whole number, 1 or more")
+    if "deckhouse" in s:
+        if not style.DECKHOUSE_LEVELS:
+            errs.append(f"superstructure.deckhouse: the {style.name} style has no deckhouse amidships yet")
+        elif s["deckhouse"] not in DECKHOUSE_KINDS:
+            errs.append(f"superstructure.deckhouse: use one of {', '.join(DECKHOUSE_KINDS)}")
     if "tower_levels" in s:
         if not style.MIN_TOWER:
             errs.append(f"superstructure.tower_levels: the {style.name} style has no bridge tower")

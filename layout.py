@@ -906,6 +906,13 @@ def stepped_counts(main):
     return sf.get("fore", nf), sf.get("aft", na)
 
 
+def deckhouse_kind(design):
+    """superstructure.deckhouse: "full" (the default), a level-1 deckhouse over the whole middle of a big ship
+    carrying its secondaries and wing turrets, or "centre", as on a narrow ship: the guns on the main deck and the
+    deckhouse under the bridge, carried along the centreline by deckhouse_levels."""
+    return (design.get("superstructure") or {}).get("deckhouse", "full")
+
+
 def deckhouse_levels(design):
     """superstructure.deckhouse_levels: how many levels the deckhouse amidships has (1 when the design gives none)."""
     return int((design.get("superstructure") or {}).get("deckhouse_levels", 1))
@@ -1408,7 +1415,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     lay.geo["bridge"] = dict(level=nb, floor=LEVEL_H * (nb - 1), need=nb_need, tower=n_tower,
                              turret_roof=fwd_roof)
     hood = firecontrol.HOOD_H if firecontrol.spec(design)["main"]["directors"] else 0.0
-    wide = B >= 15
+    wide = B >= 15 and deckhouse_kind(design) == "full"    # big ships' guns stand on a full-width deckhouse
 
     # ---------------- the middle's plan: machinery, funnels, midships and wing turrets ----------------
     # The machinery block (boiler rooms, engine rooms, bunkers; powerplant.segments) runs forward to aft under the
