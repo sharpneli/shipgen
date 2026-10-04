@@ -1,6 +1,6 @@
 # Superstructure contents & size, 1890–1970
 
-*Researched 2026-10-03; §6 (heights) added 2026-10-04. Companion to `crew-space-model.md` (§7 Placement) and `hull-weight-model.md` (A_super, `superstructure_t_per_m2`).*
+*Researched 2026-10-03; §6 (heights, why build tall) added 2026-10-04. Companion to `crew-space-model.md` (§7 Placement) and `hull-weight-model.md` (A_super, `superstructure_t_per_m2`).*
 
 > **Data honesty.** Rows marked **(S)** are sourced (see §7). Rows marked **(E)** are my estimates from general naval-architecture knowledge, plans and the sourced anchors. Treat (E) numbers as tuning defaults, not facts. The firmest hard numbers are the 1970s frigate volume split (Knox, FFG-7); the pre-1940 shares are the weakest.
 
@@ -15,7 +15,7 @@
   3. **1950–1970, volume and electronics.** Electronics, CIC, air conditioning, better habitability and helicopters made ships *volume-limited* rather than weight-limited. Aluminium deckhouses made it affordable in topweight. Superstructures went full-width and long, and accommodation started moving up into them.
 - **Size, as share of total enclosed volume (rough):** about 5 % on an 1890s battleship → about 10 % on WWI/interwar capital ships → about 12–18 % on WWII destroyers → **28–29 % on Knox (1969) and FFG-7 (1977) (S)**.
 - **Accommodation in the superstructure (rough):** about 0–5 % of living space before 1940, about 5–15 % in WWII, about 25–40 % on late-1960s escorts (E).
-- **Heights (§6):** the navigating bridge sits about 1.3–2× the highest turret's gun height above the waterline, and the fire-control top 2–3×. The ratio holds from destroyers (top ~16 m) to Yamato (~40 m).
+- **Heights (§6):** the navigating bridge sits about 1.3–2× the highest turret's gun height above the waterline, and the fire-control top 2–3×. The ratio holds from destroyers (top ~16 m) to Yamato (~40 m). Tall tower bridges (§6.3) bought sight range, AA director arcs, rigidity and integrated, splinter-proof command space, at the cost of windage, topweight and concentrating command in one target.
 - **The countervailing pressures** were topweight/stability, blast and splinter damage (light plating), wave damage to aluminium, and in the 1950s nuclear blast (RN Type 15 kept a deliberately low superstructure).
 
 ---
@@ -163,6 +163,37 @@ range_vis  = 3.57 * sqrt(h_fc_top)  km                      # optical horizon (t
 
 Every metre of height adds topweight (KG), windage and target silhouette, so height should be a player trade-off against stability, not a fixed era value.
 
+### 6.3 Why build tall: tower bridges and the 1930s rebuilds
+
+The "Queen Anne's Mansions" towers (Nelson/Rodney as built; Warspite 1934–37, Renown 1936–39, Queen Elizabeth and Valiant 1937–41 as rebuilt; KGV new-built) replaced the tripod-plus-platforms arrangement with one tall, enclosed, lightly armoured block. What it bought:
+
+| Benefit | Mechanism | Evidence |
+|---|---|---|
+| **Sight range** | Horizon ∝ √h (§6.1): a 30–40 m director sees ~20–22 km vs ~12 km from turret height. Height also clears funnel smoke and spray. | Dreadnought's spotting top sat in the funnel plume (S). |
+| **AA director arcs** | 1930s ships needed high-angle (AA) directors as well as the main director. Each needs all-round sky arcs, so they are stacked at different heights so they don't mask each other. | Renown's new tower carried the main-armament director plus two HACS Mk IV AA directors (S). |
+| **Rigidity** | A solid box tower vibrates far less than a tripod or a pagoda, which helps rangefinders and their crews. | Forum accounts: not enough vibration to ripple tea in the director; Yamato later adopted a solid tower (S, forum-grade). |
+| **Integrated command** | Navigating bridge, admiral's bridge, plot, signal and W/T offices in one weatherproof block with short communication runs. | Warspite's armoured citadel was built "to enclose the bridge and to provide space for her to operate as a flagship"; Nelson's tower gave "spacious, weatherproof working spaces" (S). |
+| **Splinter protection in one envelope** | Light splinter plating around everything, instead of scattered open platforms. The heavy armoured conning tower lost importance (at Jutland admirals had fought from open bridges anyway (E)). | Renown kept only its conning-tower hood, re-sited on the rear superstructure; Nelson's tower was splinter-proof except the conning tower at its base (S). |
+| **Weight efficiency and growth room** | One rigid, lightly plated structure replaces tripod, platforms and searchlight towers, and gives ready mounting points for radar later. | Forum view that the growth advantage became clear only as more sensors were added (S, forum-grade). |
+
+**Why it came with full rebuilds, not simple refits:**
+
+- **New machinery freed weight and deck space.** Warspite's 24 Yarrow boilers became six Admiralty three-drum boilers, saving about 1,500 t, which went into armour and AA. Fewer uptakes meant a smaller funnel area to build a compact tower around (S).
+- **The threat had changed.** Aircraft made sky coverage and AA fire control as important as surface gunnery.
+- **Treaties limited new construction,** so deep modernisation of WWI hulls was how navies got "new" capital ships. Warspite's rebuild cost £2,363,000, close to her original price (S).
+
+**What it cost:**
+
+- **Windage:** Nelson's tower caused handling problems, including the 1934 grounding off Southsea (S).
+- **Topweight and silhouette:** a bigger target, and less KG margin for later AA additions.
+- **Concentration risk:** one hit could disable the whole command team. At Denmark Strait (1941) a 15 in shell passed through Prince of Wales's compass platform and killed most of the men on it (E; well documented, not re-checked here).
+
+**Game hook.** Model the tower as a trade-off:
+
+- **Benefits:** height plus rigidity improves spotting range and fire-control accuracy. Use a vibration factor that ranks tripod < pagoda < tower. A taller tower also adds AA director slots.
+- **Costs:** the player pays in KG, windage (turning circle and handling in wind) and concentration risk, because a bridge hit disables command, navigation and fire control together.
+- **Optional fallback:** a retained armoured conning tower survives that hit but sees poorly.
+
 ---
 
 ## 7. Sources
@@ -192,5 +223,11 @@ Every metre of height adds topweight (KG), windage and target silhouette, so hei
 - NavWeaps 5"/38 Mk 12 (trunnion heights): [navweaps.com](http://www.navweaps.com/Weapons/WNUS_5-38_mk12.php)
 - "A Closer Look at Cage Masts", USNI Naval History, Feb 2022 (Brooklyn Bridge limit): [usni.org](https://www.usni.org/magazines/naval-history-magazine/2022/february/closer-look-cage-masts-0)
 - Fubuki-class destroyer (bridge and funnels cut for stability): [Wikipedia](https://en.wikipedia.org/wiki/Fubuki-class_destroyer)
+
+- HMS Warspite (1934–37 rebuild: citadel for flagship use, boilers, cost): [Wikipedia](https://en.wikipedia.org/wiki/HMS_Warspite_(03))
+- HMS Renown (1936–39 rebuild: tower, directors, conning-tower hood): [Wikipedia](https://en.wikipedia.org/wiki/HMS_Renown_(1916))
+- HMS Queen Elizabeth (1937–41 tower bridge, HACS Mk IV, AFCT Mk VII): [Wikipedia](https://en.wikipedia.org/wiki/HMS_Queen_Elizabeth_(1913))
+- "Queen Anne's Mansions" thread, NavWeaps forum (rigidity, growth room): [tapatalk](https://www.tapatalk.com/groups/warships1discussionboards/queen-anne-s-mansions-t23120.html)
+- HMS Dreadnought 1906 (spotting top in the funnel plume): [Wikipedia](https://en.wikipedia.org/wiki/HMS_Dreadnought_(1906))
 
 **Gaps / next steps:** hard superstructure-volume numbers for a pre-1914 battleship, a WWII destroyer and a 1950s escort would firm up §3. They are in print (Friedman's *U.S. Destroyers*, D.K. Brown's *Rebuilding the Royal Navy*, Brown & Moore's *Warship Design* volumes) and not found online. General-arrangement plans could also be measured directly (e.g. Fletcher, Lord Nelson, Leander). The same drawings would replace the (E) heights in §6.
