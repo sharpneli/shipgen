@@ -1438,8 +1438,13 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     mid_raised = stands_on(main, "amidships_stands_on") == "deckhouse"   # wing and midships turrets on the deckhouse
     secs = design.get("secondary") or []
     secs = [{**b, "prefix": battery_prefix(k)} for k, b in enumerate(secs if isinstance(secs, list) else [secs])]
-    deck_secs = [b for b in secs if b.get("mount", "deck") == "deck" and b.get("per_side", b.get("count", 0) // 2)]
-    wide = (mid_raised and bool(nm or nw)) or any(stands_on(b) == "deckhouse" for b in deck_secs)
+    # torpedo mounts stand in pairs at the deck edges where the hull leaves room for their swing beside the edge,
+    # else on the centreline between the funnels (which then stand far enough apart)
+    tp = design.get("torpedoes") or {}
+    ntp = tp.get("mounts", 0)
+    tt_id, tt = make_torpedo_type(tp.get("tubes", 4)) if ntp else (None, None)
+    t_sweep = tt["barrel_len"] / 2 + 0.3 if ntp else 0.0
+    t_edges = bool(ntp) and B / 2 - tt["r"] - 0.8 >= t_sweep
 
     # ---------------- the middle's plan: machinery, funnels, midships and wing turrets ----------------
     # The machinery block (boiler rooms, engine rooms, bunkers; powerplant.segments) runs forward to aft under the
@@ -1491,8 +1496,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     # side enough room that its neighbour stays out of the beam arcs
     beam_tan = math.tan(math.radians(90.0 - ARC_BEAM))
     s_mid = max(reach + 1.0, 0.55 * fw / beam_tan + 0.5) + R_main + 1.5
-    # torpedo mounts on narrow hulls stand on the centreline between the funnels
-    f_min = fl + (9.6 if ((design.get("torpedoes") or {}).get("mounts", 0) and not wide) else 2.0)
+    f_min = fl + (9.6 if (ntp and not t_edges) else 2.0)
 
     # the plan, forward to aft: funnels (F, over a boiler group), open machinery (E: engine rooms, bunkers),
     # midships turrets (T) and wing turret pairs (W). Abreast pairs go to the ends of the middle (Dreadnought,
@@ -2102,16 +2106,13 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     dh_w = next((w_ for pid, _, _, w_ in pieces if pid == "Deckhouse"), dh_w)
 
     # ---------------- torpedo mounts ----------------
-    tp = design.get("torpedoes") or {}
-    ntp = tp.get("mounts", 0)
     if ntp:
-        tt_id, tt = make_torpedo_type(tp.get("tubes", 4))
         turret_types[tt_id] = tt
-        sweep = tt["barrel_len"] / 2 + 0.3
+        sweep = t_sweep
         placed = 0
-        if wide:
+        if t_edges:
             if ntp % 2:
-                lay.warnings.append("Wide hulls carry torpedo mounts in pairs; rounded up to an even number.")
+                lay.warnings.append("Torpedo mounts at the deck edges go in pairs; rounded up to an even number.")
                 ntp += 1
             xs = sorted([x * 0.5 for x in range(int(-L), int(L))], key=lambda x: abs(x - mach_c))
             for x in xs:
@@ -2130,7 +2131,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                         lay.weights.append(Weight(mid, "armament", torpedo_weight(tt["barrels"]), x=x,
                                                   z_rel=("deck", 1)))
                         placed += 1
-        if placed < ntp:     # narrow hulls, and wide ones whose deck edges are taken: on the centreline
+        if placed < ntp:     # no room at the deck edges, or they are taken: on the centreline
             cands = sorted([mid_aft + 0.5 * k for k in range(int((mid_fwd - mid_aft) * 2) + 1)],
                            key=lambda x: abs(x - mach_c))
             for x in cands:
@@ -2144,7 +2145,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                     lay.occupy(fp, 0, 1.4, mid)
                     lay.weights.append(Weight(mid, "armament", torpedo_weight(tt["barrels"]), x=x, z_rel=("deck", 1)))
                     placed += 1
-        if placed < ntp and wide:   # the deck is taken: on the deckhouse roof, on its centreline
+        if placed < ntp and dh_blocks:   # the deck is taken: on the deckhouse roof, on its centreline
             cands = sorted([b_["x0"] + sweep + 0.5 * k for b_ in dh_blocks
                             for k in range(int((b_["x1"] - b_["x0"] - 2 * sweep) * 2) + 1)],
                            key=lambda x: abs(x - mach_c))
@@ -2229,7 +2230,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     for x in [mach_c + k * 2.0 for k in range(-6, 7)]:
         if len(boats) >= 2:
             break
-        y = (dh_w / 2 - 0.35 * bl_ - 0.6) if wide else (B / 2 - 0.35 * bl_ - 1.0)
+        y = (dh_w / 2 - 0.35 * bl_ - 0.6) if riders else (B / 2 - 0.35 * bl_ - 1.0)   # on the gun deck, or by the edge
         fps = [_fp_rect(x - bl_ / 2, s * y - 0.15 * bl_, x + bl_ / 2, s * y + 0.15 * bl_) for s in (1, -1)]
         if y > fw / 2 + 0.3 * bl_ and all(lay.free(fp, 0.3, ignore=dh_ids) and lay.clear(fp, LEVEL_H + 1.5)
                                           for fp in fps):
