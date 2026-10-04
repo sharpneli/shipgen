@@ -37,6 +37,7 @@ FIELDS = ("directors", "rangefinder_m", "armour_mm", "radar_t", "computer_t")
 LABEL = {"main": "Main director", "secondary": "Secondary director", "aa": "AA director"}
 HOOD_H = 2.2              # director hood height, m: the eyepieces stand EYE_H above its floor
 EYE_H = 1.5
+DIRECTOR_BEVEL = 0.3      # the hood's corners are cut this share of its shorter side
 HOOD_PLATE_T = 0.047      # t/m2 of unarmoured hood (6 mm plate)
 RF_T_K = 0.03             # rangefinder t = RF_T_K x base^2: 4.6 m 0.6 t, 10.5 m 3.3 t, 15 m 6.8 t (E)
 GEAR_T = (1.0, 1.2)       # training gear, sights, seats: a + b x base t (E). With its hood, 19 mm of armour and its radar
@@ -129,8 +130,11 @@ def place(lay, design, blocks):
                 bid = LABEL[bat] + ("" if k == 0 else f" {k + 1}")
             else:       # numbered by station: a pair (1S, 1P) or a single director (2)
                 bid = f"{LABEL[bat]} {unit}" + (("S" if y > 0 else "P") if pair else "")
-            add_block(lay, blocks, bid, x - hl, x + hl, w, 1, 0.45 * min(l, w), 0.45 * min(l, w), y=y, z0=z0,
-                      kind="director", t_per_m2=0.0)
+            c = DIRECTOR_BEVEL * min(l, w)      # a bevelled hood, like the levels it stands on
+            pts = [(x + hl, y - hw + c), (x + hl, y + hw - c), (x + hl - c, y + hw), (x - hl + c, y + hw),
+                   (x - hl, y + hw - c), (x - hl, y - hw + c), (x - hl + c, y - hw), (x + hl - c, y - hw)]
+            add_block(lay, blocks, bid, x - hl, x + hl, w, 1, 0.0, 0.0, y=y, z0=z0, kind="director", t_per_m2=0.0,
+                      points=pts)
             lay.weights.append(Weight(bid, "fire_control", sum(v for k_, v in wt.items() if k_ != "computer"), x=x,
                                       z_rel=("deck", z0 + 0.5 * HOOD_H)))
             if wt["computer"]:
