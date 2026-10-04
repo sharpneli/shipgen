@@ -26,6 +26,7 @@ COMMON_LIMITS = {
     ("armour", "end_belts", "fore", "mm"): (0, 2000), ("armour", "end_belts", "fore", "tip_mm"): (0, 2000),
     ("armour", "end_belts", "aft", "mm"): (0, 2000), ("armour", "end_belts", "aft", "tip_mm"): (0, 2000),
     ("superstructure", "t_per_m2"): (0, 5), ("superstructure", "tower_levels"): (1, 30),
+    ("superstructure", "bridge_level"): (2, 30),
     ("superstructure", "deckhouse_levels"): (1, 30),
     **{("fire_control", b, k): lim for b in ("main", "secondary", "aa") for k, lim in (
         ("directors", (0, 100)), ("rangefinder_m", (0, 50)), ("armour_mm", (0, 2000)), ("radar_t", (0, 500)),
@@ -33,7 +34,7 @@ COMMON_LIMITS = {
     ("fire_control", "search_radar_t"): (0, 500),
 }
 
-SUPERSTRUCTURE_KEYS = ("t_per_m2", "material", "tower_levels", "deckhouse_levels")
+SUPERSTRUCTURE_KEYS = ("t_per_m2", "material", "tower_levels", "bridge_level", "deckhouse_levels")
 
 
 def superstructure_errors(design, style) -> list[str]:
@@ -59,6 +60,11 @@ def superstructure_errors(design, style) -> list[str]:
             errs.append(f"superstructure.tower_levels: the {style.name} style has no bridge tower")
         elif not isinstance(s["tower_levels"], int) or s["tower_levels"] < style.MIN_TOWER:
             errs.append(f"superstructure.tower_levels: use a whole number, {style.MIN_TOWER} or more")
+    if "bridge_level" in s:
+        if not style.BRIDGE_LEVEL:
+            errs.append(f"superstructure.bridge_level: the {style.name} style's bridge stands at a fixed level")
+        elif not isinstance(s["bridge_level"], int) or s["bridge_level"] < 2:
+            errs.append("superstructure.bridge_level: use a whole number, 2 or more")
     return errs
 
 
@@ -187,6 +193,7 @@ class Style:
     CASEMATES = False           # may a secondary battery be "mount": "casemate" (guns in the hull side)
     MIN_TOWER = 0               # the lowest superstructure.tower_levels the style's bridge tower takes (0: no tower)
     DECKHOUSE_LEVELS = False    # does the layout take superstructure.deckhouse_levels
+    BRIDGE_LEVEL = False        # does the layout take superstructure.bridge_level
 
     def tuning(self, design) -> dict:
         """Overrides of navarch.TUNING for this design."""

@@ -896,18 +896,22 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     plant = lay.geo["plant"]
     lb = clamp(0.05 * L + 2, 7, 18)                 # bridge length
     la = 0.045 * L + 2 if L >= 130 else 0.0         # aft control position length
-    # the bridge tower: base levels from level 2, the navigating bridge on the first level that sees over the
-    # highest forward turret's roof (bridge_level), then each level up to superstructure.tower_levels, the main
-    # director on top; funnels stand as tall as a tower of up to 4 levels
+    # the bridge tower: base levels from level 2, the navigating bridge, then each level up to
+    # superstructure.tower_levels, the main director on top; funnels stand as tall as a tower of up to 4 levels.
+    # nb_need: the first level that sees over the highest forward turret's roof (bridge_level)
     fwd_tier = min(nf, max(n_step_f, 1)) - 1 if (tm and nf) else None    # the forward group's top tier
     fwd_roof = 1.2 + fwd_tier * superfire_step(th) + th if fwd_tier is not None else None
     nb_need = bridge_level(fwd_roof)
-    n_tower = tower_levels(design, nb_need + (2 if L >= 180 else 1))    # by default 1-2 levels over the bridge
-    nb = min(nb_need, n_tower)          # a tower too low for the view: the bridge on its top level
+    # superstructure.bridge_level: where the bridge stands. By default the lowest level that sees over the guns (on
+    # a tower_levels too low for that, its top level); higher makes a tall tower bridge over its base levels (Nelson's
+    # navigating bridge stood about level 8). The tower reaches at least the bridge.
+    sup = design.get("superstructure") or {}
+    nb = int(sup.get("bridge_level", min(nb_need, sup.get("tower_levels", nb_need))))
+    n_tower = max(nb, tower_levels(design, nb + (2 if L >= 180 else 1)))    # by default 1-2 levels over the bridge
     if nb < nb_need:
         lay.warnings.append(
             f"The bridge (level {nb}, its deck {LEVEL_H * (nb - 1):.1f} m above the main deck) cannot see over "
-            f"turret {turret_name('ABC', fwd_tier)}'s roof ({fwd_roof:.1f} m): superstructure.tower_levels "
+            f"turret {turret_name('ABC', fwd_tier)}'s roof ({fwd_roof:.1f} m): superstructure.bridge_level "
             f"{nb_need} or more lifts it clear.")
     hood = firecontrol.HOOD_H if firecontrol.spec(design)["main"]["directors"] else 0.0
     wide = B >= 15
