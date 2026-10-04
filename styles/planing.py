@@ -15,6 +15,7 @@ it meanwhile.
 from __future__ import annotations
 
 import armament
+import firecontrol
 import ordnance
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_steering, clamp, finish_layout,
                     plan_machinery, set_citadel)
@@ -74,7 +75,7 @@ class Planing(Style):
 
 def _layout(design, res, shift):
     shp, depth = res.power_shp, res.depth
-    lay = Layout()
+    lay = Layout(design, WOOD_T_PER_M2)
     hs = planing_hull_spec(design)
     hull = Hull(hs)
     lay.hull = hull
@@ -87,7 +88,7 @@ def _layout(design, res, shift):
     blocks = []
     cx0, cx1 = 0.0 + shift, 0.22 * L + shift
     wc = 0.42 * B
-    add_block(lay, blocks, "Charthouse", cx0, cx1, wc, 1, 0.45 * wc, 0.2, t_per_m2=WOOD_T_PER_M2)
+    add_block(lay, blocks, "Charthouse", cx0, cx1, wc, 1, 0.45 * wc, 0.2)
     masts = [dict(x=cx0 + 0.25 * (cx1 - cx0), yard=min(0.5 * B, 2.4), tripod=False, top=LEVEL_H + 3.5)]
 
     m0, m1 = -0.42 * L, -0.08 * L
@@ -124,6 +125,7 @@ def _layout(design, res, shift):
         r = armament.body_reach(ts)
         armament.side_pairs(lay, mounts, turret_types, "secondary", ts_id, ts, sec["per_side"],
                             [(x, hull.half_width(x) - r - 0.3, 0.2) for x in xs], "S")
+    firecontrol.place(lay, design, blocks)
     # AA (machine guns, 20 mm): a pair just aft of the bridge first, then along the deck
     aa_out = []
     aa_req = design.get("aa") or {}

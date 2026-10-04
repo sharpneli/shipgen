@@ -3,7 +3,9 @@
   "name": "Motor Torpedo Boat",
   "valid": true,
   "errors": [],
-  "warnings": [],
+  "warnings": [
+    "The main battery has no director: each turret fires under local control."
+  ],
   "inputs": {
     "id": "mtb",
     "name": "Motor Torpedo Boat",
@@ -129,6 +131,34 @@
     },
     "aa": {
       "light": 2
+    },
+    "superstructure": {
+      "t_per_m2": 0.1,
+      "material": "wood"
+    },
+    "fire_control": {
+      "main": {
+        "directors": 0,
+        "rangefinder_m": 0.0,
+        "armour_mm": 0,
+        "radar_t": 0.0,
+        "computer_t": 0.0
+      },
+      "secondary": {
+        "directors": 0,
+        "rangefinder_m": 0.0,
+        "armour_mm": 0,
+        "radar_t": 0.0,
+        "computer_t": 0.0
+      },
+      "aa": {
+        "directors": 0,
+        "rangefinder_m": 0.0,
+        "armour_mm": 0,
+        "radar_t": 0.0,
+        "computer_t": 0.0
+      },
+      "search_radar_t": 0.0
     }
   },
   "results": {
@@ -238,6 +268,7 @@
     "sickbay_beds": 0,
     "tolerance_days": 2
   },
+  "fire_control": [],
   "weight_groups_t": {
     "hull": 31,
     "machinery": 18,

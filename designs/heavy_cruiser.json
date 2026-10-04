@@ -7,5 +7,7 @@
   "armour": {"belt_mm": 152, "belt_depth_m": 2.4, "belt_height_m": 2.4, "belt_bottom_mm": 152, "bulkhead_mm": 91, "upper_belt": {"mm": 0, "to_deck": 0, "extent": "citadel"}, "end_belts": {"fore": {"mm": 0, "tip_mm": 0}, "aft": {"mm": 0, "tip_mm": 0}}, "decks": [{"deck": 1, "mm": 64, "extent": "citadel"}], "turret_mm": 203, "materials": {"belt": "Class A", "upper_belt": "Class A", "end_belts": "Class A", "bulkheads": "Class A", "decks": "Class B", "turrets": "Class B", "barbettes": "Class A", "conning_tower": "Class B", "secondary": "STS"}},
   "main": {"calibre_mm": 203, "calibre_length": 55, "barrels": 3, "fore": 2, "aft": 1},
   "secondary": {"calibre_mm": 127, "calibre_length": 38, "barrels": 2, "per_side": 3},
-  "aa": {"heavy": 10, "light": 16}
+  "aa": {"heavy": 10, "light": 16},
+  "superstructure": {"t_per_m2": 0.32, "material": "steel", "tower_levels": 4},
+  "fire_control": {"main": {"directors": 2, "rangefinder_m": 5.5, "armour_mm": 13, "radar_t": 2.0, "computer_t": 5.0}, "secondary": {"directors": 2, "rangefinder_m": 4.6, "armour_mm": 13, "radar_t": 2.5, "computer_t": 3.0}, "aa": {"directors": 4, "rangefinder_m": 0.0, "armour_mm": 0, "radar_t": 0.0, "computer_t": 0.2}, "search_radar_t": 3.0}
 }

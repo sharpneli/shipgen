@@ -16,6 +16,7 @@ class Warship(Style):
     WING_TURRETS = True
     SECONDARY_LIST = True    # several secondary batteries, each on deck or in casemates (layout.py)
     CASEMATES = True
+    MIN_TOWER = 2            # the bridge (level 2) at least
 
     def build_layout(self, design, res, shift=0.0):
         return build_layout(design, res, shift)

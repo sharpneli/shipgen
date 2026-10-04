@@ -21,12 +21,13 @@ from __future__ import annotations
 import math
 
 import armament
+import firecontrol
 import hullweight
 import ordnance
 from geometry import polygon_area, polygon_y_span
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
-                    add_steering, boiler_seg, clamp, finish_layout, hull_spec, plan_funnels, plan_machinery, set_citadel,
-                    stack_machinery)
+                    add_steering, boiler_seg, clamp, finish_layout, hull_spec, mast_weight, plan_funnels, plan_machinery,
+                    set_citadel, stack_machinery, tower_levels)
 from navarch import STEEL, Weight
 from geometry import AA_CFG, Hull
 from styles.base import Style
@@ -186,6 +187,7 @@ SECONDARY_LIMITS = {}   # carriers and merchants take the common (wide) secondar
 class Carrier(Style):
     name = "carrier"
     SECONDARY_LIST = True
+    MIN_TOWER = 3            # the island (or the seaplane carrier's bridge) up to its bridge level
     LIMITS = {**SECONDARY_LIMITS,("hull", "block_coefficient"): (0.45, 0.76),
               ("aviation", "aircraft"): (0, 160), ("aviation", "aircraft_t"): (0.5, 35),
               ("aviation", "hangar_decks"): (1, 2), ("aviation", "elevators"): (0, 4),
@@ -302,7 +304,7 @@ class Carrier(Style):
 # layouts
 # ---------------------------------------------------------------------------
 def _common(design, shp, shift):
-    lay = Layout()
+    lay = Layout(design)
     hs = hull_spec(design)
     hull = Hull(hs)
     lay.hull = hull
@@ -397,19 +399,22 @@ def _flight_deck_layout(design, res, shift):
     fwd0 = ix0 + nfun * (fl + 1.0) + 1.0          # the tower stands ahead of the funnel(s)
     add_block(lay, blocks, "Island upper", fwd0, ix1 - 0.5, 0.85 * wi, 2, 1.2, 0.8, y=yi, z0=fd_h)
     add_block(lay, blocks, "Bridge", fwd0 + 0.2 * (ix1 - fwd0), ix1 - 0.3, 0.9 * wi, 3, 0.4 * wi, 0.6, y=yi, z0=fd_h)
-    top_level = 3
-    if L >= 200:
-        add_block(lay, blocks, "Director", fwd0 + 0.4 * (ix1 - fwd0), ix1 - 0.25 * (ix1 - fwd0), 0.45 * wi, 4,
-                  0.2 * wi, 0.2 * wi, y=yi, z0=fd_h)
-        top_level = 4
-    fun_top = fd_h + LEVEL_H * top_level + 3.0
+    top_level = tower_levels(design, 4 if L >= 200 else 3)    # the old built-in rule as the default
+    for k in range(4, top_level + 1):     # the island's tower narrows as it rises
+        f = min(0.12, 0.03 * (k - 4))
+        add_block(lay, blocks, f"Island tower {k}", fwd0 + (0.4 + f) * (ix1 - fwd0),
+                  max(fwd0 + (0.4 + f) * (ix1 - fwd0) + 3.0, ix1 - (0.25 + f) * (ix1 - fwd0)),
+                  max(3.0, 0.45 * wi * 0.9 ** (k - 4)), k, 0.2 * wi, 0.2 * wi, y=yi, z0=fd_h)
+    fun_top = fd_h + LEVEL_H * min(top_level, 4) + 3.0
     for i in range(nfun):
         fx = ix0 + 1.0 + (i + 0.5) * (fl + 1.0)
         funnels.append(dict(id=f"Funnel {i + 1}", x=fx, y=yi, l=fl, w=fw, pipes=2 if fw > 4 else 1, z0=fd_h,
                             seg=boiler_seg(lay)))
         lay.occupy(_fp_rect(fx - fl / 2, yi - fw / 2, fx + fl / 2, yi + fw / 2), fd_h, fun_top, f"Funnel {i + 1}")
         add_funnel_weights(lay, funnels[-1], fun_top, mc, res.depth)
-    masts = [dict(x=fwd0 - 0.5, y=yi, yard=min(0.6 * wi, 6), tripod=False, top=fun_top + 5.0)]
+    masts = [dict(x=fwd0 - 0.5, y=yi, yard=min(0.6 * wi, 6), tripod=False,
+                  top=max(fun_top + 5.0, fd_h + LEVEL_H * top_level + firecontrol.HOOD_H + 2.0))]
+    mast_weight(lay, masts[0], masts[0]["top"], "Mast")
 
     mounts, turret_types = [], {}
     island_guns = any(b["where"] == "ends" or b["count"] % 2 for b in armament.batteries(design))
@@ -468,6 +473,7 @@ def _flight_deck_layout(design, res, shift):
         n = (tp["mounts"] + 1) // 2
         armament.side_pairs(lay, mounts, turret_types, "torpedo", tt_id, tt, n,
                             sponson_slots(tt["barrel_len"] / 2 + 0.3, fd_h - 2.5), "T", z=1, label="Torpedo")
+    firecontrol.place(lay, design, blocks)
     aa_out = []
     aa_req = design.get("aa") or {}
     for kind, count in (("quad40", aa_req.get("heavy", 0)), ("single20", aa_req.get("light", 0))):
@@ -518,7 +524,12 @@ def _seaplane_layout(design, res, shift):
     add_block(lay, blocks, "Bridge base", bx0, bx1, wb, 1, 0.3 * wb, 1.0)
     add_block(lay, blocks, "Bridge", bx0 + 0.15 * lb, bx1, 0.85 * wb, 2, 0.4 * wb, 1.0)
     add_block(lay, blocks, "Bridge upper", bx0 + 0.35 * lb, bx1 - 0.05 * lb, 0.7 * wb, 3, 0.3 * wb, 0.8)
-    fun_top = LEVEL_H * 3 + 3.0
+    n_tower = tower_levels(design, 3)
+    for k in range(4, n_tower + 1):      # a taller tower narrows as it rises
+        f, tw = min(0.12, 0.03 * (k - 4)), max(3.0, 0.5 * wb * 0.9 ** (k - 4))
+        add_block(lay, blocks, f"Tower {k}", bx0 + (0.45 + f) * lb, max(bx0 + (0.45 + f) * lb + 3.0,
+                                                                      bx1 - (0.15 + f) * lb), tw, k, 0.5 * tw, 0.5 * tw)
+    fun_top = LEVEL_H * min(n_tower, 4) + 3.0
     mc = (hx1 + bx0) / 2
     _machinery(lay, design, res, hull, mc)
     nfun, fw, fl = plan_funnels(lay, design, res, B, fun_top)
@@ -533,6 +544,9 @@ def _seaplane_layout(design, res, shift):
         lay.occupy(_fp_rect(fx - fl / 2, -fw / 2, fx + fl / 2, fw / 2), 0, fun_top, f"Funnel {i + 1}")
         add_funnel_weights(lay, funnels[-1], fun_top, mc, res.depth)
     masts = [dict(x=bx0 - 1.0, yard=min(0.3 * B, 8), tripod=False)]
+    if LEVEL_H * n_tower + firecontrol.HOOD_H + 2.0 > fun_top + 6.0:    # a tall tower: the mast tops it
+        masts[0]["top"] = LEVEL_H * n_tower + firecontrol.HOOD_H + 2.0
+    mast_weight(lay, masts[0], masts[0].get("top", fun_top + 6.0), "Mast")
 
     # aircraft deck: catapults and cranes
     park0, _ = dp["park"]
@@ -565,6 +579,7 @@ def _seaplane_layout(design, res, shift):
         r = tt["barrel_len"] / 2 + 0.3
         armament.side_pairs(lay, mounts, turret_types, "torpedo", tt_id, tt, (tp["mounts"] + 1) // 2,
                             [(x, hull.half_width(x) - r - 0.4, 0.3) for x in xs], "T", z=1, label="Torpedo")
+    firecontrol.place(lay, design, blocks)
     aa_out = []
     aa_req = design.get("aa") or {}
     for kind, count in (("quad40", aa_req.get("heavy", 0)), ("single20", aa_req.get("light", 0))):

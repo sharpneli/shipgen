@@ -61,6 +61,9 @@ design.py      the command line: validate, shipdesign.build, write report.json a
   "aa": {"heavy": 20, "light": 30},
   "machinery": {"stress": 0.4, "shafts": 4, "tech": {...}},
   "crew": {"standard": {...}, "endurance_days": 45, "distiller": true},
+  "superstructure": {"t_per_m2": 0.32, "material": "steel", "tower_levels": 4},
+  "fire_control": {"main": {"directors": 2, "rangefinder_m": 7.9, "armour_mm": 38, "radar_t": 2.0, "computer_t": 8.0},
+                   "secondary": {...}, "aa": {...}, "search_radar_t": 4.0},
   "funnels": null
 }
 ```
@@ -119,6 +122,18 @@ The crew lives wherever the ship has empty volume (`crew.crew_space`):
 - **The crew's share:** `crew.USABLE` (0.65) of what's left. That share has to hold the quarters, the provisions and any water the double bottom can't take after the fuel. Too little room makes the hull grow.
 - **Weights:** crew, provisions and water are real weights. `misc_frac` no longer includes them.
 - **Where they sleep:** the subdivision spreads the complement by volume over the cells no room claims above the waterline (`Quarters <section>`), and over a planing craft's crew space. A merchant whose holds fill the hull has no quarters below the main deck; its crew lives in the superstructure, which the subdivision doesn't cover.
+
+`superstructure` is how the upperworks are built. Every design writes it out.
+- `t_per_m2`: structure weight per m² of each level's footprint. Steel is about 0.32; aluminium (Forrest Sherman, Spruance) about 0.2. Planing craft use 0.10 (a wooden charthouse).
+- `material`: a plain string passed to the superstructure's hitboxes for the game (an aluminium house burns and dents in a seaway). The designer doesn't read it.
+- `tower_levels` (warships and carriers): the bridge tower's (or the island's) top level. The bridge is level 2 (a carrier's island bridge level 3). Each level above 3 is a `Tower n` block (`Island tower n`) that narrows as it rises, and the main director stands on top. Funnels stand as tall as a tower of up to 4 levels, whatever the tower. A tall tower lets the directors see farther, but it costs topweight. The designs carry the old built-in rule: 4 on warships from 180 m (carriers 200 m), else 3.
+
+`fire_control` is the directors and the plotting rooms behind them (`firecontrol.py`). Every design writes out all three batteries, with zeros for what it lacks. Each battery takes `{"directors", "rangefinder_m", "armour_mm", "radar_t", "computer_t"}`, plus `search_radar_t` for the search radar.
+- **Directors** stand on the superstructure's roofs as blocks of their own (role `director` in the hitboxes, with `battery`, `rangefinder_m`, `armour_mm` and `radar`). Main directors take the highest roofs, the first two at least a quarter of the length apart (fore and aft) when they can. Secondary directors go in pairs on the highest roofs that take a pair, and AA directors on the lowest roofs, beside their guns. Where no pair fits (a narrow tower, a carrier's island) they stand singly. A director with no roof to stand on is an error.
+- **Weights** (estimates, `firecontrol.py`): a 2.2 m hood of 6 mm plate around a rangefinder whose arms stick out athwartships (`rangefinder_m` + 1 m wide), training gear and sights (1 + 1.2 × base t), the rangefinder (0.03 × base² t), the hood's armour and the radar, all at the director's height. `computer_t` is the director's share of the plotting room (range clock, Dreyer table, rangekeeper), low in the hull. A Mk 37 comes out at about 20 t, a Mk 51 (no rangefinder) at 1.7 t, and Bismarck's 10.5 m main directors at about 45 t each.
+- The search radar sits on the foremast top. Masts now weigh 0.012 × height² t per leg (a tripod has three legs) at half their height.
+- **The report's `fire_control`** lists every director with its eye height above the waterline and its visual horizon (3.57 √(1.17 h) km). The game decides what that means for spotting. A main battery with no director warns that its turrets fire under local control.
+- The values are raw numbers. Templates (a bureau's director that many ships share) belong to the game's designer UI.
 
 `machinery` is the propulsion plant (`powerplant.py`, from `research/powerplant-model.md`). There is no year input: `tech` holds the researched technology as numbers, so a navy can have a tech earlier or later than history did. `plant-templates.md` has blocks to copy for every period from 1880 to 1970, and `python plant_templates.py` regenerates them. A design without `tech` gets a 1940 high-pressure turbine plant (merchants: a 1940 oil-fired triple expansion; planing craft: 1940 petrol engines). The other keys are design choices: `stress`, `shafts`, `units_per_shaft`, `transmission`, `arrangement` (`grouped` or alternating `unit`), `centreline_bulkhead`, `bunkers` (`wing` or `ends`) and `wing_bunker_m`. The template's table explains each one. What the plant decides:
 - **Weight, fuel and engineering crew:** from the tech and the stress. Range is computed at cruise speed through the tech's part-load curve.

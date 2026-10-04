@@ -136,47 +136,76 @@
     "aa": {
       "heavy": 4,
       "light": 20
+    },
+    "superstructure": {
+      "t_per_m2": 0.32,
+      "material": "steel",
+      "tower_levels": 3
+    },
+    "fire_control": {
+      "main": {
+        "directors": 0,
+        "rangefinder_m": 0.0,
+        "armour_mm": 0,
+        "radar_t": 0.0,
+        "computer_t": 0.0
+      },
+      "secondary": {
+        "directors": 0,
+        "rangefinder_m": 0.0,
+        "armour_mm": 0,
+        "radar_t": 0.0,
+        "computer_t": 0.0
+      },
+      "aa": {
+        "directors": 2,
+        "rangefinder_m": 0.0,
+        "armour_mm": 0,
+        "radar_t": 0.0,
+        "computer_t": 0.2
+      },
+      "search_radar_t": 1.0
     }
   },
   "results": {
-    "length_m": 106.5,
-    "beam_m": 18.65,
+    "length_m": 107.0,
+    "beam_m": 18.83,
     "block_coefficient": 0.62,
-    "standard_displacement_t": 4358,
-    "full_displacement_t": 5385,
-    "draught_m": 4.27,
-    "depth_m": 9.32,
-    "freeboard_m": 5.06,
-    "power_shp": 9600.0,
-    "fuel_t": 859,
+    "standard_displacement_t": 4418,
+    "full_displacement_t": 5451,
+    "draught_m": 4.26,
+    "depth_m": 9.33,
+    "freeboard_m": 5.07,
+    "power_shp": 9700.0,
+    "fuel_t": 865,
     "crew": 549,
-    "gm_full_m": 1.09,
-    "gm_light_m": 0.86,
-    "trim_m": -0.23,
-    "lcg_m": -1.63,
+    "gm_full_m": 1.17,
+    "gm_light_m": 0.96,
+    "trim_m": -0.21,
+    "lcg_m": -1.61,
     "lcb_m": -1.28,
-    "layout_shift_m": 4.26,
+    "layout_shift_m": 4.28,
     "aircraft": 28,
     "aircraft_capacity": 28,
-    "hangar_area_m2": 1144,
+    "hangar_area_m2": 1161,
     "flight_deck": "axial",
     "flight_deck_m": [
-      105.4,
-      22.4
+      105.9,
+      22.6
     ],
-    "flight_deck_height_m": 12.66
+    "flight_deck_height_m": 12.67
   },
   "plant": {
     "name": "Triple expansion, large-tube water-tube boilers, oil-fired (1940)",
     "fuel": "oil",
-    "rated_kw": 7164,
-    "rated_shp": 9610.0,
-    "continuous_kw": 7164,
+    "rated_kw": 7220,
+    "rated_shp": 9680.0,
+    "continuous_kw": 7220,
     "overload_max": 1.15,
     "shafts": 2,
     "units": 2,
-    "unit_mw": 3.58,
-    "weight_t": 741.5,
+    "unit_mw": 3.61,
+    "weight_t": 747.3,
     "sfc_g_per_kwh": 660.0,
     "part_load": {
       "curve": "REC",
@@ -207,27 +236,27 @@
     "rows": 3,
     "protrusion_m": 0.0,
     "space_m": {
-      "width": 17.16,
-      "height": 8.32
+      "width": 17.32,
+      "height": 8.33
     },
     "wing_bunkers_t": 0,
     "end_bunkers_m": 1.4,
     "funnels": 1,
     "funnel_gas_area_m2": 2.4,
     "funnel_gas_velocity_m_s": 14.0,
-    "smoke_reach_m": 8.7
+    "smoke_reach_m": 8.8
   },
   "hull": {
     "construction": "High-tensile steel, all welded",
-    "structure_t": 1262,
-    "min_gauge_t": 1262,
+    "structure_t": 1282,
+    "min_gauge_t": 1282,
     "strength_t": 0,
     "plate_min_mm": 7.2,
     "plate_strength_mm": 4.2,
     "girder": {
       "allowable_stress_mpa": 166.7,
-      "required_m4": 3.93,
-      "plating_m4": 6.8,
+      "required_m4": 4.0,
+      "plating_m4": 6.88,
       "armour_decks_m4": 0
     }
   },
@@ -254,8 +283,8 @@
     "water_in_double_bottom_m3": 0,
     "distiller_m3_per_day": 39.5,
     "space_needed_m3": 4531,
-    "space_usable_m3": 4595,
-    "space_free_m3": 7070,
+    "space_usable_m3": 4675,
+    "space_free_m3": 7192,
     "sleep_m2_per_man": 1.77,
     "sleep_standard_m2": 1.3,
     "headroom_m": 2.4,
@@ -263,239 +292,322 @@
     "sickbay_beds": 6,
     "tolerance_days": 60
   },
+  "fire_control": [
+    {
+      "id": "AA director 1",
+      "battery": "aa",
+      "x": 11.59,
+      "y": 8.17,
+      "eye_height_m": 21.97,
+      "horizon_km": 18.1,
+      "rangefinder_m": 0.0,
+      "armour_mm": 0,
+      "radar_t": 0.0,
+      "weight_t": 2.1
+    },
+    {
+      "id": "AA director 2",
+      "battery": "aa",
+      "x": 13.59,
+      "y": 8.17,
+      "eye_height_m": 21.97,
+      "horizon_km": 18.1,
+      "rangefinder_m": 0.0,
+      "armour_mm": 0,
+      "radar_t": 0.0,
+      "weight_t": 2.1
+    }
+  ],
   "weight_groups_t": {
-    "hull": 2416,
-    "fuel": 1027,
-    "machinery": 778,
-    "misc": 694,
+    "hull": 2453,
+    "fuel": 1033,
+    "machinery": 784,
+    "misc": 699,
     "aviation": 340,
     "armament": 80,
-    "superstructure": 50
+    "superstructure": 57,
+    "fire_control": 5
   },
   "weights": [
     {
       "name": "Hull structure",
       "group": "hull",
-      "t": 1261.9,
-      "x": -1.06,
+      "t": 1282.1,
+      "x": -1.07,
       "z": 4.66
     },
     {
       "name": "Machinery",
       "group": "machinery",
-      "t": 741.5,
-      "x": -0.0,
+      "t": 747.3,
+      "x": 0.0,
       "z": 2.98
     },
     {
       "name": "Island",
       "group": "superstructure",
-      "t": 21.0,
-      "x": 9.59,
-      "z": 18.22
+      "t": 21.3,
+      "x": 9.63,
+      "z": 18.23
     },
     {
       "name": "Island upper",
       "group": "superstructure",
-      "t": 8.4,
-      "x": 12.2,
-      "z": 20.82
+      "t": 8.5,
+      "x": 12.25,
+      "z": 20.83
     },
     {
       "name": "Bridge",
       "group": "superstructure",
-      "t": 7.2,
-      "x": 12.9,
-      "z": 23.42
+      "t": 7.4,
+      "x": 12.95,
+      "z": 23.43
     },
     {
       "name": "Funnel 1",
       "group": "superstructure",
-      "t": 13.3,
-      "x": 7.09,
-      "z": 22.32
+      "t": 13.4,
+      "x": 7.12,
+      "z": 22.33
     },
     {
       "name": "Uptakes Funnel 1",
       "group": "machinery",
-      "t": 36.8,
-      "x": 3.55,
-      "z": 12.32
+      "t": 37.0,
+      "x": 3.56,
+      "z": 12.33
+    },
+    {
+      "name": "Mast",
+      "group": "superstructure",
+      "t": 6.6,
+      "x": 8.99,
+      "z": 21.03
+    },
+    {
+      "name": "AA director 1",
+      "group": "superstructure",
+      "t": 0.0,
+      "x": 11.59,
+      "z": 26.03
+    },
+    {
+      "name": "AA director 1",
+      "group": "fire_control",
+      "t": 1.9,
+      "x": 11.59,
+      "z": 25.83
+    },
+    {
+      "name": "Plotting room (AA director 1)",
+      "group": "fire_control",
+      "t": 0.2,
+      "x": 11.59,
+      "z": 2.8
+    },
+    {
+      "name": "AA director 2",
+      "group": "superstructure",
+      "t": 0.0,
+      "x": 13.59,
+      "z": 26.03
+    },
+    {
+      "name": "AA director 2",
+      "group": "fire_control",
+      "t": 1.9,
+      "x": 13.59,
+      "z": 25.83
+    },
+    {
+      "name": "Plotting room (AA director 2)",
+      "group": "fire_control",
+      "t": 0.2,
+      "x": 13.59,
+      "z": 2.8
     },
     {
       "name": "AA1",
       "group": "armament",
       "t": 15.0,
-      "x": -49.38,
-      "z": 15.52
+      "x": -49.64,
+      "z": 15.53
     },
     {
       "name": "AA2",
       "group": "armament",
       "t": 15.0,
-      "x": -49.38,
-      "z": 15.52
+      "x": -49.64,
+      "z": 15.53
     },
     {
       "name": "AA3",
       "group": "armament",
       "t": 15.0,
-      "x": -4.86,
-      "z": 15.52
+      "x": -4.89,
+      "z": 15.53
     },
     {
       "name": "AA4",
       "group": "armament",
       "t": 15.0,
-      "x": -4.86,
-      "z": 15.52
+      "x": -4.89,
+      "z": 15.53
     },
     {
       "name": "AA5",
       "group": "armament",
       "t": 1.0,
-      "x": -27.12,
-      "z": 15.52
+      "x": -27.26,
+      "z": 15.53
     },
     {
       "name": "AA6",
       "group": "armament",
       "t": 1.0,
-      "x": -27.12,
-      "z": 15.52
+      "x": -27.26,
+      "z": 15.53
     },
     {
       "name": "AA7",
       "group": "armament",
       "t": 1.0,
-      "x": 17.4,
-      "z": 15.52
+      "x": 17.49,
+      "z": 15.53
     },
     {
       "name": "AA8",
       "group": "armament",
       "t": 1.0,
-      "x": 17.4,
-      "z": 15.52
+      "x": 17.49,
+      "z": 15.53
     },
     {
       "name": "AA9",
       "group": "armament",
       "t": 1.0,
-      "x": -38.25,
-      "z": 15.52
+      "x": -38.45,
+      "z": 15.53
     },
     {
       "name": "AA10",
       "group": "armament",
       "t": 1.0,
-      "x": -38.25,
-      "z": 15.52
+      "x": -38.45,
+      "z": 15.53
     },
     {
       "name": "AA11",
       "group": "armament",
       "t": 1.0,
-      "x": 6.27,
-      "z": 15.52
+      "x": 6.3,
+      "z": 15.53
     },
     {
       "name": "AA12",
       "group": "armament",
       "t": 1.0,
-      "x": 6.27,
-      "z": 15.52
+      "x": 6.3,
+      "z": 15.53
     },
     {
       "name": "AA13",
       "group": "armament",
       "t": 1.0,
-      "x": -15.99,
-      "z": 15.52
+      "x": -16.07,
+      "z": 15.53
     },
     {
       "name": "AA14",
       "group": "armament",
       "t": 1.0,
-      "x": -15.99,
-      "z": 15.52
+      "x": -16.07,
+      "z": 15.53
     },
     {
       "name": "AA15",
       "group": "armament",
       "t": 1.0,
-      "x": 28.53,
-      "z": 15.52
+      "x": 28.68,
+      "z": 15.53
     },
     {
       "name": "AA16",
       "group": "armament",
       "t": 1.0,
-      "x": 28.53,
-      "z": 15.52
+      "x": 28.68,
+      "z": 15.53
     },
     {
       "name": "AA17",
       "group": "armament",
       "t": 1.0,
-      "x": -43.81,
-      "z": 15.52
+      "x": -44.05,
+      "z": 15.53
     },
     {
       "name": "AA18",
       "group": "armament",
       "t": 1.0,
-      "x": -43.81,
-      "z": 15.52
+      "x": -44.05,
+      "z": 15.53
     },
     {
       "name": "AA19",
       "group": "armament",
       "t": 1.0,
       "x": 0.71,
-      "z": 15.52
+      "z": 15.53
     },
     {
       "name": "AA20",
       "group": "armament",
       "t": 1.0,
       "x": 0.71,
-      "z": 15.52
+      "z": 15.53
     },
     {
       "name": "AA21",
       "group": "armament",
       "t": 1.0,
-      "x": -21.55,
-      "z": 15.52
+      "x": -21.67,
+      "z": 15.53
     },
     {
       "name": "AA22",
       "group": "armament",
       "t": 1.0,
-      "x": -21.55,
-      "z": 15.52
+      "x": -21.67,
+      "z": 15.53
     },
     {
       "name": "AA23",
       "group": "armament",
       "t": 1.0,
-      "x": 22.97,
-      "z": 15.52
+      "x": 23.09,
+      "z": 15.53
     },
     {
       "name": "AA24",
       "group": "armament",
       "t": 1.0,
-      "x": 22.97,
-      "z": 15.52
+      "x": 23.09,
+      "z": 15.53
+    },
+    {
+      "name": "Search radar",
+      "group": "fire_control",
+      "t": 1.0,
+      "x": 8.99,
+      "z": 32.73
     },
     {
       "name": "Crew and effects",
       "group": "misc",
       "t": 65.9,
       "x": 0.0,
-      "z": 7.82
+      "z": 7.83
     },
     {
       "name": "Provisions",
@@ -508,48 +620,48 @@
       "name": "Fresh water",
       "group": "misc",
       "t": 164.7,
-      "x": -0.0,
+      "x": 0.0,
       "z": 0.47
     },
     {
       "name": "Flight deck",
       "group": "hull",
-      "t": 787.8,
-      "x": -2.66,
-      "z": 16.92
+      "t": 799.1,
+      "x": -2.68,
+      "z": 16.93
     },
     {
       "name": "Hangar structure",
       "group": "hull",
-      "t": 366.1,
-      "x": -4.26,
-      "z": 13.12
+      "t": 371.4,
+      "x": -4.28,
+      "z": 13.13
     },
     {
       "name": "Elevators",
       "group": "aviation",
       "t": 46,
-      "x": -4.26,
-      "z": 15.92
+      "x": -4.28,
+      "z": 15.93
     },
     {
       "name": "Arresting gear",
       "group": "aviation",
       "t": 40,
-      "x": -39.56,
-      "z": 15.92
+      "x": -39.75,
+      "z": 15.93
     },
     {
       "name": "Catapults",
       "group": "aviation",
       "t": 30,
-      "x": 31.95,
-      "z": 15.92
+      "x": 32.1,
+      "z": 15.93
     },
     {
       "name": "Equipment, outfit, crew & stores",
       "group": "misc",
-      "t": 310.1,
+      "t": 314.5,
       "x": 0.0,
       "z": 4.66
     },
@@ -557,28 +669,28 @@
       "name": "Air group",
       "group": "aviation",
       "t": 140,
-      "x": -4.26,
-      "z": 13.92
+      "x": -4.28,
+      "z": 13.93
     },
     {
       "name": "Aviation ordnance",
       "group": "aviation",
       "t": 84.0,
-      "x": 16.79,
+      "x": 16.81,
       "z": 2.56
     },
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 858.8,
-      "x": -0.0,
+      "t": 865.5,
+      "x": 0.0,
       "z": 1.68
     },
     {
       "name": "Aviation fuel",
       "group": "fuel",
       "t": 168.0,
-      "x": -15.73,
+      "x": -15.74,
       "z": 3.86
     }
   ]

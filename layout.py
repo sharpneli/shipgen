@@ -66,7 +66,11 @@ def _overlap(a, b, margin=0.0):
 
 
 class Layout:
-    def __init__(self):
+    def __init__(self, design=None, sup_t=None):
+        sup = (design or {}).get("superstructure") or {}
+        # superstructure structure weight per m2 of each level's footprint (steel about 0.32, aluminium about 0.2)
+        self.sup_t = sup.get("t_per_m2", TUNING["superstructure_t_per_m2"] if sup_t is None else sup_t)
+        self.directors = []     # fire-control directors (firecontrol.place)
         self.components = []    # exact geometry + heights (hitboxes)
         self.footprints = []    # (fp, base, top, owner_id) for collision tests
         self.weights = []       # navarch.Weight with x positions
@@ -96,6 +100,19 @@ class Layout:
             b = _bbox(o[0])
             if b[0] < x1 and x0 < b[2] and b[1] < y1 and y0 < b[3] and o[3] not in ignore \
                     and _overlap(fp, o[0], margin):
+                return False
+        return True
+
+    def free_at(self, fp, base, top, margin=0.4, ignore=()):
+        """Is a footprint standing from base to top (m above the main deck) clear of everything placed whose height
+        overlaps it? (free() ignores heights.)"""
+        x0, y0, x1, y1 = _bbox(fp)
+        x0, y0, x1, y1 = x0 - margin, y0 - margin, x1 + margin, y1 + margin
+        for o in self.footprints:
+            if o[2] <= base + 1e-6 or o[1] >= top - 1e-6 or o[3] in ignore:
+                continue
+            b = _bbox(o[0])
+            if b[0] < x1 and x0 < b[2] and b[1] < y1 and y0 < b[3] and _overlap(fp, o[0], margin):
                 return False
         return True
 
@@ -145,10 +162,44 @@ def add_block(lay, blocks, bid, x0, x1, w, level, rf, rb, y=0.0, z0=0.0, layer=N
         b["layer"] = layer or "upper"
     blocks.append(b)
     lay.occupy(_fp_rect(x0, y - w / 2, x1, y + w / 2), block_base(b), block_top(b), bid)
-    t_per_m2 = TUNING["superstructure_t_per_m2"] if t_per_m2 is None else t_per_m2
+    t_per_m2 = lay.sup_t if t_per_m2 is None else t_per_m2
     lay.weights.append(Weight(bid, "superstructure", (x1 - x0) * w * t_per_m2,
                               x=(x0 + x1) / 2, z_rel=("deck", (block_base(b) + block_top(b)) / 2)))
     return b
+
+
+def roof_spots(blocks, l, w, step=0.5):
+    """Where something l long (fore and aft) and w wide could stand on the blocks' roofs: (x, y, z0, pair) candidates.
+    pair: one each side at +-y (on a block centred on the centreline), else a single one at y. Along each roof every
+    step metres, inside its length; across, on its centreline and at its edges (a director's rangefinder arms or an AA
+    tub may overhang the edge a little). Directors' own roofs are left out."""
+    out = []
+    for b in blocks:
+        if b.get("kind") == "director":
+            continue
+        z0 = block_top(b)
+        if b["x1"] - b["x0"] < l:
+            xs = [(b["x0"] + b["x1"]) / 2]
+        else:
+            n = int((b["x1"] - b["x0"] - l) / step)
+            xs = [b["x0"] + l / 2 + k * step for k in range(n + 1)]
+        ye = b["w"] / 2 - w / 2
+        for x in xs:
+            out.append((x, b["y"], z0, False))
+            if abs(b["y"]) < 1e-6 and ye > w / 2 + 0.1:
+                out.append((x, ye, z0, True))
+    return out
+
+
+def mast_weight(lay, m, top, name):
+    """A mast's weight at half its height: tripod legs or a pole, tubes that get stouter the taller they are
+    (MAST_T_K x top^2 per leg: a 20 m pole 4.8 t, a battleship's tripod about 14 t)."""
+    legs = 3 if m.get("tripod") else 1
+    lay.weights.append(Weight(name, "superstructure", legs * MAST_T_K * top ** 2, x=m["x"],
+                              z_rel=("deck", top / 2)))
+
+
+MAST_T_K = 0.012
 
 
 def battery_of(mid):
@@ -439,6 +490,8 @@ def finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts,
         masts=masts, aa=[{k: v for k, v in a.items() if k not in ("id", "base")} for a in aa_out],
         **extra)
     lay.mounts, lay.blocks, lay.funnels, lay.aa, lay.fun_top = mounts, blocks, funnels, aa_out, fun_top
+    import firecontrol
+    firecontrol.search_radar(lay, design, blocks, masts, fun_top)
     return lay
 
 
@@ -613,10 +666,16 @@ def stepped_counts(main):
     return sf.get("fore", nf), sf.get("aft", na)
 
 
+def tower_levels(design, default):
+    """superstructure.tower_levels: the bridge tower's (or island's) top level; default when the design gives none."""
+    return int((design.get("superstructure") or {}).get("tower_levels", default))
+
+
 def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     import armament     # armament imports layout
+    import firecontrol
     shp, depth = res.power_shp, res.depth
-    lay = Layout()
+    lay = Layout(design)
     hs = hull_spec(design)
     hull = Hull(hs)
     lay.hull = hull
@@ -643,7 +702,10 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     plant = lay.geo["plant"]
     lb = clamp(0.05 * L + 2, 7, 18)                 # bridge length
     la = 0.045 * L + 2 if L >= 130 else 0.0         # aft control position length
-    tower_levels = [2, 3] + ([4] if L >= 180 else [])
+    # the bridge tower: the bridge (level 2), then each level up to superstructure.tower_levels, the main director on
+    # top; funnels stand as tall as a tower of up to 4 levels
+    n_tower = tower_levels(design, 4 if L >= 180 else 3)     # the old built-in rule as the default
+    hood = firecontrol.HOOD_H if firecontrol.spec(design)["main"]["directors"] else 0.0
     wide = B >= 15
 
     # ---------------- the middle's plan: machinery, funnels, midships and wing turrets ----------------
@@ -684,7 +746,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         segs.append(["magazine", mag_l["aft"]])
     # funnels: enough for the gas, each within reach of its boilers (powerplant.funnel_plan). Natural and boost
     # draught want a tall stack: at least STACK_NATURAL from the grates to the funnel top.
-    fun_top = LEVEL_H * max(tower_levels) + 3.0
+    fun_top = LEVEL_H * min(n_tower, 4) + 3.0
     below = depth - plant["inner_bottom"] - 1.0          # grates to the main deck
     if res.plant["tech"]["draught"]["system"] in ("natural", "forced_boost"):
         fun_top = max(fun_top, STACK_NATURAL - below)
@@ -1053,7 +1115,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     block = functools.partial(add_block, lay, blocks)      # the shared add_block, on this ship's list
 
     # the bridge tower steps aft, and the aft control forward, until no turret's barrels can reach them
-    tower_top = LEVEL_H * max(tower_levels)
+    tower_top = LEVEL_H * n_tower + hood
     while not lay.clear(_fp_rect(bx0, -w2 / 2, bx1, w2 / 2), tower_top) and bx0 > mid_aft:
         bx1 -= 0.5
         bx0 -= 0.5
@@ -1076,7 +1138,8 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             dh["x0"] += 0.5
     # bridge tower
     block("Bridge", bx0, bx1, w2, 2, 0.42 * w2, 1.0)
-    block("Bridge upper", bx0 + 0.1 * lb, bx1 - 0.06 * lb, 0.78 * w2, 3, 0.36 * w2, 1.0)
+    if n_tower >= 3:
+        block("Bridge upper", bx0 + 0.1 * lb, bx1 - 0.06 * lb, 0.78 * w2, 3, 0.36 * w2, 1.0)
     if armour.get("belt_mm", 0) > 0:   # inside the bridge's rounded front, as tall as the bridge
         ct_r = min(max(0.1 * B, 1.25), 4.0, 0.4 * w2)
         lay.conning_tower = dict(x=max(bx1 - 0.42 * w2, bx0 + ct_r), y=0.0, r=ct_r, top=2 * LEVEL_H)
@@ -1084,12 +1147,14 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         area = 2 * math.pi * ct_r * 2 * LEVEL_H + 0.5 * math.pi * ct_r ** 2
         lay.weights.append(Weight("Conning tower", "armour", area * mm * 7.85, x=lay.conning_tower["x"],
                                   z_rel=("deck", LEVEL_H)))
-    if 4 in tower_levels:
-        block("Main director", bx0 + 0.35 * lb, bx1 - 0.2 * lb, 0.5 * w2, 4, 0.25 * w2, 0.25 * w2)
+    for k in range(4, n_tower + 1):      # the tower narrows as it rises
+        f, tw = min(0.12, 0.03 * (k - 4)), max(3.0, 0.5 * w2 * 0.9 ** (k - 4))
+        block(f"Tower {k}", bx0 + (0.35 + f) * lb, max(bx0 + (0.35 + f) * lb + 3.0, bx1 - (0.2 + f) * lb), tw, k,
+              0.5 * tw, 0.5 * tw)
     # aft control
     if la:
         block("Aft control", ax0, ax0 + la, 0.28 * B, 2, 1.0, 0.1 * B)
-        block("Aft director", ax0 + 0.25 * la, ax0 + 0.75 * la, 0.17 * B, 3, 0.085 * B, 0.085 * B)
+        block("Aft control upper", ax0 + 0.25 * la, ax0 + 0.75 * la, 0.17 * B, 3, 0.085 * B, 0.085 * B)
 
     # each boiler group's funnels are trunked aft, toward the boundary with what lies aft of the boilers (the
     # engine rooms), so the funnels don't all crowd the forward end of the machinery: the group's middle goes to the
@@ -1288,6 +1353,9 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         if placed < ntp:
             lay.fail("length", f"Only {placed} of {ntp} torpedo mounts fit on deck.")
 
+    # ---------------- fire control: directors on the roofs ----------------
+    firecontrol.place(lay, design, blocks)
+
     # ---------------- AA ----------------
     aa_out = []
     aa_req = design.get("aa", {})
@@ -1324,8 +1392,12 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     mast_top = fun_top + 6.0
     fx_ = bx0 - 1.2 if lay.clear(_fp_circle(bx0 - 1.2, 0, 0.7), mast_top) else bx0 + 0.3 * lb   # else on the bridge
     masts = [dict(x=fx_, yard=min(0.3 * B, 10), tripod=L >= 150)]
+    if LEVEL_H * n_tower + hood + 2.0 > mast_top:     # a tall tower: the foremast tops it
+        masts[0]["top"] = LEVEL_H * n_tower + hood + 2.0
     if la:
         masts.append(dict(x=ax0 + la * 0.5, yard=min(0.22 * B, 8), tripod=False))
+    for k, m in enumerate(masts):
+        mast_weight(lay, m, m.get("top", mast_top), "Foremast" if k == 0 else "Mainmast")
     boats = []
     bl_ = clamp(0.03 * L, 4, 8)
     for x in [mach_c + k * 2.0 for k in range(-6, 7)]:

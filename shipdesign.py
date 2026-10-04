@@ -29,6 +29,7 @@ from __future__ import annotations
 import copy
 
 import crew
+import firecontrol
 import hullweight
 import navarch
 import styles
@@ -283,6 +284,7 @@ def report_dict(design, lay, r, sized):
         plant=plant_report(lay, r),
         hull=hull_report(design, r),
         crew=lay.crew,
+        fire_control=firecontrol.report(lay, r.freeboard),
         weight_groups_t={k: round(v) for k, v in sorted(r.groups.items(), key=lambda kv: -kv[1])},
         weights=[dict(name=w.name, group=w.group, t=round(w.w, 1), x=round(w.x, 2), z=round(w.z, 2))
                  for w in r.weights],

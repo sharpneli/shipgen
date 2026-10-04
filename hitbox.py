@@ -42,7 +42,9 @@ BARBETTE = 0.8   # barbette armour, fraction of the turret face (as navarch weig
 BLOCK_ROLES = {
     "Bridge": "bridge", "Bridge upper": "bridge", "Bridge base": "bridge", "Charthouse": "bridge",
     "Main director": "director", "Aft director": "director", "Director": "director",
-    "Aft control": "aft_control",
+    "Secondary director": "director", "AA director": "director",
+    "Tower": "bridge", "Island tower": "island",
+    "Aft control": "aft_control", "Aft control upper": "aft_control",
     "Island": "island", "Island upper": "island",
     "Hangar": "hangar", "Hangar roof": "hangar",
     "Casemate housing": "casemate",
@@ -169,6 +171,8 @@ def export_hitboxes(lay, design, res):
                                     else round(m["base"] - 1.0, 2)),
                               top=round(m["base"], 2), armour_mm=round(BARBETTE * arm)))
             with_material(comps[-1], armour_material(design, "barbettes") if m["kind"] == "main" else mat)
+    directors = {d["id"]: d for d in lay.directors}
+    sup_material = (design.get("superstructure") or {}).get("material")
     for b in lay.blocks:
         pts = rrect_polygon(b["x0"], b["y"] - b["w"] / 2, b["x1"], b["y"] + b["w"] / 2, b["rf"], b["rb"])
         smoke = getattr(lay, "smoke", {}).get(b["id"])
@@ -177,6 +181,12 @@ def export_hitboxes(lay, design, res):
                           rrect=dict(x0=round(b["x0"], 3), x1=round(b["x1"], 3), y0=round(b["y"] - b["w"] / 2, 3),
                                      y1=round(b["y"] + b["w"] / 2, 3), rf=round(b["rf"], 3), rb=round(b["rb"], 3)),
                           base=round(block_base(b), 2), top=round(block_top(b), 2)))
+        d = directors.get(b["id"])
+        if d:       # a fire-control director: which battery it serves, its rangefinder and its hood's armour
+            comps[-1].update(battery=d["battery"], rangefinder_m=d["rangefinder_m"], armour_mm=d["armour_mm"],
+                             radar=d["radar_t"] > 0)
+        else:
+            with_material(comps[-1], sup_material)
         if smoke:
             comps[-1]["smoke"] = smoke
     ct = lay.conning_tower

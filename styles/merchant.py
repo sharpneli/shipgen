@@ -17,6 +17,7 @@ then torpedo mounts along the sides and AA on the house and ends.
 from __future__ import annotations
 
 import armament
+import firecontrol
 import ordnance
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
                     add_steering, boiler_seg, clamp, finish_layout, plan_funnels, plan_machinery,
@@ -160,7 +161,7 @@ class Merchant(Style):
 
 def _layout(design, res, shift):
     shp, depth = res.power_shp, res.depth
-    lay = Layout()
+    lay = Layout(design)
     hs = merchant_hull_spec(design)
     hull = Hull(hs)
     lay.hull = hull
@@ -335,6 +336,7 @@ def _layout(design, res, shift):
         armament.side_pairs(lay, mounts, turret_types, "torpedo", tt_id, tt, (tp["mounts"] + 1) // 2,
                             [(x, hull.half_width(x) - r - 0.4, deck_h(x) + 0.3) for x in xs], "T", z=1,
                             label="Torpedo")
+    firecontrol.place(lay, design, blocks)
     aa_out = []
     aa_req = design.get("aa") or {}
     for kind, count in (("quad40", aa_req.get("heavy", 0)), ("single20", aa_req.get("light", 0))):
