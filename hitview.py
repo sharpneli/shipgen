@@ -1,6 +1,6 @@
 """
 hitview: debug views of the hitbox model in 3D. Every hitbox is a footprint with a base and a top height, so it
-extrudes to a prism; the prisms are drawn in an orthographic projection with the painter's algorithm, flat-shaded,
+extrudes to a prism; the prisms are drawn in an orthographic projection with a depth buffer, flat-shaded,
 from a few angles. Render side: reads nothing but the ship dict (its "hitboxes").
 
     hitview.render_views(ship, out_dir)      ->  hitbox_bow.png, hitbox_quarter.png, hitbox_side.png,
@@ -11,13 +11,14 @@ from a few angles. Render side: reads nothing but the ship dict (its "hitboxes")
 
 The hull is translucent in the outside views, so the rooms show through; the internal view draws only the rooms,
 the armour and the hull's edges. The quarters, stores, double bottom and torpedo protection that fill the rest of
-the hull are faint (FILLER), so the rooms show through them; the citadel's armoured ends are dark slabs. Approximate by design: intersecting prisms may sort wrongly.
+the hull are faint (FILLER), so the rooms show through them; the citadel's armoured ends are dark slabs.
 """
 from __future__ import annotations
 
 import math
 import os
 
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from geometry import rotate_translate
@@ -36,6 +37,7 @@ KIND = {   # fill RGB, alpha
     "hangar_bay": ((200, 200, 210), 120), "stores": ((150, 150, 120), 55), "double_bottom": ((80, 95, 110), 40),
     "tds": ((90, 140, 160), 45), "armoured_bulkhead": ((60, 70, 90), 255),
 }
+OPAQUE = 200      # kinds above this alpha are solid: they hide what is behind them
 FILLER = ("accommodation", "stores", "double_bottom", "tds")   # fill the hull: drawn faint, so the rooms show through
 LIGHT = (-0.35, -0.45, 0.82)      # from forward, port and above
 VIEWS = [   # file, camera bearing (clockwise from ahead), elevation, what
@@ -164,31 +166,61 @@ def render_view(hb, az, el, what, width=1800, title=""):
     margin = 60
     scale = (width - 2 * margin) / max(1.0, max(us) - min(us))
     height = int((max(vs) - min(vs)) * scale) + 2 * margin + 40
-    img = Image.new("RGB", (width, height), (34, 40, 48))
-    d = ImageDraw.Draw(img, "RGBA")        # an RGB image with RGBA ink blends the translucent faces
     u0, v1 = min(us), max(vs)
     proj = lambda p: (margin + (dot(p, r) - u0) * scale, margin + 40 + (v1 - dot(p, s)) * scale)
     lx, ly, lz = LIGHT
     ln = math.sqrt(lx * lx + ly * ly + lz * lz)
-    # layers: big planes underneath (the hull's deck, the armour deck), then everything else far to near, then the
-    # hull's near sides on top, translucent. The belt's outer faces go just under the hull: they lie on the hull side,
-    # where the cells' outer walls are too, and a centroid sort would put some of those walls over the belt
-    def layer(t):
-        kind, pts, nrm = t
-        if kind == "armour_deck" or (kind == "hull" and nrm[2] > 0.5):
-            return 0
-        if kind in ("belt", "strake") and nrm[1] * pts[0][1] > 0:
-            return 2
-        return 3 if kind == "hull" else 1
-    fs.sort(key=lambda t: (layer(t), -sum(dot(p, f) for p in t[1]) / len(t[1])))
-    for kind, pts, nrm in fs:
-        rgb, alpha = KIND.get(kind, ((200, 200, 200), 255))
-        if not alpha:
-            continue
-        shade = 0.5 + 0.5 * max(0.0, (nrm[0] * lx + nrm[1] * ly + nrm[2] * lz) / ln)
-        col = tuple(int(c * shade) for c in rgb) + (alpha,)
-        edge = tuple(int(c * shade * 0.6) for c in rgb) + (min(255, alpha + (20 if kind in FILLER else 60)),)
-        d.polygon([proj(p) for p in pts], fill=col, outline=None if kind == "hull" else edge)
+    # a depth buffer, not a painter's sort: a centroid sort put big faces (a deckhouse roof, a barbette's wall) over
+    # small ones in front of them (a turret roof). The solid faces go first and write depth; the translucent ones
+    # (the hull, the filler rooms) are then blended far to near wherever nothing solid is in front of them
+    rgb_buf = np.empty((height, width, 3), np.float32)
+    rgb_buf[:] = (34, 40, 48)
+    zbuf = np.full((height, width), np.inf, np.float32)
+    bias = 1.0 / scale       # edges win ties with the faces they border, so the outlines stay visible
+    solid = [t for t in fs if KIND.get(t[0], (None, 255))[1] > OPAQUE]
+    clear = [t for t in fs if 0 < KIND.get(t[0], (None, 255))[1] <= OPAQUE]
+    clear.sort(key=lambda t: -sum(dot(p, f) for p in t[1]) / len(t[1]))
+    for group, write in ((solid, True), (clear, False)):
+        for kind, pts, nrm in group:
+            rgb, alpha = KIND.get(kind, ((200, 200, 200), 255))
+            shade = 0.5 + 0.5 * max(0.0, (nrm[0] * lx + nrm[1] * ly + nrm[2] * lz) / ln)
+            fill = np.array([c * shade for c in rgb], np.float32)
+            edge = None if kind == "hull" else fill * 0.6
+            ea = min(255, alpha + (20 if kind in FILLER else 60))
+            sp = [proj(p) for p in pts]
+            x0, y0 = max(0, int(min(x for x, _ in sp)) - 1), max(0, int(min(y for _, y in sp)) - 1)
+            x1, y1 = min(width, int(max(x for x, _ in sp)) + 2), min(height, int(max(y for _, y in sp)) + 2)
+            if x1 <= x0 or y1 <= y0:
+                continue
+            m = Image.new("L", (x1 - x0, y1 - y0), 0)
+            ImageDraw.Draw(m).polygon([(x - x0, y - y0) for x, y in sp], fill=1, outline=1 if edge is None else 2)
+            mask = np.asarray(m)
+            if not mask.any():
+                continue
+            # the face's plane gives each pixel its depth: n . (u r + v s + t f) = n . p0, solved for t
+            nf = dot(nrm, f)
+            ys, xs = np.mgrid[y0:y1, x0:x1].astype(np.float32)
+            u = (xs - margin) / scale + u0
+            v = v1 - (ys - margin - 40) / scale
+            depth = (dot(nrm, pts[0]) - u * dot(nrm, r) - v * dot(nrm, s)) / nf
+            ds = [dot(p, f) for p in pts]
+            depth = np.clip(depth, min(ds), max(ds))     # grazing faces: no wild depths on their edge pixels
+            depth[mask == 2] -= bias
+            zs = zbuf[y0:y1, x0:x1]
+            ok = (mask > 0) & (depth <= zs)
+            px = rgb_buf[y0:y1, x0:x1]
+            for val, col, a in ((1, fill, alpha), (2, edge, ea)):
+                sel = ok & (mask == val)
+                if col is None or not sel.any():
+                    continue
+                if write:
+                    px[sel] = col
+                else:
+                    px[sel] += (col - px[sel]) * (a / 255.0)
+            if write:
+                zs[ok] = depth[ok]
+    img = Image.fromarray(np.clip(rgb_buf + 0.5, 0, 255).astype(np.uint8), "RGB")
+    d = ImageDraw.Draw(img, "RGBA")
     if what == "internal":     # the hull's edges: deck and keel outlines and the stem and stern posts
         keel = hb.get("vertical", {}).get("keel", -5.0)
         hull = [tuple(p) for p in hb["hull"]]
