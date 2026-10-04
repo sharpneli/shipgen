@@ -1080,6 +1080,10 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     if armour.get("belt_mm", 0) > 0:   # inside the bridge's rounded front, as tall as the bridge
         ct_r = min(max(0.1 * B, 1.25), 4.0, 0.4 * w2)
         lay.conning_tower = dict(x=max(bx1 - 0.42 * w2, bx0 + ct_r), y=0.0, r=ct_r, top=2 * LEVEL_H)
+        mm = armour["belt_mm"] / 1000      # the hitbox's armour: walls as thick as the belt, a roof half that
+        area = 2 * math.pi * ct_r * 2 * LEVEL_H + 0.5 * math.pi * ct_r ** 2
+        lay.weights.append(Weight("Conning tower", "armour", area * mm * 7.85, x=lay.conning_tower["x"],
+                                  z_rel=("deck", LEVEL_H)))
     if 4 in tower_levels:
         block("Main director", bx0 + 0.35 * lb, bx1 - 0.2 * lb, 0.5 * w2, 4, 0.25 * w2, 0.25 * w2)
     # aft control

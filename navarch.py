@@ -33,8 +33,13 @@ TUNING = dict(
     misc_frac=0.055,        # equipment, outfit and electrics, as a fraction of std displacement (crew, provisions
                             # and water are weighed by crew.py)
     superstructure_t_per_m2=0.32,
-    gun_k=1.6e-6,           # gun tube mass t = gun_k * cal_mm^3 * (L/50)
-    mount_k=2.0,            # turret machinery mass = mount_k * guns
+    gun_k=1.9e-6,           # gun mass (with breech) t = gun_k * cal_mm^3 * (L/50): 38 cm/52 108 t (real 111 t)
+    mount_k=2.2,            # turret machinery and structure = mount_k * guns. With turret_t_avg: Bismarck's twin
+    turret_t_avg=0.65,      # 38 cm 994 t (real 1,056 t), Iowa's triple 16" 1,860 t (about 1,700 t); turret armour
+                            # averages this x turret_mm over the gunhouse
+    tds_mm_per_m=12.0,      # torpedo protection: longitudinal bulkheads totalling this many mm per metre of
+                            # armour.tds_m, each side over the citadel, inner bottom to the roof deck (Bismarck
+                            # 45 mm torpedo bulkhead plus thinner ones, 5.5 m deep; Iowa four bulkheads, 5.2 m)
     shell_k=1.83e-5,        # shell kg = shell_k * cal_mm^3
     ammo_mult=1.6,          # shell + propellant + handling gear
     rounds_heavy=100, rounds_medium=200, rounds_light=350,
@@ -104,7 +109,7 @@ def mount_weights(t: dict, armour_mm: float, depth: float, level: int):
     mech = TUNING["mount_k"] * guns + (4.0 * min(1.0, (cal / 76.0) ** 3) if cal < 150 else 0.0)
     th = 0.42 * r
     area = 2 * math.pi * 0.9 * r * th + 0.85 * math.pi * r * r
-    t_avg = 0.55 * armour_mm / 1000.0
+    t_avg = TUNING["turret_t_avg"] * armour_mm / 1000.0
     turret = guns + mech + area * t_avg * STEEL
     # barbette: from the armour deck up to the turret base (superfiring turrets are taller)
     bh = 0.45 * depth + level * (th + 1.0)
@@ -524,6 +529,13 @@ def armour_weights(design, L, B, D, g):
         f = (a + 2 * b) / (3 * (a + b)) if a + b > 0 else 0.5                             # trapezoid centroid
         out.append(Weight(s["id"], "armour", 2 * (s["x1"] - s["x0"]) * (s["top"] - s["bottom"]) * (a + b) / 2
                           / 1000 * STEEL, x=s["x0"] + f * (s["x1"] - s["x0"]), z_rel=zf(s["top"], s["bottom"])))
+    tds = (design.get("armour") or {}).get("tds_m", 0.0)
+    if tds > 0 and lc > 0:
+        floor = powerplant.double_bottom(D)
+        top = g["roof_z"] if g["roof_z"] is not None else g["waterline"]
+        mm = TUNING["tds_mm_per_m"] * tds
+        out.append(Weight("Torpedo protection", "armour", 2 * lc * max(0.0, top - floor) * mm / 1000 * STEEL, x=xc,
+                          z_rel=zf(top, floor)))
     cb = design["hull"]["block_coefficient"]
     for d in g["decks"]:
         area = (L * cwp(cb) if d["extent"] == "full" else d["x1"] - d["x0"]) * B * 0.9
