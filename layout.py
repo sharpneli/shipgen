@@ -917,6 +917,9 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     fwd_tier = min(nf, max(n_step_f, 1)) - 1 if (tm and nf) else None    # the forward group's top tier
     fwd_roof = 1.2 + fwd_tier * superfire_step(th) + th if fwd_tier is not None else None
     nb_need = bridge_level(fwd_roof)
+    # the aft control looks aft over the aft group the same way: its level by the same rule, an upper level over it
+    aft_tier = min(na, max(n_step_a, 1)) - 1 if (tm and na) else None
+    na_lvl = bridge_level(1.2 + aft_tier * superfire_step(th) + th if aft_tier is not None else None)
     # superstructure.tower_levels is the tower's height, a slider: the bridge stands as high in it as leaves the levels
     # over it (Bridge upper, Tower n: the compass platform and director tower, 1 level, 2 from 180 m), and never below
     # nb_need. A tall tower makes a tall tower bridge over its base levels (Nelson: about level 8 of 10); a tower too
@@ -1346,7 +1349,8 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         bx1 -= 0.5
         bx0 -= 0.5
     ax0 = mid_aft
-    while la and not lay.clear(_fp_rect(ax0, -0.14 * B, ax0 + la, 0.14 * B), LEVEL_H * 3) and ax0 + la < bx0:
+    while la and not lay.clear(_fp_rect(ax0, -0.14 * B, ax0 + la, 0.14 * B), LEVEL_H * (na_lvl + 1)) and \
+            ax0 + la < bx0:
         ax0 += 0.5
     # level-1 deckhouse: the full middle on big ships, only under the bridge on small ones
     if wide:
@@ -1397,8 +1401,10 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
               0.5 * tw, 0.5 * tw)
     # aft control
     if la:
-        block("Aft control", ax0, ax0 + la, 0.28 * B, 2, 1.0, 0.1 * B)
-        block("Aft control upper", ax0 + 0.25 * la, ax0 + 0.75 * la, 0.17 * B, 3, 0.085 * B, 0.085 * B)
+        for k in range(2, na_lvl):     # base levels under it, as under the bridge
+            block(f"Aft control base {k}", ax0, ax0 + la, 0.28 * B, k, 1.0, 0.1 * B)
+        block("Aft control", ax0, ax0 + la, 0.28 * B, na_lvl, 1.0, 0.1 * B)
+        block("Aft control upper", ax0 + 0.25 * la, ax0 + 0.75 * la, 0.17 * B, na_lvl + 1, 0.085 * B, 0.085 * B)
 
     # each boiler group's funnels are trunked aft, toward the boundary with what lies aft of the boilers (the
     # engine rooms), so the funnels don't all crowd the forward end of the machinery: the group's middle goes to the

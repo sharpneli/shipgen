@@ -44,7 +44,7 @@ BLOCK_ROLES = {
     "Main director": "director", "Aft director": "director", "Director": "director",
     "Secondary director": "director", "AA director": "director",
     "Tower": "bridge", "Island tower": "island",
-    "Aft control": "aft_control", "Aft control upper": "aft_control",
+    "Aft control": "aft_control", "Aft control upper": "aft_control", "Aft control base": "aft_control",
     "Island": "island", "Island upper": "island",
     "Hangar": "hangar", "Hangar roof": "hangar",
     "Casemate housing": "casemate", "AA platform": "aa_platform",
@@ -86,6 +86,7 @@ def assign_arcs(lay):
 
 
 CONTROL_ROLES = ("bridge", "director", "aft_control")
+BASE_BLOCKS = ("Bridge base", "Aft control base")   # offices and cabins under a control position: no view needed
 
 
 def assign_smoke(lay, res):
@@ -98,7 +99,7 @@ def assign_smoke(lay, res):
         return
     reach = powerplant.smoke_reach(res.plant, res.power_shp)
     for b in lay.blocks:
-        if block_role(b["id"]) not in CONTROL_ROLES:
+        if block_role(b["id"]) not in CONTROL_ROLES or re.sub(r"\s*\d+$", "", b["id"]) in BASE_BLOCKS:
             continue
         hit = []
         for f in lay.funnels:
