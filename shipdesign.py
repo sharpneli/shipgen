@@ -276,7 +276,11 @@ def report_dict(design, lay, r, sized):
             standard_displacement_t=round(r.std), full_displacement_t=round(r.full),
             draught_m=round(r.draught, 2), depth_m=round(r.depth, 2), freeboard_m=round(r.freeboard, 2),
             power_shp=round(r.power_shp, -2), fuel_t=round(r.fuel), crew=lay.crew["complement"],
-            gm_full_m=round(r.gm_full, 2), gm_light_m=round(r.gm_light, 2),
+            gm_full_m=round(r.gm_full, 2), gm_light_m=round(r.gm_light, 2), roll_period_s=round(r.roll_s, 1),
+            **({} if not r.wind else dict(
+                windage_m2=round(r.wind["area_m2"]), gale_heel_deg=round(r.wind["heel_deg"], 1),
+                gale_heel_condition=r.wind["condition"], deck_edge_deg=round(r.wind["deck_edge_deg"], 1),
+                deck_edge_wind_kn=round(r.wind["deck_edge_wind_kn"]))),
             trim_m=round(r.trim_m, 2), lcg_m=round(r.lcg, 2), lcb_m=round(r.lcb, 2),
             layout_shift_m=round(lay.geo["shift"], 2),
             **styles.get(design).results(sized, lay, r),

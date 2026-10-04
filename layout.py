@@ -539,7 +539,60 @@ def finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts,
     lay.mounts, lay.blocks, lay.funnels, lay.aa, lay.fun_top = mounts, blocks, funnels, aa_out, fun_top
     import firecontrol
     firecontrol.search_radar(lay, design, blocks, masts, fun_top)
+    lay.geo["windage"] = lateral_profile(lay, blocks, funnels, masts, mounts, aa_out, fun_top)
     return lay
+
+
+WIND_COL = 1.0      # the side profile is summed in columns this long (m)
+
+
+def lateral_profile(lay, blocks, funnels, masts, mounts, aa, fun_top):
+    """What the wind sees from abeam above the main deck: the union of the side views of the superstructure, raised
+    decks (a carrier's hangar and flight deck, a merchant's forecastle and poop), funnels, masts, gun mounts and AA,
+    so things side by side across the ship count once. Returns dict(area_m2, z_m: the area's centre above the main
+    deck), for navarch's wind heel (the hull's own freeboard is added there)."""
+    cols = {}
+
+    def add(x0, x1, z0, z1):
+        if z1 <= z0 or x1 <= x0:
+            return
+        for i in range(int(math.floor(x0 / WIND_COL)), int(math.ceil(x1 / WIND_COL))):
+            f = (min(x1, (i + 1) * WIND_COL) - max(x0, i * WIND_COL)) / WIND_COL      # share of the column covered
+            cols.setdefault(i, []).append((z0, z1, f))
+
+    for b in blocks:
+        add(b["x0"], b["x1"], block_base(b), block_top(b))
+    for dk in lay.decks:
+        xs = [p[0] for p in dk["points"]]
+        add(min(xs), max(xs), 0.0, dk["top"])
+    for f in funnels:
+        add(f["x"] - f["l"] / 2, f["x"] + f["l"] / 2, f.get("z0", 0.0), fun_top)
+    for m in masts:
+        w = 1.5 if m.get("tripod") else 0.7
+        add(m["x"] - w / 2, m["x"] + w / 2, 0.0, m.get("top", fun_top + 6.0))
+    for m in mounts:
+        if m.get("casemate") or m["top"] <= 0:
+            continue
+        r = m["t"]["r"]
+        add(m["x"] - r, m["x"] + r, 0.0, m["top"])
+    for a in aa:
+        r = AA_CFG[a["type"]][0]
+        add(a["x"] - r, a["x"] + r, a["base"], a["base"] + 2.0)
+    area = mom = 0.0
+    for spans in cols.values():      # per column: the union of its spans (overlaps count once)
+        spans.sort()
+        cur = None
+        for z0, z1, f in spans:
+            if cur and z0 <= cur[1]:
+                if z1 > cur[1]:
+                    area += (z1 - cur[1]) * f * WIND_COL
+                    mom += (z1 - cur[1]) * f * WIND_COL * (cur[1] + z1) / 2
+                    cur = (cur[0], z1)
+                continue
+            cur = (z0, z1)
+            area += (z1 - z0) * f * WIND_COL
+            mom += (z1 - z0) * f * WIND_COL * (z0 + z1) / 2
+    return dict(area_m2=area, z_m=mom / area if area else 0.0)
 
 
 def clamp(v, lo, hi):
