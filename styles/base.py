@@ -9,6 +9,8 @@ from __future__ import annotations
 # and speed stay within the range where the weight, power and stability formulas mean something.
 COMMON_LIMITS = {
     ("hull", "block_coefficient"): (0.42, 0.68),
+    ("hull", "construction", "yield_mpa"): (100, 1500), ("hull", "construction", "join_factor"): (0.8, 1.5),
+    ("hull", "construction", "standard"): (0.5, 2.0),
     ("speed_kn",): (8, 42), ("range_nm",): (1000, 25000),
     ("main", "calibre_mm"): (1, 2000), ("main", "calibre_length"): (1, 200), ("main", "barrels"): (1, 20),
     ("main", "fore"): (0, 40), ("main", "aft"): (0, 40), ("main", "mid"): (0, 40),
@@ -109,12 +111,14 @@ class Style:
         """Checks beyond the numeric limits."""
         import powerplant
         import crew
+        import hullweight
         errs = powerplant.validate(design, self.DEFAULT_TECH) + crew.validate(design, self.CREW_STANDARD)
         if "type" in (design.get("machinery") or {}):
             errs.append("machinery.type is gone: give the plant's technology as machinery.tech "
                         "(plant-templates.md has examples by year)")
         errs += [f"hull.{k}: the designer works out the hull's size from what it carries; remove it"
                  for k in ("length", "beam") if k in (design.get("hull") or {})]
+        errs += hullweight.validate(design)
         errs += armour_errors(design)
         if isinstance(design.get("secondary"), list) and not self.SECONDARY_LIST:
             errs.append(f"secondary: the {self.name} style takes one secondary battery, not a list")

@@ -85,3 +85,17 @@ def weight(L, B, D, cb, full, c, n_int, double_bottom, armour_decks=()):
     k = (1 + F_FIT) * c["join_factor"]
     return dict(t=(w_min + w_str) * k, min_gauge_t=w_min * k, strength_t=w_str * k, t_min_mm=t_min,
                 t_str_mm=t_str, stress_mpa=sig, i_req_m4=i_req, i_armour_m4=i_arm)
+
+
+def validate(design):
+    c = (design.get("hull") or {}).get("construction")
+    if c is None:
+        return []
+    if not isinstance(c, dict):
+        return ["hull.construction: use {\"name\", \"yield_mpa\", \"join_factor\", \"standard\"} "
+                "(hull-templates.md has examples)"]
+    errs = [f"hull.construction.{k}: must be a number above 0" for k in ("yield_mpa", "join_factor", "standard")
+            if k in c and not (isinstance(c[k], (int, float)) and c[k] > 0)]
+    if "name" in c and not isinstance(c["name"], str):
+        errs.append("hull.construction.name: use a string")
+    return errs
