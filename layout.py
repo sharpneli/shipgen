@@ -416,6 +416,21 @@ BRIDGE_OVER_BOILERS = 0.85   # how much of the bridge (and its gap) the forward 
 BRIDGE_CLEAR = 1.0
 
 
+# a really tall tower tapers: base levels above TOWER_TAPER_FROM lose TOWER_TAPER_W of their width and
+# TOWER_TAPER_L of their length per level, down to the floors (every design up to now stays below it)
+TOWER_TAPER_FROM = 6
+TOWER_TAPER_W, TOWER_TAPER_L = 0.07, 0.04
+TOWER_MIN_W, TOWER_MIN_L = 0.45, 0.6
+
+
+def tower_taper(k):
+    """(width, length) of the bridge tower's level k as fractions of the bridge's footprint."""
+    n = max(0, k - TOWER_TAPER_FROM)
+    if not n:
+        return 1.0, 1.0
+    return max(TOWER_MIN_W, (1 - TOWER_TAPER_W) ** n), max(TOWER_MIN_L, (1 - TOWER_TAPER_L) ** n)
+
+
 def bridge_level(roof):
     """The lowest level the navigating bridge can stand at (2 at least) to see over a turret roof this high above
     the main deck (None: nothing ahead)."""
@@ -1348,12 +1363,27 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         else:
             dh["x0"] += 0.5
     # bridge tower: base levels (chart house, offices, sea cabins) as wide as the bridge up to it, then the bridge
-    # and the levels over it as before (a bridge at level 2 builds the tower it always did)
+    # and the levels over it as before (a bridge at level 2 builds the tower it always did). A really tall tower
+    # tapers above TOWER_TAPER_FROM (tower_taper), like a pagoda or a tall tower bridge; the bridge keeps its full
+    # width there, its wings over the narrower column, and the levels over it follow its length
+    def tower_fp(k):
+        """(x0, x1, w) of the tower's base level k: the bridge's footprint, narrower and shorter (mostly from aft)
+        above TOWER_TAPER_FROM."""
+        fw, fl = tower_taper(k)
+        if fl == 1.0:
+            return bx0, bx1, w2 * fw
+        l = lb * fl
+        x1 = bx1 - 0.25 * (lb - l)
+        return x1 - l, x1, w2 * fw
+
     for k in range(2, nb):
-        block(f"Bridge base {k}", bx0, bx1, w2, k, 0.42 * w2, 1.0)
-    block("Bridge", bx0, bx1, w2, nb, 0.42 * w2, 1.0)
+        x0_, x1_, w_ = tower_fp(k)
+        block(f"Bridge base {k}", x0_, x1_, w_, k, 0.42 * w_, 1.0)
+    tx0, tx1, _ = tower_fp(nb - 1) if nb > 2 else (bx0, bx1, w2)
+    tl = tx1 - tx0
+    block("Bridge", tx0, tx1, w2, nb, 0.42 * w2, 1.0)
     if n_tower > nb:
-        block("Bridge upper", bx0 + 0.1 * lb, bx1 - 0.06 * lb, 0.78 * w2, nb + 1, 0.36 * w2, 1.0)
+        block("Bridge upper", tx0 + 0.1 * tl, tx1 - 0.06 * tl, 0.78 * w2, nb + 1, 0.36 * w2, 1.0)
     if armour.get("belt_mm", 0) > 0:   # inside the bridge tower's rounded front, as tall as its first level
         ct_r = min(max(0.1 * B, 1.25), 4.0, 0.4 * w2)
         lay.conning_tower = dict(x=max(bx1 - 0.42 * w2, bx0 + ct_r), y=0.0, r=ct_r, top=2 * LEVEL_H)
@@ -1363,7 +1393,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                                   z_rel=("deck", LEVEL_H)))
     for k in range(nb + 2, n_tower + 1):      # the tower narrows as it rises
         f, tw = min(0.12, 0.03 * (k - nb - 2)), max(3.0, 0.5 * w2 * 0.9 ** (k - nb - 2))
-        block(f"Tower {k}", bx0 + (0.35 + f) * lb, max(bx0 + (0.35 + f) * lb + 3.0, bx1 - (0.2 + f) * lb), tw, k,
+        block(f"Tower {k}", tx0 + (0.35 + f) * tl, max(tx0 + (0.35 + f) * tl + 3.0, tx1 - (0.2 + f) * tl), tw, k,
               0.5 * tw, 0.5 * tw)
     # aft control
     if la:
