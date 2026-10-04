@@ -35,7 +35,8 @@ from PIL import Image, ImageDraw, ImageFont
 
 from fleet import FLEET, TURRET_TYPES
 from looks import DEFAULT_PALETTE
-from geometry import turret_shapes, turret_reach, barrel_shown, BARREL_ROOT, CASEMATE_SHIELD, rrect_polygon, Hull, AA_CFG, point_in_polygon
+from geometry import turret_shapes, turret_reach, barrel_shown, BARREL_ROOT, CASEMATE_SHIELD, rrect_polygon, Hull, AA_CFG, point_in_polygon, \
+    director_parts
 
 PAD_M = 3.0  # empty margin around each hull sprite, metres
 
@@ -168,6 +169,8 @@ class Painter:
 
     def block(self, b, shadow=True, clip=None):
         """Superstructure block; higher 'level' => lighter and longer shadow."""
+        if b.get("director"):
+            return self.director(b, shadow, clip)
         lvl = b.get("level", 1)
         x0, x1 = b["x0"], b["x1"]
         y = b.get("y", 0)
@@ -199,6 +202,53 @@ class Painter:
         s.append(self.dazzled(d))
         # a thin lighter rim on the port/fwd edge suggests light from the upper-left
         s.append(f'<path d="{d}" fill="none" stroke="{shade(col, 1.25)}" stroke-width="{f(self.sw * 0.9)}" '
+                 f'transform="translate({f(-self.sw * 0.6)},{f(-self.sw * 0.6)})" stroke-opacity="0.7"/>')
+        return "".join(s)
+
+    def director(self, b, shadow=True, clip=None):
+        """A fire-control director on its roof, facing ahead (layout block with "director"), drawn from
+        geometry.director_parts, the same shape as its hitbox: the hood, the rangefinder's tube and end hoods
+        sticking out each side, and a radar aerial on the hood's roof when it has one. Without a rangefinder (a
+        gyro sight, Mk 51 style): a round tub with the sight in it."""
+        dr = b["director"]
+        x0, x1, y, w = b["x0"], b["x1"], b.get("y", 0), b["w"]
+        l, xc = x1 - x0, (x0 + x1) / 2
+        rf = dr.get("rangefinder_m", 0)
+        parts = director_parts(xc, y, l, w, rf)
+        p = self.p
+        cols = p["levels"]
+        col = cols[min(dr.get("on", 0) + 1, len(cols)) - 1]    # a shade lighter than the roof it stands on
+        hood = poly(parts["hood"])
+        s = []
+        if shadow and self.shadows:     # one hood's height above its roof, like a level-1 block
+            cl = f' clip-path="url(#{clip})"' if clip else ""
+            s.append(f'<g{cl}><path d="{poly(parts["outline"])}" transform="translate({f(0.42)},{f(0.7)})" '
+                     f'fill="#000" fill-opacity="0.28"/></g>')
+        if rf:
+            if parts["tube"]:
+                s.append(f'<path d="{poly(parts["tube"])}" fill="{shade(col, 0.7)}" {self.stroke()}/>')
+            s += [f'<path d="{poly(e)}" fill="{shade(col, 0.85)}" {self.stroke()}/>' for e in parts["ends"]]
+            s.append(f'<path d="{hood}" fill="{col}" {self.stroke()}/>')
+            s.append(self.dazzled(hood))
+            # the hood's roof: a sighting hatch aft, and the radar aerial (a flat dish seen edge-on) forward
+            hw = max(py for _, py in parts["hood"]) - y
+            s.append(f'<path d="{rrect_path(x0 + 0.12 * l, y - 0.4 * hw, x0 + 0.32 * l, y + 0.4 * hw, 0.1, 0.1)}" '
+                     f'fill="{shade(col, 0.88)}" {self.stroke(0.6)}/>')
+            if dr.get("radar"):
+                ax, aw = xc + 0.22 * l, 1.5 * hw
+                s.append(f'<line x1="{f(xc)}" y1="{f(y)}" x2="{f(ax)}" y2="{f(y)}" stroke="{p["mast"]}" '
+                         f'stroke-width="{f(max(self.sw * 1.2, 0.18))}"/>')
+                s.append(f'<path d="{rrect_path(ax - 0.18, y - aw / 2, ax + 0.18, y + aw / 2, 0.12, 0.12)}" '
+                         f'fill="{p["mast"]}" {self.stroke(0.6)}/>')
+        else:
+            r = min(l, w) / 2
+            s.append(f'<path d="{hood}" fill="{p["tub"]}" {self.stroke()}/>')
+            s.append(f'<circle cx="{f(xc)}" cy="{f(y)}" r="{f(r * 0.72)}" fill="{shade(p["tub"], 0.8)}"/>')
+            s.append(f'<path d="{rrect_path(xc - 0.3 * r, y - 0.35 * r, xc + 0.25 * r, y + 0.35 * r, 0.08, 0.08)}" '
+                     f'fill="{col}" {self.stroke(0.6)}/>')
+            s.append(f'<line x1="{f(xc + 0.25 * r)}" y1="{f(y)}" x2="{f(xc + 0.6 * r)}" y2="{f(y)}" '
+                     f'stroke="{p["barrel"]}" stroke-width="{f(max(self.sw * 1.2, 0.15))}"/>')
+        s.append(f'<path d="{hood}" fill="none" stroke="{shade(col, 1.25)}" stroke-width="{f(self.sw * 0.9)}" '
                  f'transform="translate({f(-self.sw * 0.6)},{f(-self.sw * 0.6)})" stroke-opacity="0.7"/>')
         return "".join(s)
 

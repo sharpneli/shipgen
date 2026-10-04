@@ -101,6 +101,39 @@ def simplify_polygon(pts, tol=1e-3):
     return out
 
 
+def director_parts(x, y, l, w, rangefinder_m):
+    """A fire-control director facing ahead, l long and w across (firecontrol.size: the rangefinder sets w): its
+    outline (the hitbox, a simple polygon) and the parts it is drawn from, whose union is that outline. With a
+    rangefinder: a hood with a cut front, the tube across it, a little aft of its middle, and an end hood at each
+    tip, standing out past the hood's sides. A rangefinder no wider than the hood stays inside it. Without one
+    (a gyro sight, Mk 51 style): a round tub. Returns dict(outline, hood, tube, ends); tube is None and ends empty
+    when nothing stands out."""
+    if not rangefinder_m:
+        hood = circle_polygon(x, y, min(l, w) / 2, 16)
+        return dict(outline=hood, hood=hood, tube=None, ends=[])
+    x0, x1 = x - l / 2, x + l / 2
+    hh = min(w, l * 1.15) / 2                           # the hood, a little wider than long
+    cf, cb = 0.35 * hh, 0.1 * hh                        # its front and back corners cut
+    rx, tw = x - 0.12 * l, max(0.4, 0.14 * l)           # the tube: where and how thick (fore and aft)
+    el, ew = min(0.9, 0.3 * l), 1.7 * tw                # the end hoods: fore and aft, across
+    ye = w / 2 - ew                                     # the end hoods' inner face
+    if ye <= hh:                                        # nothing stands out: the hood is the director
+        hh = w / 2
+        hood = [(x1, y - hh + cf), (x1, y + hh - cf), (x1 - cf, y + hh), (x0 + cb, y + hh), (x0, y + hh - cb),
+                (x0, y - hh + cb), (x0 + cb, y - hh), (x1 - cf, y - hh)]
+        return dict(outline=hood, hood=hood, tube=None, ends=[])
+    half = [(x1, hh - cf), (x1 - cf, hh), (rx + tw / 2, hh), (rx + tw / 2, ye), (rx + el / 2, ye),
+            (rx + el / 2, w / 2), (rx - el / 2, w / 2), (rx - el / 2, ye), (rx - tw / 2, ye), (rx - tw / 2, hh),
+            (x0 + cb, hh), (x0, hh - cb)]
+    outline = [(px, y + py) for px, py in half] + [(px, y - py) for px, py in reversed(half)]
+    hood = [(x1, y - hh + cf), (x1, y + hh - cf), (x1 - cf, y + hh), (x0 + cb, y + hh), (x0, y + hh - cb),
+            (x0, y - hh + cb), (x0 + cb, y - hh), (x1 - cf, y - hh)]
+    tube = [(rx - tw / 2, y - ye), (rx + tw / 2, y - ye), (rx + tw / 2, y + ye), (rx - tw / 2, y + ye)]
+    ends = [[(rx - el / 2, y + s * ye), (rx + el / 2, y + s * ye), (rx + el / 2, y + s * w / 2),
+             (rx - el / 2, y + s * w / 2)] for s in (1, -1)]
+    return dict(outline=outline, hood=hood, tube=tube, ends=ends)
+
+
 def circle_polygon(cx, cy, r, seg=32):
     return [(cx + r * math.cos(2 * math.pi * i / seg), cy + r * math.sin(2 * math.pi * i / seg)) for i in range(seg)]
 
