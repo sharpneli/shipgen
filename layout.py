@@ -537,6 +537,7 @@ def plan_funnels(lay, design, res, beam, top, groups=None):
         fp = powerplant.funnel_plan(res.plant, res.power_shp, groups, beam, stack,
                                     extra=design["funnels"] - sum(fp["counts"]))
     lay.geo["funnel_plan"] = fp
+    lay.geo["smoke_reach"] = powerplant.smoke_reach(res.plant, res.power_shp)   # directors keep out of it
     return sum(fp["counts"]), fp["width"], fp["length"]
 
 
@@ -564,6 +565,7 @@ def add_funnel_weights(lay, f, top, served_x, depth):
     if plant["armoured"] and fp:
         lay.weights.append(Weight(f"Gratings {f['id']}", "armour", 0.6 * fp["area"] / max(1, sum(fp["counts"])),
                                   x=served_x, z_rel=("deck", plant["top"] - depth)))
+    f["top"] = top
     lay.funnels_planned.append(f)
 
 
@@ -579,6 +581,8 @@ def raise_funnels(lay, funnels, blocks, top):
     if new <= top + 1e-6:
         return top
     by_id = {f["id"]: f for f in funnels}
+    for f in funnels:
+        f["top"] = new
     lay.footprints = [(fp, b, new if o in by_id else t, o) for fp, b, t, o in lay.footprints]
     for wt in lay.weights:
         f = by_id.get(wt.name)
@@ -667,7 +671,8 @@ def finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts,
         length=lay.hull.L, beam=lay.hull.B, bow=hs["bow"], stern=hs["stern"], deck=deck,
         turret_types=turret_types,
         turrets=[dict(id=m["id"], type=m["type"], x=m["x"], y=m["y"], z=m["z"], rest=m["rest"]) for m in mounts],
-        superstructure=[{k: v for k, v in b.items() if k not in ("id", "kind", "_slabs")} for b in blocks],
+        superstructure=[{k: v for k, v in b.items() if k not in ("id", "kind") and not k.startswith("_")}
+                        for b in blocks],
         funnels=[{k: v for k, v in f_.items() if k not in ("id", "seg", "serves")} for f_ in funnels],
         masts=masts, aa=[{k: v for k, v in a.items() if k not in ("id", "base")} for a in aa_out],
         **extra)
@@ -967,7 +972,7 @@ def _fp_intervals(fp, y, margin):
     return [(min(xs) - margin, max(xs) + margin)] if xs else []
 
 
-def level_outline(lay, x0, x1, w, base, top, support=None, grow=(False, False), keep=(), ignore=()):
+def level_outline(lay, x0, x1, w, base, top, support=None, grow=(False, False), keep=(), ignore=(), notches=()):
     """A superstructure level's outline: a room laid out like a deck, not a slab. It stands on its support (a convex
     polygon: the level below, or the deck band for level 1) and is clipped to it, so its sides follow the level below
     and, at the bottom, the deck edge. Its ends start at x0 / x1 and are shaped by what lies beyond them:
@@ -980,7 +985,8 @@ def level_outline(lay, x0, x1, w, base, top, support=None, grow=(False, False), 
     bounding boxes in keep (what stands on its roof). Each end is convex and symmetric: flat, or a face across the
     ship (at least DH_MIN_FACE wide, or none: a point) with one straight sweep from each edge back to the side, as
     shallow as the obstacles allow. A sweep must fall back DH_MIN_DROP and add DH_STEP_COST m2 a side over the flat
-    end. Returns the polygon (empty if the support leaves nothing)."""
+    end. What lies in a notch's bite (notches: (x0, x1, half-width), cut by notch_outline) doesn't shape the ends.
+    Returns the polygon (empty if the support leaves nothing)."""
     import armament     # armament imports layout
     support = support or deck_band(lay)
     sup = _Slabs(support)
@@ -1040,6 +1046,8 @@ def level_outline(lay, x0, x1, w, base, top, support=None, grow=(False, False), 
                 ivs += _fp_intervals(fp, y, FP_MARGIN)
             d = cap
             for xa, xb in ivs:
+                if any(xa < n1 and n0 < xb and abs(y) > h - 1e-6 for n0, n1, h in notches):
+                    continue      # in a notch's bite (found cell by cell, so exactly): notch_outline cuts it out
                 ua, ub = sorted((e * xa, e * xb))
                 if ub > uc + floor:
                     d = min(d, ua - uc - 0.3)
@@ -1091,11 +1099,11 @@ BEVEL_OUTER = (3.0, 0.22)   # m, share of the level's width: the facets on the e
 BEVEL_INNER = (0.8, 0.07)   # and the small cuts on the other corners
 
 
-def bevel_outline(pts, keep=()):
+def bevel_outline(pts, keep=(), flush=()):
     """Chamfers a level's near-square corners (interior angle 60-120 deg; swept ends and points are left alone), so
     no level is a plain box: a big facet on the end facing the nearer end of the ship (the bridge front, the aft
     control's back), a small cut elsewhere. A corner is kept where something in keep (bounding boxes of what stands
-    on the roof) comes within the cut."""
+    on the roof) comes within the cut, and on an end that butts flush against another block (flush: its x)."""
     if len(pts) < 3:
         return pts
     xs = [p[0] for p in pts]
@@ -1106,7 +1114,8 @@ def bevel_outline(pts, keep=()):
         a, c = pts[i - 1], pts[(i + 1) % len(pts)]
         ua, uc = (a[0] - b[0], a[1] - b[1]), (c[0] - b[0], c[1] - b[1])
         la, lc = math.hypot(*ua), math.hypot(*uc)
-        if la < 1e-6 or lc < 1e-6 or abs(ua[0] * uc[0] + ua[1] * uc[1]) > 0.5 * la * lc:
+        if la < 1e-6 or lc < 1e-6 or abs(ua[0] * uc[0] + ua[1] * uc[1]) > 0.5 * la * lc or \
+                any(abs(b[0] - xf) < 1e-3 for xf in flush):
             out.append(b)
             continue
         outer = (b[0] - xm) * (1 if xm >= 0 else -1) > 0
@@ -1121,20 +1130,71 @@ def bevel_outline(pts, keep=()):
     return out
 
 
-def add_level(lay, blocks, bid, level, x0, x1, w, support=None, grow=(False, False), keep=(), ignore=()):
+def add_level(lay, blocks, bid, level, x0, x1, w, support=None, grow=(False, False), keep=(), ignore=(),
+              notches=(), joins=(None, None)):
     """One superstructure level as a block, shaped by level_outline (support: the polygon it stands on, the deck band
-    by default) and bevelled (bevel_outline). Returns the block, or None if nothing of it stands on its support."""
+    by default), bevelled (bevel_outline) and narrowed at its notches (notch_outline). Returns the block, or None if
+    nothing of it stands on its support. A notched block keeps its convex outline (_support) for the level above to
+    stand on, and its notches (_notches) for that level to keep. joins: (aft, fwd) ids of the blocks an end butts
+    flush against (that end stays flat at x0 / x1, unbevelled, and doesn't keep clear of the block)."""
     base, top = LEVEL_H * (level - 1), LEVEL_H * level
-    pts = bevel_outline(level_outline(lay, x0, x1, w, base, top, support, grow, keep, ignore), keep)
+    joined = [j for j in joins if j]
+    pts = level_outline(lay, x0, x1, w, base, top, support, grow, keep, list(ignore) + joined, notches)
+    pts = bevel_outline(pts, keep, flush=[x for x, j in zip((x0, x1), joins) if j])
     if len(pts) < 3 or polygon_centroid(pts)[0] < 1.0:
         return None
-    return add_block(lay, blocks, bid, x0, x1, w, level, 0.0, 0.0, points=pts)
+    convex = pts
+    if notches:
+        pts = notch_outline(pts, notches)
+    b = add_block(lay, blocks, bid, x0, x1, w, level, 0.0, 0.0, points=pts)
+    if notches:
+        b["_support"], b["_notches"] = [list(p) for p in convex], list(notches)
+    return b
+
+
+def notch_outline(pts, notches):
+    """A convex outline narrowed to half-width h along x0 .. x1 for each notch (x0, x1, h), symmetric about the
+    centreline, with 45-degree shoulders outside that stretch: a bite out of each side where something on the roof
+    below stands in the way, so the level runs on in one piece."""
+    sl = _Slabs(pts)
+    xs_v = sorted({x for x, _ in pts})
+    xa, xb = xs_v[0], xs_v[-1]
+
+    def cap(x):
+        return min((h + max(0.0, n0 - x, x - n1) for n0, n1, h in notches), default=math.inf)
+
+    def span(x):
+        sp = sl.at(min(max(x, xa + 1e-6), xb - 1e-6))
+        return (min(a for a, _ in sp), max(b for _, b in sp)) if sp else (0.0, 0.0)
+    brk = set(xs_v)
+    for n0, n1, h in notches:
+        lo_, hi_ = span((n0 + n1) / 2)
+        reach = max(hi_, -lo_) - h
+        brk |= {n0, n1, n0 - reach, n1 + reach}
+    brk = sorted(x for x in brk if xa <= x <= xb)
+    up = lambda x: min(span(x)[1], cap(x))
+    dn = lambda x: max(span(x)[0], -cap(x))
+    xs = []
+    for a, b in zip(brk, brk[1:]):     # both sides are piecewise linear between breaks: add where they cross
+        xs.append(a)
+        for f, g in ((lambda x: span(x)[1], cap), (lambda x: -span(x)[0], cap)):
+            da, db = f(a) - g(a), f(b) - g(b)
+            if da * db < 0:
+                xs.append(a + (b - a) * da / (da - db))
+    xs = sorted(set(xs + [brk[-1]]))
+    top = [(x, up(x)) for x in xs]
+    bot = [(x, dn(x)) for x in xs[::-1]]
+    return simplify_polygon(bot[-1:] + top + bot[:-1]) if top else pts
 
 
 DH_CELL = 0.5          # deckhouse levels are found in cells this long
 DH_MIN_RUN = 3.0       # and kept where at least this long
 DH_MIN_W = 3.0         # nor narrower than this
-DH_KEEP = 0.7          # a level is as wide as it can be while keeping this share of the length it has at DH_MIN_W
+DH_NOTCH_MIN = 0.5     # a break in a level narrows it (a notch) to no less than this share of its width,
+DH_NOTCH_STEP = 0.25   # found in steps this fine; else the level stops there and goes on as another block
+DH_JOIN = 1.5          # m: a level's end this close to a tower block at its height runs on to butt flush against it
+DH_KEEP = 0.7          # a level is as wide as it can be while keeping this share of the length it has at
+                       # DH_MIN_W: nearly all, so it runs on in one piece between the secondaries
 
 
 def add_deckhouse_levels(lay, blocks, n, x0, x1, dh, dh_w, through=(), base_block=None):
@@ -1189,10 +1249,44 @@ def add_deckhouse_levels(lay, blocks, n, x0, x1, dh, dh_w, through=(), base_bloc
             mid = (lo + hi) / 2
             lo, hi = (mid, hi) if total(runs(mid, base, top, sup)) >= DH_KEEP * floor else (lo, mid)
         out = []
-        for a, b in runs(lo, base, top, sup):     # each run a level (add_level) on the block it stands on
+
+        def pieced(lo):
+            """The level's runs at width lo, a break bridged by a notch where a narrower width clears it."""
+            pieces, notches = [], []
+            for a, b in runs(lo, base, top, sup):
+                if pieces:
+                    g0 = pieces[-1][1]
+                    gap = [x for x in cells if g0 - 1e-6 <= x < a - 1e-6]
+                    wn = lo - DH_NOTCH_STEP
+                    while wn >= max(DH_MIN_W, DH_NOTCH_MIN * lo) and not all(ok(x, wn, base, top, sup) for x in gap):
+                        wn -= DH_NOTCH_STEP
+                    if wn >= max(DH_MIN_W, DH_NOTCH_MIN * lo):
+                        pieces[-1][1] = b
+                        notches.append((g0, a, wn / 2))
+                        continue
+                pieces.append([a, b])
+            return pieces, notches
+        pieces, notches = pieced(lo)
+        for _ in range(8):      # a bite too shallow to show: the whole level that much narrower instead
+            shallow = [2 * h for _, _, h in notches if lo / 2 - h < DH_MIN_DROP]
+            if not shallow:
+                break
+            lo = min(shallow)
+            pieces, notches = pieced(lo)
+        # what a level's end may butt flush against: the bridge tower's and aft control's blocks at its level,
+        # across the centreline, within DH_JOIN
+        towers = [t for t in blocks if abs(block_base(t) - base) < 1e-6 and t.get("kind") == "superstructure"
+                  and not t["id"].startswith("Deckhouse") and abs(t["y"]) < t["w"] / 2]
+        for a, b in pieces:     # each run a level (add_level) on the block it stands on
+            j_aft = next((t for t in towers if a - DH_JOIN <= t["x1"] <= a + 1e-6), None)
+            j_fwd = next((t for t in towers if b - 1e-6 <= t["x0"] <= b + DH_JOIN), None)
+            a, b = (j_aft["x1"] if j_aft else a), (j_fwd["x0"] if j_fwd else b)
             on_ = max(under, key=lambda u: min(b, u["x1"]) - max(a, u["x0"]), default=None)
+            mine = [n for n in notches if a <= n[0] and n[1] <= b] + \
+                   [n for u in under for n in u.get("_notches", []) if n[1] > a and n[0] < b]   # kept from below
             blk = add_level(lay, blocks, f"Deckhouse {k}" + ("" if not out else f"-{len(out) + 1}"), k, a, b, lo,
-                            support=on_ and on_["points"], ignore=through)
+                            support=on_ and on_.get("_support", on_["points"]), ignore=through, notches=mine,
+                            joins=(j_aft and j_aft["id"], j_fwd and j_fwd["id"]))
             if blk:
                 made.append(blk)
                 out.append(blk)

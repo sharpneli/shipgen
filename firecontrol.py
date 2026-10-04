@@ -106,6 +106,7 @@ def place(lay, design, blocks):
     MAIN_SPREAD of the length apart when they can; secondary and AA directors go in pairs, highest first. Sets
     lay.directors. A director with nowhere to stand is an error (more length rarely helps: it needs a roof)."""
     from geometry import director_parts
+    from hitbox import smoke_from
     from layout import LEVEL_H, _fp_rect, add_block, roof_spots
     from navarch import Weight
     fc = spec(design)
@@ -148,6 +149,12 @@ def place(lay, design, blocks):
             mine.append(rec)
 
         spots = roof_spots(blocks, l, w)
+
+        def smoky(x, y, z0):    # out of the funnels' smoke first (hitbox.assign_smoke), at the same height
+            return bool(smoke_from(lay.funnels_planned, max((f.get("top", 0.0) for f in lay.funnels_planned),
+                                                            default=0.0),
+                                   lay.geo.get("smoke_reach", 0.0), x + hl, z0 + LEVEL_H, y, w))
+
         if bat == "main":       # the highest roofs, spread fore and aft; single directors, on the roof's line
             cands = sorted(((x, y, z0) for x, y, z0, pair in spots if not pair), key=lambda s: (-s[2], -s[0]))
             for spread in (MAIN_SPREAD * L, 0.0):
@@ -158,22 +165,19 @@ def place(lay, design, blocks):
                         continue
                     if ok(x, y, z0):
                         put(x, y, z0)
-        else:                   # pairs, one each side, highest first; an odd one (or all, where no pair fits: a
-                                # narrow tower, a carrier's island) singly on a roof's line
-            for singles in (False, True):
-                # secondary directors take the highest roofs; AA directors the lowest, beside the AA they direct
-                for x, y, z0, pair in sorted(spots, key=lambda s: ((s[2] if bat == "aa" else -s[2]), not s[3],
-                                                                   abs(s[0]))):
-                    left = n - len(mine)
-                    if left <= 0:
-                        break
-                    if pair != (left >= 2 and not singles) or (pair and singles):
-                        continue
-                    pts = [(x, y), (x, -y)] if pair else [(x, y)]
-                    if all(ok(px, py, z0) for px, py in pts):
-                        unit = len({m["unit"] for m in mine}) + 1
-                        for px, py in pts:
-                            put(px, py, z0, pair, unit)
+        else:                   # the highest roofs first, for the horizon: a pair, one each side, where it fits
+                                # and two are left, else singly on the roof's line (a narrow house or tower top)
+            for x, y, z0, pair in sorted(spots, key=lambda s: (-s[2], smoky(s[0], s[1], s[2]), not s[3], abs(s[0]))):
+                left = n - len(mine)
+                if left <= 0:
+                    break
+                if pair and left < 2:
+                    continue
+                pts = [(x, y), (x, -y)] if pair else [(x, y)]
+                if all(ok(px, py, z0) for px, py in pts):
+                    unit = len({m["unit"] for m in mine}) + 1
+                    for px, py in pts:
+                        put(px, py, z0, pair, unit)
         if len(mine) < n:
             lay.fail(None, f"Only {len(mine)} of {n} {'AA' if bat == 'aa' else bat} directors find a roof to stand on "
                            f"({w:.1f} m across with the rangefinder).")

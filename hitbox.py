@@ -101,14 +101,22 @@ def assign_smoke(lay, res):
     for b in lay.blocks:
         if block_role(b["id"]) not in CONTROL_ROLES or re.sub(r"\s*\d+$", "", b["id"]) in BASE_BLOCKS:
             continue
-        hit = []
-        for f in lay.funnels:
-            d = (f["x"] - f["l"] / 2) - b["x1"]
-            if 0 <= d < reach and block_top(b) < lay.fun_top + 0.3 * d and abs(f["y"] - b["y"]) < b["w"] / 2 + f["w"]:
-                hit.append(f["id"])
+        hit = smoke_from(lay.funnels, lay.fun_top, reach, b["x1"], block_top(b), b["y"], b["w"])
         if hit:
             lay.smoke[b["id"]] = hit
             lay.warnings.append(f"{b['id']} stands in the smoke of {', '.join(hit)}: poor visibility from it.")
+
+
+def smoke_from(funnels, fun_top, reach, x1, top, y, w):
+    """Ids of the funnels whose smoke blinds a control position whose forward end is at x1, its roof at top and
+    its centre at y, w wide: one standing aft of the funnel, closer than reach and lower than the funnel top plus
+    0.3 x the distance."""
+    hit = []
+    for f in funnels:
+        d = (f["x"] - f["l"] / 2) - x1
+        if 0 <= d < reach and top < fun_top + 0.3 * d and abs(f["y"] - y) < w / 2 + f["w"]:
+            hit.append(f["id"])
+    return hit
 
 
 def block_role(bid):
