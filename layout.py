@@ -1097,13 +1097,15 @@ def level_outline(lay, x0, x1, w, base, top, support=None, grow=(False, False), 
 
 BEVEL_OUTER = (3.0, 0.22)   # m, share of the level's width: the facets on the end facing the nearer end of the ship
 BEVEL_INNER = (0.8, 0.07)   # and the small cuts on the other corners
+BEVEL_UPPER = (2.0, 0.15)   # the corners of the deckhouse's upper levels: a bolder cut
 
 
-def bevel_outline(pts, keep=(), flush=()):
+def bevel_outline(pts, keep=(), flush=(), inner=None):
     """Chamfers a level's near-square corners (interior angle 60-120 deg; swept ends and points are left alone), so
     no level is a plain box: a big facet on the end facing the nearer end of the ship (the bridge front, the aft
     control's back), a small cut elsewhere. A corner is kept where something in keep (bounding boxes of what stands
-    on the roof) comes within the cut, and on an end that butts flush against another block (flush: its x)."""
+    on the roof) comes within the cut, and on an end that butts flush against another block (flush: its x). inner:
+    the other corners' cut instead of BEVEL_INNER."""
     if len(pts) < 3:
         return pts
     xs = [p[0] for p in pts]
@@ -1119,7 +1121,7 @@ def bevel_outline(pts, keep=(), flush=()):
             out.append(b)
             continue
         outer = (b[0] - xm) * (1 if xm >= 0 else -1) > 0
-        cap, frac = BEVEL_OUTER if outer else BEVEL_INNER
+        cap, frac = BEVEL_OUTER if outer else (inner or BEVEL_INNER)
         size = min(cap, frac * w, 0.4 * la, 0.4 * lc)
         if size < 0.25 or any(bx0 - size < b[0] < bx1 + size and by0 - size < b[1] < by1 + size
                               for bx0, by0, bx1, by1 in keep):
@@ -1131,16 +1133,23 @@ def bevel_outline(pts, keep=(), flush=()):
 
 
 def add_level(lay, blocks, bid, level, x0, x1, w, support=None, grow=(False, False), keep=(), ignore=(),
-              notches=(), joins=(None, None)):
+              notches=(), joins=(None, None), bevel=None):
     """One superstructure level as a block, shaped by level_outline (support: the polygon it stands on, the deck band
     by default), bevelled (bevel_outline) and narrowed at its notches (notch_outline). Returns the block, or None if
     nothing of it stands on its support. A notched block keeps its convex outline (_support) for the level above to
-    stand on, and its notches (_notches) for that level to keep. joins: (aft, fwd) ids of the blocks an end butts
-    flush against (that end stays flat at x0 / x1, unbevelled, and doesn't keep clear of the block)."""
+    stand on, and its notches (_notches) for that level to keep. joins: (aft, fwd) blocks an end butts flush
+    against: that end stays flat at x0 / x1, doesn't keep clear of the block, and where it is wider than the block's
+    face falls back to the side in a shoulder (shoulder_outline) instead of a bevel. bevel: the corner cut
+    (bevel_outline's inner)."""
     base, top = LEVEL_H * (level - 1), LEVEL_H * level
-    joined = [j for j in joins if j]
-    pts = level_outline(lay, x0, x1, w, base, top, support, grow, keep, list(ignore) + joined, notches)
-    pts = bevel_outline(pts, keep, flush=[x for x, j in zip((x0, x1), joins) if j])
+    pts = level_outline(lay, x0, x1, w, base, top, support, grow, keep,
+                        list(ignore) + [j["id"] for j in joins if j], notches)
+    for e, (xf, j) in enumerate(zip((x0, x1), joins)):
+        if j and len(pts) >= 3:
+            pts = shoulder_outline(pts, xf, 1 if e else -1, j)
+    if len(pts) < 3:
+        return None
+    pts = bevel_outline(pts, keep, flush=[x for x, j in zip((x0, x1), joins) if j], inner=bevel)
     if len(pts) < 3 or polygon_centroid(pts)[0] < 1.0:
         return None
     convex = pts
@@ -1150,6 +1159,37 @@ def add_level(lay, blocks, bid, level, x0, x1, w, support=None, grow=(False, Fal
     if notches:
         b["_support"], b["_notches"] = [list(p) for p in convex], list(notches)
     return b
+
+
+def shoulder_outline(pts, xf, e, block):
+    """A convex outline whose end at xf (e: 1 forward, -1 aft) butts against block: where it is wider than the
+    block's face there, each side falls back from the face's edge to the side in a straight shoulder, DH_SHOULDER
+    along the ship for each metre across (at most a quarter of the outline's length), so the joint steps out
+    instead of ending square."""
+    xs = [x for x, _ in pts]
+    sp = _Slabs(block["points"]).at(xf + e * 0.01)
+    own = _Slabs(pts).at(xf - e * 0.01)
+    if not sp or not own:
+        return pts
+    for s in (1, -1):
+        face = max(s * a for a, b in sp for a in (a, b))         # the block's face edge on this side
+        side = max(s * a for a, b in own for a in (a, b))        # this outline's side at its end
+        if side - face < DH_SHOULDER_MIN:
+            continue
+        run = min(DH_SHOULDER * (side - face), 0.25 * (max(xs) - min(xs)))
+        A, B = (xf, s * face), (xf - e * run, s * side)
+        d = (B[0] - A[0], B[1] - A[1])
+        n = math.hypot(*d)
+        d = (d[0] / n, d[1] / n)
+        nrm = (-d[1], d[0])
+        ref = (xf - e * run, 0.0)        # the side of the line to keep: toward the centreline
+        if nrm[0] * (ref[0] - A[0]) + nrm[1] * (ref[1] - A[1]) < 0:
+            nrm = (-nrm[0], -nrm[1])
+        P1 = (A[0] - 200 * d[0], A[1] - 200 * d[1])
+        P2 = (A[0] + 200 * d[0], A[1] + 200 * d[1])
+        pts = clip_convex(pts, [P1, P2, (P2[0] + 200 * nrm[0], P2[1] + 200 * nrm[1]),
+                                (P1[0] + 200 * nrm[0], P1[1] + 200 * nrm[1])])
+    return pts
 
 
 def notch_outline(pts, notches):
@@ -1193,6 +1233,8 @@ DH_MIN_W = 3.0         # nor narrower than this
 DH_NOTCH_MIN = 0.5     # a break in a level narrows it (a notch) to no less than this share of its width,
 DH_NOTCH_STEP = 0.25   # found in steps this fine; else the level stops there and goes on as another block
 DH_JOIN = 1.5          # m: a level's end this close to a tower block at its height runs on to butt flush against it
+DH_SHOULDER = 2.0      # m along the ship per m across: the shoulder from a joined block's face back to the side
+DH_SHOULDER_MIN = 0.5  # m: a level less this much wider than the block it joins keeps its end square
 DH_KEEP = 0.7          # a level is as wide as it can be while keeping this share of the length it has at
                        # DH_MIN_W: nearly all, so it runs on in one piece between the secondaries
 
@@ -1286,7 +1328,7 @@ def add_deckhouse_levels(lay, blocks, n, x0, x1, dh, dh_w, through=(), base_bloc
                    [n for u in under for n in u.get("_notches", []) if n[1] > a and n[0] < b]   # kept from below
             blk = add_level(lay, blocks, f"Deckhouse {k}" + ("" if not out else f"-{len(out) + 1}"), k, a, b, lo,
                             support=on_ and on_.get("_support", on_["points"]), ignore=through, notches=mine,
-                            joins=(j_aft and j_aft["id"], j_fwd and j_fwd["id"]))
+                            joins=(j_aft, j_fwd), bevel=BEVEL_UPPER)
             if blk:
                 made.append(blk)
                 out.append(blk)
