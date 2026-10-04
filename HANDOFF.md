@@ -208,7 +208,29 @@ doesn't: the decisions behind the current design, how to work safely here, and w
       - Boiler rooms and engine rooms are no shorter than the units are tall (`powerplant.space`); taller plants stand in a casing. Before, a shallow hull stretched the machinery.
       - Torpedo mounts on a wide hull whose deck edges are taken fall back to the centreline, then to the deckhouse roof. Before, the destroyer failed at any length of 165 m or more, and the size search, which assumes more length always helps, ran to 254 m.
       - Results at 0.5: battleship −9%, heavy cruiser −8%, Mikasa −9%. Crowded ships still grow, because the crew (destroyer) or cargo (merchants) needs hull volume.
-    - **Next:** accommodation in a taller deckhouse when the hull is short of crew space (planned earlier under Crew). It's what would make low freeboard pay for destroyers too, and it would bring the wartime-manned destroyer nearer its real 114 m. The layout must add the level before `finish_layout` builds the drawing, so it's a layout change, not just crew.py.
+    - Accommodation in a taller deckhouse: done in the superstructure rework below.
+
+- **Superstructure rework (2026-10-04; `firecontrol.py`, `research/superstructure-research.md`, README "Design input").** The user wanted being top-heavy to matter ("we can't just build a hotel on top of the deck"), AA moved up as on real ships, and a simple weight model for fire control. Four commits, one per step:
+  1. `superstructure` `{t_per_m2, material, tower_levels, deckhouse_levels}` and `fire_control` `{main, secondary, aa: {directors, rangefinder_m, armour_mm, radar_t, computer_t}, search_radar_t}`, written out in every design (merchants and planing craft: no tower or deckhouse levels; all-zero fire control where there are no directors). Directors are blocks (kind `director`) on the roofs, weighed at their height, with their plotting rooms low. Masts now weigh something. The tower's levels above 3 are `Tower n`; "Aft director" became "Aft control upper".
+  2. AA stands high: roofs, then raised deck-edge platforms (`AA platform n` blocks), then the bare deck (only inside sweeps). Carriers use island roofs before sponsons. Raised mounts weigh their tubs. `Layout.free_at` is the height-aware collision test; `Layout.clear` has bounding-box and circle-sector quick checks (the battleship build is 0.33 s, as before).
+  3. `deckhouse_levels`: extra levels amidships. The crew lives in the hull first, and the overflow is quartered in the superstructure by block volume (report `crew.quartered_in_superstructure`, hitbox `crew` on blocks; the subdivision quarters the rest).
+  4. Windage (`layout.lateral_profile`), heel in a 26 m/s beam gale, deck-edge angle and wind, roll period (report results).
+  - The user's decisions:
+    - **Accommodation is a player knob** (`deckhouse_levels`), not automatic overflow. The size search always picks the shortest hull, so automatic overflow would always build the hotel.
+    - **Fire control is raw numbers per battery.** No template file: templates (a bureau's director that ships share) live in the game's designer UI, and so do the other systems' templates from now on.
+    - **Wind heel only warns, never errors.** The designer UI handles limits; a player may build a ship that capsizes on a windy day.
+    - The superstructure material is a plain string for the game, as with armour; `t_per_m2` is the number (steel 0.32, aluminium about 0.2).
+  - Departures and choices of mine:
+    - The weights are estimates (E), not from weight statements: rangefinder 0.03 × base² t, gear 1 + 1.2 × base t, a 6 mm hood 2.2 m tall, AA tubs 3 t (quad) / 0.3 t (single), masts 0.012 × height² t per leg. Fire control is under 1% of displacement, so `misc_frac` wasn't reduced.
+    - The fire-control values in the designs are mine, by period: pre-dreadnoughts two 1.4 m rangefinders, dreadnoughts one 2.7–4.6 m director, the US-style WWII ships Mk 38/37/51 equivalents, Bismarck 3 × 10.5 m + 2 × 6.5 m + 4 SL-8. The fleet carrier has 2 AA directors (4 didn't fit on its island).
+    - Funnels stay as tall as a 4-level tower; a taller tower raises the foremast instead.
+    - Every design got `tower_levels` from the old rule (4 from 180 m, carriers 200 m) and `deckhouse_levels` 1, so lengths barely moved. The destroyer at 2 deckhouse levels comes out 114 m (real Fletcher) instead of 130 m, but its design file still says 1.
+  - Not done / ideas:
+    - Big ships' secondary directors end up on the deckhouse roof (eye about 10 m), because the stepped tower leaves no roof wide enough for a Mk 37 pair. Iowa's stood about 25 m up. Wider tower levels or sponson wings off the tower would fix it.
+    - No AA on turret roofs: AA is baked into the hull layers and wouldn't turn with the turret.
+    - The plotting rooms aren't subdivision rooms yet (a damage hook: the transmitting station). Directors have no `armour.materials` part.
+    - Deckhouse levels exist for warships only; merchants (crew in the midships house) and carriers could take them.
+    - The light condition's GM can get low (destroyer with 3 levels: 0.3 m) and only warns at 0; a ballast hint could come later.
 
 ## Next steps (proposed 2026-10-02, in this order; the user hasn't confirmed the order yet)
 1. **Hull cross-section shape.** Every height uses the deck outline now, so double-bottom and hold cells are as wide as the main deck. Give the hull sections that narrow toward the keel, from the block coefficient (full amidships, sharp at the ends).
