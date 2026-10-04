@@ -61,7 +61,7 @@ design.py      the command line: validate, shipdesign.build, write report.json a
   "aa": {"heavy": 20, "light": 30},
   "machinery": {"stress": 0.4, "shafts": 4, "tech": {...}},
   "crew": {"standard": {...}, "endurance_days": 45, "distiller": true},
-  "superstructure": {"t_per_m2": 0.32, "material": "steel", "tower_levels": 4, "bridge_level": 3},
+  "superstructure": {"t_per_m2": 0.32, "material": "steel", "tower_levels": 7, "bridge_level": 5},
   "fire_control": {"main": {"directors": 2, "rangefinder_m": 7.9, "armour_mm": 38, "radar_t": 2.0, "computer_t": 8.0},
                    "secondary": {...}, "aa": {...}, "search_radar_t": 4.0},
   "funnels": null
