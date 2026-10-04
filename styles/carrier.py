@@ -26,7 +26,7 @@ import hullweight
 import ordnance
 from geometry import polygon_area, polygon_y_span
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
-                    add_steering, boiler_seg, clamp, finish_layout, hull_spec, mast_weight, plan_funnels, plan_machinery,
+                    add_steering, boiler_seg, clamp, finish_layout, hull_spec, mast_weight, plan_funnels, plan_machinery, roof_spots,
                     set_citadel, stack_machinery, tower_levels)
 from navarch import STEEL, Weight
 from geometry import AA_CFG, Hull
@@ -477,7 +477,11 @@ def _flight_deck_layout(design, res, shift):
     aa_out = []
     aa_req = design.get("aa") or {}
     for kind, count in (("quad40", aa_req.get("heavy", 0)), ("single20", aa_req.get("light", 0))):
-        armament.place_aa(lay, aa_out, kind, count, sponson_slots(AA_CFG[kind][0], fd_h - 2.4))
+        rr = AA_CFG[kind][0]      # tubs on the island's roofs first (Essex), then sponsons along the deck edges
+        island = [(x, y, z0, None) for x, y, z0, pair in sorted(roof_spots(blocks, 2 * rr, 2 * rr),
+                                                                key=lambda s: (s[2], abs(s[0] - xi))) if not pair]
+        armament.place_aa(lay, aa_out, kind, count, island + sponson_slots(rr, fd_h - 2.4),
+                          layer_of=lambda base: "upper" if base > fd_h + 0.01 else "base")
     sponsons = []
     for it in [m for m in mounts if m["base"] < fd_h - 0.5] + aa_out:
         reach = AA_CFG[it["type"]][0] if "dir" in it else (

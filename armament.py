@@ -203,43 +203,79 @@ def fixed_tube_pairs(lay, mounts, turret_types, tp, xs, y_of_x, base=0.2, toe_de
     return placed
 
 
-def place_aa(lay, aa_out, kind, count, cands, spacing=None, ignore=()):
-    """AA mounts in pairs from cands (x, y, base[, y_port]) with y >= 0, in order of preference, mirrored to
-    -y unless y_port is given; y == 0 means a single centreline mount. Fills an odd count with a
-    centreline slot if one is offered (offer it last to keep it for the leftover). A slot must be free of what's
-    placed (ignore: ids to disregard, or a function of the slot's base giving them) and clear of the guns'
-    sweeps."""
+AA_TUB_T = {"quad40": 3.0, "twin40": 1.5, "single20": 0.3}   # a raised mount's tub, platform and splinter shield (E)
+
+
+def place_aa(lay, aa_out, kind, count, cands, spacing=None, ignore=(), layer_of=None):
+    """AA mounts in pairs from cands (x, y, base[, y_port[, foot]]) with y >= 0, in order of preference, mirrored to
+    -y unless y_port is given; y == 0, or y_port None, means a single mount at y (on the centreline, or on an
+    off-centre island). Single slots are taken two at a time while the count left is even, so they never leave an
+    odd mount that only a pair slot could take; a lone single slot fills an odd count (offer one last to keep it for
+    the leftover). foot: a raised platform's foot (m above the main deck): the space from there up to the mount must
+    be free too, and the mount record gets "platform": foot for the style to build it. A slot must be free of
+    what's placed at its height (ignore: ids to disregard, or a function of the slot's base giving them) and clear
+    of the guns' sweeps. A mount above the main deck stands in a tub (AA_TUB_T, weighed with it). layer_of(base):
+    the sprite layer ("base" by default)."""
     rr = AA_CFG[kind][0]
     spacing = spacing if spacing is not None else (3.0 if kind == "quad40" else 2.2)
-    placed = 0
     aa_fps = [_fp_circle(a["x"], a["y"], AA_CFG[a["type"]][0]) for a in aa_out]   # spaced from each other
-    for c in cands:
+
+    def single(c):
+        return c[1] == 0 or (len(c) > 3 and c[3] is None)
+
+    def fits(c, also=()):
+        """The slot's mounts [(footprint, base, foot)] if it is free (and clear of the footprints also), else None."""
         cx, cy, base = c[:3]
-        if placed >= count:
-            break
-        if cy == 0:
-            use = [(cx, 0.0)]
-        elif count - placed >= 2:
-            use = [(cx, cy), (cx, c[3] if len(c) > 3 else -cy)]
-        else:
-            continue
+        use = [(cx, cy)] if single(c) else [(cx, cy), (cx, c[3] if len(c) > 3 else -cy)]
         fps = [_fp_circle(x, y, rr) for x, y in use]
         if len(fps) == 2 and _overlap(fps[0], fps[1], spacing):   # a slot too near the centreline to mirror
-            continue
+            return None
+        if any(abs(fp[1] - o[1]) < fp[3] + o[3] + spacing and _overlap(fp, o, spacing)   # x distance first
+               for fp in fps for o in list(aa_fps) + list(also)):
+            return None
         ign = ignore(base) if callable(ignore) else ignore
-        if not all(lay.free(fp, 0.4, ign) and lay.clear(fp, base + 2.0) for fp in fps):
-            continue
-        if any(_overlap(fp, o, spacing) for fp in fps for o in aa_fps):
-            continue
-        aa_fps += fps
-        for fp in fps:
+        foot = c[4] if len(c) > 4 else None
+        if not all(lay.free_at(fp, base if foot is None else foot, base + 2.0, 0.4, ign) for fp in fps) or \
+                not all(lay.clear(fp, base + 2.0) for fp in fps):
+            return None
+        return [(fp, base, foot, cx) for fp in fps]
+
+    def put(mounts):
+        for fp, base, foot, cx in mounts:
+            aa_fps.append(fp)
             y = fp[2]
             aid = f"AA{len(aa_out) + 1}"
             d = 180 if (y == 0 and cx < 0) else (90 if y > 0 else -90 if y < 0 else 0)
-            aa_out.append(dict(id=aid, type=kind, x=fp[1], y=y, dir=d, base=base, layer="base"))
+            aa_out.append(dict(id=aid, type=kind, x=fp[1], y=y, dir=d, base=base,
+                               layer=layer_of(base) if layer_of else "base"))
+            if foot is not None:
+                aa_out[-1]["platform"] = foot
             lay.occupy(fp, base, base + 2.0, aid)
-            lay.weights.append(Weight(aid, "armament", TUNING["aa_t"][kind], x=fp[1], z_rel=("deck", base + 1.0)))
-            placed += 1
+            lay.weights.append(Weight(aid, "armament", TUNING["aa_t"][kind] + (AA_TUB_T[kind] if base > 0.5 else 0.0),
+                                      x=fp[1], z_rel=("deck", base + 1.0)))
+
+    placed = 0
+    lonely = False      # a search for a partner single found none, and nothing has been placed since
+    for i, c in enumerate(cands):
+        left = count - placed
+        if left <= 0:
+            break
+        if not single(c) and left < 2:
+            continue
+        if single(c) and left % 2 == 0 and lonely:
+            continue
+        got = fits(c)
+        if not got:
+            continue
+        if single(c) and left % 2 == 0:     # a single while the count is even: only with a partner single
+            mate = next((m for m in (fits(c2, [g[0] for g in got]) for c2 in cands[i + 1:] if single(c2)) if m), None)
+            if not mate:
+                lonely = True
+                continue
+            got += mate
+        put(got)
+        lonely = False
+        placed += len(got)
     if placed < count:
         lay.fail("length", f"Only {placed} of {count} {'heavy' if kind == 'quad40' else 'light'} AA mounts fit.")
     return placed

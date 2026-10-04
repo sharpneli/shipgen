@@ -195,7 +195,7 @@ def crew_space(lay, design, res):
     if plan.get("tds") and cit:
         taken += 2 * plan["tds"] * (cit[1] - cit[0]) * low
     sup = sum((b["x1"] - b["x0"]) * b["w"] * LEVEL_H * 0.9 for b in lay.blocks
-              if block_role(b["id"]) not in ("hangar", "director", "casemate"))
+              if block_role(b["id"]) not in ("hangar", "director", "casemate", "aa_platform"))
     sup += sum(_area(dk["points"]) * (dk["top"] - dk["base"]) for dk in lay.decks if dk["kind"] == "deck")
     sup += lay.geo.get("upper_volume_m3", 0.0)
     free = max(0.0, hull_v - taken) + sup

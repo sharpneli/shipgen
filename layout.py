@@ -134,20 +134,59 @@ class Layout:
         polys = []
         for lo, hi in intervals:
             polys.append(sector_polygon(m["x"], m["y"], R, lo, hi))
-        self.sweeps.append(dict(owner=m["id"], polys=polys, axis=m["base"] + 0.55 * (m["top"] - m["base"])))
+        sectors = [(m["x"], m["y"], R, lo, hi) for lo, hi in intervals]
+        boxes = [(min(x for x, _ in p), min(y for _, y in p), max(x for x, _ in p), max(y for _, y in p)) for p in polys]
+        self.sweeps.append(dict(owner=m["id"], polys=polys, boxes=boxes, sectors=sectors,
+                                axis=m["base"] + 0.55 * (m["top"] - m["base"])))
 
     def clear(self, poly, top):
         """Is a footprint (polygon or circle/rect footprint) standing `top` metres above the deck clear of every
         gun sweep lower than it?"""
+        circle = poly[1:] if isinstance(poly, tuple) and poly[0] == "c" else None
         if isinstance(poly, tuple):
             poly = (circle_polygon(poly[1], poly[2], poly[3], 16) if poly[0] == "c" else
                     [(poly[1], poly[2]), (poly[3], poly[2]), (poly[3], poly[4]), (poly[1], poly[4])])
-        return not any(sw["axis"] < top and any(polygons_intersect(poly, p) for p in sw["polys"])
-                       for sw in self.sweeps)
+        xs, ys = [p[0] for p in poly], [p[1] for p in poly]
+        x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+        for sw in self.sweeps:
+            if sw["axis"] >= top:
+                continue
+            for p, (a0, b0, a1, b1), sec in zip(sw["polys"], sw["boxes"], sw["sectors"]):    # quick rejects first:
+                # bounding boxes, then a circle's true distance from the true sector (both polygons lie inside
+                # their true shapes, so a miss there is a miss for the polygons too)
+                if not (a0 <= x1 and x0 <= a1 and b0 <= y1 and y0 <= b1):
+                    continue
+                if circle is not None:
+                    d = _sector_dist(sec, circle[0], circle[1])
+                    if d >= circle[2]:
+                        continue
+                    if d < circle[2] - 0.2 - 0.005 * sec[2]:    # deep inside: the polygons overlap too
+                        return False
+                if polygons_intersect(poly, p):
+                    return False
+        return True
 
     def on_deck(self, x, y):
         """Is (x, y) on a deck that overhangs the hull (a flight deck)?"""
         return any(point_in_polygon(x, y, dk["points"]) for dk in self.decks if dk["kind"] == "flight_deck")
+
+
+def _seg_dist(px, py, ax, ay, bx, by):
+    dx, dy = bx - ax, by - ay
+    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy or 1.0)))
+    return math.hypot(px - ax - t * dx, py - ay - t * dy)
+
+
+def _sector_dist(sec, px, py):
+    """Distance from (px, py) to a pie slice (cx, cy, R, a0, a1) (bearings as geometry.sector_polygon), 0 inside."""
+    cx, cy, R, a0, a1 = sec
+    d = math.hypot(px - cx, py - cy)
+    a = math.degrees(math.atan2(py - cy, px - cx))
+    inside = a1 - a0 >= 360 or (a - a0) % 360.0 <= a1 - a0
+    if inside:
+        return max(0.0, d - R)
+    ends = [(cx + R * math.cos(math.radians(b)), cy + R * math.sin(math.radians(b))) for b in (a0, a1)]
+    return min(_seg_dist(px, py, cx, cy, ex, ey) for ex, ey in ends)
 
 
 def add_block(lay, blocks, bid, x0, x1, w, level, rf, rb, y=0.0, z0=0.0, layer=None, kind="superstructure",
@@ -200,6 +239,14 @@ def mast_weight(lay, m, top, name):
 
 
 MAST_T_K = 0.012
+
+# warship AA preference, added to the distance from amidships (fraction of L): by the roof's level (index: 1 the
+# deckhouse, 2-3 the bridge and aft control, 4+ the tower), single mounts on a roof's line, the deck edges
+AA_ROOF_PEN = (0.05, 0.05, 0.0, 0.0, 0.03)
+AA_SINGLE_PEN = 0.1
+AA_PLATFORM_PEN = 0.15   # on a raised platform (a pedestal block AA_PLATFORM_H tall) at the deck edge
+AA_PLATFORM_H = LEVEL_H
+AA_DECK_PEN = 0.3        # on the bare deck: only where a raised tub would stand in a turret's sweep
 
 
 def battery_of(mid):
@@ -1361,21 +1408,27 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     aa_req = design.get("aa", {})
 
     def aa_slots(kind):
-        """Deck-edge slots along the hull, and for heavy AA the deckhouse roof's edges, nearest amidships first
-        (the roof preferred); a single leftover mount goes on the centreline at the stern."""
+        """AA stands high, as on real ships: in tubs on the superstructure's roofs (the bridge, tower and aft control
+        levels first, then the tower's top, then the deckhouse), with the deck edges along the hull as the last
+        resort; nearest amidships first within each. Pairs come before single mounts on a roof's centreline, and
+        a single leftover mount goes on the centreline at the stern."""
         rr = AA_CFG[kind][0]
-        cands = []
-        if wide and kind == "quad40":
-            yy = dh_w / 2 - rr - 0.3
-            for k in range(int((dh["x1"] - dh["x0"]) * 2)):
-                cands.append((dh["x0"] + 0.5 * k, yy, LEVEL_H))
+        scored = []
+        for x, y, z0, pair in roof_spots(blocks, 2 * rr, 2 * rr):
+            lvl = round(z0 / LEVEL_H)
+            pen = AA_ROOF_PEN[min(lvl, len(AA_ROOF_PEN) - 1)]
+            if pair:
+                scored.append((abs(x - mach_c) / L + pen, (x, y, z0)))
+            elif abs(y) < 1e-6:
+                scored.append((abs(x - mach_c) / L + pen + AA_SINGLE_PEN, (x, 0.0, z0)))
         x = L / 2 - 0.06 * L
-        while x > -L / 2 + 2:
+        while x > -L / 2 + 2:       # along the deck edges: on a raised platform, else on the deck
             yy = hull.half_width(x) - rr - 0.5
             if yy > rr + 0.5:
-                cands.append((x, yy, 0.0))
+                scored.append((abs(x - mach_c) / L + AA_PLATFORM_PEN, (x, yy, AA_PLATFORM_H, -yy, 0.0)))
+                scored.append((abs(x - mach_c) / L + AA_DECK_PEN, (x, yy, 0.0)))
             x -= 0.5
-        cands.sort(key=lambda c: (abs(c[0] - mach_c) / L + (0.0 if c[2] else 0.15)))
+        cands = [c for _, c in sorted(scored, key=lambda s: s[0])]
         sx = -L / 2 + rr + 2.5
         if hull.half_width(sx) > rr + 0.6:
             cands.append((sx, 0.0, 0.0))
@@ -1383,10 +1436,15 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
 
     def place_aa(kind, count):
         armament.place_aa(lay, aa_out, kind, count, aa_slots(kind),
-                          ignore=lambda base: ("Deckhouse",) if base else ())
+                          layer_of=lambda base: "upper" if base > LEVEL_H + 0.01 else "base")
 
     place_aa("quad40", aa_req.get("heavy", 0))
     place_aa("single20", aa_req.get("light", 0))
+    for a in aa_out:      # the raised platforms under deck-edge AA: a pedestal block as wide as the tub
+        if "platform" in a:
+            rr = AA_CFG[a["type"]][0]
+            block(f"AA platform {a['id'][2:]}", a["x"] - rr, a["x"] + rr, 2 * rr, 1, rr, rr, y=a["y"])
+            lay.footprints.pop()      # the AA mount's own footprint already claims the column
 
     # ---------------- masts and boats (decorative but drawn) ----------------
     mast_top = fun_top + 6.0
