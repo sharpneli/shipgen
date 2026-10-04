@@ -409,6 +409,19 @@ def add_machinery_rooms(lay, placed, inner_hw, depth):
 
 STACK_NATURAL = 25.0    # m from the grates to the funnel top that natural and boost draught plants want
 BRIDGE_OVER_BOILERS = 0.85   # how much of the bridge (and its gap) the forward boiler group may run on under
+# the navigating bridge's deck stands at least this far over the roof of the highest turret ahead of it, so the
+# eye (about 1.7 m up) clears the roof by about 2.7 m and sees the sea ahead. Real ships stand 2-4 m clear
+# (research/superstructure-research.md section 6); whole levels of LEVEL_H put a Fletcher-like destroyer's bridge at
+# level 4 and a battleship's at level 5
+BRIDGE_CLEAR = 1.0
+
+
+def bridge_level(roof):
+    """The lowest level the navigating bridge can stand at (2 at least) to see over a turret roof this high above
+    the main deck (None: nothing ahead)."""
+    if roof is None:
+        return 2
+    return max(2, math.ceil((roof + BRIDGE_CLEAR) / LEVEL_H - 1e-9) + 1)
 
 
 def plan_funnels(lay, design, res, beam, top, groups=None):
@@ -883,9 +896,19 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     plant = lay.geo["plant"]
     lb = clamp(0.05 * L + 2, 7, 18)                 # bridge length
     la = 0.045 * L + 2 if L >= 130 else 0.0         # aft control position length
-    # the bridge tower: the bridge (level 2), then each level up to superstructure.tower_levels, the main director on
-    # top; funnels stand as tall as a tower of up to 4 levels
-    n_tower = tower_levels(design, 4 if L >= 180 else 3)     # the old built-in rule as the default
+    # the bridge tower: base levels from level 2, the navigating bridge on the first level that sees over the
+    # highest forward turret's roof (bridge_level), then each level up to superstructure.tower_levels, the main
+    # director on top; funnels stand as tall as a tower of up to 4 levels
+    fwd_tier = min(nf, max(n_step_f, 1)) - 1 if (tm and nf) else None    # the forward group's top tier
+    fwd_roof = 1.2 + fwd_tier * superfire_step(th) + th if fwd_tier is not None else None
+    nb_need = bridge_level(fwd_roof)
+    n_tower = tower_levels(design, nb_need + (2 if L >= 180 else 1))    # by default 1-2 levels over the bridge
+    nb = min(nb_need, n_tower)          # a tower too low for the view: the bridge on its top level
+    if nb < nb_need:
+        lay.warnings.append(
+            f"The bridge (level {nb}, its deck {LEVEL_H * (nb - 1):.1f} m above the main deck) cannot see over "
+            f"turret {turret_name('ABC', fwd_tier)}'s roof ({fwd_roof:.1f} m): superstructure.tower_levels "
+            f"{nb_need} or more lifts it clear.")
     hood = firecontrol.HOOD_H if firecontrol.spec(design)["main"]["directors"] else 0.0
     wide = B >= 15
 
@@ -1317,19 +1340,22 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             dh["x1"] -= 0.5
         else:
             dh["x0"] += 0.5
-    # bridge tower
-    block("Bridge", bx0, bx1, w2, 2, 0.42 * w2, 1.0)
-    if n_tower >= 3:
-        block("Bridge upper", bx0 + 0.1 * lb, bx1 - 0.06 * lb, 0.78 * w2, 3, 0.36 * w2, 1.0)
-    if armour.get("belt_mm", 0) > 0:   # inside the bridge's rounded front, as tall as the bridge
+    # bridge tower: base levels (chart house, offices, sea cabins) as wide as the bridge up to it, then the bridge
+    # and the levels over it as before (a bridge at level 2 builds the tower it always did)
+    for k in range(2, nb):
+        block(f"Bridge base {k}", bx0, bx1, w2, k, 0.42 * w2, 1.0)
+    block("Bridge", bx0, bx1, w2, nb, 0.42 * w2, 1.0)
+    if n_tower > nb:
+        block("Bridge upper", bx0 + 0.1 * lb, bx1 - 0.06 * lb, 0.78 * w2, nb + 1, 0.36 * w2, 1.0)
+    if armour.get("belt_mm", 0) > 0:   # inside the bridge tower's rounded front, as tall as its first level
         ct_r = min(max(0.1 * B, 1.25), 4.0, 0.4 * w2)
         lay.conning_tower = dict(x=max(bx1 - 0.42 * w2, bx0 + ct_r), y=0.0, r=ct_r, top=2 * LEVEL_H)
         mm = armour["belt_mm"] / 1000      # the hitbox's armour: walls as thick as the belt, a roof half that
         area = 2 * math.pi * ct_r * 2 * LEVEL_H + 0.5 * math.pi * ct_r ** 2
         lay.weights.append(Weight("Conning tower", "armour", area * mm * 7.85, x=lay.conning_tower["x"],
                                   z_rel=("deck", LEVEL_H)))
-    for k in range(4, n_tower + 1):      # the tower narrows as it rises
-        f, tw = min(0.12, 0.03 * (k - 4)), max(3.0, 0.5 * w2 * 0.9 ** (k - 4))
+    for k in range(nb + 2, n_tower + 1):      # the tower narrows as it rises
+        f, tw = min(0.12, 0.03 * (k - nb - 2)), max(3.0, 0.5 * w2 * 0.9 ** (k - nb - 2))
         block(f"Tower {k}", bx0 + (0.35 + f) * lb, max(bx0 + (0.35 + f) * lb + 3.0, bx1 - (0.2 + f) * lb), tw, k,
               0.5 * tw, 0.5 * tw)
     # aft control
