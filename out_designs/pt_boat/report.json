@@ -173,12 +173,12 @@
     "power_shp": 9000.0,
     "fuel_t": 16,
     "crew": 32,
-    "gm_full_m": 2.23,
-    "gm_light_m": 2.49,
-    "trim_m": -0.01,
-    "lcg_m": -3.7,
+    "gm_full_m": 2.21,
+    "gm_light_m": 2.46,
+    "trim_m": 0.01,
+    "lcg_m": -3.66,
     "lcb_m": -3.69,
-    "layout_shift_m": 0.0,
+    "layout_shift_m": -0.35,
     "volumetric_froude": 3.03,
     "power_to_weight_hp_per_t": 72.4,
     "power_model": "planing placeholder"
@@ -225,7 +225,7 @@
     "protrusion_m": 0.0,
     "space_m": {
       "width": 6.84,
-      "height": 2.24
+      "height": 2.22
     },
     "wing_bunkers_t": 0,
     "end_bunkers_m": 0.0,
@@ -239,6 +239,10 @@
   },
   "crew": {
     "complement": 32,
+    "quartered_in_superstructure": 9,
+    "superstructure_quarters": {
+      "Charthouse": 9
+    },
     "officers": 3,
     "cpos": 0,
     "ratings": 29,
@@ -259,8 +263,8 @@
     "water_in_double_bottom_m3": 0,
     "distiller_m3_per_day": 0.3,
     "space_needed_m3": 58,
-    "space_usable_m3": 73,
-    "space_free_m3": 113,
+    "space_usable_m3": 76,
+    "space_free_m3": 117,
     "sleep_m2_per_man": 0.68,
     "sleep_standard_m2": 0.6,
     "headroom_m": 1.9,
@@ -296,35 +300,35 @@
       "name": "Charthouse",
       "group": "superstructure",
       "t": 2.3,
-      "x": 3.69,
+      "x": 3.33,
       "z": 4.52
     },
     {
       "name": "T1S",
       "group": "armament",
       "t": 2.6,
-      "x": 1.71,
+      "x": 1.86,
       "z": 3.92
     },
     {
       "name": "T1P",
       "group": "armament",
       "t": 2.6,
-      "x": 1.71,
+      "x": 1.86,
       "z": 3.92
     },
     {
       "name": "T2S",
       "group": "armament",
       "t": 2.6,
-      "x": -6.29,
+      "x": -6.14,
       "z": 3.92
     },
     {
       "name": "T2P",
       "group": "armament",
       "t": 2.6,
-      "x": -6.29,
+      "x": -6.14,
       "z": 3.92
     },
     {
@@ -339,7 +343,7 @@
       "group": "armament",
       "t": 0.7,
       "x": 13.82,
-      "z": 2.1
+      "z": 2.11
     },
     {
       "name": "AA1",
@@ -363,9 +367,16 @@
       "z": 4.42
     },
     {
+      "name": "Crew and effects (Charthouse)",
+      "group": "misc",
+      "t": 1.1,
+      "x": 3.33,
+      "z": 4.52
+    },
+    {
       "name": "Crew and effects",
       "group": "misc",
-      "t": 3.8,
+      "t": 2.8,
       "x": 0.0,
       "z": 1.72
     },

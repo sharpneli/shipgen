@@ -187,8 +187,8 @@
     "fuel_t": 427,
     "crew": 96,
     "gm_full_m": 1.71,
-    "gm_light_m": 4.69,
-    "trim_m": -0.0,
+    "gm_light_m": 4.67,
+    "trim_m": 0.0,
     "lcg_m": 1.23,
     "lcb_m": 1.23,
     "layout_shift_m": 0.0,
@@ -265,6 +265,12 @@
   },
   "crew": {
     "complement": 96,
+    "quartered_in_superstructure": 21,
+    "superstructure_quarters": {
+      "House": 10,
+      "Boat deck house": 7,
+      "Bridge": 4
+    },
     "officers": 8,
     "cpos": 8,
     "ratings": 80,
@@ -467,9 +473,30 @@
       "z": 15.11
     },
     {
+      "name": "Crew and effects (House)",
+      "group": "misc",
+      "t": 1.2,
+      "x": -1.83,
+      "z": 10.21
+    },
+    {
+      "name": "Crew and effects (Boat deck house)",
+      "group": "misc",
+      "t": 0.8,
+      "x": -0.15,
+      "z": 12.81
+    },
+    {
+      "name": "Crew and effects (Bridge)",
+      "group": "misc",
+      "t": 0.5,
+      "x": 4.89,
+      "z": 15.41
+    },
+    {
       "name": "Crew and effects",
       "group": "misc",
-      "t": 11.5,
+      "t": 9.0,
       "x": 0.0,
       "z": 5.01
     },

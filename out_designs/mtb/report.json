@@ -173,12 +173,12 @@
     "power_shp": 5400.0,
     "fuel_t": 12,
     "crew": 21,
-    "gm_full_m": 1.82,
-    "gm_light_m": 2.08,
-    "trim_m": 0.06,
-    "lcg_m": -3.03,
+    "gm_full_m": 1.8,
+    "gm_light_m": 2.06,
+    "trim_m": 0.08,
+    "lcg_m": -3.01,
     "lcb_m": -3.14,
-    "layout_shift_m": -1.0,
+    "layout_shift_m": -0.99,
     "volumetric_froude": 3.11,
     "power_to_weight_hp_per_t": 69.0,
     "power_model": "planing placeholder"
@@ -239,6 +239,10 @@
   },
   "crew": {
     "complement": 21,
+    "quartered_in_superstructure": 5,
+    "superstructure_quarters": {
+      "Charthouse": 5
+    },
     "officers": 3,
     "cpos": 0,
     "ratings": 18,
@@ -296,21 +300,21 @@
       "name": "Charthouse",
       "group": "superstructure",
       "t": 1.7,
-      "x": 2.13,
+      "x": 2.14,
       "z": 4.18
     },
     {
       "name": "T1S",
       "group": "armament",
       "t": 2.6,
-      "x": -0.12,
+      "x": -0.11,
       "z": 3.58
     },
     {
       "name": "T1P",
       "group": "armament",
       "t": 2.6,
-      "x": -0.12,
+      "x": -0.11,
       "z": 3.58
     },
     {
@@ -342,9 +346,16 @@
       "z": 4.08
     },
     {
+      "name": "Crew and effects (Charthouse)",
+      "group": "misc",
+      "t": 0.6,
+      "x": 2.14,
+      "z": 4.18
+    },
+    {
       "name": "Crew and effects",
       "group": "misc",
-      "t": 2.5,
+      "t": 1.9,
       "x": 0.0,
       "z": 1.38
     },

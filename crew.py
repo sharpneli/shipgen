@@ -194,12 +194,27 @@ def crew_space(lay, design, res):
     cit = lay.geo.get("citadel")
     if plan.get("tds") and cit:
         taken += 2 * plan["tds"] * (cit[1] - cit[0]) * low
-    sup = sum((b["x1"] - b["x0"]) * b["w"] * LEVEL_H * 0.9 for b in lay.blocks
-              if block_role(b["id"]) not in ("hangar", "director", "casemate", "aa_platform"))
+    rooms = {b["id"]: (b["x1"] - b["x0"]) * b["w"] * LEVEL_H * 0.9 for b in lay.blocks if b["kind"] != "director"
+             and block_role(b["id"]) not in ("hangar", "director", "casemate", "aa_platform")}
+    sup = sum(rooms.values())
     sup += sum(_area(dk["points"]) * (dk["top"] - dk["base"]) for dk in lay.decks if dk["kind"] == "deck")
     sup += lay.geo.get("upper_volume_m3", 0.0)
     free = max(0.0, hull_v - taken) + sup
-    return dict(hull_m3=hull_v, taken_m3=taken, superstructure_m3=sup, free_m3=free, usable_m3=USABLE * free)
+    return dict(hull_m3=hull_v, taken_m3=taken, superstructure_m3=sup, free_m3=free, usable_m3=USABLE * free,
+                hull_usable_m3=USABLE * max(0.0, hull_v - taken), blocks_m3=rooms)
+
+
+def spread(n, vols):
+    """n men over rooms by volume ({id: m3}): whole men, the remainders to the largest fractions, {id: men} for the
+    rooms that get any."""
+    total = sum(vols.values())
+    if n <= 0 or total <= 0:
+        return {}
+    shares = {k: n * v / total for k, v in vols.items()}
+    men = {k: int(s) for k, s in shares.items()}
+    for k in sorted(shares, key=lambda k: men[k] - shares[k])[:n - sum(men.values())]:
+        men[k] += 1
+    return {k: m for k, m in men.items() if m}
 
 
 def _area(pts):
@@ -246,13 +261,27 @@ def apply(lay, design, res, style):
     if c["endurance_days"] < range_days:
         lay.warnings.append(f"Provisions for {c['endurance_days']} days, but the fuel lasts {range_days} days at "
                             "cruising speed.")
-    # weights: crew and effects between decks, provisions low, water in the double bottom (or above it)
+    # the crew lives in the hull first (research/superstructure-research.md: the hull fills first, the overflow goes
+    # up); whoever doesn't fit there is quartered in the superstructure, spread over its blocks by volume (not
+    # directors, casemate housings, AA platforms or hangars)
+    frac = min(1.0, max(0.0, (need - room["hull_usable_m3"]) / need)) if need > 0 else 0.0
+    up = round(n * frac)
+    up_blocks = spread(up, room["blocks_m3"])
+    # weights: crew and effects between decks (those quartered up top at their blocks' mid-height), provisions low,
+    # water in the double bottom (or above it)
+    from layout import block_base
     x_mid = lay.geo.get("machinery_x", 0.0)
-    lay.weights += [Weight("Crew and effects", "misc", n * CREW_T, x=0.0, z_rel=("deck", -1.5)),
+    by_id = {b["id"]: b for b in lay.blocks}
+    for bid, m in up_blocks.items():
+        b = by_id[bid]
+        lay.weights.append(Weight(f"Crew and effects ({bid})", "misc", m * CREW_T, x=(b["x0"] + b["x1"]) / 2,
+                                  z_rel=("deck", block_base(b) + 1.3)))
+    lay.weights += [Weight("Crew and effects", "misc", (n - up) * CREW_T, x=0.0, z_rel=("deck", -1.5)),
                     Weight("Provisions", "misc", nd["provisions_m3"] * PROVISIONS_T_PER_M3, x=0.0,
                            z_rel=("frac", 0.4)),
                     Weight("Fresh water", "misc", nd["water_m3"], x=x_mid, z_rel=("frac", 0.05))]
-    lay.crew = dict(complement=n, officers=comp["officers"], cpos=nd["cpos"], ratings=nd["ratings"],
+    lay.crew = dict(complement=n, quartered_in_superstructure=up, superstructure_quarters=up_blocks,
+                    officers=comp["officers"], cpos=nd["cpos"], ratings=nd["ratings"],
                     departments=comp["departments"], standard=s.get("name", ""),
                     endurance_days=c["endurance_days"], range_days=range_days, distiller=c["distiller"],
                     berth_ratio=c["berth_ratio"],

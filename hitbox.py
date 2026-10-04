@@ -173,6 +173,7 @@ def export_hitboxes(lay, design, res):
             with_material(comps[-1], armour_material(design, "barbettes") if m["kind"] == "main" else mat)
     directors = {d["id"]: d for d in lay.directors}
     sup_material = (design.get("superstructure") or {}).get("material")
+    quarters = (getattr(lay, "crew", None) or {}).get("superstructure_quarters", {})
     for b in lay.blocks:
         pts = rrect_polygon(b["x0"], b["y"] - b["w"] / 2, b["x1"], b["y"] + b["w"] / 2, b["rf"], b["rb"])
         smoke = getattr(lay, "smoke", {}).get(b["id"])
@@ -187,6 +188,8 @@ def export_hitboxes(lay, design, res):
                              radar=d["radar_t"] > 0)
         else:
             with_material(comps[-1], sup_material)
+        if quarters.get(b["id"]):     # off-watch men quartered here (crew.apply): a hit here can kill them
+            comps[-1]["crew"] = quarters[b["id"]]
         if smoke:
             comps[-1]["smoke"] = smoke
     ct = lay.conning_tower

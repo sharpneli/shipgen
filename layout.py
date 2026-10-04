@@ -713,6 +713,87 @@ def stepped_counts(main):
     return sf.get("fore", nf), sf.get("aft", na)
 
 
+def deckhouse_levels(design):
+    """superstructure.deckhouse_levels: how many levels the deckhouse amidships has (1 when the design gives none)."""
+    return int((design.get("superstructure") or {}).get("deckhouse_levels", 1))
+
+
+DH_CELL = 0.5          # deckhouse levels are found in cells this long
+DH_MIN_RUN = 3.0       # and kept where at least this long
+DH_MIN_W = 3.0         # nor narrower than this
+DH_KEEP = 0.7          # a level is as wide as it can be while keeping this share of the length it has at DH_MIN_W
+
+
+def add_deckhouse_levels(lay, blocks, n, x0, x1, dh, dh_w, through=()):
+    """The deckhouse's levels above the first, up to level n, over the middle (x0 .. x1): room for the crew above the
+    hull, at the price of topweight and windage. Each level stands on the one below, keeps out of what stands on that
+    roof (secondaries, wing and midships turrets, the bridge and aft control) and of the guns' sweeps, and wraps
+    around the funnels (through: ids it may enclose). It is as wide as it can be while keeping most of its length
+    (DH_KEEP), and never wider than the level below. A narrow ship whose deckhouse is only under the bridge first
+    carries it on along the middle where the deck is free. Each run of cells becomes a block, Deckhouse k[-i]."""
+    if n <= 1:
+        return []
+    hull = lay.hull
+    cells = [x0 + DH_CELL * i for i in range(int((x1 - x0) / DH_CELL))]
+    made = []
+
+    def ok(x, w, base, top, support):
+        if support is not None and not support(x):
+            return False
+        hw = min(hull.half_width(x), hull.half_width(x + DH_CELL)) - 0.6
+        if w / 2 > hw:
+            return False
+        fp = _fp_rect(x, -w / 2, x + DH_CELL, w / 2)
+        return lay.free_at(fp, base, top, 0.3, through) and lay.clear(fp, top)
+
+    def runs(w, base, top, support):
+        out, start = [], None
+        for x in cells + [None]:
+            if x is not None and ok(x, w, base, top, support):
+                start = x if start is None else start
+                continue
+            if start is not None:
+                end = (x if x is not None else cells[-1] + DH_CELL)
+                if end - start >= DH_MIN_RUN - 1e-6:
+                    out.append((start, end))
+                start = None
+        return out
+
+    def level(k, w_max, support, skip=None):
+        base, top = LEVEL_H * (k - 1), LEVEL_H * k
+        sup = (lambda x: support(x) and not skip(x)) if skip else support
+        if w_max < DH_MIN_W:
+            return [], 0.0
+        total = lambda rr: sum(b - a for a, b in rr)
+        floor = total(runs(DH_MIN_W, base, top, sup))
+        if floor <= 0:
+            return [], 0.0
+        lo, hi = DH_MIN_W, w_max          # the widest that keeps DH_KEEP of the length
+        if total(runs(hi, base, top, sup)) >= DH_KEEP * floor:
+            lo = hi
+        while hi - lo > 0.25:
+            mid = (lo + hi) / 2
+            lo, hi = (mid, hi) if total(runs(mid, base, top, sup)) >= DH_KEEP * floor else (lo, mid)
+        rr = runs(lo, base, top, sup)
+        for i, (a, b) in enumerate(rr):
+            made.append(add_block(lay, blocks, f"Deckhouse {k}" + ("" if i == 0 else f"-{i + 1}"), a, b, lo, k,
+                                  min(1.0, lo / 4), min(1.0, lo / 4)))
+        return rr, lo
+
+    on = lambda rr: (lambda x: any(a <= x and x + DH_CELL <= b + 1e-6 for a, b in rr))
+    below = [(dh["x0"], dh["x1"])]
+    w = dh_w
+    if dh["x1"] - dh["x0"] < 0.5 * (x1 - x0):      # a narrow ship: the deckhouse goes on along the middle first
+        ext, w1 = level(1, dh_w, lambda x: True, skip=on(below))
+        below += ext
+    for k in range(2, n + 1):
+        below, w = level(k, w, on(below))
+        if not below:
+            lay.warnings.append(f"Only {k - 1} of {n} deckhouse levels fit amidships.")
+            break
+    return made
+
+
 def tower_levels(design, default):
     """superstructure.tower_levels: the bridge tower's (or island's) top level; default when the design gives none."""
     return int((design.get("superstructure") or {}).get("tower_levels", default))
@@ -1399,6 +1480,10 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                     placed += 1
         if placed < ntp:
             lay.fail("length", f"Only {placed} of {ntp} torpedo mounts fit on deck.")
+
+    # ---------------- deckhouse levels (superstructure.deckhouse_levels): room for the crew up top ----------------
+    add_deckhouse_levels(lay, blocks, deckhouse_levels(design), mid_aft, mid_fwd, dh, dh_w,
+                         [f["id"] for f in funnels])
 
     # ---------------- fire control: directors on the roofs ----------------
     firecontrol.place(lay, design, blocks)
