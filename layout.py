@@ -491,6 +491,7 @@ def add_machinery_rooms(lay, placed, inner_hw, depth):
         f["serves"] = seg_rooms.get(f.get("seg"), [])
 
 
+FUNNEL_ABOVE = 3.0      # m a funnel top stands over the tower's 4th level, and over any roof it passes through
 STACK_NATURAL = 25.0    # m from the grates to the funnel top that natural and boost draught plants want
 BRIDGE_OVER_BOILERS = 0.85   # how much of the bridge (and its gap) the forward boiler group may run on under
 # the navigating bridge's deck stands at least this far over the roof of the highest turret ahead of it, so the
@@ -564,6 +565,28 @@ def add_funnel_weights(lay, f, top, served_x, depth):
         lay.weights.append(Weight(f"Gratings {f['id']}", "armour", 0.6 * fp["area"] / max(1, sum(fp["counts"])),
                                   x=served_x, z_rel=("deck", plant["top"] - depth)))
     lay.funnels_planned.append(f)
+
+
+def raise_funnels(lay, funnels, blocks, top):
+    """The funnel top (m above the main deck) raised to FUNNEL_ABOVE over the highest block any funnel passes
+    through (deckhouse levels wrap round the funnels), with the funnels' footprints and weights updated to match."""
+    new = top
+    for f in funnels:
+        pts = _fp_points(_fp_rect(f["x"] - f["l"] / 2, f["y"] - f["w"] / 2, f["x"] + f["l"] / 2, f["y"] + f["w"] / 2))
+        for b in blocks:
+            if b.get("points") and polygons_intersect(b["points"], pts):
+                new = max(new, block_top(b) + FUNNEL_ABOVE)
+    if new <= top + 1e-6:
+        return top
+    by_id = {f["id"]: f for f in funnels}
+    lay.footprints = [(fp, b, new if o in by_id else t, o) for fp, b, t, o in lay.footprints]
+    for wt in lay.weights:
+        f = by_id.get(wt.name)
+        if f and wt.group == "superstructure":
+            z0 = f.get("z0", 0.0)
+            wt.w = powerplant.funnel_weight(f["w"], f["l"], new - z0, 0.0, 0.0)[0]
+            wt.z_rel = ("deck", (z0 + new) / 2)
+    return new
 
 
 # ---------------------------------------------------------------------------
@@ -1289,7 +1312,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         segs.append(["magazine", mag_l["aft"]])
     # funnels: enough for the gas, each within reach of its boilers (powerplant.funnel_plan). Natural and boost
     # draught want a tall stack: at least STACK_NATURAL from the grates to the funnel top.
-    fun_top = LEVEL_H * min(n_tower, 4) + 3.0
+    fun_top = LEVEL_H * min(n_tower, 4) + FUNNEL_ABOVE
     below = depth - plant["inner_bottom"] - 1.0          # grates to the main deck
     if res.plant["tech"]["draught"]["system"] in ("natural", "forced_boost"):
         fun_top = max(fun_top, STACK_NATURAL - below)
@@ -1945,6 +1968,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     # ---------------- deckhouse levels (superstructure.deckhouse_levels): room for the crew up top ----------------
     add_deckhouse_levels(lay, blocks, deckhouse_levels(design), mid_aft, mid_fwd, dh, dh_w,
                          [f["id"] for f in funnels], base_block=deckhouse)
+    fun_top = raise_funnels(lay, funnels, blocks, fun_top)
 
     # ---------------- fire control: directors on the roofs ----------------
     firecontrol.place(lay, design, blocks)
