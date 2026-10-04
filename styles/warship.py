@@ -18,7 +18,6 @@ class Warship(Style):
     CASEMATES = True
     MIN_TOWER = 2            # the bridge (level 2) at least
     DECKHOUSE_LEVELS = True
-    BRIDGE_LEVEL = True      # superstructure.bridge_level: a tall tower bridge (Nelson) over base levels
 
     def build_layout(self, design, res, shift=0.0):
         return build_layout(design, res, shift)

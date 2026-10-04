@@ -289,10 +289,25 @@ def report_dict(design, lay, r, sized):
         hull=hull_report(design, r),
         crew=lay.crew,
         fire_control=firecontrol.report(lay, r.freeboard),
+        **({"bridge": bridge_report(lay, r.freeboard)} if "bridge" in lay.geo else {}),
         weight_groups_t={k: round(v) for k, v in sorted(r.groups.items(), key=lambda kv: -kv[1])},
         weights=[dict(name=w.name, group=w.group, t=round(w.w, 1), x=round(w.x, 2), z=round(w.z, 2))
                  for w in r.weights],
     )
+
+
+BRIDGE_EYE = 1.7   # m: the officer of the watch's eye over the bridge deck
+
+
+def bridge_report(lay, deck_m):
+    """The navigating bridge's view (warships): its level, eye height above the waterline and horizon, and whether it
+    sees over the highest forward turret. The tower's height (superstructure.tower_levels) trades this and the
+    directors' horizons against topweight and windage (gm_*, gale_heel_deg, windage_m2)."""
+    b = lay.geo["bridge"]
+    eye = deck_m + b["floor"] + BRIDGE_EYE
+    return dict(level=b["level"], tower_levels=b["tower"], eye_height_m=round(eye, 2),
+                horizon_km=round(firecontrol.horizon_km(eye), 1), sees_over_turrets=b["level"] >= b["need"],
+                level_to_see_over_turrets=b["need"])
 
 
 def height_columns(lay, deck_m):

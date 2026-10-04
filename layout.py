@@ -902,17 +902,20 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     fwd_tier = min(nf, max(n_step_f, 1)) - 1 if (tm and nf) else None    # the forward group's top tier
     fwd_roof = 1.2 + fwd_tier * superfire_step(th) + th if fwd_tier is not None else None
     nb_need = bridge_level(fwd_roof)
-    # superstructure.bridge_level: where the bridge stands. By default the lowest level that sees over the guns (on
-    # a tower_levels too low for that, its top level); higher makes a tall tower bridge over its base levels (Nelson's
-    # navigating bridge stood about level 8). The tower reaches at least the bridge.
-    sup = design.get("superstructure") or {}
-    nb = int(sup.get("bridge_level", min(nb_need, sup.get("tower_levels", nb_need))))
-    n_tower = max(nb, tower_levels(design, nb + (2 if L >= 180 else 1)))    # by default 1-2 levels over the bridge
+    # superstructure.tower_levels is the tower's height, a slider: the bridge stands as high in it as leaves the levels
+    # over it (Bridge upper, Tower n: the compass platform and director tower, 1 level, 2 from 180 m), and never below
+    # nb_need. A tall tower makes a tall tower bridge over its base levels (Nelson: about level 8 of 10); a tower too
+    # low for the view puts the bridge on its top level, with a warning
+    over = 2 if L >= 180 else 1
+    n_tower = tower_levels(design, nb_need + over)
+    nb = min(n_tower, max(nb_need, n_tower - over))
     if nb < nb_need:
         lay.warnings.append(
             f"The bridge (level {nb}, its deck {LEVEL_H * (nb - 1):.1f} m above the main deck) cannot see over "
-            f"turret {turret_name('ABC', fwd_tier)}'s roof ({fwd_roof:.1f} m): superstructure.bridge_level "
+            f"turret {turret_name('ABC', fwd_tier)}'s roof ({fwd_roof:.1f} m): superstructure.tower_levels "
             f"{nb_need} or more lifts it clear.")
+    lay.geo["bridge"] = dict(level=nb, floor=LEVEL_H * (nb - 1), need=nb_need, tower=n_tower,
+                             turret_roof=fwd_roof)
     hood = firecontrol.HOOD_H if firecontrol.spec(design)["main"]["directors"] else 0.0
     wide = B >= 15
 
