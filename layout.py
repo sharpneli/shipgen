@@ -858,6 +858,25 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
             best = placed
     else:
         placed = best
+    # nearest first leaves the row lopsided by up to a pitch (an even count's last gun goes to whichever side is a
+    # hair nearer), and that flips as the balancing shift moves: slide the whole arrangement so its middle is at c
+    every = [(x, bt) for got, bt in zip(placed, bats) for x in got]
+    if every:
+        mean = (min(x for x, _ in every) + max(x for x, _ in every)) / 2
+        for d in sorted((0.5 * k for k in range(-40, 41)), key=lambda d: (abs(mean + d - c), d)):
+            if abs(mean + d - c) >= abs(mean - c):
+                break         # no slide brings it nearer
+            ok_ = True
+            for x, (_, _, _, t, upper) in every:
+                key = (x + d, t["r"], upper)
+                if key not in ok_cache:
+                    ok_cache[key] = (upper_ok if upper else lower_ok)(x + d, t["r"])
+                if not ok_cache[key]:
+                    ok_ = False
+                    break
+            if ok_:
+                placed = [[x + d for x in got] for got in placed]
+                break
     galleries = []    # upper-tier housings: [x0, x1, yo, depth, ids]
     lower_x = [x for got, bt in zip(placed, bats) if not bt[4] for x in got]
     for got, (sec, n, t_id, t, upper) in zip(placed, bats):
@@ -921,7 +940,7 @@ def deckhouse_levels(design):
 
 # Superstructure levels. Every warship level (the 01 deckhouse, the deckhouse levels over it, the bridge tower and the
 # aft control) is one block made by add_level from the same rules: the caller gives its intent (a core x0..x1, w
-# wide, on the centreline, and which ends may grow toward the end turrets), level_outline shapes it.
+# wide, on the centreline), level_outline shapes it.
 DH_INSET = 0.6         # level 1 stands on the deck: its sides follow the deck edge this far in
 DH_TURRET_CLEAR = 1.0  # every level's ends keep this far from an end turret's body (its swing zone is kept out too)
 DH_FIT = 0.375         # an end's shape is fitted on stations this far apart across the ship
@@ -980,7 +999,7 @@ def _fp_intervals(fp, y, margin):
     return [(min(xs) - margin, max(xs) + margin)] if xs else []
 
 
-def level_outline(lay, x0, x1, w, base, top, support=None, grow=(False, False), keep=(), ignore=(), notches=()):
+def level_outline(lay, x0, x1, w, base, top, support=None, keep=(), ignore=(), notches=()):
     """A superstructure level's outline: a room laid out like a deck, not a slab. It stands on its support (a convex
     polygon: the level below, or the deck band for level 1) and is clipped to it, so its sides follow the level below
     and, at the bottom, the deck edge. Its ends start at x0 / x1 and are shaped by what lies beyond them:
@@ -988,9 +1007,8 @@ def level_outline(lay, x0, x1, w, base, top, support=None, grow=(False, False), 
       - every other turret's sweep lower than its roof (top),
       - whatever stands at its height (lay.footprints overlapping base .. top, FP_MARGIN clear; ignore: ids it may
         enclose, such as funnels).
-    Inside a turret's blind arc that makes a nose pointing at the turret. An end may grow outward (grow: (aft, fwd))
-    only toward an end turret, as far as its body allows on the centreline; it always reaches far enough to carry the
-    bounding boxes in keep (what stands on its roof). Each end is convex and symmetric: flat, or a face across the
+    Inside a turret's blind arc that makes a nose pointing at the turret. An end reaches out past x0 / x1 only as far
+    as it must to carry the bounding boxes in keep (what stands on its roof). Each end is convex and symmetric: flat, or a face across the
     ship (at least DH_MIN_FACE wide, or none: a point) with one straight sweep from each edge back to the side, as
     shallow as the obstacles allow. A sweep must fall back DH_MIN_DROP and add DH_STEP_COST m2 a side over the flat
     end. What lies in a notch's bite (notches: (x0, x1, half-width), cut by notch_outline) doesn't shape the ends.
@@ -1009,11 +1027,11 @@ def level_outline(lay, x0, x1, w, base, top, support=None, grow=(False, False), 
     fps = [o[0] for o in lay.footprints if o[2] > base + 1e-6 and o[1] < top - 1e-6 and o[3] not in ignore
            and o[3] not in end_ids]
     prof = {}
-    for e, xc, may_grow in ((1, x1, grow[1]), (-1, x0, grow[0])):
+    for e, xc in ((1, x1), (-1, x0)):
         uc = e * xc
         ms = [m for m in ends if e * (m["x"] - xc) > 0]
         rad = {m["id"]: armament.body_reach(m["t"]) + DH_TURRET_CLEAR for m in ms}
-        cap = max(0.0, min((e * (m["x"] - xc) - rad[m["id"]] for m in ms), default=0.0)) if may_grow else 0.0
+        cap = 0.0
         req = [floor] * (n + 1)
         for bx0, by0, bx1, by1 in keep:     # what stands on the roof must stay on it
             far = max(e * bx0, e * bx1) - uc + 0.3
@@ -1140,7 +1158,7 @@ def bevel_outline(pts, keep=(), flush=(), inner=None):
     return out
 
 
-def add_level(lay, blocks, bid, level, x0, x1, w, support=None, grow=(False, False), keep=(), ignore=(),
+def add_level(lay, blocks, bid, level, x0, x1, w, support=None, keep=(), ignore=(),
               notches=(), joins=(None, None), bevel=None):
     """One superstructure level as a block, shaped by level_outline (support: the polygon it stands on, the deck band
     by default), bevelled (bevel_outline) and narrowed at its notches (notch_outline). Returns the block, or None if
@@ -1150,7 +1168,7 @@ def add_level(lay, blocks, bid, level, x0, x1, w, support=None, grow=(False, Fal
     face falls back to the side in a shoulder (shoulder_outline) instead of a bevel. bevel: the corner cut
     (bevel_outline's inner)."""
     base, top = LEVEL_H * (level - 1), LEVEL_H * level
-    pts = level_outline(lay, x0, x1, w, base, top, support, grow, keep,
+    pts = level_outline(lay, x0, x1, w, base, top, support, keep,
                         list(ignore) + [j["id"] for j in joins if j], notches)
     for e, (xf, j) in enumerate(zip((x0, x1), joins)):
         if j and len(pts) >= 3:
@@ -1247,14 +1265,15 @@ DH_KEEP = 0.7          # a level is as wide as it can be while keeping this shar
                        # DH_MIN_W: nearly all, so it runs on in one piece between the secondaries
 
 
-def add_deckhouse_levels(lay, blocks, n, x0, x1, dh, dh_w, through=(), base_block=None):
+def add_deckhouse_levels(lay, blocks, n, x0, x1, base_blocks, dh_w, through=()):
     """The deckhouse's levels above the first, up to level n, over the middle (x0 .. x1): room for the crew above the
     hull, at the price of topweight and windage. Each level stands on the one below, keeps out of what stands on that
     roof (secondaries, wing and midships turrets, the bridge and aft control) and of the guns' sweeps, and wraps
     around the funnels (through: ids it may enclose). It is as wide as it can be while keeping most of its length
-    (DH_KEEP), and never wider than the level below. A narrow ship whose deckhouse is only under the bridge first
-    carries it on along the middle where the deck is free. Each run of cells is the core of a level (add_level) on
-    the block below it (base_block: the level-1 deckhouse), Deckhouse k[-i]."""
+    (DH_KEEP), and never wider than the level below (dh_w: level 1's core width). A ship whose level-1 deckhouse
+    covers less than half the middle first carries it on along the middle where the deck is free. Each run of cells
+    is the core of a level (add_level) on the block below it (base_blocks: the level-1 deckhouse pieces),
+    Deckhouse k[-i]."""
     if n <= 1:
         return []
     hull = lay.hull
@@ -1343,9 +1362,9 @@ def add_deckhouse_levels(lay, blocks, n, x0, x1, dh, dh_w, through=(), base_bloc
         return out, lo
 
     on = lambda bb: (lambda x: any(b["x0"] <= x and x + DH_CELL <= b["x1"] + 1e-6 for b in bb))
-    below = [base_block]
+    below = list(base_blocks)
     w = dh_w
-    if dh["x1"] - dh["x0"] < 0.5 * (x1 - x0):      # a narrow ship: the deckhouse goes on along the middle first
+    if sum(b["x1"] - b["x0"] for b in below) < 0.5 * (x1 - x0):   # the deckhouse goes on along the middle first
         ext, w1 = level(1, dh_w, lambda x: True, skip=on(below))
         below += ext
     for k in range(2, n + 1):
@@ -1806,6 +1825,9 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     mach_c = (min(p_[1] for p_ in plant_placed) + max(p_[2] for p_ in plant_placed)) / 2
     lay.geo["machinery"] = (min(p_[1] for p_ in plant_placed), max(p_[2] for p_ in plant_placed))
     lay.geo["machinery_x"] = mach_c
+    # riders: what level 1 is built under, (x0, x1, half-width) each, its footprint and DH_INSET round it: the guns
+    # standing on its roof (stands_on "deckhouse") and the upper casemates' housings
+    riders = []
     if nm or nw:
         mid_base = (LEVEL_H if mid_raised else 0.0) + 1.2
 
@@ -1813,6 +1835,8 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             lay.reserve_sweep(armament.add_mount(lay, mounts, "main", tm_id, tm, mid, x, y, mid_base, rest, 1,
                                                  armour_mm=armour.get("turret_mm", 0), depth=depth,
                                                  footprint_r=reach, label="Turret", **kw))
+            if mid_raised:
+                riders.append((x - reach - DH_INSET, x + reach + DH_INSET, abs(y) + reach + DH_INSET))
 
         for k, (x, stow) in enumerate(mids):
             main_mount(turret_name("QPRS", k), x, 0.0, stow, arc_role="beam", midships=True)
@@ -1839,20 +1863,6 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     while la and not lay.clear(_fp_rect(ax0, -0.14 * B, ax0 + la, 0.14 * B), LEVEL_H * (na_lvl + 1)) and \
             ax0 + la < bx0:
         ax0 += 0.5
-    # level-1 deckhouse: the full middle on big ships, only under the bridge on small ones
-    if wide:
-        dh = dict(x0=mid_aft, x1=mid_fwd + 1.0)
-    else:
-        dh = dict(x0=bx0 - 3.0, x1=bx1 + 1.0)
-    # trim the deckhouse ends out of low turrets' sweeps, at the widest the deckhouse can get (the hull's)
-    def dh_rect(x0, x1):
-        hw = min(hull.half_width(dh["x0"]), hull.half_width(dh["x1"])) - 0.6
-        return _fp_rect(x0, -hw, x1, hw)
-    while not lay.clear(dh_rect(dh["x0"], dh["x1"]), LEVEL_H) and dh["x1"] - dh["x0"] > 4:
-        if lay.clear(dh_rect(dh["x0"], (dh["x0"] + dh["x1"]) / 2), LEVEL_H):
-            dh["x1"] -= 0.5
-        else:
-            dh["x0"] += 0.5
     # bridge tower: base levels (chart house, offices, sea cabins) as wide as the bridge up to it, then the bridge
     # and the levels over it as before (a bridge at level 2 builds the tower it always did). A really tall tower
     # tapers above TOWER_TAPER_FROM (tower_taper), like a pagoda or a tall tower bridge; the bridge keeps its full
@@ -1869,7 +1879,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
 
     def stack(bid, k, x0_, x1_, w_, below):
         """One level of a tower standing on the level below (below: its block, or None for the deck band). Upper
-        levels never grow past their core (only level 1 does), so a tower keeps its setbacks."""
+        levels never grow past their core, so a tower keeps its setbacks."""
         b_ = add_level(lay, blocks, bid, k, x0_, x1_, w_, support=below and below["points"])
         return b_ or below
 
@@ -1970,9 +1980,6 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         rs_reach = max(rs, turret_reach({**ts, "barrel_len": 0}))
         ths = turret_height(ts)
         x_lo, x_hi = mid_aft + rs_reach + 0.5, mid_fwd - rs_reach - 0.5
-        if raised:   # they stand on the deckhouse: stay on what is left of it after trimming
-            x_lo = max(mid_aft, dh["x0"]) + rs_reach + 0.5
-            x_hi = min(mid_fwd, dh["x1"]) - rs_reach - 0.5
         inner = max([b["w"] / 2 for b in blocks if b["level"] >= 2] + [fw / 2] + ([reach] if nm else [])) \
             + rs_reach + 0.4
 
@@ -2029,27 +2036,70 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                                    footprint_r=rs_reach, material=sec.get("material"))
         if raised and sxs:
             y_s = max(y_at(sx) for sx in sxs)
-            dh_w = max(dh_w, 2 * (y_s + rs_reach + 0.6)) if not first else 2 * (y_s + rs_reach + 0.6)
+            riders += [(sx - rs_reach - DH_INSET, sx + rs_reach + DH_INSET, y_s + rs_reach + DH_INSET) for sx in sxs]
         first = False
-    if wide:
-        if nw and mid_raised:   # wing turrets stand on the deckhouse
-            dh_w = max(dh_w, 2 * (y_w + reach + 0.6))
-        hw_max = max(hull.half_width(dh["x0"] + (dh["x1"] - dh["x0"]) * k / 20) for k in range(21))
-        dh_w = min(dh_w, 2 * (hw_max - DH_INSET))     # the sides follow the deck edge (level_outline)
-    # level 1 (add_level): on the deck, its ends grown toward the end turrets on big ships, under all that stands
-    # on it, wrapped round the funnels
-    keep = [_bbox(o[0]) for o in lay.footprints if o[1] >= LEVEL_H - 0.01
-            and dh["x0"] <= (_bbox(o[0])[0] + _bbox(o[0])[2]) / 2 <= dh["x1"]]
-    deckhouse = add_level(lay, blocks, "Deckhouse", 1, dh["x0"], dh["x1"], dh_w, grow=(wide, wide), keep=keep,
-                          ignore=[f["id"] for f in funnels])
-    dh_pts = deckhouse["points"]
-    blocks.insert(0, blocks.pop())  # draw the deckhouse first, under the bridge
-    # the deckhouse is under everything else in the middle; secondaries stand on it
-    lay.footprints = [fp for fp in lay.footprints if fp[3] != "Deckhouse"] + \
-                     [(_fp_poly(dh_pts), 0, LEVEL_H, "Deckhouse")]
 
     # ---------------- casemates: guns in the hull side, below the main deck ----------------
     place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth)
+    housings = [b for b in blocks if b["id"].startswith("Casemate housing")]
+    # level 1 fills the deck between the housings, out to their inner faces: one battery deck with them
+    riders += [(b["x0"], b["x1"], abs(b["y"]) - b["w"] / 2) for b in housings]
+
+    # ---------------- level 1: under the towers and under what stands on it ----------------
+    # Under the bridge from just aft of it to just forward (the bridge's base levels stand on it), and under the aft
+    # control. The riders get one piece over all of them (a convex level spans the gaps between them), as wide as
+    # the widest needs, which runs on under the bridge and the aft control where the main deck between is free:
+    # nothing stands there or sweeps it below the roof (funnels pass through), so a gap would only be bare deck.
+    # A ship without riders keeps level 1 under its towers, the guns on the main deck around them.
+    dh = dict(x0=bx0 - 3.0, x1=bx1 + 1.0)       # under the bridge
+    dh_w = 0.62 * B
+    pieces = []      # (id, x0, x1, w)
+    aft_on = False   # the aft control stands on the riders' piece
+    if riders:
+        rx0, rx1 = min(r_[0] for r_ in riders), max(r_[1] for r_ in riders)
+        rw = 2 * max(r_[2] for r_ in riders)
+        through = [f["id"] for f in funnels] + [h["id"] for h in housings]
+
+        def deck_free(x0_, x1_):     # nothing on the main deck between, across the piece's width
+            if x1_ <= x0_:
+                return True
+            fp = _fp_rect(x0_, -rw / 2, x1_, rw / 2)
+            return lay.free_at(fp, 0.0, LEVEL_H, FP_MARGIN, through) and lay.clear(fp, LEVEL_H)
+        if deck_free(rx1, dh["x0"]):
+            rx0, rx1, rw = min(rx0, dh["x0"]), max(rx1, dh["x1"]), max(rw, dh_w)
+            dh = None
+        if la and deck_free(ax0 + la, rx0):
+            rx0, aft_on = min(rx0, ax0), True
+        hw_max = max(hull.half_width(rx0 + (rx1 - rx0) * k / 20) for k in range(21))
+        pieces.append(("Deckhouse", rx0, rx1, min(rw, 2 * (hw_max - DH_INSET))))   # sides follow the deck edge
+    if dh:
+        pieces.append(("Deckhouse-2" if pieces else "Deckhouse", dh["x0"], dh["x1"], dh_w))
+    if la and not aft_on:
+        pieces.append(("Aft control base 1", ax0, ax0 + la, 0.28 * B))
+
+    def dh_rect(x0, x1):     # the widest the piece can get (the hull's)
+        hw = min(hull.half_width(x0), hull.half_width(x1)) - 0.6
+        return _fp_rect(x0, -hw, x1, hw)
+
+    level1 = []
+    for pid, x0_, x1_, w_ in pieces:
+        # trim the ends out of low turrets' sweeps
+        while not lay.clear(dh_rect(x0_, x1_), LEVEL_H) and x1_ - x0_ > 4:
+            if lay.clear(dh_rect(x0_, (x0_ + x1_) / 2), LEVEL_H):
+                x1_ -= 0.5
+            else:
+                x0_ += 0.5
+        # on the deck, under all that stands on it, wrapped round the funnels, joined with the housings
+        keep = [_bbox(o[0]) for o in lay.footprints if o[1] >= LEVEL_H - 0.01
+                and x0_ <= (_bbox(o[0])[0] + _bbox(o[0])[2]) / 2 <= x1_]
+        b_ = add_level(lay, blocks, pid, 1, x0_, x1_, w_, keep=keep,
+                       ignore=[f["id"] for f in funnels] + [h["id"] for h in housings])
+        if b_:
+            blocks.insert(0, blocks.pop())  # draw level 1 first, under the towers
+            level1.append(b_)
+    dh_blocks = [b_ for b_ in level1 if b_["id"].startswith("Deckhouse")]
+    dh_ids = tuple(b_["id"] for b_ in dh_blocks)
+    dh_w = next((w_ for pid, _, _, w_ in pieces if pid == "Deckhouse"), dh_w)
 
     # ---------------- torpedo mounts ----------------
     tp = design.get("torpedoes") or {}
@@ -2095,13 +2145,14 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                     lay.weights.append(Weight(mid, "armament", torpedo_weight(tt["barrels"]), x=x, z_rel=("deck", 1)))
                     placed += 1
         if placed < ntp and wide:   # the deck is taken: on the deckhouse roof, on its centreline
-            cands = sorted([dh["x0"] + sweep + 0.5 * k for k in range(int((dh["x1"] - dh["x0"] - 2 * sweep) * 2) + 1)],
+            cands = sorted([b_["x0"] + sweep + 0.5 * k for b_ in dh_blocks
+                            for k in range(int((b_["x1"] - b_["x0"] - 2 * sweep) * 2) + 1)],
                            key=lambda x: abs(x - mach_c))
             for x in cands:
                 if placed >= ntp:
                     break
                 fp = _fp_circle(x, 0, sweep)
-                if lay.free(fp, 0.3, ignore=("Deckhouse",)) and lay.clear(fp, LEVEL_H + 1.4):
+                if lay.free(fp, 0.3, ignore=dh_ids) and lay.clear(fp, LEVEL_H + 1.4):
                     mid = f"T{placed + 1}"
                     mounts.append(dict(id=mid, kind="torpedo", type=tt_id, t=tt, x=x, y=0.0, level=1,
                                        base=LEVEL_H + 0.3, top=LEVEL_H + 1.4, rest=90, z=1))
@@ -2113,8 +2164,8 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             lay.fail("length", f"Only {placed} of {ntp} torpedo mounts fit on deck.")
 
     # ---------------- deckhouse levels (superstructure.deckhouse_levels): room for the crew up top ----------------
-    add_deckhouse_levels(lay, blocks, deckhouse_levels(design), mid_aft, mid_fwd, dh, dh_w,
-                         [f["id"] for f in funnels], base_block=deckhouse)
+    add_deckhouse_levels(lay, blocks, deckhouse_levels(design), mid_aft, mid_fwd, dh_blocks, dh_w,
+                         [f["id"] for f in funnels])
     fun_top = raise_funnels(lay, funnels, blocks, fun_top)
 
     # ---------------- fire control: directors on the roofs ----------------
@@ -2180,7 +2231,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             break
         y = (dh_w / 2 - 0.35 * bl_ - 0.6) if wide else (B / 2 - 0.35 * bl_ - 1.0)
         fps = [_fp_rect(x - bl_ / 2, s * y - 0.15 * bl_, x + bl_ / 2, s * y + 0.15 * bl_) for s in (1, -1)]
-        if y > fw / 2 + 0.3 * bl_ and all(lay.free(fp, 0.3, ignore=("Deckhouse",)) and lay.clear(fp, LEVEL_H + 1.5)
+        if y > fw / 2 + 0.3 * bl_ and all(lay.free(fp, 0.3, ignore=dh_ids) and lay.clear(fp, LEVEL_H + 1.5)
                                           for fp in fps):
             for s, fp in zip((1, -1), fps):
                 boats.append(dict(x=x, y=s * y, l=bl_, w=0.3 * bl_))
