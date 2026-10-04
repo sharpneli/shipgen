@@ -239,6 +239,13 @@ def turret_height(t: dict) -> float:
     return {"bb": 0.42, "dp": 0.55, "open": 0.9, "torp": 0.5, "tube": 1.6, "casemate": 0.42}[t.get("shape", "bb")] * t["r"]
 
 
+def superfire_step(th: float) -> float:
+    """How much higher each superfiring tier stands than the one it fires over, metres, for a turret th tall.
+    About one deck, a little more for big turrets: Iowa's 16in turret II stands 2.6 m over turret I, and
+    Atlanta's 5in twins step up a deck (about 2.4 m) each. The guns (at 0.55 th) clear the roof below by 1.1-1.6 m."""
+    return 2.0 + 0.2 * th
+
+
 def polygon_area(pts):
     return abs(sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1]))) / 2
 

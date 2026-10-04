@@ -16,6 +16,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
+from geometry import superfire_step
 import hullweight
 import powerplant
 
@@ -114,7 +115,7 @@ def mount_weights(t: dict, armour_mm: float, depth: float, level: int):
     t_avg = TUNING["turret_t_avg"] * armour_mm / 1000.0
     turret = guns + mech + area * t_avg * STEEL
     # barbette: from the armour deck up to the turret base (superfiring turrets are taller)
-    bh = 0.45 * depth + level * (th + 1.0)
+    bh = 0.45 * depth + level * superfire_step(th)
     barbette = 2 * math.pi * 0.95 * r * bh * (0.8 * armour_mm / 1000.0) * STEEL if t.get("barbette", True) else 0.0
     ammo = n * rounds_per_gun(cal) * TUNING["shell_k"] * cal ** 3 / 1000.0 * TUNING["ammo_mult"]
     return turret, barbette, ammo

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import math
 
-from geometry import make_torpedo_type, make_turret_type, turret_height, turret_reach
+from geometry import make_torpedo_type, make_turret_type, superfire_step, turret_height, turret_reach
 from layout import _fp_circle, _fp_rect, _overlap, stepped_counts, turret_name
 from navarch import TUNING, Weight, mount_weights, torpedo_weight
 from geometry import AA_CFG
@@ -82,7 +82,7 @@ def gun_line(lay, mounts, turret_types, gun, kind, names, x_start, step_dir, y, 
         x = x_start + step_dir * (reach + i * s)
         flush = i >= k and not flat     # behind the stepped turrets: flush on deck, firing to the sides
         level = 0 if (flush or flat) else ((k - 1 - i) if raise_inner else i)
-        base = deck_h(x) + level * (th + 1.0)
+        base = deck_h(x) + level * superfire_step(th)
         mid = turret_name(names, i)
         if not lay.free(_fp_circle(x, y, reach), 0.4, ignore):
             lay.fail("length", f"{label} mount {mid} ({gun['calibre_mm']:g} mm) does not fit at {x:.0f} m: "

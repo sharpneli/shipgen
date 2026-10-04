@@ -25,7 +25,7 @@ import re
 
 from geometry import (make_turret_type, make_torpedo_type, rrect_polygon, rrect_clamped, circle_polygon,
                       turret_shapes, turret_height, turret_reach, point_in_polygon, polygons_intersect,
-                      sector_polygon)
+                      sector_polygon, superfire_step)
 import ordnance
 import powerplant
 from navarch import Weight, mount_weights, torpedo_weight, TUNING
@@ -1168,7 +1168,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                 # the rest stand flush behind and fire to the sides only
                 flush = i >= max(stepped[gname], 1)
                 level = 0 if flush else i
-                base = 1.2 + level * (th + 1.0)
+                base = 1.2 + level * superfire_step(th)
                 mid = turret_name(names[gname], i)
                 # a flush turret stows pointing away from the stepped turret ahead of it
                 m = armament.add_mount(lay, mounts, "main", tm_id, tm, mid, x, 0.0, base,
