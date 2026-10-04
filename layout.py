@@ -1064,11 +1064,45 @@ def level_outline(lay, x0, x1, w, base, top, support=None, grow=(False, False), 
     return clip_convex(simplify_polygon(pts), support)
 
 
+BEVEL_OUTER = (3.0, 0.22)   # m, share of the level's width: the facets on the end facing the nearer end of the ship
+BEVEL_INNER = (0.8, 0.07)   # and the small cuts on the other corners
+
+
+def bevel_outline(pts, keep=()):
+    """Chamfers a level's near-square corners (interior angle 60-120 deg; swept ends and points are left alone), so
+    no level is a plain box: a big facet on the end facing the nearer end of the ship (the bridge front, the aft
+    control's back), a small cut elsewhere. A corner is kept where something in keep (bounding boxes of what stands
+    on the roof) comes within the cut."""
+    if len(pts) < 3:
+        return pts
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    w, xm = max(ys) - min(ys), (min(xs) + max(xs)) / 2
+    out = []
+    for i, b in enumerate(pts):
+        a, c = pts[i - 1], pts[(i + 1) % len(pts)]
+        ua, uc = (a[0] - b[0], a[1] - b[1]), (c[0] - b[0], c[1] - b[1])
+        la, lc = math.hypot(*ua), math.hypot(*uc)
+        if la < 1e-6 or lc < 1e-6 or abs(ua[0] * uc[0] + ua[1] * uc[1]) > 0.5 * la * lc:
+            out.append(b)
+            continue
+        outer = (b[0] - xm) * (1 if xm >= 0 else -1) > 0
+        cap, frac = BEVEL_OUTER if outer else BEVEL_INNER
+        size = min(cap, frac * w, 0.4 * la, 0.4 * lc)
+        if size < 0.25 or any(bx0 - size < b[0] < bx1 + size and by0 - size < b[1] < by1 + size
+                              for bx0, by0, bx1, by1 in keep):
+            out.append(b)
+            continue
+        out += [(b[0] + ua[0] / la * size, b[1] + ua[1] / la * size),
+                (b[0] + uc[0] / lc * size, b[1] + uc[1] / lc * size)]
+    return out
+
+
 def add_level(lay, blocks, bid, level, x0, x1, w, support=None, grow=(False, False), keep=(), ignore=()):
     """One superstructure level as a block, shaped by level_outline (support: the polygon it stands on, the deck band
-    by default). Returns the block, or None if nothing of it stands on its support."""
+    by default) and bevelled (bevel_outline). Returns the block, or None if nothing of it stands on its support."""
     base, top = LEVEL_H * (level - 1), LEVEL_H * level
-    pts = level_outline(lay, x0, x1, w, base, top, support, grow, keep, ignore)
+    pts = bevel_outline(level_outline(lay, x0, x1, w, base, top, support, grow, keep, ignore), keep)
     if len(pts) < 3 or polygon_centroid(pts)[0] < 1.0:
         return None
     return add_block(lay, blocks, bid, x0, x1, w, level, 0.0, 0.0, points=pts)
