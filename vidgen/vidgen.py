@@ -121,16 +121,17 @@ def blend(frame, rgba, x0, y0):
     dst += src[..., :3] * a
 
 
-def stamp_max(buf, alpha, x0, y0, mask=None):
-    """buf = max(buf, alpha) over the patch at (x0, y0); mask (full-frame bool) limits where it lands."""
+def stamp_max(buf, alpha, x0, y0, heights=None, below=None):
+    """buf = max(buf, alpha) over the patch at (x0, y0). With heights (full-frame metres) and below, it lands only
+    where heights < below: a shadow cast from height `below` can't climb anything taller."""
     h, w = alpha.shape
     H, W = buf.shape
     fx0, fy0, fx1, fy1 = max(0, x0), max(0, y0), min(W, x0 + w), min(H, y0 + h)
     if fx0 >= fx1 or fy0 >= fy1:
         return
     a = alpha[fy0 - y0:fy1 - y0, fx0 - x0:fx1 - x0]
-    if mask is not None:
-        a = a * mask[fy0:fy1, fx0:fx1]
+    if heights is not None:
+        a = a * (heights[fy0:fy1, fx0:fx1] < below)
     np.maximum(buf[fy0:fy1, fx0:fx1], a, out=buf[fy0:fy1, fx0:fx1])
 
 
@@ -403,6 +404,17 @@ class Scene:
             mt.pos_m = np.array(m["pos_m"], float)
             mt.screen = self.to_screen(mt.pos_m)
             mt.top_m = m["top_m"]
+            # turret shadows are swept from the barbette top (the height map under the pivot) up to the roof, and
+            # measured from the deck the mount stands on (a low percentile of the height map around it, sea left
+            # out), not the main deck: a raised forecastle turret would otherwise cast too long
+            px, py = int(round(mt.screen[0])), int(round(mt.screen[1]))
+            Hh, Hw = self.Hs.shape
+            inside = 0 <= px < Hw and 0 <= py < Hh
+            mt.base_h = min(float(self.Hs[py, px]), mt.top_m) if inside else self.deck_m
+            r = max(2, int(mt.img.width * 0.35))
+            patch = self.Hs[max(0, py - r):py + r, max(0, px - r):px + r]
+            patch = patch[patch > 0.3]
+            mt.recv_h = min(float(np.percentile(patch, 20)), mt.base_h) if patch.size else self.deck_m
             mt.trav = m["traverse_deg"]
             mt.rest = unwrap(m["rest_deg"], mt.trav)
             if mt.rest is None:      # README promises the traverse holds the rest bearing; be permissive anyway
@@ -634,9 +646,16 @@ class Scene:
             x0 = int(round(mt.screen[0] - arr.shape[1] / 2))
             y0 = int(round(mt.screen[1] - arr.shape[0] / 2))
             rots.append((arr, x0, y0))
-            off = sun_offset_px(s, SUN_AZ, SUN_EL, max(0.0, mt.top_m - self.deck_m))
-            stamp_max(shade, arr[..., 3].astype(np.float32) / 255, x0 + int(round(off[0])),
-                      y0 + int(round(off[1])), mask=self.Hs < mt.top_m)
+            # the turret's body from its barbette top to its roof, as slices about 1.5 px of shadow apart, so the
+            # shadow runs unbroken from the barbette's (in the height map) to the roof's
+            alpha = arr[..., 3].astype(np.float32) / 255
+            span = (mt.top_m - mt.base_h) / math.tan(math.radians(SUN_EL)) * s
+            n = max(1, min(24, int(math.ceil(span / 1.5))))
+            for j in range(n + 1):
+                h = mt.base_h + (mt.top_m - mt.base_h) * j / n
+                off = sun_offset_px(s, SUN_AZ, SUN_EL, max(0.0, h - mt.recv_h))
+                stamp_max(shade, alpha, x0 + int(round(off[0])), y0 + int(round(off[1])), self.Hs, h)
+        self.last_shade = shade          # kept for debugging shadow issues
         frame *= (1 - SHADE * shade)[..., None]
         for arr, x0, y0 in rots:
             blend(frame, arr, x0, y0)

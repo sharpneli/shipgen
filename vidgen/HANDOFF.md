@@ -47,6 +47,21 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
   zoomed far out (Gangut, 904 m), where it would alias.
 - **Speed:** about 0.35 s a frame at 720p, so 2–3 minutes a clip.
 
+- **Turret shadows depart from shipgen's README "Shadows"** (user, 2026-10-05: "barbettes don't have shadows
+  rendered"). Barbettes are in the height map, but the turret above them rotates, so the README stamps one
+  roof silhouette offset by `top_m - deck_m`. That leaves a gap between the barbette's thin crescent and a
+  floating roof shadow. On Seydlitz's raised A it also overshoots, because the offset is measured from the main
+  deck. vidgen instead:
+  - sweeps the silhouette in slices from the barbette top (`base_h`, the height map under the pivot) to `top_m`,
+    about 1.5 px of shadow apart and at most 24 slices
+  - measures each slice from the deck the mount stands on (`recv_h`, the 20th percentile of the height map
+    around the mount, sea left out)
+  - keeps each slice only where the receiving surface is lower than it
+  - smears barrel shadows slightly along the sun direction, which is acceptable here
+
+  The game's shader and shipgen's previews have the same gap. If the sweep looks right, the same fix belongs in
+  shipgen's `shadow.py` docs and `render.py`.
+
 ## Known oddities
 - Gangut is so small on screen that its stern churn piles into a disc.
 - Masts cast long, thin, solid shadows on the sea. That's correct for a 23 m mast at 45°, but it can look heavy.
