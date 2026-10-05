@@ -271,15 +271,17 @@ NAVIES = {
                             "boat": "#f4f2ec", "fitting": "#8a7d63", "mast": "#b8913f", "crane": "#8a7d63"},
                 "turrets": "slab",
                 "shapes": {"transom": 0.15, "blocks": "boxy"}},
-            # US-inspired 1910s: light blue-tinged grey over pale, cool teak, big cage masts, boxy turrets
+            # US-inspired 1917-18: light blue-tinged grey over pale, cool teak under navy-blue, mid-blue and pale grey dazzle
+            # (decks too), big cage masts, boxy turrets
             "great_war": {
-                "from": "generic/great_war", "desc": "US-inspired 1910s: light blue-grey, pale teak, big cage masts, boxy turrets",
+                "from": "generic/great_war", "desc": "US-inspired 1917-18: light blue-grey and pale teak under blue dazzle, big cage masts, boxy turrets",
                 "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.12, "styles": NAVAL},
                            {"keys": ["hull", "upperworks", "armament"], "tint": ["#6f8aa3", 0.18], "styles": NAVAL},
                            {"keys": "wood", "tint": ["#b9b19c", 1.0], "styles": NAVAL}],
+                "palette": {"camo": ["#1c2f52", "#3b6db0", "#d6e2ee"]},
                 "turrets": "slab",
                 "shapes": {"transom": 0.15, "funnel": "box", "blocks": "boxy", "mast": "cage", "tripod": 0.0,
-                           "top_r": 0.0, "cage_r": 3.8}},
+                           "top_r": 0.0, "cage_r": 3.8, "dazzle": True, "dazzle_decks": 0.75}},
             # US-inspired 1920s-30s: light navy grey, the cage masts kept until the rebuilds
             "treaty": {
                 "from": "generic/treaty", "desc": "US-inspired 1920s-30s: light navy grey, cage masts, boxy turrets",
