@@ -666,28 +666,45 @@ def build_hull(spec, scale, align=2, shadows=True):
 
     # planking / plating lines
     spacing = spec.get("plank_spacing", 1.25)
-    lines = []
-    yy = -hull.B / 2
-    while yy < hull.B / 2:
-        lines.append(f'<line x1="{f(-hull.L / 2)}" y1="{f(yy)}" x2="{f(hull.L / 2)}" y2="{f(yy)}"/>')
-        yy += spacing
-    # butt joints / plate seams across the deck
-    xx = -hull.L / 2
     seam = 9.0 if spec.get("deck") == "wood" else 6.0
-    while xx < hull.L / 2:
-        lines.append(f'<line x1="{f(xx)}" y1="{f(-hull.B / 2)}" x2="{f(xx)}" y2="{f(hull.B / 2)}" stroke-dasharray="{f(spacing)} {f(spacing * 2)}"/>')
-        xx += seam
+
+    def plank_lines(x0, x1, y_off=0.0, dash_off=0.0):
+        """Planks (or plates) along the deck from x0 to x1, their seams across it from x0 on: y_off shifts the
+        planks across, dash_off the butt joints along each seam."""
+        out = []
+        yy = -hull.B / 2 + y_off
+        while yy < hull.B / 2:
+            out.append(f'<line x1="{f(x0)}" y1="{f(yy)}" x2="{f(x1)}" y2="{f(yy)}"/>')
+            yy += spacing
+        xx = x0
+        while xx < x1:
+            out.append(f'<line x1="{f(xx)}" y1="{f(-hull.B / 2)}" x2="{f(xx)}" y2="{f(hull.B / 2)}" '
+                       f'stroke-dasharray="{f(spacing)} {f(spacing * 2)}"'
+                       + (f' stroke-dashoffset="{f(dash_off)}"' if dash_off else "") + '/>')
+            xx += seam
+        return out
+
+    lines = plank_lines(-hull.L / 2, hull.L / 2)
     line_col = pal["deck_line"] if spec.get("deck") == "wood" else pal.get("steel_line", pal["deck_line"])
     low.append(f'<g clip-path="url(#deckclip)" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '
                 f'stroke-opacity="{f(P.shapes.get("deck_line_opacity", 0.45))}">{"".join(lines)}</g>')
 
-    # raised decks (forecastle, bridge deck, poop): the hull outline between x0 and x1, a step up, lighter per deck
+    # raised decks (forecastle, bridge deck, poop): the hull outline between x0 and x1, a step up, lighter per deck.
+    # Each is laid as its own deck: planks shifted half a plank on alternate levels, butt seams from its own end,
+    # and a margin plank round its edge, so the texture never runs on across a break
     for i, rd in enumerate(spec.get("raised_decks", [])):
-        rd_d = hull_path(hull, inset=rd.get("inset", 0.3), x_min=rd["x0"], x_max=rd["x1"])
-        defs += f'<clipPath id="rdclip{i}"><path d="{rd_d}"/></clipPath>'
-        low.append(f'<path d="{rd_d}" fill="{shade(deck_col, 1.07 ** rd.get("levels", 1))}" {P.stroke()}/>'
-                    f'<g clip-path="url(#rdclip{i})" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '
-                    f'stroke-opacity="0.45">{"".join(lines)}</g>')
+        lv = rd.get("levels", 1)
+        rd_in = rd.get("inset", 0.3)
+        rd_d = hull_path(hull, inset=rd_in, x_min=rd["x0"], x_max=rd["x1"])
+        margin_d = hull_path(hull, inset=rd_in + 2 * spacing / 3, x_min=rd["x0"] + 2 * spacing / 3,
+                             x_max=rd["x1"] - (2 * spacing / 3 if rd["x1"] < hull.L / 2 - 0.5 else 0.0))
+        defs += f'<clipPath id="rdclip{i}"><path d="{margin_d}"/></clipPath>'
+        rd_lines = plank_lines(rd["x0"], rd["x1"], spacing / 2 if lv % 2 else 0.0, 1.5 * spacing * lv)
+        low.append(f'<path d="{rd_d}" fill="{shade(deck_col, 1.07 ** lv)}" {P.stroke()}/>'
+                   f'<path d="{margin_d}" fill="none" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '
+                   f'stroke-opacity="0.45"/>'
+                   f'<g clip-path="url(#rdclip{i})" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '
+                   f'stroke-opacity="0.45">{"".join(rd_lines)}</g>')
     for ht in spec.get("hatches", []):
         low.append(P.hatch(ht))
     paint, number = deck_paint(spec, hull, P)
