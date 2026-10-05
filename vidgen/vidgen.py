@@ -517,7 +517,7 @@ class Scene:
         bk = wake.bake(wl, B, res.get("draught_m", self.deck_m), self.speed, extent, dx,
                        cb=res.get("block_coefficient", 0.55), wash=wash)
         self.wake_info = bk.info
-        gy, gx = np.gradient(bk.eta, bk.dx)
+        gx, gy = bk.gx, bk.gy
         k = 1 / (s * bk.dx)
         data = (c * k, sn * k, (-c * self.C[0] - sn * self.C[1]) * k - bk.x0 / bk.dx,
                 -sn * k, c * k, (sn * self.C[0] - c * self.C[1]) * k - bk.y0 / bk.dx)
@@ -534,7 +534,7 @@ class Scene:
         self.wake_calm = np.clip(self.wake_wash * 0.9, 0, 0.75)
 
         # foam tiles in ship axes, anchored to the water: streaky along the track for the wash, rounder for crests
-        feat = max(1.0, 2.5 / s)         # foam clump size, m: never finer than about two and a half pixels
+        feat = max(0.6, 2.5 / s)         # foam clump size, m: never finer than about two and a half pixels
         n = 512
         self.tile_k = 4 / feat           # tile px per metre
         rng = self.rng
@@ -561,10 +561,16 @@ class Scene:
         n = tiles[0].shape[0]
         a = math.radians(self.heading)
         du, dv = self.pos[0] * math.cos(a) + self.pos[1] * math.sin(a), -self.pos[0] * math.sin(a) + self.pos[1] * math.cos(a)
-        iu = ((self.lx + du) * self.tile_k).astype(np.int32) % n
-        iv = ((self.ly + dv) * self.tile_k).astype(np.int32) % n
+        # bilinear: zoomed in (a destroyer fills the frame), one tile px spans two screen px and nearest sampling
+        # showed as stair-stepped clumps
+        fu, fv = (self.lx + du) * self.tile_k, (self.ly + dv) * self.tile_k
+        iu, iv = np.floor(fu), np.floor(fv)
+        wu, wv = (fu - iu).astype(np.float32), (fv - iv).astype(np.float32)
+        iu, iv = iu.astype(np.int32) % n, iv.astype(np.int32) % n
+        ju, jv = (iu + 1) % n, (iv + 1) % n
         ph = 2 * math.pi * t / 14.0
-        g = tiles[0][iv, iu] * math.cos(ph) + tiles[1][iv, iu] * math.sin(ph)
+        tl = tiles[0] * math.cos(ph) + tiles[1] * math.sin(ph)
+        g = ((tl[iv, iu] * (1 - wu) + tl[iv, ju] * wu) * (1 - wv) + (tl[jv, iu] * (1 - wu) + tl[jv, ju] * wu) * wv)
         th = np.tanh(0.7978845 * (g + 0.044715 * g * g * g))     # 2 Phi(g) - 1
         return 1 - np.abs(th) if ridged else 0.5 + 0.5 * th
 

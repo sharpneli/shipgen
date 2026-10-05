@@ -57,8 +57,17 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
     showed ahead of the bow.
   - **Normals:** the wake's slopes at 1x, not wake.md's 2–3x (the swell already carries the light), capped at 0.3,
     and eta is left whole under the hull: zeroing it there put a cliff in the normals that read as a halo.
-  - **Crest foam:** slope breaking is weighted 0.25 and `tau_crest` is 5 s, not 8 s. The peel line spreads more
-    slowly, and the bow sheet thickens toward the stem so it shows past the deck's overhang.
+  - **Crest foam:** slope breaking is weighted 0.25 and `tau_crest` is 3 s, not 8 s. The peel line spreads more
+    slowly, and the bow sheet thickens toward the stem so it shows past the deck's overhang. Only the crest itself
+    is full strength; what it leaves behind in the water is a trail at 0.35 (`trail`). Carrying the full value aft
+    filled the wedge inside the oblique peel line with solid foam, about twice the beam wide on a 36 kn destroyer.
+  - **Wash front:** the wash is born over a short ramp (`0.03 L + 0.2 B`) whose front curves aft off the centreline,
+    where the flow closes in behind the stern. A step at the transom read as a straight edge across the track
+    (Bismarck).
+  - **Precision:** slopes are taken spectrally on the solve grid and resampled bicubically. A gradient of the
+    bilinearly resampled eta was constant per solve cell (about 3 px on a destroyer), which showed as blocks. The
+    foam noise tiles are sampled bilinearly, and clumps are floored at 0.6 m (was 1 m, nearest-sampled), so a
+    ship that fills the frame doesn't get stair-stepped clumps.
   - **Wash:** capped at 0.85, so the noise always breaks it up (else a planing boat's wash is a flat slab). The
     wash multiplier is 2 for planing craft and 0.925–1.15 by shaft count. The wash also tints the sea toward
     `CHURN` and flattens the ripples, the slick.

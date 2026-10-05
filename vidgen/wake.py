@@ -65,7 +65,7 @@ class Bake:
     starboard)."""
 
 
-def bake(wl, B, T, U, extent, dx, *, cb=0.55, wash=1.0, tau_crest=5.0, tau_wash=45.0, damp=0.08):
+def bake(wl, B, T, U, extent, dx, *, cb=0.55, wash=1.0, tau_crest=3.0, trail=0.35, tau_wash=45.0, damp=0.08):
     """wl: waterline polygon (n, 2), B beam, T draught, U speed (m/s), extent (xmin, xmax, ymax) the ship-local
     box that must be covered, dx grid step (m)."""
     t0 = time.perf_counter()
@@ -99,6 +99,10 @@ def bake(wl, B, T, U, extent, dx, *, cb=0.55, wash=1.0, tau_crest=5.0, tau_wash=
     H = -G * T * K * np.fft.rfft2(ms) / D
     H[0, 0] = 0
     big = np.fft.irfft2(H, s=(sy, sx)).astype(np.float32)
+    # slopes taken spectrally on the solve grid and resampled: a gradient of the bilinearly resampled eta is
+    # constant per solve cell, which showed as blocks in the shading and the slope-breaking foam
+    bgx = np.fft.irfft2(1j * KX * H, s=(sy, sx)).astype(np.float32)
+    bgy = np.fft.irfft2(1j * KY * H, s=(sy, sx)).astype(np.float32)
     t_fft = time.perf_counter() - t0
     Zcal = float(np.percentile(big[ms < 0.05], 99.9))
 
@@ -107,16 +111,21 @@ def bake(wl, B, T, U, extent, dx, *, cb=0.55, wash=1.0, tau_crest=5.0, tau_wash=
     x = x0 + dx * np.arange(nx, dtype=np.float32)
     y = -yh + dx * np.arange(ny, dtype=np.float32)
     k = dx / dxs
-    eta = np.asarray(Image.fromarray(big, "F").transform(
-        (nx, ny), Image.AFFINE, (k, 0, (x0 - X0) / dxs, 0, k, (YH - yh) / dxs), resample=Image.BILINEAR))
+
+    def resample(a):
+        return np.asarray(Image.fromarray(a, "F").transform(
+            (nx, ny), Image.AFFINE, (k, 0, (x0 - X0) / dxs, 0, k, (YH - yh) / dxs), resample=Image.BICUBIC))
     m = raster(wl, x0, -yh, dx, nx, ny)
 
-    # calibrate the crest to Zb; the linear model overshoots at a full transom, so clamp the troughs
-    eta = eta * (Zb / max(Zcal, 1e-3))
+    # calibrate the crest to Zb; the linear model overshoots at a full transom, so clamp the troughs (the slopes
+    # go flat where it clamps)
+    cal = Zb / max(Zcal, 1e-3)
+    eta = resample(big) * cal
+    live = np.abs(eta) < 1.5 * Zb
     eta = np.clip(eta, -1.5 * Zb, 1.5 * Zb)    # left whole under the hull: a cut there would be a cliff in the normals
+    gx, gy = resample(bgx) * cal * live, resample(bgy) * cal * live
 
     # foam sources
-    gy, gx = np.gradient(eta, dx)
     slope = np.hypot(gx, gy)
     src_crest = 0.25 * np.clip((slope - 0.5) / 0.4, 0, 1) * (eta > 0.3 * Zb) * min(1.0, FrL / 0.25)
     half = np.abs(y)[:, None] * m
@@ -157,17 +166,25 @@ def bake(wl, B, T, U, extent, dx, *, cb=0.55, wash=1.0, tau_crest=5.0, tau_wash=
     w0 = 0.4 * B
     inj = np.exp(-(y / w0) ** 2) * min(U / 10, 1.0) * 0.8 * wash * (1 + plane)
 
-    # advect bow -> stern (water runs -x at U); crest foam keeps its max and decays fast, the wash accumulates
+    # advect bow -> stern (water runs -x at U). The breaking crest itself is the bright line; what it leaves in the
+    # water is a weaker trail that decays fast. Carrying the full value aft (a max along each row) filled the whole
+    # wedge inside an oblique peel line with solid foam, a slab twice the beam wide on a fast destroyer.
     dc = math.exp(-dx / (U * tau_crest))
     crest = np.empty_like(src)
     a = np.zeros(ny, np.float32)
     for i in range(nx - 1, -1, -1):
-        a = np.maximum(a * dc, src[:, i])
-        crest[:, i] = a
+        a = np.maximum(a * dc, trail * src[:, i])
+        crest[:, i] = np.maximum(a, src[:, i])
     dw = math.exp(-dx / (U * tau_wash))
     wsh = np.zeros_like(src)
     if i_tr > 0:
         wsh[:, :i_tr + 1] = inj[:, None] * (dw ** (i_tr - np.arange(i_tr + 1)))[None, :]
+        # the wash is born where the flow closes in behind the stern: on the centreline at the transom, further aft
+        # off it, and over a short run rather than a step (a step read as a straight edge across the track)
+        ramp = 0.03 * L + 0.2 * B
+        front = xs + 0.5 * ramp - 1.2 * (y / B) ** 2 * B
+        age0 = np.clip((front[:, None] - x[None, :i_tr + 1]) / ramp, 0, 1)
+        wsh[:, :i_tr + 1] *= age0 * age0 * (3 - 2 * age0)
         # lateral spreading ~ sqrt(age): banded blur, keeping each column's total
         age = (xs - x)[:i_tr + 1]
         step = max(dx, float(age.max()) / 48)
@@ -183,7 +200,7 @@ def bake(wl, B, T, U, extent, dx, *, cb=0.55, wash=1.0, tau_crest=5.0, tau_wash=
 
     b = Bake()
     b.x0, b.y0, b.dx, b.nx, b.ny = float(x0), float(-yh), dx, nx, ny
-    b.eta, b.crest, b.wash, b.mask = eta, np.clip(crest, 0, 1), wsh, m
+    b.eta, b.gx, b.gy, b.crest, b.wash, b.mask = eta, gx, gy, np.clip(crest, 0, 1), wsh, m
     b.info = dict(solve=(sx, sy), dx_solve=dxs, L=L, U=U, FrL=FrL, FrD=FrD, Zb=Zb, lam=lam, theta_deg=math.degrees(theta),
                   entrance_deg=math.degrees(beta), grid=(nx, ny), dx=dx, t_fft=t_fft,
                   t_total=time.perf_counter() - t0)
