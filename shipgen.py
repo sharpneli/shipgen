@@ -36,6 +36,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from fleet import FLEET, TURRET_TYPES
 from looks import DEFAULT_PALETTE
+import clutter
 from geometry import turret_shapes, turret_reach, barrel_shown, BARREL_ROOT, CASEMATE_SHIELD, rrect_polygon, Hull, AA_CFG, point_in_polygon, \
     director_parts
 
@@ -793,10 +794,28 @@ def build_hull(spec, scale, align=2, shadows=True):
         defs += f'<clipPath id="hullclip"><path d="{hull_d}"/><path d="{fd_d}"/></clipPath>'
 
     # --- superstructure, fittings, AA, boats --------------------------------
+    # a look's clutter kit (clutter.py): roof finishes drawn with each block, the gear itself after all blocks
+    kit = clutter.KITS.get(sh.get("clutter") or "")
+    items = clutter.plan(spec, Hull(spec), turret_types(spec), sh) if kit else []
+    spec["_clutter"] = items
+    planks = sh.get("roof_planks", kit["roof_planks"]) if kit else 0
+    rails = sh.get("roof_rails", kit["roof_rails"]) if kit else False
     for sb in expand(spec.get("superstructure"), hull):
         layer = sb.get("layer", "base" if sb.get("level", 1) <= 1 else "upper")
-        (low if layer == "base" else high).append(P.block(sb, clip="hullclip"))
-    low.append(vents(spec, hull, P))
+        out = low if layer == "base" else high
+        out.append(P.block(sb, clip="hullclip"))
+        if kit and not sb.get("director"):
+            out.append(clutter.roof_finish(sb, P, kit, planks, rails, pal["wood"]))
+    if kit:
+        for it in items:
+            lvl = it["level"]
+            if lvl == 0:
+                col = deck_col
+            else:
+                col = pal["levels"][min(lvl, len(pal["levels"])) - 1]
+            (low if lvl <= 1 else high).append(clutter.draw(it, P, col))
+    else:
+        low.append(vents(spec, hull, P))
     for ft in expand(spec.get("fittings"), hull):
         (high if ft.get("layer") == "upper" else low).append(P.fitting(ft))
     for a in expand(spec.get("aa"), hull):

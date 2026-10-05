@@ -74,6 +74,8 @@ beside it wins):
     tumblehome         the hull drawn this much wider than the deck (a fraction of the beam): sides that bulge
                        out below a narrow deck
     deck_line_opacity  planking and plate seam lines (0.45; 0 = a plain deck)
+    clutter            the kit of roof and deck gear (clutter.KITS; defaults to the look's era, None = none),
+                       with clutter_density, roof_planks and roof_rails (see clutter.py)
 
 Precedence, lowest first: DEFAULT_PALETTE, look palette, STYLE_PALETTES[style], look by_style, design "palette".
 All colours live here: the design side (shipdesign, styles) has none.
@@ -668,7 +670,8 @@ def validate(design) -> list[str]:
 
 def shapes(design) -> dict:
     lk = get(design)
-    out = {**lk["shapes"], **lk.get("shapes_by_style", {}).get(style_name(design), {})}
+    out = {"clutter": look_of(design)["era"],
+           **lk["shapes"], **lk.get("shapes_by_style", {}).get(style_name(design), {})}
     if look_of(design).get("number"):
         out["number"] = str(look_of(design)["number"])
     return out

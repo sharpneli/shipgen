@@ -17,6 +17,7 @@ import os
 
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
+import clutter
 import hitview
 import looks
 import shadow
@@ -126,7 +127,8 @@ def render_ship(ship, out_dir, S, mips=0, look=None, previews=True):
     hull_p = os.path.join(out_dir, "hull.png")
     render(hull_svg, hull_p, os.path.join(out_dir, "hull.svg"))
     deck_m = rd["deck_m"]
-    height_svg, max_h = shadow.build_height_svg(rd["columns"], vb, S, hull)
+    columns = rd["columns"] + clutter.height_columns(spec.get("_clutter", []), rd["columns"], hull)
+    height_svg, max_h = shadow.build_height_svg(columns, vb, S, hull)
     height_p = os.path.join(out_dir, "height.png")
     render(height_svg, height_p)
     shadow.to_height_png(height_p)
