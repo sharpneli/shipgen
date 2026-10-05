@@ -46,8 +46,12 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
   foam fed by decaying whitewater) and `wash` (the propulsor lane). The bake takes 0.4–2 s; the column march and
   age blur dominate. The heading is fixed and the camera follows the ship, so `Scene._wake` warps the bake to the
   frame once; per frame only the foam texture moves. That's two gaussian noise tiles in ship axes, anchored to the
-  water and crossfaded over 14 s, mapped to uniform 0..1. They are drawn with wake.md 6's soft breakup
-  (`alpha = sat((noise - (1 - d) + 0.18) / 0.36) * sat(1.6 d)`), with the residual at half opacity. The wash also
+  water and crossfaded over 14 s, made ridged (high along the noise's zero lines) and mapped to uniform 0..1.
+  Foam is drawn where the noise beats `1 - c`, with coverage `c = cap * d^gamma` of the density (`LACE`), at most
+  0.9 opaque, with the residual at half opacity. This departs from wake.md 6's soft breakup on smooth noise, which
+  read as mush, and from its solid core: the reference's fresh foam is a broad plateau near 1 beside the forward
+  hull, and the wash reaches 1.5, so both drew as flat white slabs. Lace needs the coverage well under a half, so
+  the caps keep the densest foam holed, and fresh foam's gamma 1.5 keeps the bow ears thin away from the hull. The wash also
   tints the sea toward `CHURN` and flattens the ripples (the slick). Stem spray is still particles (rate from
   Noblesse's Zb), as are the gun blasts and torpedo tracks.
   The port replaced the earlier pressure-patch bake and its hand tweaks (bow crest envelope, peel line, wash cap
@@ -63,12 +67,8 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
     resampled bicubically. The reference's resolution-tied widths (the hull band's `1.5 dx`, the smoothing of m)
     use the reference's own step `d_ref`. Smoothing m at the fine step let very short divergent waves through,
     and they showed as fine straight streaks.
+  - **Checked:** the bake's fields match `wake_bake_ref.py` run through a numpy stand-in for scipy.
   - **Normals:** the wake's slopes at 1x, not wake.md's 2–3x (the swell already carries the light), capped at 0.3.
-- **Wake: open after the port (first look, 2026-10-05).** The bake's shapes match the reference (checked by
-  running `wake_bake_ref.py` through a numpy shim for scipy). The look is let down by the drawing: density at 1 or
-  more draws solid, so the bow sheet beside the forward hull and the wash lane are flat white slabs. And the soft
-  breakup on smooth gaussian noise reads as mush, not lace. Next: the shader and noise, then whether the wash and
-  sheet densities need a cap.
 - **Particles:** smoke, spray, gun smoke and blast foam are splatted into half-resolution density buffers in blur
   buckets (`Density`). Buckets with a big radius are splatted into coarser grids, which halved the frame time.
 - **Water:** 14 low-steepness components with no dominant pair, because two strong crossing swells read as a

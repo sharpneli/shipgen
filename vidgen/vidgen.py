@@ -63,6 +63,21 @@ SHADE = 0.5              # how much a full shadow darkens
 WATER_DEEP = np.array([0.075, 0.175, 0.235], np.float32)
 WATER_LIT = np.array([0.13, 0.26, 0.32], np.float32)
 WATER_SKY = np.array([0.55, 0.66, 0.72], np.float32)
+# foam drawing: ridged noise is high along its zero lines, so covering a fraction c of it (noise > 1 - c) draws
+# filaments at small c and a sheet with open cells near 1. Lace needs c well under a half; the coverage is
+# cap * d^gamma of the density d (LACE), so the densest foam is still lace with holes, never a flat slab, and
+# medium densities stay thin. LACE_SOFT is the edge width in noise units.
+LACE = {"fresh": (0.55, 1.5), "resid": (0.45, 1.0), "wash": (0.7, 1.0)}
+LACE_SOFT = 0.2
+LACE_RESID = 0.5          # residual foam's opacity (wake.md 3)
+
+
+def lace(d, noise, kind):
+    cap, gamma = LACE[kind]
+    c = cap * np.clip(d, 0, 1) ** gamma
+    return np.clip((noise - (1 - c)) / LACE_SOFT + 0.5, 0, 1) * np.clip(1.6 * d, 0, 0.9)
+
+
 CHURN = np.array([0.26, 0.45, 0.49], np.float32)
 FOAM = np.array([0.93, 0.96, 0.97], np.float32)
 FLASH = np.array([1.0, 0.72, 0.30], np.float32)
@@ -533,9 +548,8 @@ class Scene:
         self.wake_fresh, self.wake_resid, self.wake_wash = warp(bk.fresh), warp(bk.resid), warp(bk.wash)
         self.wake_calm = np.clip(self.wake_wash * 0.9, 0, 0.75)
 
-        # foam tiles in ship axes, anchored to the water: streaky along the track (wake.md: cells ~2.5 m, stretched
-        # x4 along it), never finer than about two and a half pixels
-        feat = max(2.5, 2.5 / s)
+        # foam tiles in ship axes, anchored to the water: streaky along the track for the wash, rounder for crests
+        feat = max(0.6, 2.5 / s)         # foam clump size, m: never finer than about two and a half pixels
         n = 512
         self.tile_k = 4 / feat           # tile px per metre
         rng = self.rng
@@ -550,8 +564,8 @@ class Scene:
                 fld = np.real(np.fft.ifft2(spec))
                 out = out + amp * fld / fld.std()
             return (out / out.std()).astype(np.float32)     # unit gaussian
-        self.tiles_wash = (tile(6, 1.5), tile(6, 1.5))
-        self.tiles_crest = (tile(4, 1.5), tile(4, 1.5))
+        self.tiles_wash = (tile(7, 1.6), tile(7, 1.6))
+        self.tiles_crest = (tile(2.5, 1.8), tile(2.5, 1.8))
         self.spray_rate = self.speed * max(0.0, bk.info["Zb"] - 1.0) * 4
         self.wake_info["t_setup"] = time.perf_counter() - t0
 
@@ -702,13 +716,10 @@ class Scene:
         # baked wake: the wash tints the water to a pale churned slick, then the three foam densities are broken up
         # by water-anchored noise (wake.md 6, shader note), the residual foam at half opacity
         frame += (CHURN - frame) * np.clip(self.wake_wash * 0.9, 0, 0.7)[..., None]
-        tw = self.foam_tex(self.tiles_wash, self.t)
-        tc = self.foam_tex(self.tiles_crest, self.t)
-
-        def breakup(d, noise):
-            return np.clip((noise - (1 - d) + 0.18) / 0.36, 0, 1) * np.clip(1.6 * d, 0, 1)
-        f = np.maximum(np.maximum(breakup(self.wake_wash, tw), breakup(self.wake_fresh, tc)),
-                       0.5 * breakup(self.wake_resid, 1 - tc))
+        tw = self.foam_tex(self.tiles_wash, self.t, ridged=True)
+        tc = self.foam_tex(self.tiles_crest, self.t, ridged=True)
+        f = np.maximum(np.maximum(lace(self.wake_wash, tw, "wash"), lace(self.wake_fresh, tc, "fresh")),
+                       LACE_RESID * lace(self.wake_resid, tw, "resid"))
         frame += (FOAM - frame) * f[..., None]
         foam = upscale(self.field(self.foam) + self.field(self.spray), W, H) * self.water.foam_noise
         frame += (FOAM - frame) * np.clip(1 - np.exp(-1.6 * foam), 0, 0.95)[..., None]
