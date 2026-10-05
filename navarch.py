@@ -22,6 +22,7 @@ import powerplant
 
 STEEL = 7.85  # t/m^3
 SEAWATER = 1.025  # t/m^3
+OVERLOAD_TB = 3.0  # solve() gives up once the draught passes this x beam and still grows (overloaded from 0.48)
 
 TUNING = dict(
     hull_k=0.112,           # styles with hull_model "box" (planing craft): structure = hull_k * (L*B*D)^hull_exp;
@@ -237,6 +238,12 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         if abs(full - disp) < 0.5:
             disp = full
             break
+        if not math.isfinite(full) or full > disp and full / (SEAWATER * L * B * cb) > OVERLOAD_TB * B:
+            # Still growing past any ship: on a hull this narrow, each tonne sinks it deeper, which deepens the hull
+            # and adds more than a tonne. Iterating on, the depth runs to kilometres (and the deck stack with it).
+            res.errors.append(f"The weights never settle on a {B:.1f} m beam: the ship sinks deeper with every "
+                              "tonne it carries. A wider hull, or less armour or armament, would help.")
+            break
         disp = 0.5 * disp + 0.5 * full
     else:   # every tonne added needs more hull to float it, which adds more tonnes: no design exists
         res.errors.append(f"The weights never settle: the ship needs a bigger hull to carry its load, which "
@@ -424,6 +431,7 @@ def hull_structure(design, L, B, cb, D, full, arm, above=None, raised=()):
 
 
 MIN_TIER = 1.0         # a deck closer than this (m) to the inner bottom (the keel on a planing craft) is left out
+MAX_DECKS = 60         # a backstop, far past any ship (156 m deep): a runaway depth must not build decks without end
 DECK_NAMES = ["Main deck", "Second deck", "Third deck", "Fourth deck", "Fifth deck", "Sixth deck", "Seventh deck",
               "Eighth deck", "Ninth deck", "Tenth deck"]
 ARMOUR_EXTENTS = ("citadel", "full", "fore", "aft", "ends")
@@ -444,7 +452,7 @@ def deck_stack(design, D):
     a planing craft); the main deck is always there."""
     floor = 0.0 if design.get("style") == "planing" else powerplant.double_bottom(D)
     out = [(0, D)]
-    while D - len(out) * DECK_PITCH >= floor + MIN_TIER - 1e-9:
+    while D - len(out) * DECK_PITCH >= floor + MIN_TIER - 1e-9 and len(out) <= MAX_DECKS:
         out.append((len(out), D - len(out) * DECK_PITCH))
     return out
 
