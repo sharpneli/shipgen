@@ -31,6 +31,7 @@ from geometry import block_outline, point_in_polygon, polygon_area, polygon_y_sp
 # L from amidships (everywhere / on the open deck only)
 #   edge    mirrored, just inboard of the roof's or deck's edge
 #   row     2-4 side by side, along the edge or (half the time) anywhere across like pair
+# near: "funnel" keeps the item within NEAR_FUNNEL m (along the ship) of a funnel, where the boiler rooms breathe
 ITEMS = {
     "cowl":       dict(l=1.3, w=1.3, h=1.8, place="pair"),
     "cowl_small": dict(l=0.9, w=0.9, h=1.2, place="pair"),
@@ -47,6 +48,11 @@ ITEMS = {
     "scuttle":    dict(l=0.5, w=0.5, h=0.0, place="edge"),
     "paravane":   dict(l=3.2, w=0.7, h=0.4, place="edge"),
     "dc_rack":    dict(l=4.0, w=1.2, h=1.0, place="edge"),
+    # big gear, for the big roofs (kit "big")
+    "boiler_cowl": dict(l=2.4, w=2.4, h=3.2, place="pair", near="funnel"),
+    "engine_skylight": dict(l=6.5, w=3.4, h=1.0, place="pair", centre_p=0.7),
+    "searchlight_tower": dict(l=3.4, w=3.4, h=2.6, place="pair"),
+    "fan_house":  dict(l=4.2, w=2.6, h=2.0, place="pair", centre_p=0.4, near="funnel"),
 }
 
 # Boats: (kind, length m, beam m); nested boats ride inside a bigger one (Victorian and Great War practice)
@@ -60,38 +66,54 @@ BOATS = {
     "whaleboat": (8.0, 2.4),   # motor whaleboat with a canopy forward
 }
 
-# Kits by era. roof / deck: (item, items per 100 m^2 of open surface); boats: the boats on big roofs, biggest
+# Kits by era. roof / deck: (item, items per 100 m^2 of open surface); big: (item, items per 100 m^2 of a roof's
+# area beyond what the small items count, ROOF_SAT); boats: the boats on big roofs, biggest
 # first; nest: a dinghy rides in each cutter; scuttles: coal scuttles along the deck edges amidships
 KITS = {
     "victorian": dict(
         roof=[("cowl", 1.6), ("skylight", 0.7), ("hatch", 0.6), ("cowl_small", 1.0)],
+        big=[("boiler_cowl", 0.3), ("engine_skylight", 0.2)],
         deck=[("cowl", 0.35), ("skylight", 0.25), ("capstan", 0.15), ("hatch", 0.2), ("reel", 0.15)],
         boats=["cutter", "pinnace", "gig", "whaler"], nest=True, scuttles=True,
         roof_planks=60.0, roof_rails=True),
     "great_war": dict(
         roof=[("cowl", 1.2), ("searchlight", 0.5), ("skylight", 0.4), ("hatch", 0.5), ("cowl_small", 0.9)],
+        big=[("boiler_cowl", 0.25), ("engine_skylight", 0.15), ("searchlight_tower", 0.1)],
         deck=[("cowl", 0.3), ("skylight", 0.15), ("capstan", 0.12), ("hatch", 0.2), ("reel", 0.2),
               ("paravane", 0.05)],
         boats=["pinnace", "cutter", "whaler", "pinnace", "gig"], nest=True, scuttles=True,
         roof_planks=60.0, roof_rails=True),
     "treaty": dict(
         roof=[("mushroom", 1.2), ("searchlight", 0.45), ("vent_box", 0.5), ("hatch", 0.5), ("float", 0.4)],
+        big=[("fan_house", 0.25), ("searchlight_tower", 0.12), ("engine_skylight", 0.08)],
         deck=[("mushroom", 0.3), ("capstan", 0.1), ("hatch", 0.2), ("reel", 0.2), ("paravane", 0.06)],
         boats=["launch", "cutter", "pinnace", "whaler"], max_boats=6, nest=False, scuttles=False,
         roof_planks=0.0, roof_rails=True),
     "wwii": dict(
         roof=[("locker", 1.3), ("float", 1.0), ("vent_box", 0.8), ("mushroom", 0.8), ("hatch", 0.4)],
+        big=[("fan_house", 0.3), ("searchlight_tower", 0.08)],
         deck=[("locker", 0.25), ("float", 0.25), ("mushroom", 0.25), ("hatch", 0.2), ("reel", 0.2),
               ("paravane", 0.04), ("dc_rack", 0.0)],
         boats=["launch", "whaler"], max_boats=4, nest=False, scuttles=False, roof_planks=0.0, roof_rails=True),
     "cold_war": dict(
         roof=[("raft", 1.4), ("vent_box", 1.0), ("mushroom", 0.6), ("hatch", 0.5)],
+        big=[("fan_house", 0.3)],
         deck=[("raft", 0.08), ("vent_box", 0.2), ("hatch", 0.25), ("reel", 0.25), ("dc_rack", 0.0)],
         boats=["whaleboat"], max_boats=2, nest=False, scuttles=False, roof_planks=0.0, roof_rails=True),
 }
 
 MARGIN = 0.45      # clear space round every item and from a roof's edge, m
 BOAT_ROOF_W = 8.0  # a roof this wide (and wider) carries boats
+# Roof counts grow with area only up to about ROOF_SAT m^2, then with its square root: a long boat deck between
+# the funnels (Kongo, Dante) held boats and a few vents, not gear strewn end to end at the small-roof density.
+# Roofs at level 3 and up (bridge and fire-control platforms) carry HIGH_ROOF of the count. Decks keep the
+# plain per-area count.
+ROOF_SAT = 600.0
+HIGH_ROOF = 0.6
+# The rest of a big roof's area goes to the kit's big gear, and each m^2 the big gear covers takes BIG_SHARE m^2
+# from the area the small items count (the clear space round a fan house or a skylight is part of it).
+BIG_SHARE = 5.0
+NEAR_FUNNEL = 7.0
 
 
 # ----------------------------------------------------------------------------
@@ -163,6 +185,7 @@ class Placer:
             self.circles.append((m["x"], m.get("y", 0), t["r"] * 1.2))
         for a in spec.get("aa") or []:
             self.circles.append((a["x"], a["y"], 2.4))
+        self.funnels = [(fn["x"], fn["l"]) for fn in spec.get("funnels") or []]
         for fn in spec.get("funnels") or []:
             self.rects.append(_rect(fn["x"], fn.get("y", 0), fn["l"] + 1.6, fn["w"] + 1.6))
         for m in spec.get("masts") or []:
@@ -268,17 +291,37 @@ def _spread(P, surf, xs, ys):
     return best
 
 
+def _open_area(surf):
+    """The area the kit's small counts scale with (ROOF_SAT, HIGH_ROOF)."""
+    if surf.kind == "deck":
+        return surf.area
+    a = surf.area if surf.area <= ROOF_SAT else math.sqrt(surf.area * ROOF_SAT)
+    return a * (HIGH_ROOF if surf.level >= 3 else 1.0)
+
+
+def _big_area(surf):
+    """The area the kit's big counts scale with: what ROOF_SAT left out of the small count."""
+    if surf.kind == "deck" or surf.area <= ROOF_SAT:
+        return 0.0
+    return (surf.area - math.sqrt(surf.area * ROOF_SAT)) * (HIGH_ROOF if surf.level >= 3 else 1.0)
+
+
 CANDIDATES = 8   # valid spots tried per item; the emptiest wins (best-candidate sampling: an even spread)
 
 
-def place_items(P, surf, kit_items, density, rng):
-    """Scatter the kit's items over one surface: (kind, x, y) tuples, spread evenly over the open area."""
+def place_items(P, surf, kit_items, density, rng, area):
+    """Scatter the kit's items over one surface: (kind, x, y) tuples, spread evenly over the open area. Counts are
+    per 100 m^2 of area."""
     out = []
     x0, _, x1, _ = surf.bbox
     L = P.hull.L
     for kind, per100 in kit_items:
         it = ITEMS[kind]
-        want = surf.area / 100.0 * per100 * density
+        near = [(fx - fl / 2 - NEAR_FUNNEL, fx + fl / 2 + NEAR_FUNNEL) for fx, fl in P.funnels
+                if fx + fl / 2 + NEAR_FUNNEL > x0 and fx - fl / 2 - NEAR_FUNNEL < x1] if it.get("near") else []
+        if it.get("near") and not near:
+            continue
+        want = area / 100.0 * per100 * density
         n = int(want) + (1 if rng.random() < want - int(want) else 0)
         fails = 0
         while n > 0 and fails < 3:
@@ -286,7 +329,11 @@ def place_items(P, surf, kit_items, density, rng):
             for _ in range(40):
                 if len(cands) >= CANDIDATES:
                     break
-                x = rng.uniform(x0, x1)
+                if near:
+                    a, b = rng.choice(near)
+                    x = rng.uniform(max(a, x0), min(b, x1))
+                else:
+                    x = rng.uniform(x0, x1)
                 ends = it.get("ends", 0.0) or (it.get("deck_ends", 0.0) if surf.kind == "deck" else 0.0)
                 if abs(x) < ends * L:
                     continue
@@ -305,7 +352,7 @@ def place_items(P, surf, kit_items, density, rng):
             _, xs, ys, rs = max(cands, key=lambda c: c[0])
             P.taken.extend(rs)
             out.extend((kind, xx, y) for xx in xs for y in ys)
-            n -= len(ys)
+            n -= len(rs)   # every item counts, a row of four as four
     return out
 
 
@@ -372,7 +419,14 @@ def plan(spec, hull, turret_types, shapes):
     for s in surfs:
         if spec.get("flight_deck") and s.kind == "deck":
             continue
-        for kind, x, y in place_items(P, s, kit["roof"] if s.kind == "roof" else kit["deck"], density, rng):
+        area = _open_area(s)
+        if s.kind == "roof" and kit.get("big") and _big_area(s) > 0:   # the big gear first, then less small gear
+            big = place_items(P, s, kit["big"], density, rng, _big_area(s))
+            area = max(0.0, area - BIG_SHARE * sum(ITEMS[k]["l"] * ITEMS[k]["w"] for k, _, _ in big))
+        else:
+            big = []
+        small = place_items(P, s, kit["roof"] if s.kind == "roof" else kit["deck"], density, rng, area)
+        for kind, x, y in big + small:
             it = ITEMS[kind]
             items.append(dict(kind=kind, x=x, y=y, l=it["l"], w=it["w"], h=it["h"], level=s.level,
                               face=rng.choice((1, 1, -1, 0))))
@@ -410,7 +464,7 @@ def draw(it, P, surface_col):
     metal = shade(surface_col, 0.8)
     dark = "#1d2125"
     st = P.stroke(0.6)
-    if k in ("cowl", "cowl_small"):   # a cowl ventilator: the round trunk and its bell mouth turned to the wind
+    if k in ("cowl", "cowl_small", "boiler_cowl"):   # a cowl ventilator: the round trunk and its bell mouth turned to the wind
         r = l / 2
         fx = it.get("face", 1)
         mx, my = (x + fx * r * 0.25, y) if fx else (x, y + (r * 0.25 if y >= 0 else -r * 0.25))
@@ -428,7 +482,7 @@ def draw(it, P, surface_col):
             s.append(f'<line x1="{f(xx)}" y1="{f(y - w / 2 + 0.15)}" x2="{f(xx)}" y2="{f(y + w / 2 - 0.15)}" '
                      f'stroke="{shade(metal, 0.7)}" stroke-width="{f(P.sw * 0.8)}"/>')
         return "".join(s)
-    if k == "skylight":   # a pitched glazed skylight: frame, two glass slopes and the glazing bars
+    if k in ("skylight", "engine_skylight"):   # a pitched glazed skylight: frame, two glass slopes and the glazing bars
         glass = p.get("glass", "#5f7782")
         s = [f'<rect x="{f(x - l / 2)}" y="{f(y - w / 2)}" width="{f(l)}" height="{f(w)}" rx="0.1" '
              f'fill="{p["fitting"]}" {st}/>',
@@ -482,6 +536,23 @@ def draw(it, P, surface_col):
         return (f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(r)}" fill="{shade(surface_col, 0.85)}" {st}/>'
                 f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(r * 0.5)}" fill="{p["fitting"]}" {P.stroke(0.5)}/>'
                 f'<circle cx="{f(x + r * 0.28)}" cy="{f(y)}" r="{f(r * 0.3)}" fill="#d9dccf"/>')
+    if k == "searchlight_tower":   # a raised platform with its rail, the lamp on it
+        r = l / 2
+        return (f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(r)}" fill="{shade(surface_col, 0.8)}" {st}/>'
+                f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(r - 0.2)}" fill="none" stroke="{p["mast"]}" '
+                f'stroke-width="{f(max(0.1, P.sw * 0.8))}" stroke-dasharray="0.12 0.9" stroke-opacity="0.8"/>'
+                f'<circle cx="{f(x)}" cy="{f(y)}" r="{f(r * 0.4)}" fill="{p["fitting"]}" {P.stroke(0.5)}/>'
+                f'<circle cx="{f(x + r * 0.2)}" cy="{f(y)}" r="{f(r * 0.24)}" fill="#d9dccf"/>')
+    if k == "fan_house":   # a boiler-room fan house: a steel box, louvres down both sides, a cap on top
+        s = [f'<rect x="{f(x - l / 2)}" y="{f(y - w / 2)}" width="{f(l)}" height="{f(w)}" rx="0.15" fill="{metal}" {st}/>',
+             f'<rect x="{f(x - l / 2 + 0.5)}" y="{f(y - w / 2 + 0.55)}" width="{f(l - 1.0)}" height="{f(w - 1.1)}" rx="0.1" '
+             f'fill="{shade(metal, 1.12)}" {P.stroke(0.5)}/>']
+        for i in range(1, 9):
+            xx = x - l / 2 + l * i / 9
+            for y0_, y1_ in ((y - w / 2 + 0.1, y - w / 2 + 0.45), (y + w / 2 - 0.45, y + w / 2 - 0.1)):
+                s.append(f'<line x1="{f(xx)}" y1="{f(y0_)}" x2="{f(xx)}" y2="{f(y1_)}" stroke="{dark}" '
+                         f'stroke-width="{f(P.sw * 0.8)}" stroke-opacity="0.7"/>')
+        return "".join(s)
     if k == "scuttle":
         return (f'<circle cx="{f(x)}" cy="{f(y)}" r="0.25" fill="{p["fitting"]}" {P.stroke(0.5)}/>'
                 f'<circle cx="{f(x)}" cy="{f(y)}" r="0.13" fill="{dark}"/>')
@@ -614,7 +685,7 @@ def height_columns(items, columns, hull):
         if it["h"] <= 0:
             continue
         base = under(it["x"], it["y"])
-        if it["kind"] in ("cowl", "cowl_small", "mushroom", "searchlight"):
+        if it["kind"] in ("cowl", "cowl_small", "boiler_cowl", "mushroom", "searchlight", "searchlight_tower"):
             out.append(dict(top=base + it["h"], shape="circle", cx=it["x"], cy=it["y"], r=it["l"] / 2))
         elif it["kind"] == "boat":
             out.append(dict(top=base + it["h"], shape="ellipse", cx=it["x"], cy=it["y"], rx=it["l"] / 2, ry=it["w"] / 2))
