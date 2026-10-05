@@ -374,13 +374,28 @@ def _segments_cross(p, q, r, s):
 
 def polygons_intersect(a, b):
     """True if two simple polygons overlap (edges cross, or one lies inside the other)."""
-    if (max(x for x, _ in a) < min(x for x, _ in b) or max(x for x, _ in b) < min(x for x, _ in a) or
-            max(y for _, y in a) < min(y for _, y in b) or max(y for _, y in b) < min(y for _, y in a)):
+    xa, ya = [x for x, _ in a], [y for _, y in a]
+    xb, yb = [x for x, _ in b], [y for _, y in b]
+    x0, x1 = max(min(xa), min(xb)), min(max(xa), max(xb))
+    y0, y1 = max(min(ya), min(yb)), min(max(ya), max(yb))
+    if x1 < x0 or y1 < y0:
         return False   # bounding boxes apart: cannot touch
-    for i in range(len(a)):
-        for j in range(len(b)):
-            if _segments_cross(a[i], a[(i + 1) % len(a)], b[j], b[(j + 1) % len(b)]):
-                return True
+    # edges can only cross inside both bounding boxes: test just the edges reaching into their overlap (a long hull
+    # outline against a small rect has a handful)
+    def near(p):
+        out, s = [], p[-1]
+        for e in p:
+            if (s[0] <= x1 or e[0] <= x1) and (s[0] >= x0 or e[0] >= x0) and \
+                    (s[1] <= y1 or e[1] <= y1) and (s[1] >= y0 or e[1] >= y0):
+                out.append((s, e))
+            s = e
+        return out
+    eb = near(b)
+    if eb:
+        for p, q in near(a):
+            for r, s in eb:
+                if _segments_cross(p, q, r, s):
+                    return True
     return point_in_polygon(*a[0], b) or point_in_polygon(*b[0], a)
 
 
