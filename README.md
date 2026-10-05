@@ -410,7 +410,7 @@ an ffmpeg binary) besides numpy and pillow.
   bear stay at rest.
 - Shadows as README "Shadows": `shadow.shadow_mask` on the height map, and turret sprites in black, offset by
   `(top_m - deck_m) / tan(elevation)` and kept where the height map is below `top_m`. Smoke casts a soft shadow.
-- `vidgen.py all`, `--size 1920x1080`, `--heading`, `--target`, `--seconds`, `--seed`, `--crf`; `--still T` writes
+- `vidgen.py all`, `--jobs N` (default one ship per core), `--size 1920x1080`, `--heading`, `--target`, `--seconds`, `--seed`, `--crf`; `--still T` writes
   one PNG at time T instead. About 0.35 s a frame at 720p, so a 14 s clip takes 2–3 minutes. Videos go to
   `vidgen/out/` (git-ignored).
 

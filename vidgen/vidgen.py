@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import re
 import sys
 from pathlib import Path
@@ -756,7 +757,7 @@ def make(src: Path, out: Path, args, still=None):
     for i in range(n):
         w.send(np.ascontiguousarray(sc.render()).tobytes())
         sc.step(dt)
-        if i % args.fps == 0:
+        if i % args.fps == 0 and not args.quiet:
             print(f"\r  {out.name}: {i / args.fps:4.1f}/{sc.duration:.1f} s", end="", flush=True)
     w.close()
     print(f"\r  {out.name}: {sc.duration:.1f} s, {n} frames")
@@ -777,6 +778,7 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--crf", type=int, default=20, help="x264 quality (lower = better, bigger)")
     ap.add_argument("--still", type=float, default=None, help="write one PNG at this time instead of a video")
+    ap.add_argument("--jobs", type=int, default=0, help="ships rendered at once (default: one per core)")
     args = ap.parse_args()
     args.w, args.h = (int(v) for v in args.size.lower().split("x"))
     if args.w % 2 or args.h % 2:
@@ -786,13 +788,25 @@ def main():
         Path(s) if (Path(s) / "sprite.json").exists() else base / s for s in args.ships]
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    ext = ".png" if args.still is not None else ".mp4"
+    todo = []
     for src in srcs:
         if not (src / "sprite.json").exists():
             print(f"skip {src}: no sprite.json", file=sys.stderr)
             continue
-        ext = ".png" if args.still is not None else ".mp4"
-        path = make(src, out / f"{src.name}{ext}", args, still=args.still)
-        print(f"wrote {path}")
+        todo.append((src, out / f"{src.name}{ext}"))
+    jobs = max(1, min(args.jobs or os.cpu_count() or 1, len(todo)))
+    args.quiet = jobs > 1          # interleaved progress lines would be noise; report each ship as it finishes
+    if jobs == 1:
+        for src, path in todo:
+            print(f"wrote {make(src, path, args, still=args.still)}")
+        return
+    # one ship per process: each render is single-threaded numpy, so ships scale across cores
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+    with ProcessPoolExecutor(jobs) as pool:
+        futs = {pool.submit(make, src, path, args, args.still): src for src, path in todo}
+        for f in as_completed(futs):
+            print(f"wrote {f.result()}", flush=True)
 
 
 if __name__ == "__main__":
