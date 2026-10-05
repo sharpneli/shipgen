@@ -11,6 +11,7 @@ COMMON_LIMITS = {
     ("hull", "block_coefficient"): (0.42, 0.68),
     ("hull", "construction", "yield_mpa"): (100, 1500), ("hull", "construction", "join_factor"): (0.8, 1.5),
     ("hull", "construction", "standard"): (0.5, 2.0), ("hull", "freeboard"): (0.3, 2.0),
+    ("hull", "raised", "decks"): (1, 2),
     ("speed_kn",): (8, 42), ("range_nm",): (1000, 25000),
     ("main", "calibre_mm"): (1, 2000), ("main", "calibre_length"): (1, 200), ("main", "barrels"): (1, 20),
     ("main", "fore"): (0, 40), ("main", "aft"): (0, 40), ("main", "mid"): (0, 40),
@@ -34,6 +35,31 @@ COMMON_LIMITS = {
 }
 
 SUPERSTRUCTURE_KEYS = ("t_per_m2", "material", "tower_levels", "deckhouse_levels")
+RAISED_ENDS = ("bow", "stern")
+# what a raised stretch runs through from its end, bow to stern (layout.raised_breaks)
+RAISED_FEATURES = ("fore_group", "bridge", "funnels", "aft_control", "aft_group")
+
+
+def raised_errors(design, style) -> list[str]:
+    """hull.raised: [{"from": "bow" | "stern", "to": a feature, "decks": n}], raised stretches of hull."""
+    rs = (design.get("hull") or {}).get("raised", [])
+    if not isinstance(rs, list):
+        return ["hull.raised: use a list of raised stretches, e.g. [{\"from\": \"bow\", \"to\": \"bridge\", "
+                "\"decks\": 1}]"]
+    if rs and not style.RAISED_HULL:
+        return [f"hull.raised: the {style.name} style lays out its own raised decks"]
+    errs = []
+    for k, r in enumerate(rs):
+        if not isinstance(r, dict):
+            errs.append(f"hull.raised[{k}]: use {{\"from\", \"to\", \"decks\"}}")
+            continue
+        if r.get("from") not in RAISED_ENDS:
+            errs.append(f"hull.raised[{k}].from = {r.get('from')!r}: use {' or '.join(RAISED_ENDS)}")
+        if r.get("to") not in RAISED_FEATURES:
+            errs.append(f"hull.raised[{k}].to = {r.get('to')!r}: use one of {', '.join(RAISED_FEATURES)}")
+        if not (isinstance(r.get("decks"), int) and not isinstance(r.get("decks"), bool) and r["decks"] >= 1):
+            errs.append(f"hull.raised[{k}].decks: use a whole number of decks, 1 or more")
+    return errs
 STANDS_ON = ("deck", "deckhouse")   # what a raisable battery stands on (layout.stands_on)
 
 
@@ -159,7 +185,7 @@ class Style:
         errs += hullweight.validate(design)
         errs += armour_errors(design)
         import firecontrol
-        errs += firecontrol.validate(design) + superstructure_errors(design, self)
+        errs += firecontrol.validate(design) + superstructure_errors(design, self) + raised_errors(design, self)
         if isinstance(design.get("secondary"), list) and not self.SECONDARY_LIST:
             errs.append(f"secondary: the {self.name} style takes one secondary battery, not a list")
         sec = design.get("secondary") or []
@@ -206,6 +232,7 @@ class Style:
     MIN_TOWER = 0               # the lowest superstructure.tower_levels the style's bridge tower takes (0: no tower)
     DECKHOUSE_LEVELS = False    # does the layout take superstructure.deckhouse_levels
     RAISED_MOUNTS = False       # may wing / midships turrets and deck secondaries stand on the deckhouse (stands_on)
+    RAISED_HULL = False         # does the layout take hull.raised (raised stretches of hull: forecastle, poop)
 
     def tuning(self, design) -> dict:
         """Overrides of navarch.TUNING for this design."""

@@ -19,6 +19,7 @@ class Warship(Style):
     MIN_TOWER = 2            # the bridge (level 2) at least
     DECKHOUSE_LEVELS = True
     RAISED_MOUNTS = True     # main.amidships_stands_on, secondary.stands_on
+    RAISED_HULL = True       # hull.raised
 
     def build_layout(self, design, res, shift=0.0):
         return build_layout(design, res, shift)

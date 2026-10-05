@@ -194,6 +194,14 @@ class Layout:
         r: the highest under a footprint reaching x - r .. x + r (what stands there stands on that)."""
         return max((s["levels"] for s in self.raised if s["x0"] - r <= x <= s["x1"] + r), default=0)
 
+    def deck_levels(self, x, r=0.0):
+        """(lowest, highest) deck_level under a footprint reaching x - r .. x + r: equal when it stands on one deck,
+        not across a break."""
+        pts = [x - r, x + r] + [e + d for s in self.raised for e in (s["x0"], s["x1"]) for d in (-1e-6, 1e-6)
+                                if x - r < e + d < x + r]
+        lv = [max((s["levels"] for s in self.raised if s["x0"] <= p <= s["x1"]), default=0) for p in pts]
+        return min(lv), max(lv)
+
     def deck_z(self, x, r=0.0):
         """Height of the weather deck at x (m above the main deck); r as deck_level."""
         return self.deck_level(x, r) * LEVEL_H
@@ -253,12 +261,13 @@ def add_block(lay, blocks, bid, x0, x1, w, level, rf, rb, y=0.0, z0=0.0, layer=N
 RAISED_INSET = 0.3     # a raised stretch's deck stands this far inside the hull's edge (the drawn step)
 
 
-def add_raised(lay, design, rid, x0, x1, levels=1):
+def add_raised(lay, design, rid, x0, x1, levels=1, breaks=None):
     """A raised stretch of hull (forecastle, poop, a three-island ship's bridge deck): the weather deck `levels` decks
     above the main deck from x0 to x1. It goes in lay.raised (deck_level, deck_z), lay.decks (drawing, windage,
     hitboxes) and the footprints (free_at sees it; free() doesn't, as what stands there stands on its deck), and is
     weighed at the hull's minimum gauge (hullweight.raised_t): its deck, sides, and a break at each end short of the
-    hull's ends."""
+    hull's ends. breaks: (aft, forward) how many decks each end's break stands (a step down to a lower stretch is
+    only the difference; default: all of them)."""
     import hullweight
     hull = lay.hull
     L = hull.L
@@ -268,14 +277,73 @@ def add_raised(lay, design, rid, x0, x1, levels=1):
     lay.decks.append(dict(id=rid, kind="deck", points=pts, base=0.0, top=h))
     lay.occupy(_fp_poly(pts), 0.0, h, rid)
     area, xc = polygon_centroid(pts)
-    ends = [x for x in (x0, x1) if -L / 2 + 0.5 < x < L / 2 - 0.5]
-    end_m2 = sum(2 * hull.half_width(x) * h for x in ends)
+    breaks = breaks or (levels, levels)
+    end_m2 = sum(2 * hull.half_width(x) * n * LEVEL_H for x, n in zip((x0, x1), breaks)
+                 if -L / 2 + 0.5 < x < L / 2 - 0.5)
     side_m2 = 2 * (x1 - x0) * h
     c = hullweight.construction(design)
     t = hullweight.raised_t(L, c, area, side_m2, end_m2)
     lay.weights.append(Weight(rid, "hull", t, x=xc, z_rel=("deck", h * (area + 0.5 * (side_m2 + end_m2)) /
                                                            (area + side_m2 + end_m2))))
     return lay.raised[-1]
+
+
+def raised_profile(spans, L):
+    """Stretches [(x0, x1, levels)] that may overlap, as one stepped profile: [(x0, x1, levels, (aft, fwd))] aft to
+    forward, each the highest stretch over it, with the decks of its breaks (the step down at each end)."""
+    xs = sorted({-L / 2, L / 2} | {min(L / 2, max(-L / 2, x)) for a, b, _ in spans for x in (a, b)})
+    segs = []
+    for a, b in zip(xs, xs[1:]):
+        if b - a < 1e-6:
+            continue
+        m = (a + b) / 2
+        lv = max((n for x0, x1, n in spans if x0 <= m <= x1), default=0)
+        if segs and segs[-1][2] == lv:
+            segs[-1][1] = b
+        else:
+            segs.append([a, b, lv])
+    out = []
+    for i, (a, b, lv) in enumerate(segs):
+        if lv:
+            down = [lv - (segs[j][2] if 0 <= j < len(segs) else 0) for j in (i - 1, i + 1)]
+            out.append((a, b, lv, (max(0, down[0]), max(0, down[1]))))
+    return out
+
+
+def raised_names(prof, L):
+    """raised_profile's stretches with ids: Forecastle, Forecastle 2, ... stepping down aft from the bow, Poop, Poop 2,
+    ... forward from the stern, and Raised deck n for one touching neither."""
+    out = []
+    for k, (x0, x1, lv, brk) in enumerate(prof):
+        bow = all(prof[j][1] >= prof[j + 1][0] - 1e-6 for j in range(k, len(prof) - 1)) and prof[-1][1] >= L / 2 - 1e-6
+        stern = all(prof[j][1] >= prof[j + 1][0] - 1e-6 for j in range(k)) and prof[0][0] <= -L / 2 + 1e-6
+        n = len(prof) - k if bow else k + 1
+        rid = ("Forecastle" if bow else "Poop") + (f" {n}" if n > 1 else "") if bow or stern else f"Raised deck {k + 1}"
+        out.append((rid, x0, x1, lv, brk))
+    return out
+
+
+RAISED_CLEAR = 1.1     # m a main turret's guns keep above a raised deck their sweep crosses (superfire_step's least)
+
+
+def raised_lift(lay, m):
+    """How much higher a main mount (a dict with the mount's keys: kind, t, x, y, rest, base, top and its arc keys)
+    must stand for its barrels to clear the raised stretches they sweep over: the guns, at 0.55 of its height,
+    RAISED_CLEAR over that deck, as a superfiring turret's clear the roof below. Arcs stay fixed (hitbox)."""
+    if not lay.raised:
+        return 0.0
+    from hitbox import mount_traverse
+    axis = m["base"] + 0.55 * (m["top"] - m["base"])
+    lo, hi = mount_traverse(m)
+    sweep = None
+    need = 0.0
+    for dk in lay.decks:
+        if dk["kind"] != "deck" or dk["top"] + RAISED_CLEAR <= axis + need:
+            continue
+        sweep = sweep or sector_polygon(m["x"], m["y"], turret_reach(m["t"]) + 0.5, lo, hi)
+        if polygons_intersect(sweep, dk["points"]):
+            need = dk["top"] + RAISED_CLEAR - axis
+    return need
 
 
 def roof_spots(blocks, l, w, step=0.5):
@@ -811,6 +879,7 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
       upper            on the main deck, each in an armoured housing (a level-1 block) against the deck edge; housings
                        close together join into one gallery. They keep clear of what stands on the main deck, of the
                        main turrets' sweeps, and of the lower tier's shields: the tiers stagger, so every gun shows.
+                       Over a raised stretch (forecastle) they stand in its hull side, as the lower tier does below.
     The lower tier fills first, then the upper. Within a tier the batteries fill in list order, each taking the free
     places nearest amidships: all at a comfortable pitch if every gun fits so, else with the lower guns just far
     enough apart for an upper gun between each pair, else closer."""
@@ -842,9 +911,14 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
         yo = min(hull.half_width(x0 + (x1 - x0) * k / 8) for k in range(9)) - 0.3
         return yo, 1.6 * rc
 
+    def in_raised(x, rc):     # an upper gun wholly over a raised stretch: in its side, no housing
+        return lay.deck_levels(x, 1.05 * rc)[0] >= 1
+
     def upper_ok(x, rc):
         if hull.half_width(x) < CASEMATE_BEAM * B / 2:
             return False
+        if in_raised(x, rc):
+            return lower_ok(x, rc)
         x0, x1 = x - 1.05 * rc, x + 1.05 * rc
         yo, d = housing(x0, x1, rc)
         if yo - d < 0.5:
@@ -939,7 +1013,7 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
                                "Use fewer or smaller guns.")
         arm, rc = sec.get("armour_mm", 25), t["r"]
         for i, x in enumerate(got):
-            if upper:
+            if upper and not in_raised(x, rc):
                 yo, d = housing(x - 1.05 * rc, x + 1.05 * rc, rc)
                 galleries.append([x - 1.05 * rc, x + 1.05 * rc, yo, d])
             else:
@@ -1471,12 +1545,20 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     # the bridge tower: base levels from level 2, the navigating bridge, then each level up to
     # superstructure.tower_levels, the main director on top; funnels stand as tall as a tower of up to 4 levels.
     # nb_need: the first level that sees over the highest forward turret's roof (bridge_level)
+    # (levels count from the main deck: a raised stretch is level 1 where it stands. Every stretch from the bow
+    # runs through the forward group, whose turrets stand forward of every feature it can run to, and one from the
+    # stern only when it runs to it; the same aft)
+    raised_in = (design.get("hull") or {}).get("raised") or []
+    fwd_deck = LEVEL_H * max([q["decks"] for q in raised_in if q["from"] == "bow" or q["to"] == "fore_group"],
+                             default=0)
+    aft_deck = LEVEL_H * max([q["decks"] for q in raised_in if q["from"] == "stern" or q["to"] == "aft_group"],
+                             default=0)
     fwd_tier = min(nf, max(n_step_f, 1)) - 1 if (tm and nf) else None    # the forward group's top tier
-    fwd_roof = 1.2 + fwd_tier * superfire_step(th) + th if fwd_tier is not None else None
+    fwd_roof = fwd_deck + 1.2 + fwd_tier * superfire_step(th) + th if fwd_tier is not None else None
     nb_need = bridge_level(fwd_roof)
     # the aft control looks aft over the aft group the same way: its level by the same rule, an upper level over it
     aft_tier = min(na, max(n_step_a, 1)) - 1 if (tm and na) else None
-    na_lvl = bridge_level(1.2 + aft_tier * superfire_step(th) + th if aft_tier is not None else None)
+    na_lvl = bridge_level(aft_deck + 1.2 + aft_tier * superfire_step(th) + th if aft_tier is not None else None)
     # superstructure.tower_levels is the tower's height, a slider: the bridge stands as high in it as leaves the levels
     # over it (Bridge upper, Tower n: the compass platform and director tower, 1 level, 2 from 180 m), and never below
     # nb_need. A tall tower makes a tall tower bridge over its base levels (Nelson: about level 8 of 10); a tower too
@@ -1799,32 +1881,6 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     fore, aft, mid_fwd, mid_aft = arrangement(bow_c, st_c, shift)
     lay.geo["shift"] = shift
 
-    # ---------------- main turrets ----------------
-    turret_types = {}
-    mounts = []
-    if tm:
-        turret_types[tm_id] = tm
-        groups = [("A", fore, 0), ("Y", aft, 180)]
-        names = {"A": "ABC", "Y": "YXW"}
-        stepped = dict(zip("AY", (n_step_f, n_step_a)))
-        for gname, xs, rest in groups:
-            for i, x in enumerate(xs):
-                # each further turret superfires over the one outboard of it, up to the stepped count;
-                # the rest stand flush behind and fire to the sides only
-                flush = i >= max(stepped[gname], 1)
-                level = 0 if flush else i
-                dz = lay.deck_z(x, reach)
-                base = dz + 1.2 + level * superfire_step(th)
-                mid = turret_name(names[gname], i)
-                # a flush turret stows pointing away from the stepped turret ahead of it
-                m = armament.add_mount(lay, mounts, "main", tm_id, tm, mid, x, 0.0, base,
-                                       (180 if gname == "A" else 0) if flush else rest, level=level,
-                                       armour_mm=armour.get("turret_mm", 0), depth=depth, footprint_r=reach,
-                                       label="Turret", deck=dz)
-                if flush:
-                    m["arc_role"] = "beam"
-                lay.reserve_sweep(m)
-
     # ---------------- middle: bridge, deckhouse, funnels, aft control ----------------
     bx1 = mid_fwd
     bx0 = bx1 - lb
@@ -1920,17 +1976,84 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     mach_c = (min(p_[1] for p_ in plant_placed) + max(p_[2] for p_ in plant_placed)) / 2
     lay.geo["machinery"] = (min(p_[1] for p_ in plant_placed), max(p_[2] for p_ in plant_placed))
     lay.geo["machinery_x"] = mach_c
+    # ---------------- raised stretches of hull (hull.raised) ----------------
+    # Each rises its decks from the bow or the stern through a feature, its break just beyond it (a feature the ship
+    # lacks: the next one toward that end). Together they make one stepped profile (raised_profile).
+    f_aft, f_fwd = (min(fxs) - fl / 2, max(fxs) + fl / 2) if fxs else (None, None)
+    breaks_at = {        # feature: break x, from the bow (the feature and all forward of it raised), from the stern
+        "fore_group": (mid_fwd, fore[0] + r + 1.0 if fore else None),
+        "bridge": (bx0 - 0.75, mid_fwd),
+        "funnels": (f_aft - 0.75 if fxs else None, f_fwd + 0.75 if fxs else None),
+        "aft_control": (mid_aft if la else None, mid_aft + la + 0.75 if la else None),
+        "aft_group": (aft[0] - r - 1.0 if aft else None, mid_aft),
+    }
+    order = list(breaks_at)
+    spans = []
+    for q in raised_in:
+        end = 0 if q["from"] == "bow" else 1
+        i = order.index(q["to"])
+        while breaks_at[order[i]][end] is None:      # toward the stretch's own end
+            i += -1 if end == 0 else 1
+        if order[i] != q["to"]:
+            lay.warnings.append(f"hull.raised: no {q['to'].replace('_', ' ')} to run the raised deck from the "
+                                f"{q['from']} to; it runs to the {order[i].replace('_', ' ')}.")
+        xb = breaks_at[order[i]][end]
+        spans.append((xb, L / 2, q["decks"]) if end == 0 else (-L / 2, xb, q["decks"]))
+    for rid, x0_, x1_, lv, brk in raised_names(raised_profile(spans, L), L):
+        add_raised(lay, design, rid, x0_, x1_, lv, brk)
+
+    # ---------------- main turrets ----------------
+    turret_types = {}
+    mounts = []
+    if tm:
+        turret_types[tm_id] = tm
+        groups = [("A", fore, 0), ("Y", aft, 180)]
+        names = {"A": "ABC", "Y": "YXW"}
+        stepped = dict(zip("AY", (n_step_f, n_step_a)))
+        for gname, xs, rest in groups:
+            deck0 = lay.deck_z(xs[0], reach) if xs else 0.0      # the outermost turret's deck
+            prev = None
+            for i, x in enumerate(xs):
+                # each further turret superfires over the one outboard of it, up to the stepped count;
+                # the rest stand flush behind and fire to the sides only
+                flush = i >= max(stepped[gname], 1)
+                level = 0 if flush else i
+                dz = lay.deck_z(x, reach)
+                # a flush turret stows pointing away from the stepped turret ahead of it
+                rest_ = (180 if gname == "A" else 0) if flush else rest
+                # a step over the turret it fires over (which a raised deck may have lifted), on its own deck at
+                # least, and its guns clear of any higher raised deck they sweep over
+                base = (dz if flush else deck0) + 1.2 + level * superfire_step(th)
+                if not flush and prev is not None and prev > deck0 + 1.2 + (level - 1) * superfire_step(th) + 1e-9:
+                    base = max(base, prev + superfire_step(th))
+                base = max(base, dz + 1.2)
+                base += raised_lift(lay, dict(kind="main", t=tm, x=x, y=0.0, rest=rest_, base=base, top=base + th,
+                                              **({"arc_role": "beam"} if flush else {})))
+                prev = base
+                mid = turret_name(names[gname], i)
+                m = armament.add_mount(lay, mounts, "main", tm_id, tm, mid, x, 0.0, base, rest_, level=level,
+                                       armour_mm=armour.get("turret_mm", 0), depth=depth, footprint_r=reach,
+                                       label="Turret",
+                                       deck=base - 1.2 - level * superfire_step(th) if lay.raised else dz)
+                if flush:
+                    m["arc_role"] = "beam"
+                lay.reserve_sweep(m)
+
     # riders: what level 1 is built under, (x0, x1, half-width) each, its footprint and DH_INSET round it: the guns
     # standing on its roof (stands_on "deckhouse") and the upper casemates' housings
     riders = []
     if nm or nw:
         def main_mount(mid, x, y, rest, **kw):
+            # on the deck, or at level 1's roof on the deckhouse (a raised stretch may already reach it); its guns
+            # clear of any higher raised deck they sweep over
             dz = lay.deck_z(x, reach)
-            lay.reserve_sweep(armament.add_mount(lay, mounts, "main", tm_id, tm, mid, x, y,
-                                                 dz + (LEVEL_H if mid_raised else 0.0) + 1.2, rest,
-                                                 armour_mm=armour.get("turret_mm", 0), depth=depth,
-                                                 footprint_r=reach, label="Turret", deck=dz, **kw))
-            if mid_raised:
+            base = max(dz, LEVEL_H if mid_raised else 0.0) + 1.2
+            base += raised_lift(lay, dict(kind="main", t=tm, x=x, y=y, rest=rest, base=base, top=base + th, **kw))
+            lay.reserve_sweep(armament.add_mount(
+                lay, mounts, "main", tm_id, tm, mid, x, y, base, rest, armour_mm=armour.get("turret_mm", 0),
+                depth=depth, footprint_r=reach, label="Turret",
+                deck=max(0.0, base - 1.2 - (LEVEL_H if mid_raised else 0.0)) if lay.raised else dz, **kw))
+            if mid_raised and dz < LEVEL_H:
                 riders.append((x - reach - DH_INSET, x + reach + DH_INSET, abs(y) + reach + DH_INSET))
 
         for k, (x, stow) in enumerate(mids):
@@ -2041,7 +2164,8 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             want = min(0.0, mach_placed[si][1] - (fxs[idx[0]] + fxs[idx[-1]]) / 2)
         off = want
         while off < 0.0 and not (in_reach(si, [fxs[i] for i in idx], off) and all(
-                lay.clear(fun_fp(fxs[i] + off), fun_top) and lay.free(fun_fp(fxs[i] + off), 0.0) for i in idx)):
+                lay.clear(fun_fp(fxs[i] + off), fun_top) and lay.free(fun_fp(fxs[i] + off), 0.0)
+                and lay.deck_levels(fxs[i] + off, fl / 2) == lay.deck_levels(fxs[i], fl / 2) for i in idx)):
             off = min(0.0, off + 0.25)
         for i in idx:
             fx_final[i] = fxs[i] + off
@@ -2077,8 +2201,8 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         rs_reach = max(rs, turret_reach({**ts, "barrel_len": 0}))
         ths = turret_height(ts)
 
-        def sec_base(x):   # on the weather deck, or a level up on the deckhouse
-            return lay.deck_z(x, rs_reach) + (LEVEL_H if raised else 0.0)
+        def sec_base(x):   # on the weather deck, or at level 1's roof (a raised stretch may already reach it)
+            return max(lay.deck_z(x, rs_reach), LEVEL_H) if raised else lay.deck_z(x, rs_reach)
         x_lo, x_hi = mid_aft + rs_reach + 0.5, mid_fwd - rs_reach - 0.5
         inner = max([b["w"] / 2 for b in blocks if b["level"] >= 2] + [fw / 2] + ([reach] if nm else [])) \
             + rs_reach + 0.4
@@ -2135,9 +2259,10 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                                    90 * side, armour_mm=sec.get("armour_mm", 25), depth=depth,
                                    top=sec_base(sx) + ths, footprint_r=rs_reach, material=sec.get("material"),
                                    deck=lay.deck_z(sx, rs_reach))
-        if raised and sxs:
+        if raised and sxs:     # level 1 under them, where no raised stretch already is
             y_s = max(y_at(sx) for sx in sxs)
-            riders += [(sx - rs_reach - DH_INSET, sx + rs_reach + DH_INSET, y_s + rs_reach + DH_INSET) for sx in sxs]
+            riders += [(sx - rs_reach - DH_INSET, sx + rs_reach + DH_INSET, y_s + rs_reach + DH_INSET) for sx in sxs
+                       if lay.deck_z(sx, rs_reach) < LEVEL_H]
         first = False
 
     # ---------------- casemates: guns in the hull side, below the main deck ----------------
