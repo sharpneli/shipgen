@@ -144,16 +144,10 @@ class Layout:
 
     def reserve_sweep(self, m):
         """A main turret claims the area its barrels sweep: its firing arcs plus the turn from its stowed
-        bearing to the starboard arc (one side free to switch sides), out to the muzzles; a cross-deck wing
-        turret, its whole swing from its own side through the nearer end to the cross-deck arc. Anything placed
-        later that stands taller than the guns must keep out (see clear())."""
-        from hitbox import mount_arcs, cross_turn
-        arcs = mount_arcs(m)
-        rest = m["rest"] % 360.0
-        intervals = [cross_turn(m)] if m.get("cross_deck") else list(arcs)
-        if not any(lo <= rest <= hi or lo <= rest + 360 <= hi for lo, hi in intervals):
-            lo, hi = next(((lo, hi) for lo, hi in arcs if lo <= 90 <= hi), arcs[0])
-            intervals.append([rest, lo] if rest < lo else [hi, rest])
+        bearing, the way it turns (hitbox.mount_traverse, exported as traverse_deg), out to the muzzles.
+        Anything placed later that stands taller than the guns must keep out (see clear())."""
+        from hitbox import mount_traverse
+        intervals = [mount_traverse(m)]
         R = turret_reach(m["t"]) + 0.5
         polys = []
         for lo, hi in intervals:

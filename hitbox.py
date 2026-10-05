@@ -85,12 +85,35 @@ def mount_arcs(m):
 
 def cross_turn(m):
     """A cross-deck wing turret's whole swing [start, end] (end may exceed 360): its own side, the turn across
-    the nearer end of the ship (the end it stows toward; the partner turret blocks the other way), and the
-    cross-deck arc."""
+    the nearer end of the ship (the end it stows toward; the partner turret usually blocks the other way, which
+    is never reserved), and the cross-deck arc."""
     own, cross = mount_arcs(m)
     if (m["rest"] % 360.0 < 90.0) == (m["y"] < 0):    # port turning through ahead, starboard through astern
         return [own[0], cross[1] + 360.0 if cross[1] < own[0] else cross[1]]
     return [cross[0], own[1] if own[1] > cross[0] else own[1] + 360.0]
+
+
+def mount_traverse(m):
+    """The one interval [start, end] (end may exceed 360) a mount turns within: its rest bearing and every arc,
+    joined the way that's clear. It never passes through the rest of the circle, so the game can train by moving
+    the bearing inside it, never wrapping. One arc: the arc (the rest is inside it, or at its edge for a wing
+    turret). Two arcs about the beams (side-firing centreline turrets, centreline torpedo mounts): the way through
+    the rest bearing, which faces away from the turret ahead or the bridge. Cross-deck wing turrets: cross_turn.
+    The layout reserves exactly this (Layout.reserve_sweep)."""
+    arcs = mount_arcs(m)
+    if m.get("cross_deck"):
+        return cross_turn(m)
+    if len(arcs) == 1:
+        return list(arcs[0])
+    rest = (m["fixed"] if m.get("fixed") is not None else m["rest"]) % 360.0
+    best = None
+    for p, q in ((arcs[0], arcs[1]), (arcs[1], arcs[0])):
+        lo, hi = p[0], q[1]
+        while hi < lo:
+            hi += 360.0
+        if hi - lo < 360.0 and (lo <= rest <= hi or lo <= rest + 360.0 <= hi) and (best is None or hi - lo < best[1] - best[0]):
+            best = [lo, hi]
+    return best
 
 
 def assign_arcs(lay):
@@ -99,6 +122,7 @@ def assign_arcs(lay):
     fore-and-aft (pointing away from the turret they stand behind) and train out before firing."""
     for m in lay.mounts:
         m["arcs"] = mount_arcs(m)
+        m["traverse"] = mount_traverse(m)
         m["rest"] = _wrap180(m["fixed"] if m.get("fixed") is not None else m["rest"])
     by_id = {m["id"]: m for m in lay.mounts}
     for sm in lay.spec["turrets"]:
@@ -177,6 +201,7 @@ def export_hitboxes(lay, design, res):
             base=round(m["base"], 2), top=round(m["top"], 2), armour_mm=arm,
             broadphase_r=round(max(t["r"], turret_reach({**t, "barrel_len": 0})), 3),
             rotating=m.get("fixed") is None, rest_deg=m["rest"], arcs_deg=m["arcs"],
+            traverse_deg=m["traverse"],
             local={"body": r3(sh["body"]), "parts": [r3(p) for p in sh["parts"]],
                    "barrels": [r3(p) for p in sh["barrels"]]}))
         mat = (armour_material(design, "turrets") if m["kind"] == "main" else

@@ -14,6 +14,7 @@ The subdivision is checked too (check_subdivision): every cell has one owning ro
 the main deck each fall in exactly one cell, neighbours are mutual, and every mount's magazine is a room.
 """
 import json
+import math
 import os
 import random
 import sys
@@ -22,7 +23,7 @@ from PIL import Image, ImageDraw
 
 Image.MAX_IMAGE_PIXELS = None   # our own output: a 1 km ship makes very large sheets
 
-from geometry import rotate_translate
+from geometry import rotate_translate, point_in_polygon
 
 
 def mask_from_polys(size, polys, S, ox, oy):
@@ -78,6 +79,44 @@ def check_subdivision(hb, samples=3000):
         bad += n != 1
     if bad > samples * 0.002:      # points right at the bow tip may miss a zero-volume cell
         probs.append(f"{bad} of {samples} points inside the hull fall in no cell or several")
+    return probs
+
+
+def check_traverse(hb, sp):
+    """traverse_deg: one interval under a full turn holding the rest bearing and every arc, the same in
+    sprite.json; and a main turret's barrels, swung through all of it, meet nothing taller than their axis
+    (superstructure, funnels, other turrets)."""
+    inside = lambda lo, hi, a: lo - 1e-6 <= a <= hi + 1e-6 or lo - 1e-6 <= a + 360 <= hi + 1e-6
+    sp_tr = {m["id"]: m.get("traverse_deg") for m in sp["mounts"]}
+    probs = []
+    for c in hb["components"]:
+        if "arcs_deg" not in c:
+            continue
+        lo, hi = c.get("traverse_deg") or (0.0, -1.0)
+        if not (0 <= hi - lo < 360 and inside(lo, hi, c["rest_deg"] % 360)
+                and all(inside(lo, hi, a0 % 360) and inside(lo, hi, a1 % 360) and (a1 - a0) <= hi - lo
+                        for a0, a1 in c["arcs_deg"])):
+            probs.append(f"{c['id']}: traverse {c.get('traverse_deg')} doesn't hold rest {c['rest_deg']} "
+                         f"and arcs {c['arcs_deg']}")
+        if sp_tr.get(c["id"]) != c.get("traverse_deg"):
+            probs.append(f"{c['id']}: sprite.json traverse {sp_tr.get(c['id'])} differs")
+        if c["kind"] != "main":
+            continue
+        R = max(p[0] for b in c["local"]["barrels"] for p in b)
+        axis = c["base"] + 0.55 * (c["top"] - c["base"])
+        tall = [o for o in hb["components"] if o is not c and o.get("top", 0) > axis + 1e-6
+                and o.get("base", 0) < axis and (o.get("points") or "local" in o)]
+        hits = set()
+        for k in range(int(hi - lo) + 1):
+            a = math.radians(lo + k)
+            for f in (0.5, 0.75, 1.0):
+                px, py = c["x"] + f * R * math.cos(a), c["y"] + f * R * math.sin(a)
+                for o in tall:
+                    if (point_in_polygon(px, py, o["points"]) if o.get("points") else
+                            point_in_polygon(px, py, rotate_translate(o["local"]["body"], o["rest_deg"], o["x"], o["y"]))):
+                        hits.add(o["id"])
+        if hits:
+            probs.append(f"{c['id']}: barrels swung through {c['traverse_deg']} hit {', '.join(sorted(hits))}")
     return probs
 
 
@@ -138,7 +177,7 @@ def check(d):
     for rid, kind, v in rows:
         flag = "" if v > 0.85 else "   <-- check"
         print(f"   {rid:>16} {kind:>15}  {v:.3f}{flag}")
-    probs = check_subdivision(hb)
+    probs = check_subdivision(hb) + check_traverse(hb, sp)
     shared = [r["id"] for r in hb["rooms"] if r.get("shared")]
     print(f"   subdivision: {len(hb['sections'])} sections, {len(hb['cells'])} cells, {len(hb['rooms'])} rooms"
           + (f", sharing a cell: {', '.join(shared)}" if shared else ""))

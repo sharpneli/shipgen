@@ -361,7 +361,8 @@ def build(design, hint=None):
         render=dict(
             spec=copy.deepcopy(lay.spec),
             deck_m=deck_m,
-            mounts=[dict(id=m["id"], kind=m["kind"], rest=m["rest"], arcs=m["arcs"], top=m["top"],
+            mounts=[dict(id=m["id"], kind=m["kind"], rest=m["rest"], arcs=m["arcs"],
+                         traverse=m["traverse"], top=m["top"],
                          **({"mount": "casemate"} if m.get("casemate") else {})) for m in lay.mounts],
             columns=height_columns(lay, deck_m),
             summary=styles.get(design).summary(sized, lay, r),
