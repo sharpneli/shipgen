@@ -6,6 +6,7 @@ python design.py designs/*.json            # player designs -> out_designs/<id>/
 python design.py designs/x.json --no-limits # skip the input ranges; errors (capsizing etc.) never block output
 python design.py designs/x.json --no-previews # game assets only (sprites, mips, height map): ~0.5 s, not ~3 s
 python verify.py out_designs/battleship     # pixel check: sprites vs hitboxes
+python fuzz.py designs/*.json --cases 1600  # robustness: mutated designs must build (no crash, hang or memory blow-up)
 python shipgen.py                           # the original hand-authored fleet (fleet.py)
 python vidgen/vidgen.py bismarck            # style check: a short gameplay-style video -> vidgen/out/bismarck.mp4
 ```
@@ -244,7 +245,7 @@ The design gives no size. The designer works out the hull from what it carries (
   - Merchants: a `Gun magazine` aft, just forward of the steering gear. Planing craft: an `Ammunition locker` at the forward end of the crew space.
 - Examples: `mikasa.json` (152 + 76 mm casemates in both tiers), `victory_1944.json` (a ship of the line: 152 mm lower and 120 mm upper casemates, no main battery), `connecticut.json` (178 + 76 mm casemates; its 203 mm wing turrets need a second main battery, still to come), `nassau_casemates.json` (Nassau's 150 + 88 mm in casemates, so all of them fit), `kongo.json` (152 mm casemates and 76 mm on deck).
 
-Limits are generous on purpose: the game's designer enforces the gameplay limits, and the generator only keeps its input sane (`styles.base.COMMON_LIMITS`). Guns can be 1–2000 mm with 1–20 barrels, armour up to 2 m, and torpedo, secondary and AA counts are in the hundreds. Hull form and speed stay within the range where the physics formulas mean something. Each turret group (`fore`, `aft`, `mid`) can hold up to 40 turrets, named A, B, C, A4, A5, ... (and Q, P, R, S, Q5, ... amidships). Silly designs are allowed; the physics decides whether they're valid, and the designer simply makes the hull as big as they need. For example, Gangut's twenty 305 mm Q turrets come out on a 986 m hull.
+Limits are generous on purpose: the game's designer enforces the gameplay limits, and the generator only keeps its input sane (`styles.base.COMMON_LIMITS`). Guns can be 1–2000 mm with 1–20 barrels, armour up to 2 m, and torpedo, secondary and AA counts are in the hundreds. Hull form and speed stay within the range where the physics formulas mean something. Each turret group (`fore`, `aft`, `mid`) can hold up to 40 turrets, named A, B, C, A4, A5, ... (and Q, P, R, S, Q5, ... amidships). Silly designs are allowed; the physics decides whether they're valid, and the designer simply makes the hull as big as they need. For example, Gangut's twenty 305 mm Q turrets come out on a 904 m hull. A few inputs are checked even with `--no-limits`, because outside them the physics isn't silly but undefined: a block coefficient or speed of 0, a battery without barrels, calibre or calibre length, torpedoes without mounts or tubes (`styles.base` `DEFINED`, `REQUIRED`), and funnel gas no hotter than the air or with no velocity (`powerplant.validate`).
 
 The player never enters tonnage or positions. The allowed ranges are `styles.base.COMMON_LIMITS` plus each style's `LIMITS`.
 

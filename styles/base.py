@@ -47,9 +47,23 @@ DEFINED = (
 )
 
 
+# what a battery or torpedo outfit must give when the design has one (a non-empty dict; "secondary" may be a list)
+REQUIRED = {"main": ("calibre_mm", "calibre_length", "barrels"),
+            "secondary": ("calibre_mm", "calibre_length", "barrels"), "torpedoes": ("mounts", "tubes")}
+
+
 def undefined_errors(design):
-    """Numbers outside the range where the physics means anything at all (DEFINED), and negative counts and sizes."""
+    """Missing gun and torpedo data (REQUIRED), and numbers outside the range where the physics means anything at
+    all (DEFINED)."""
     errs = []
+    for group, keys in REQUIRED.items():
+        v = design.get(group)
+        for i, b in enumerate(v if isinstance(v, list) else [v] if v else []):
+            where = f"{group}[{i}]" if isinstance(v, list) else group
+            if not isinstance(b, dict):
+                errs.append(f"{where}: give an object with {', '.join(keys)}")
+                continue
+            errs += [f"{where}.{k} is missing" for k in keys if k not in b]
     for path, lo, incl, hi in DEFINED:
         ds = [design]
         for k in path[:-1]:
