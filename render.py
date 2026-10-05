@@ -24,7 +24,7 @@ from geometry import nearest_allowed, rotate_translate
 from shipgen import build_hull, build_turret, render, DEFAULT_PALETTE
 
 Image.MAX_IMAGE_PIXELS = None   # our own output: a 1 km ship makes very large sheets
-PREVIEW_SUN = (240.0, 50.0)   # ship-local bearing and elevation of the sun in the previews, degrees
+PREVIEW_SUN = (300.0, 50.0)   # ship-local bearing and elevation of the sun in the previews, degrees
 SHADOW_OPACITY = 0.4
 
 
