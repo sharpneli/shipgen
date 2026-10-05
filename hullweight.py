@@ -81,7 +81,7 @@ def raised_t(L, c, deck_m2, side_m2, end_m2):
     return deck_t_per_m2(L, c) * (deck_m2 + SHELL_SIDE * side_m2 + BHD_T * end_m2)
 
 
-def weight(L, B, D, cb, full, c, n_int, double_bottom, armour_decks=(), bulkhead_depth=None):
+def weight(L, B, D, cb, full, c, n_int, double_bottom, armour_decks=(), bulkhead_depth=None, girder_depth=None):
     """The hull structure: dict(t, min_gauge_t, strength_t, t_min_mm, t_str_mm, stress_mpa, i_req_m4, i_armour_m4,
     i_plating_m4). The girder's moment of inertia amidships is i_plating_m4 + i_armour_m4, at least i_req_m4: the
     plating is never thinner than t_min, so small hulls have a margin to spare.
@@ -90,7 +90,10 @@ def weight(L, B, D, cb, full, c, n_int, double_bottom, armour_decks=(), bulkhead
     n_int        internal decks and platforms below the strength deck (may be fractional)
     double_bottom how much of an inner bottom there is, 0..1
     armour_decks [(mm, z)] plates over amidships, z above the keel: their section counts in the girder.
-    bulkhead_depth how high the transverse bulkheads reach, if not to the strength deck (a closed hangar)."""
+    bulkhead_depth how high the transverse bulkheads reach, if not to the strength deck (a closed hangar).
+    girder_depth the girder's depth amidships, if deeper than D: raised stretches of hull over the midbody (a long
+                 forecastle) work in the girder. Their plating is weighed with them (raised_t); only the girder's
+                 section deepens, so it needs less strength plating."""
     a_shell = 2 * SHELL_SIDE * D * L + SHELL_BOTTOM * B * L * math.sqrt(cb)
     a_deck = deck_area(L, B, cb)
     a_int = n_int * INT_DECK * a_deck
@@ -99,16 +102,17 @@ def weight(L, B, D, cb, full, c, n_int, double_bottom, armour_decks=(), bulkhead
     t_min = (T_MIN[0] + T_MIN[1] * min(L, LONG)) * c["standard"]
     sig = allowable_stress(c)
     m = full * 9.81 * L / C_M * min(1.0, LONG / L) ** 2
-    i_req = m / (sig * 1000) * (D / 2)
-    i_arm = sum(ARM_DECK_WIDTH * B * mm / 1000 * (z - NEUTRAL_AXIS * D) ** 2 for mm, z in armour_decks)
-    z_per_mm = D * (B + D / 3) / 1000           # section modulus per mm of plate smeared over a thin box
-    t_str = max(0.0, i_req - i_arm) / (D / 2) / z_per_mm
+    G = D if girder_depth is None else girder_depth
+    i_req = m / (sig * 1000) * (G / 2)
+    i_arm = sum(ARM_DECK_WIDTH * B * mm / 1000 * (z - NEUTRAL_AXIS * G) ** 2 for mm, z in armour_decks)
+    z_per_mm = G * (B + G / 3) / 1000           # section modulus per mm of plate smeared over a thin box
+    t_str = max(0.0, i_req - i_arm) / (G / 2) / z_per_mm
     w_min = RHO * K_S * t_min * (a_shell + a_deck + a_int * INT_DECK_T + a_bhd * BHD_T + a_db)
     w_str = RHO * GIRDER_TAPER * (a_shell + a_deck) * max(0.0, t_str - t_min)
     k = (1 + F_FIT) * c["join_factor"]
     return dict(t=(w_min + w_str) * k, min_gauge_t=w_min * k, strength_t=w_str * k, t_min_mm=t_min,
                 t_str_mm=t_str, stress_mpa=sig, i_req_m4=i_req, i_armour_m4=i_arm,
-                i_plating_m4=max(t_str, t_min) * z_per_mm * D / 2)
+                i_plating_m4=max(t_str, t_min) * z_per_mm * G / 2)
 
 
 def validate(design):

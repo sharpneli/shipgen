@@ -107,7 +107,7 @@ def decks(design, D, ag, raised=()):
         out.append(dict(id=deck_name(n), kind="main" if n == 0 else "deck", deck=n, z=z - D, **arm.get(n, {})))
     for k in range(1, max((s["levels"] for s in raised), default=0) + 1):
         out.append(dict(id=deck_name(-k), kind="raised", deck=-k, z=k * DECK_PITCH,
-                        spans=[[round(a, 3), round(b, 3)] for a, b in raised_spans(raised, k)]))
+                        spans=[[round(a, 3), round(b, 3)] for a, b in raised_spans(raised, k)], **arm.get(-k, {})))
     return out
 
 

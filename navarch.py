@@ -208,7 +208,8 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         if tun.get("hull_model") == "box":
             hull = dict(t=tun["hull_k"] * (L * B * D) ** tun["hull_exp"])
         else:
-            hull = hull_structure(design, L, B, cb, D, disp, arm, style.strength_deck(design, D))
+            hull = hull_structure(design, L, B, cb, D, disp, arm, style.strength_deck(design, D),
+                                  geo.get("raised", ()))
         z_frac = tun.get("hull_z_frac", 0.58) * (hull.get("depth_m", D) / D)
         items.append(Weight("Hull structure", "hull", hull["t"], x=-0.01 * L, z_rel=("frac", z_frac)))
         shp = power_required(disp, V, L, B, cb, tun)
@@ -317,7 +318,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
                             f"in a {w['deck_edge_wind_kn']:.0f} kn wind.")
     fn = froude(V, L)
     res.warnings += style.checks(design, res, tun)
-    for d in armour_decks(design, res.depth):
+    for d in armour_decks(design, res.depth, geo.get("raised", ())):
         if d["asked"] != d["deck"]:
             res.warnings.append(f"The hull has no {deck_name(d['asked']).lower()} ({res.depth:.1f} m deep): its "
                                 f"{d['mm']} mm deck armour lies on the {deck_name(d['deck']).lower()}.")
@@ -386,13 +387,29 @@ INNER_BOTTOM_T = (4000.0, 10000.0)  # full displacement (t) over which the inner
                                     # are calibrated without one, cruisers and capital ships with one
 
 
-def hull_structure(design, L, B, cb, D, full, arm, above=None):
+GIRDER_MID = 0.2       # x L each side of amidships: raised hull over this midbody works in the girder (the classification
+                       # societies' 0.4 L midship region), by its mean height over it
+
+
+def raised_girder_h(raised, L):
+    """The mean height of raised stretches of hull (dicts x0, x1, levels) over the midbody, |x| <= GIRDER_MID L:
+    what they deepen the girder by. A long forecastle reaching well aft of amidships counts fully, a short one
+    near the bow not at all, and it phases in smoothly as the break moves (the size search needs no steps)."""
+    a, b = -GIRDER_MID * L, GIRDER_MID * L
+    tot = 0.0
+    for s in raised:   # raised_profile's stretches don't overlap
+        tot += max(0.0, min(b, s["x1"]) - max(a, s["x0"])) * s["levels"] * DECK_PITCH
+    return tot / (b - a)
+
+
+def hull_structure(design, L, B, cb, D, full, arm, above=None, raised=()):
     """The hull's structure weight and girder (hullweight.weight). Internal decks come from the deck stack's depth
     and the inner bottom from the displacement, both smoothly (a step would make the solver and the size search
     jump); the armour-deck plates over amidships (arm: armour_geometry) count in the girder.
     above: the style's strength deck above the main deck (Style.strength_deck: a closed hangar's flight deck),
     dict(h, decks, plates), or None. The hull's sides then run up to it, the decks between count as full internal
-    decks, and the plates on it count in the girder; the transverse bulkheads still stop at the main deck."""
+    decks, and the plates on it count in the girder; the transverse bulkheads still stop at the main deck.
+    raised: raised stretches of hull (lay.raised): over the midbody they deepen the girder (raised_girder_h)."""
     n_int = STACK_DECK * max(0.0, (D - powerplant.double_bottom(D) - MIN_TIER) / DECK_PITCH)
     lo, hi = INNER_BOTTOM_T
     inner = min(1.0, max(0.0, (full - lo) / (hi - lo)))
@@ -400,8 +417,9 @@ def hull_structure(design, L, B, cb, D, full, arm, above=None):
     depth = D
     if above:
         depth, n_int, plates = D + above["h"], n_int + above["decks"], plates + above["plates"]
+    rh = raised_girder_h(raised, L) if raised else 0.0
     out = hullweight.weight(L, B, depth, cb, full, hullweight.construction(design), n_int, inner, plates,
-                            bulkhead_depth=D)
+                            bulkhead_depth=D, girder_depth=depth + rh if rh else None)
     return {**out, "depth_m": depth}
 
 
@@ -442,16 +460,34 @@ def armour_material(design, part, own=None):
         ((design.get("armour") or {}).get("materials") or {}).get(part))
 
 
-def armour_decks(design, D):
+def armour_decks(design, D, raised=()):
     """The design's armour decks (armour.decks, top down), placed on the deck stack: [dict(deck, mm, extent, z,
-    asked, material)]. A deck the hull is too shallow for lies on its lowest deck (asked keeps what the design
-    said)."""
+    asked, material)]. A deck the hull is too shallow for lies on its lowest deck, and a raised deck (-1, -2, ...)
+    higher than any raised stretch (raised: lay.raised) on the highest there is, or the main deck (asked keeps what
+    the design said). A raised deck's plates exist only over its stretches (armour_geometry)."""
     stack = deck_stack(design, D)
+    top = -max((s["levels"] for s in raised), default=0)
     out = []
     for d in (design.get("armour") or {}).get("decks") or []:
-        n = min(int(d.get("deck", 0)), stack[-1][0])
-        out.append(dict(deck=n, mm=d.get("mm", 0), extent=d.get("extent", "citadel"), z=stack[n][1],
+        n = max(top, min(int(d.get("deck", 0)), stack[-1][0]))
+        out.append(dict(deck=n, mm=d.get("mm", 0), extent=d.get("extent", "citadel"),
+                        z=stack[n][1] if n >= 0 else D - n * DECK_PITCH,
                         asked=int(d.get("deck", 0)), material=armour_material(design, "decks", d)))
+    return out
+
+
+def raised_pieces(raised, s0, s1, k):
+    """The stretch s0..s1 split where raised stretches (dicts x0, x1, levels) step: [(x0, x1, levels)], each with
+    the raised decks over it, at most k."""
+    xs = sorted({s0, s1} | {x for r in raised for x in (r["x0"], r["x1"]) if s0 < x < s1})
+    out = []
+    for a, b in zip(xs, xs[1:]):
+        m = (a + b) / 2
+        lv = min(k, max((r["levels"] for r in raised if r["x0"] <= m <= r["x1"]), default=0))
+        if out and out[-1][2] == lv:
+            out[-1] = (out[-1][0], b, lv)
+        else:
+            out.append((a, b, lv))
     return out
 
 
@@ -504,11 +540,16 @@ def armour_geometry(design, L, T, D, geo):
     a = design.get("armour") or {}
     belt = a.get("belt_mm", 0)
     x0, x1 = geo.get("citadel", (-0.3 * L, 0.3 * L))
+    raised = geo.get("raised", ())
     decks = []
-    for d in armour_decks(design, D):
+    for d in armour_decks(design, D, raised):
         if d["mm"] <= 0:
             continue
-        for ext, p0, p1 in extent_spans(d["extent"], L, x0, x1):
+        spans = extent_spans(d["extent"], L, x0, x1)
+        if d["deck"] < 0:     # a raised deck: only over its stretches
+            spans = [(ext, a_, b_) for ext, s0, s1 in spans for a_, b_, lv in raised_pieces(raised, s0, s1, -d["deck"])
+                     if lv >= -d["deck"]]
+        for ext, p0, p1 in spans:
             # pushed onto one deck by a shallow hull: overlapping plates make one
             p = next((p for p in decks if p["deck"] == d["deck"] and min(p["x1"], p1) - max(p["x0"], p0) > 1e-6),
                      None)
@@ -519,7 +560,8 @@ def armour_geometry(design, L, T, D, geo):
                          d["material"] if p["material"] is None else f"{p['material']} + {d['material']}")
                 continue
             decks.append({**d, "extent": ext, "x0": p0, "x1": p1})
-    over = [d for d in decks if d["extent"] in ("citadel", "full")]      # the plates over the citadel
+    over = [d for d in decks if d["extent"] in ("citadel", "full") and d["deck"] >= 0]  # the stack's plates over the
+                                                                                        # citadel
     main = max(over, key=lambda d: (d["mm"], d["z"]), default=None)
     roof = min(over, key=lambda d: d["z"], default=None)
     h0 = TUNING["belt_h_a"] * T + TUNING["belt_h_b"]
@@ -548,15 +590,21 @@ def armour_geometry(design, L, T, D, geo):
     ub = a.get("upper_belt") or {}
     if ub.get("mm", 0) > 0:
         stack = deck_stack(design, D)
-        ut = stack[min(int(ub.get("to_deck", 0)), stack[-1][0])][1]
+        to = int(ub.get("to_deck", 0))
+        ut = stack[min(max(to, 0), stack[-1][0])][1]
         pieces = extent_spans(ub.get("extent", "citadel"), L, x0, x1)
         if ub.get("extent") == "full":
             pieces = [("citadel", x0, x1), ("fore", x1, L / 2), ("aft", -L / 2, x0)]
         for ext, s0, s1 in pieces:
-            if ut > tops[ext] + 0.05 and s1 - s0 > 1e-6:
-                strakes.append(dict(id="Upper belt" if ext == "citadel" else f"Upper belt ({ext})", kind="upper",
-                                    extent=ext, mm=ub["mm"], tip_mm=ub["mm"], x0=s0, x1=s1, bottom=tops[ext],
-                                    top=ut, material=armour_material(design, "upper_belt", ub)))
+            # up to a raised deck (to_deck -1, -2, ...): to it over its stretches, to the main deck elsewhere
+            parts = raised_pieces(raised, s0, s1, -to) if to < 0 else [(s0, s1, 0)]
+            for k, (p0, p1, lv) in enumerate(parts):
+                top_ = ut + lv * DECK_PITCH
+                if top_ > tops[ext] + 0.05 and p1 - p0 > 1e-6:
+                    sid = "Upper belt" if ext == "citadel" else f"Upper belt ({ext})"
+                    strakes.append(dict(id=sid + (f" {k + 1}" if len(parts) > 1 else ""), kind="upper",
+                                        extent=ext, mm=ub["mm"], tip_mm=ub["mm"], x0=p0, x1=p1, bottom=tops[ext],
+                                        top=top_, material=armour_material(design, "upper_belt", ub)))
     bh_top = max([top] + [s["top"] for s in strakes if s["kind"] == "upper" and s["extent"] == "citadel"])
     return dict(x0=x0, x1=x1, belt_mm=belt, belt_bottom_mm=a.get("belt_bottom_mm", belt), waterline=T,
                 belt_bottom=bot, belt_top=top, decks=decks, strakes=strakes,

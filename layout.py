@@ -274,6 +274,7 @@ def add_raised(lay, design, rid, x0, x1, levels=1, breaks=None):
     h = levels * LEVEL_H
     pts = hull.points(inset=RAISED_INSET, x_min=x0, x_max=x1)
     lay.raised.append(dict(id=rid, x0=x0, x1=x1, levels=levels))
+    lay.geo["raised"] = lay.raised      # for navarch: the girder (raised_girder_h) and armour on raised decks
     lay.decks.append(dict(id=rid, kind="deck", points=pts, base=0.0, top=h))
     lay.occupy(_fp_poly(pts), 0.0, h, rid)
     area, xc = polygon_centroid(pts)
