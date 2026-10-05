@@ -42,6 +42,7 @@ import math
 
 KW_PER_SHP = 0.7457
 CASING = 3.0               # a funnel casing's plan area over its gas area (air casing, several uptakes)
+MAX_FUNNELS = 60           # a plan never gets more (a silly test gets 19): beyond it, the gas runs faster instead
 STEEL_FRAME = 0.92          # usable width of the hull at the machinery, as a fraction of the beam (frames, sides)
 DOUBLE_BOTTOM_FRAC = 0.07   # double bottom height, fraction of the hull depth (at least DOUBLE_BOTTOM_MIN)
 DOUBLE_BOTTOM_MIN = 1.0
@@ -66,6 +67,7 @@ CURVE_LOADS = [0.10, 0.25, 0.50, 0.75, 1.00]
 STEAM_CURVES = ("REC", "DT", "GTB")       # boilers and turbines are shared: the curve applies to plant load
 
 DRAUGHT_SYSTEMS = ("natural", "forced_boost", "forced", "exhaust")
+AMBIENT_K = 288.0   # the air the funnels draw against (natural draught: the stack's buoyancy)
 SMOKE_K = {"coal_natural": 4.0, "coal": 3.0, "oil": 1.5, "oil_heated": 1.0, "diesel": 0.5, "petrol": 0.5}
 
 # a mature-ish 1940 high-pressure geared turbine plant (plant-templates.md, ST7 1940): the default tech
@@ -109,6 +111,16 @@ def validate(design, default_tech=None):
     for k in ("mw", "height_m", "width_m", "length_m"):
         if not t["unit"][k] > 0:
             errs.append(f"machinery.tech.unit.{k} must be above 0")
+    d = t["draught"]
+    for k, lo, why in (("velocity_m_s", 0.0, "the funnel gas must move"),
+                       ("gas_temp_k", AMBIENT_K, f"funnel gas no hotter than the air ({AMBIENT_K:.0f} K) draws no air"),
+                       ("reach_m", -1e-9, "an uptake can't lead a negative distance"),
+                       ("air_fuel_ratio", -1e-9, "the boilers can't burn a negative amount of air")):
+        if k in d and not (isinstance(d[k], (int, float)) and d[k] > lo):
+            errs.append(f"machinery.tech.draught.{k} = {d[k]!r}: {why}")
+    if "natural_fraction" in d and not (isinstance(d["natural_fraction"], (int, float))
+                                        and 0 <= d["natural_fraction"] <= 1):
+        errs.append("machinery.tech.draught.natural_fraction must be 0..1")
     if not 0 <= t["boiler_fraction"] < 1:
         errs.append("machinery.tech.boiler_fraction must be 0..1")
     if not 0 <= p["stress"] <= 1:
@@ -268,7 +280,7 @@ def gas_flow(p):
 
 def natural_velocity(p, stack_m, trunk_m=0.0):
     t = p["tech"]["draught"].get("gas_temp_k", 600)
-    return 0.3 * math.sqrt(2 * 9.81 * max(stack_m, 1.0) * (1 - 288.0 / t)) * max(0.5, 1 - 0.02 * trunk_m)
+    return 0.3 * math.sqrt(2 * 9.81 * max(stack_m, 1.0) * (1 - AMBIENT_K / t)) * max(0.5, 1 - 0.02 * trunk_m)
 
 
 def funnel_plan(p, shp, groups, beam, stack_m, extra=0):
@@ -302,6 +314,11 @@ def funnel_plan(p, shp, groups, beam, stack_m, extra=0):
     if not counts:
         counts = [1]
     want = max(n_area, sum(counts)) + extra
+    needed = want
+    if want > MAX_FUNNELS:      # a runaway plant (a trial hull far too short for its power): thousands of funnels
+        want = max(MAX_FUNNELS, len(counts))
+        while sum(counts) > want:
+            counts[counts.index(max(counts))] -= 1
     i = 0
     while sum(counts) < want:       # more funnels: on the longest groups per funnel
         j = max(range(len(counts)), key=lambda k: (groups[k] if groups else 1) / counts[k])
@@ -310,7 +327,10 @@ def funnel_plan(p, shp, groups, beam, stack_m, extra=0):
     n = sum(counts)
     w = min(w_max, math.sqrt(CASING * area / n / (0.785 * 1.5)))
     w = max(w, 2.2 if sysname != "exhaust" else 1.0)
-    return dict(counts=counts, width=w, length=1.5 * w, velocity=v, area=area, gas=q, reach=reach)
+    if needed > n:
+        v *= max(1.0, area / (n * 0.785 * w * 1.5 * w / CASING))   # the gas area the funnels have
+    return dict(counts=counts, width=w, length=1.5 * w, velocity=v, area=area, gas=q, reach=reach,
+                **({"needed": needed} if needed > n else {}))
 
 
 def smoke_reach(p, shp):

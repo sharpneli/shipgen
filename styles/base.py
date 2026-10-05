@@ -3,6 +3,8 @@ Style hooks with neutral defaults. A style overrides what it needs.
 """
 from __future__ import annotations
 
+import math
+
 # Input limits shared by every style: (lo, hi) per dotted path; a style's LIMITS are merged over these.
 # These are sanity bounds for the generator, not gameplay rules: the game's designer enforces those. Armament
 # and armour are deliberately wide (silly designs may look stupid or fail the physics, but they run); hull form
@@ -32,7 +34,36 @@ COMMON_LIMITS = {
         ("directors", (0, 100)), ("rangefinder_m", (0, 50)), ("armour_mm", (0, 2000)), ("radar_t", (0, 500)),
         ("computer_t", (0, 500)))},
     ("fire_control", "search_radar_t"): (0, 500),
+    ("funnels",): (0, 60), ("machinery", "tech", "draught", "velocity_m_s"): (1, 100), ("machinery", "tech", "draught", "gas_temp_k"): (300, 2000),
 }
+
+# numbers the physics divides by or takes as counts: outside these the result isn't silly but undefined, so they're
+# checked even with no limits (design.py --no-limits). (path, low, low_inclusive, high or None)
+DEFINED = (
+    (("hull", "block_coefficient"), 0.0, False, 1.0), (("speed_kn",), 0.0, False, None),
+    (("main", "barrels"), 1, True, None), (("main", "calibre_mm"), 0.0, False, None),
+    (("main", "calibre_length"), 0.0, False, None), (("secondary", "barrels"), 1, True, None),
+    (("secondary", "calibre_mm"), 0.0, False, None), (("secondary", "calibre_length"), 0.0, False, None),
+)
+
+
+def undefined_errors(design):
+    """Numbers outside the range where the physics means anything at all (DEFINED), and negative counts and sizes."""
+    errs = []
+    for path, lo, incl, hi in DEFINED:
+        ds = [design]
+        for k in path[:-1]:
+            ds = [e for d in ds for e in (lambda v: v if isinstance(v, list) else [v or {}])(d.get(k))]
+        for d in ds:
+            if path[-1] not in d:
+                continue
+            v = d[path[-1]]
+            if not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v) or (
+                    v < lo if incl else v <= lo) or (hi is not None and v > hi):
+                errs.append(f"{'.'.join(path)} = {v!r}: must be {'at least' if incl else 'above'} {lo}"
+                            + (f" and at most {hi}" if hi is not None else ""))
+    return errs
+
 
 SUPERSTRUCTURE_KEYS = ("t_per_m2", "material", "tower_levels", "deckhouse_levels")
 RAISED_ENDS = ("bow", "stern")
@@ -225,7 +256,7 @@ class Style:
         if not isinstance(sf, (bool, dict)) or (isinstance(sf, dict) and not all(
                 isinstance(v, int) and 0 <= v <= main.get(k, 0) for k, v in sf.items() if k in ("fore", "aft"))):
             errs.append("main.superfire: use true, false, or {\"fore\": n, \"aft\": n} within the group sizes")
-        return errs
+        return errs + undefined_errors(design)
 
     DEFAULT_TECH = None         # machinery.tech when the design gives none (None: powerplant.DEFAULT_TECH)
     MIDSHIPS_TURRETS = False    # does the layout support main["mid"]

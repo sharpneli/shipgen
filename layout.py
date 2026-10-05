@@ -642,6 +642,9 @@ def plan_funnels(lay, design, res, beam, top, groups=None):
         fp = powerplant.funnel_plan(res.plant, res.power_shp, groups, beam, stack,
                                     extra=design["funnels"] - sum(fp["counts"]))
     lay.geo["funnel_plan"] = fp
+    if fp.get("needed"):
+        lay.warnings.append(f"The plant's gas needs {fp['needed']:,} funnels; it gets {sum(fp['counts'])}, with the gas "
+                            f"at {fp['velocity']:.0f} m/s.")
     lay.geo["smoke_reach"] = powerplant.smoke_reach(res.plant, res.power_shp)   # directors keep out of it
     return sum(fp["counts"]), fp["width"], fp["length"]
 
@@ -1687,7 +1690,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     # the forward boiler group may run on under the bridge: most of it, as its funnels must still come up through
     # open deck aft of the bridge, each with its room (f_min)
     under_bridge, ub_seg = 0.0, None
-    if core and seq[core[0]] == "F":
+    if core and seq[core[0]] == "F" and seg_of[core[0]] is not None:   # not an engines-only plant's exhaust
         ub_seg = seg_of[core[0]]
         f_items = [i for i in range(len(seq)) if seq[i] == "F" and seg_of[i] == ub_seg]
         ub_l = segs[ub_seg][1]
@@ -2170,6 +2173,12 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         if mach_placed[si][0] == "boiler":
             want = min(0.0, mach_placed[si][1] - (fxs[idx[0]] + fxs[idx[-1]]) / 2)
         off = want
+        # an offset that leaves an end of the group out of every funnel's reach fails in_reach: step past those
+        # without testing them (a runaway plant on a trial hull can want tens of km, with thousands of funnels)
+        xs = [fxs[i] for i in idx]
+        bound = max(e - max(xs) - max(reach_lim, min(abs(e - x) for x in xs)) for e in mach_placed[si][1:]) - 1e-6
+        while off < min(0.0, bound):
+            off = min(0.0, off + 0.25)
         while off < 0.0 and not (in_reach(si, [fxs[i] for i in idx], off) and all(
                 lay.clear(fun_fp(fxs[i] + off), fun_top) and lay.free(fun_fp(fxs[i] + off), 0.0)
                 and lay.deck_levels(fxs[i] + off, fl / 2) == lay.deck_levels(fxs[i], fl / 2) for i in idx)):
