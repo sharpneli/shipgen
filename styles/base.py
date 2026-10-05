@@ -190,6 +190,8 @@ class Style:
                 errs.append(f"main.amidships_stands_on = {main['amidships_stands_on']!r}: use {' or '.join(STANDS_ON)}")
         if not isinstance(main.get("echelon", False), bool):
             errs.append("main.echelon: use true or false")
+        if not isinstance(main.get("cross_deck", False), bool):
+            errs.append("main.cross_deck: use true or false")
         sf = main.get("superfire", True)
         if not isinstance(sf, (bool, dict)) or (isinstance(sf, dict) and not all(
                 isinstance(v, int) and 0 <= v <= main.get(k, 0) for k, v in sf.items() if k in ("fore", "aft"))):

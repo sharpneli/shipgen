@@ -30,7 +30,7 @@ from geometry import (make_turret_type, make_torpedo_type, rrect_polygon, rrect_
 import ordnance
 import powerplant
 from navarch import Weight, mount_weights, torpedo_weight, TUNING
-from hitbox import ARC_BEAM
+from hitbox import ARC_BEAM, ARC_CROSS
 from geometry import Hull, AA_CFG
 
 LEVEL_H = 2.6  # height of one superstructure level, metres
@@ -144,13 +144,14 @@ class Layout:
 
     def reserve_sweep(self, m):
         """A main turret claims the area its barrels sweep: its firing arcs plus the turn from its stowed
-        bearing to the starboard arc (one side free to switch sides), out to the muzzles. Anything placed
+        bearing to the starboard arc (one side free to switch sides), out to the muzzles; a cross-deck wing
+        turret, its whole swing from its own side through the nearer end to the cross-deck arc. Anything placed
         later that stands taller than the guns must keep out (see clear())."""
-        from hitbox import mount_arcs
+        from hitbox import mount_arcs, cross_turn
         arcs = mount_arcs(m)
         rest = m["rest"] % 360.0
-        intervals = list(arcs)
-        if not any(lo <= rest <= hi or lo <= rest + 360 <= hi for lo, hi in arcs):
+        intervals = [cross_turn(m)] if m.get("cross_deck") else list(arcs)
+        if not any(lo <= rest <= hi or lo <= rest + 360 <= hi for lo, hi in intervals):
             lo, hi = next(((lo, hi) for lo, hi in arcs if lo <= 90 <= hi), arcs[0])
             intervals.append([rest, lo] if rest < lo else [hi, rest])
         R = turret_reach(m["t"]) + 0.5
@@ -1409,6 +1410,10 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     main = design.get("main") or {}
     nf, na, nm = main.get("fore", 0), main.get("aft", 0), main.get("mid", 0)
     nw, echelon = main.get("wing", 0), bool(main.get("echelon", False))   # wing turret pairs
+    cross = echelon and bool(main.get("cross_deck", False))   # echelon pairs that also fire across the deck
+    if nw and main.get("cross_deck") and not echelon:
+        lay.warnings.append("main.cross_deck needs \"echelon\": true (an abreast pair blocks each other's beam); "
+                            "the wing turrets fire on their own side only.")
     tm_id, tm = (make_turret_type(main["calibre_mm"], main["calibre_length"], main["barrels"])
                  if (nf + na + nm + nw) else (None, None))
     r = tm["r"] if tm else 0.0
@@ -1591,7 +1596,11 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         turret's barrel line, clear of its barrels too."""
         if reach - y > y - 0.3:
             return R_main + reach + 0.5
-        return max(2 * reach + 1.0, math.sqrt(max(0.0, (2 * reach + 0.5) ** 2 - 4 * y * y)))
+        s = max(2 * reach + 1.0, math.sqrt(max(0.0, (2 * reach + 0.5) ** 2 - 4 * y * y)))
+        if cross:   # the partner's body (+0.5 m) clear of the cross-deck arc's edge, ARC_CROSS off the beam
+            c = math.radians(ARC_CROSS)
+            s = max(s, (reach + 0.5 + 2 * y * math.sin(c)) / math.cos(c))
+        return s
 
     def wing_side(i, step, y):
         """Room from the wing pair at seq[i] toward one end (step -1 forward, +1 aft): clear of the neighbour, and
@@ -1607,9 +1616,35 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         if (step < 0 and nf) or (step > 0 and na):
             flush = flush_f if step < 0 else flush_a
             beyond = (R_main + 1.0 if flush else r + gap) + (lb + 1.5 if step < 0 else (la + 1.5 if la else 1.0))
-            need = R_main + reach + 0.5 if reach > y - 0.3 else math.sqrt(max(0.0, (2 * reach + 0.5) ** 2 - y * y))
+            need = R_main + reach + 0.5 if reach > y - 0.3 or cross else \
+                math.sqrt(max(0.0, (2 * reach + 0.5) ** 2 - y * y))
             g = max(g, need - beyond)
+        if cross:
+            # a cross-deck turret trains across through this end (the forward turret of a pair through ahead, the
+            # aft one through astern), its barrels sweeping over the centreline: the next item of the plan standing
+            # there, past any open machinery, must be clear of the muzzles (a midships turret's body too). The
+            # bridge and aft control beyond the plan's ends are cross_ends' business
+            j, open_l = i + step, 0.0
+            while 0 <= j < len(seq) and seq[j] == "E":
+                open_l += widths0[j]
+                j += step
+            if 0 <= j < len(seq) and (half_of(j, y) > 0 or seq[j] == "T"):
+                g = max(g, R_main + 0.5 + (reach if seq[j] == "T" else 0.0) - open_l)
         return g
+
+    def cross_ends(y):
+        """(fore, aft): deck the plan needs past its ends, on top of its items, where a cross-deck pair is the
+        plan's first (last) item past open machinery: the turn across that end clears the bridge (aft control) by
+        the muzzles' reach. Deck only: machinery running on under the bridge or aft control may fill it."""
+        out = []
+        for step, order in ((-1, range(len(seq))), (1, range(len(seq) - 1, -1, -1))):
+            k = next((k for k in order if seq[k] != "E"), None)
+            if not cross or k is None or seq[k] != "W" or half_of(-1 if step < 0 else len(seq), y) <= 0:
+                out.append(0.0)
+                continue
+            open_l = sum(widths0[e] for e in (range(k) if step < 0 else range(k + 1, len(seq))))
+            out.append(max(0.0, R_main + 0.5 - wing_side(k, step, y) - open_l))
+        return tuple(out)
 
     def wing_widths(y):
         return {i: wing_side(i, -1, y) + wing_side(i, 1, y) + (wing_stagger(y) if echelon else 0.0)
@@ -1635,16 +1670,18 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     # core with the end segments run on beyond it): whichever is longer
     aft_l = la + 1.5 if la else 1.0
 
-    def middle_needs(ws):
-        """Length the middle needs: the deck plan with the bridge and aft control, the machinery, and the two
-        mixes (bridge, the plan through its core, then the trailing machinery; the leading machinery, then the plan
-        from its core to the aft control)."""
+    def middle_needs(ws, ext):
+        """Length the middle needs: the deck plan with the bridge and aft control (and cross_ends' deck), the
+        machinery, and the two mixes (bridge, the plan through its core, then the trailing machinery; the leading
+        machinery, then the plan from its core to the aft control)."""
         before = sum(ws[:core[0]]) if core else 0.0
         c_l = sum(ws[i] for i in core)
-        return max(lb + 1.5 + sum(ws) + aft_l, lead_l + c_l + trail_l + 2.0,
-                   lb + 1.5 + before + c_l + trail_l + 1.0, lead_l + 1.0 + sum(ws) - before + aft_l)
+        ef, ea = ext
+        return max(lb + 1.5 + ef + sum(ws) + ea + aft_l, lead_l + c_l + trail_l + 2.0,
+                   lb + 1.5 + ef + before + c_l + trail_l + 1.0, lead_l + 1.0 + sum(ws) - before + ea + aft_l)
 
-    M_req = middle_needs(plan_widths(B / 2 - reach - 0.6))
+    y_0 = B / 2 - reach - 0.6
+    M_req = middle_needs(plan_widths(y_0), cross_ends(y_0))
 
     need_hw = reach + 0.6
     if tm and need_hw > B / 2:
@@ -1759,18 +1796,19 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     # hull allows where they end up: a hull narrowing to its ends is wider where the pairs stand
     y_w = min(hull.half_width(fz0 + (fz1 - fz0) * k / 20) for k in range(21)) - reach - 0.6
 
-    def plan_front(widths):
-        """Where the plan's front stands for these item lengths: (lo_x, hi_x, x)."""
+    def plan_front(widths, y):
+        """Where the plan's front stands for these item lengths, with the wing pairs at y: (lo_x, hi_x, x)."""
         before_core = sum(widths[:core[0]]) if core else 0.0
         core_l = sum(widths[i] for i in core)
-        lo_x = max(fz0 + sum(widths), mid_aft + 1.0 + trail_l + core_l + before_core)
-        hi_x = min(fz1, mid_fwd - 1.0 - lead_l + before_core)
+        ef, ea = cross_ends(y)
+        lo_x = max(fz0 + ea + sum(widths), mid_aft + 1.0 + trail_l + core_l + before_core)
+        hi_x = min(fz1 - ef, mid_fwd - 1.0 - lead_l + before_core)
         return lo_x, hi_x, (lo_x + hi_x) / 2 if hi_x >= lo_x else hi_x
 
     def wing_room(y):
         """How far out the wing turrets could stand where a plan with them at y puts them."""
         widths = plan_widths(y)
-        xx, room = plan_front(widths)[2], B
+        xx, room = plan_front(widths, y)[2], B
         for i, (it, w_) in enumerate(zip(seq, widths)):
             if it == "W":
                 x = xx - wing_side(i, -1, y)
@@ -1797,7 +1835,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     # (core plus end segments) between the end turret groups
     before_core = sum(widths[:core[0]]) if core else 0.0
     core_l = sum(widths[i] for i in core)
-    lo_x, hi_x, xx = plan_front(widths)
+    lo_x, hi_x, xx = plan_front(widths, y_w)
     if hi_x < lo_x - 0.5:
         what = [f"{nm} midships turret(s)"] * bool(nm) + [f"{nw} wing turret pair(s)"] * bool(nw)
         lay.fail("length", f"No room for the machinery, {nfun} funnel(s){' and ' + ' and '.join(what) if what else ''}"
@@ -1858,12 +1896,13 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         for k, (x, stow) in enumerate(mids):
             main_mount(turret_name("QPRS", k), x, 0.0, stow, arc_role="beam", midships=True)
         # wing turrets fire bow to stern on their own side, and stow fore-and-aft (the edge of that arc) toward
-        # the nearer end: an echelon pair's forward turret forward and its aft one aft
+        # the nearer end: an echelon pair's forward turret forward and its aft one aft. Cross-deck turrets also
+        # fire across the deck, training over through that end (hitbox.cross_turn)
         for k, pair in enumerate(wings):
             for x, side in pair:
                 fwd = (x == pair[0][0]) if echelon else x >= mach_c
                 main_mount(f"W{k + 1}{'S' if side > 0 else 'P'}", x, side * y_w, 0 if fwd else 180, wing=True,
-                           **({"echelon": True} if echelon else {}))
+                           **({"echelon": True} if echelon else {}), **({"cross_deck": True} if cross else {}))
 
     # ---------------- superstructure, kept out of the guns' sweeps ----------------
     # every level keeps clear of the end groups' turrets (level_outline): all but wing and midships turrets

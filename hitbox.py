@@ -12,6 +12,7 @@ picks counts and calibres. Every arc is centred on the mount's rest bearing (deg
     behind a superfiring one, or an amidships turret               +-ARC_BEAM about each beam
     side mounts: secondaries, sponson guns, side torpedo mounts,
     wing turrets (which stow fore-and-aft, at the edge of the arc) +-ARC_SIDE   (bow to stern, own side)
+    cross-deck echelon wing turrets: that, and across the deck      +-ARC_CROSS about the far beam
     casemate guns, in the hull side                               +-ARC_CASEMATE about their beam
     centreline trainable torpedo mounts                           +-ARC_TORPEDO about each beam
     fixed tubes (MTBs; the boat aims them)                        +-ARC_FIXED about their bearing
@@ -29,6 +30,12 @@ import subdivision
 ARC_END = 135.0
 ARC_SIDE = 90.0
 ARC_BEAM = 65.0
+# Cross-deck fire (main.cross_deck, echelon pairs only): a second, narrower arc about the far beam. Real ships got
+# anything from a blast-limited few tens of degrees (Invincible) to over 100 degrees (German ships with a long
+# stagger); +-30 is a gameplay pick: useful on the beam, never toward the ends, and the layout keeps the partner
+# turret out of it with an ordinary stagger. The turret trains across through the nearer end of the ship
+# (cross_turn), so the layout keeps that turn clear too.
+ARC_CROSS = 30.0
 ARC_CASEMATE = 60.0
 ARC_TORPEDO = 60.0
 ARC_FIXED = 1.0
@@ -63,7 +70,10 @@ def mount_arcs(m):
     if m.get("casemate"):
         return [_arc(m["rest"], ARC_CASEMATE)]
     if m.get("wing"):
-        return [_arc(90.0 if m["y"] > 0 else 270.0, ARC_SIDE)]
+        own = 90.0 if m["y"] > 0 else 270.0
+        if m.get("cross_deck"):     # own side first, then the cross-deck arc
+            return [_arc(own, ARC_SIDE), _arc(own + 180.0, ARC_CROSS)]
+        return [_arc(own, ARC_SIDE)]
     if m.get("arc_role") == "beam":
         return [_arc(90.0, ARC_BEAM), _arc(270.0, ARC_BEAM)]
     if m["kind"] == "torpedo" and abs(m["y"]) < 0.5:
@@ -71,6 +81,16 @@ def mount_arcs(m):
     if abs(abs(_wrap180(m["rest"])) - 90.0) < 1e-6:
         return [_arc(m["rest"], ARC_SIDE)]
     return [_arc(m["rest"], ARC_END)]
+
+
+def cross_turn(m):
+    """A cross-deck wing turret's whole swing [start, end] (end may exceed 360): its own side, the turn across
+    the nearer end of the ship (the end it stows toward; the partner turret blocks the other way), and the
+    cross-deck arc."""
+    own, cross = mount_arcs(m)
+    if (m["rest"] % 360.0 < 90.0) == (m["y"] < 0):    # port turning through ahead, starboard through astern
+        return [own[0], cross[1] + 360.0 if cross[1] < own[0] else cross[1]]
+    return [cross[0], own[1] if own[1] > cross[0] else own[1] + 360.0]
 
 
 def assign_arcs(lay):
