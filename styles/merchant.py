@@ -334,7 +334,7 @@ def _layout(design, res, shift):
         tt_id, tt = armament.torpedo_type(tp)
         r = tt["barrel_len"] / 2 + 0.3
         armament.side_pairs(lay, mounts, turret_types, "torpedo", tt_id, tt, (tp["mounts"] + 1) // 2,
-                            [(x, hull.half_width(x) - r - 0.4, deck_h(x) + 0.3) for x in xs], "T", z=1,
+                            [(x, hull.half_width(x) - r - 0.4, deck_h(x) + 0.3) for x in xs], "T",
                             label="Torpedo")
     firecontrol.place(lay, design, blocks)
     aa_out = []

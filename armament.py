@@ -34,7 +34,7 @@ def tube_footprint(t, x, y, bearing):
     return _fp_rect(x - ex, y - ey, x + ex, y + ey)
 
 
-def add_mount(lay, mounts, kind, t_id, t, mid, x, y, base, rest, z, level=0, armour_mm=0, depth=10.0, top=None,
+def add_mount(lay, mounts, kind, t_id, t, mid, x, y, base, rest, level=0, armour_mm=0, depth=10.0, top=None,
               footprint_r=None, label="Mount", **extra):
     """One mount: footprint, weights and the mount record, for every style. A fixed tube (t["fixed_tube"]) keeps
     `rest` as its fixed bearing. top defaults to base + the turret's height; footprint_r to its body and ears.
@@ -43,7 +43,7 @@ def add_mount(lay, mounts, kind, t_id, t, mid, x, y, base, rest, z, level=0, arm
     th = turret_height(t) if kind != "torpedo" or t.get("fixed_tube") else 1.1
     top = base + th if top is None else top
     mounts.append(dict(id=mid, kind=kind, type=t_id, t=t, x=x, y=y, level=level, base=base, top=top,
-                       rest=rest, z=z, armour_mm=armour_mm, **extra))
+                       rest=rest, armour_mm=armour_mm, **extra))
     if t.get("fixed_tube"):
         mounts[-1]["fixed"] = rest
         lay.occupy(tube_footprint(t, x, y, rest), base, top, mid)
@@ -92,14 +92,14 @@ def gun_line(lay, mounts, turret_types, gun, kind, names, x_start, step_dir, y, 
             lay.fail("beam", f"{label} mount {mid} ({gun['calibre_mm']:g} mm) is too wide for the hull at {x:.0f} m.")
             continue
         stow = (rest + 180) % 360     # flush: stowed pointing away from the stepped turret ahead of it
-        add_mount(lay, mounts, kind, t_id, t, mid, x, y, base, stow if flush else rest, z=1 + level, level=level,
+        add_mount(lay, mounts, kind, t_id, t, mid, x, y, base, stow if flush else rest, level=level,
                   armour_mm=armour_mm, depth=depth)
         if flush:
             mounts[-1]["arc_role"] = "beam"
 
 
 def side_pairs(lay, mounts, turret_types, kind, t_id, t, per_side, cands, prefix, pitch=None,
-               armour_mm=25.0, depth=10.0, z=3, label="Secondary", ignore=()):
+               armour_mm=25.0, depth=10.0, label="Secondary", ignore=()):
     """per_side mounts on each side. cands: (x, y, base) for the starboard side (y > 0), in order of
     preference, mirrored to -y; or (x, y, base, y_port) when the sides differ (an angled flight deck).
     A candidate is used when both sides are free and it keeps pitch from the others already placed."""
@@ -122,7 +122,7 @@ def side_pairs(lay, mounts, turret_types, kind, t_id, t, per_side, cands, prefix
         k = len(placed) + 1
         for side, yy in ((1, y), (-1, y_port)):
             mid = f"{prefix}{k}{'S' if side > 0 else 'P'}"
-            add_mount(lay, mounts, kind, t_id, t, mid, x, yy, base, 90 * side, z=z,
+            add_mount(lay, mounts, kind, t_id, t, mid, x, yy, base, 90 * side,
                       armour_mm=armour_mm, depth=depth)
         placed.append(x)
     if len(placed) < per_side:
@@ -197,7 +197,7 @@ def fixed_tube_pairs(lay, mounts, turret_types, tp, xs, y_of_x, base=0.2, toe_de
         placed += 1
         for side in (1, -1):
             add_mount(lay, mounts, "torpedo", t_id, t, f"T{placed}{'S' if side > 0 else 'P'}", x, side * y, base,
-                      side * toe_deg, z=1)
+                      side * toe_deg)
     if placed < want:
         lay.fail("length", f"Only {placed} of {want} pairs of torpedo tubes fit along the sides.")
     return placed

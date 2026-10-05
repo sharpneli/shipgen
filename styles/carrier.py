@@ -472,7 +472,7 @@ def _flight_deck_layout(design, res, shift):
         tt_id, tt = armament.torpedo_type(tp)
         n = (tp["mounts"] + 1) // 2
         armament.side_pairs(lay, mounts, turret_types, "torpedo", tt_id, tt, n,
-                            sponson_slots(tt["barrel_len"] / 2 + 0.3, fd_h - 2.5), "T", z=1, label="Torpedo")
+                            sponson_slots(tt["barrel_len"] / 2 + 0.3, fd_h - 2.5), "T", label="Torpedo")
     firecontrol.place(lay, design, blocks)
     aa_out = []
     aa_req = design.get("aa") or {}
@@ -582,7 +582,7 @@ def _seaplane_layout(design, res, shift):
         tt_id, tt = armament.torpedo_type(tp)
         r = tt["barrel_len"] / 2 + 0.3
         armament.side_pairs(lay, mounts, turret_types, "torpedo", tt_id, tt, (tp["mounts"] + 1) // 2,
-                            [(x, hull.half_width(x) - r - 0.4, 0.3) for x in xs], "T", z=1, label="Torpedo")
+                            [(x, hull.half_width(x) - r - 0.4, 0.3) for x in xs], "T", label="Torpedo")
     firecontrol.place(lay, design, blocks)
     aa_out = []
     aa_req = design.get("aa") or {}

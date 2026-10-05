@@ -662,10 +662,23 @@ def add_steering(lay, x0=None, x1=None, half_width=None, name="Steering gear"):
     return room
 
 
+DRAW_KIND = {"main": 2, "secondary": 1}     # at the same height, main guns draw over secondaries over the rest
+
+
+def draw_order(mounts):
+    """Each mount's z, the renderer's and the game's turret draw order (ascending): its rank by base height, so a
+    turret's barrels pass over the lower mounts they swing across, as the hitboxes have it. Equal keys share a z."""
+    key = lambda m: (round(m["base"], 3), DRAW_KIND.get(m["kind"], 0))
+    rank = {k: i for i, k in enumerate(sorted({key(m) for m in mounts}))}
+    for m in mounts:
+        m["z"] = rank[key(m)]
+
+
 def finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top, deck="steel",
                   **extra):
     """The laid-out ship's renderer spec (lay.spec) and its parts on lay, for every style. extra: style-specific
     spec keys (boats, bollards, flight deck, fittings, ...)."""
+    draw_order(mounts)
     lay.spec = dict(
         id=design["id"], name=design.get("name", design["id"]), **{"class": design.get("type", "")},
         length=lay.hull.L, beam=lay.hull.B, bow=hs["bow"], stern=hs["stern"], deck=deck,
@@ -894,7 +907,7 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
             base, top = (0.0, LEVEL_H) if upper else (-LEVEL_H, 0.0)
             for side in (1, -1):
                 mid = f"{sec['prefix']}{i + 1}{'S' if side > 0 else 'P'}"
-                armament.add_mount(lay, mounts, "secondary", t_id, t, mid, x, side * yo, base, 90 * side, 0,
+                armament.add_mount(lay, mounts, "secondary", t_id, t, mid, x, side * yo, base, 90 * side,
                                    armour_mm=arm, depth=depth, top=top, footprint_r=CASEMATE_SHIELD * rc,
                                    casemate=True, material=sec.get("material"))
     # housings close together (no lower shield between them) join into one gallery, its outer face the innermost
@@ -1728,7 +1741,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                 mid = turret_name(names[gname], i)
                 # a flush turret stows pointing away from the stepped turret ahead of it
                 m = armament.add_mount(lay, mounts, "main", tm_id, tm, mid, x, 0.0, base,
-                                       (180 if gname == "A" else 0) if flush else rest, 1 + level, level=level,
+                                       (180 if gname == "A" else 0) if flush else rest, level=level,
                                        armour_mm=armour.get("turret_mm", 0), depth=depth, footprint_r=reach,
                                        label="Turret")
                 if flush:
@@ -1836,7 +1849,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         mid_base = (LEVEL_H if mid_raised else 0.0) + 1.2
 
         def main_mount(mid, x, y, rest, **kw):
-            lay.reserve_sweep(armament.add_mount(lay, mounts, "main", tm_id, tm, mid, x, y, mid_base, rest, 1,
+            lay.reserve_sweep(armament.add_mount(lay, mounts, "main", tm_id, tm, mid, x, y, mid_base, rest,
                                                  armour_mm=armour.get("turret_mm", 0), depth=depth,
                                                  footprint_r=reach, label="Turret", **kw))
             if mid_raised:
@@ -2035,7 +2048,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                                    "secondaries.")
             for side in (1, -1):
                 mid = f"{pre}{i + 1}{'S' if side > 0 else 'P'}"
-                armament.add_mount(lay, mounts, "secondary", ts_id, ts, mid, sx, side * y_s, sec_base, 90 * side, 3,
+                armament.add_mount(lay, mounts, "secondary", ts_id, ts, mid, sx, side * y_s, sec_base, 90 * side,
                                    armour_mm=sec.get("armour_mm", 25), depth=depth, top=sec_base + ths,
                                    footprint_r=rs_reach, material=sec.get("material"))
         if raised and sxs:
@@ -2126,7 +2139,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                     for side, fp in zip((1, -1), fps):
                         mid = f"T{placed // 2 + 1}{'S' if side > 0 else 'P'}"
                         mounts.append(dict(id=mid, kind="torpedo", type=tt_id, t=tt, x=x, y=side * y, level=0,
-                                           base=0.3, top=1.4, rest=90 * side, z=1))
+                                           base=0.3, top=1.4, rest=90 * side))
                         lay.occupy(fp, 0, 1.4, mid)
                         lay.weights.append(Weight(mid, "armament", torpedo_weight(tt["barrels"]), x=x,
                                                   z_rel=("deck", 1)))
@@ -2141,7 +2154,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                 if lay.free(fp, 0.3) and lay.clear(fp, 1.4) and hull.half_width(x) > tt["r"] + 0.5:
                     mid = f"T{placed + 1}"
                     mounts.append(dict(id=mid, kind="torpedo", type=tt_id, t=tt, x=x, y=0.0, level=0, base=0.3,
-                                       top=1.4, rest=90, z=1))
+                                       top=1.4, rest=90))
                     lay.occupy(fp, 0, 1.4, mid)
                     lay.weights.append(Weight(mid, "armament", torpedo_weight(tt["barrels"]), x=x, z_rel=("deck", 1)))
                     placed += 1
@@ -2156,7 +2169,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                 if lay.free(fp, 0.3, ignore=dh_ids) and lay.clear(fp, LEVEL_H + 1.4):
                     mid = f"T{placed + 1}"
                     mounts.append(dict(id=mid, kind="torpedo", type=tt_id, t=tt, x=x, y=0.0, level=1,
-                                       base=LEVEL_H + 0.3, top=LEVEL_H + 1.4, rest=90, z=1))
+                                       base=LEVEL_H + 0.3, top=LEVEL_H + 1.4, rest=90))
                     lay.occupy(fp, LEVEL_H, LEVEL_H + 1.4, mid)
                     lay.weights.append(Weight(mid, "armament", torpedo_weight(tt["barrels"]), x=x,
                                               z_rel=("deck", LEVEL_H + 1)))
