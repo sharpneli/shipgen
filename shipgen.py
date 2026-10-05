@@ -202,7 +202,7 @@ class Painter:
             s.append(f'<g{cl}><path d="{d}" transform="translate({f(off * 0.6)},{f(off)})" '
                      f'fill="#000" fill-opacity="0.28"/></g>')
         s.append(f'<path d="{d}" fill="{col}" {self.stroke()}/>')
-        s.append(self.dazzled(d))
+        s.append(self.dazzled(d, self.shapes.get("dazzle_upperworks", 1.0)))
         # a thin lighter rim on the port/fwd edge suggests light from the upper-left
         s.append(f'<path d="{d}" fill="none" stroke="{shade(col, 1.25)}" stroke-width="{f(self.sw * 0.9)}" '
                  f'transform="translate({f(-self.sw * 0.6)},{f(-self.sw * 0.6)})" stroke-opacity="0.7"/>')
@@ -232,7 +232,7 @@ class Painter:
                 s.append(f'<path d="{poly(parts["tube"])}" fill="{shade(col, 0.7)}" {self.stroke()}/>')
             s += [f'<path d="{poly(e)}" fill="{shade(col, 0.85)}" {self.stroke()}/>' for e in parts["ends"]]
             s.append(f'<path d="{hood}" fill="{col}" {self.stroke()}/>')
-            s.append(self.dazzled(hood))
+            s.append(self.dazzled(hood, self.shapes.get("dazzle_upperworks", 1.0)))
             # the hood's roof: a sighting hatch aft, and the radar aerial (a flat dish seen edge-on) forward
             hw = max(py for _, py in parts["hood"]) - y
             s.append(f'<path d="{rrect_path(x0 + 0.12 * l, y - 0.4 * hw, x0 + 0.32 * l, y + 0.4 * hw, 0.1, 0.1)}" '
@@ -280,7 +280,7 @@ class Painter:
                      f'<line x1="{f(x - rake)}" y1="{f(y - w / 2)}" x2="{f(x)}" y2="{f(y - w / 2)}" {self.stroke()}/>'
                      f'<line x1="{f(x - rake)}" y1="{f(y + w / 2)}" x2="{f(x)}" y2="{f(y + w / 2)}" {self.stroke()}/>')
             s.append(f'<g transform="translate({f(-rake)},0)">')
-        s += [f'<path d="{d}" fill="{p["funnel"]}" {self.stroke()}/>', self.dazzled(d),
+        s += [f'<path d="{d}" fill="{p["funnel"]}" {self.stroke()}/>', self.dazzled(d, self.shapes.get("dazzle_upperworks", 1.0)),
               f'<path d="{inner}" fill="{p["funnel_cap"]}"/>']
         if p.get("funnel_band"):   # a painted top band (a look's funnel marking), seen from above as a rim
             band = rrect_path(x - l / 2 + 0.2, y - w / 2 + 0.2, x + l / 2 - 0.2, y + w / 2 - 0.2, r - 0.2, r - 0.2)

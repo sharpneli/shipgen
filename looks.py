@@ -31,6 +31,8 @@ Each look (one navy in one era) has:
                  dazzle         true: dazzle panels in palette "camo" colours over the hull, superstructure and
                                 funnels, a repeatable pattern per design
                  dazzle_decks   0..1: the dazzle panels also painted across the open decks at this opacity
+                 dazzle_upperworks   0..1: the panels' opacity on the superstructure and funnels (1; 0 = the hull
+                                sides only, as on Bismarck's Baltic scheme)
                  deck_stripes   {"ends": "fore" | "both", "pattern": "chevron" | "diagonal", "n": 5, "slope": 0.8,
                                 "colours": ["recog_a", "recog_b"]}: recognition stripes on the open foredeck
                                 (and quarterdeck)
@@ -482,7 +484,7 @@ NAVIES = {
                          "barbette": "#61666a", "barrel": "#3c4044", "tub": "#7a7f82",
                          "funnel": "#a2a7aa", "funnel_cap": "#2a2d30", "funnel_band": "#868b8e", "boat": "#cfd2d3",
                          "fitting": "#55595d", "mast": "#33373a", "flight_deck": "#6c675d", "stripe": "#e9ece6",
-                         "camo": ["#1d1f21", "#eef0f0"], "wood": "#54585b", "deck_line": "#2b2e30", "turret": "#d0a83a"},
+                         "camo": ["#1d1f21", "#eef0f0"], "wood": "#9e8159", "deck_line": "#3d3122", "turret": "#9da2a5"},
                 # merchants: dark hull, light grey house
                 by_style={"merchant": {"hull": "#3a3e42", "deck": "#6f695f", "deck_line": "#3b362f",
                                        "levels": ["#d8dad8", "#dfe1df", "#e5e6e5", "#ebecea"], "funnel": "#1e1e1e",
@@ -490,10 +492,10 @@ NAVIES = {
                           "planing": {"hull": "#8e9396", "deck": "#9fa4a7", "deck_line": "#5d6265",
                                       "levels": ["#b5b9bb", "#c0c4c6", "#cbcfd0", "#d6d9da"]}},
                 turrets="faceted",
-                # the 1941 Baltic scheme's black and white stripes on the hull and upperworks (not the decks), dark
-                # grey decks, yellow turret roofs for aircraft recognition (1940-41)
+                # Bismarck as she sailed in May 1941: the Baltic scheme's black and white stripes on the hull sides
+                # only, over teak decks and grey roofs
                 shapes={"bow_power": 0.2, "bow_flare": 0.04, "funnel": "capped", "blocks": "chamfer", "mast": "pole",
-                        "dazzle": True},
+                        "dazzle": True, "dazzle_upperworks": 0.0},
                 shapes_by_style={"merchant": {"dazzle": False}}),
             # German-inspired 1950s-60s: light haze grey, faceted turrets, capped funnels
             "cold_war": {
