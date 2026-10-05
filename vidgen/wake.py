@@ -54,6 +54,16 @@ def waterline(deck, style, L):
     return np.stack([x, deck[:, 1] / flare], 1)
 
 
+def half_breadth(poly, x):
+    """The polygon's largest |y| at each x (0 outside it)."""
+    a, b = poly, np.roll(poly, -1, 0)
+    lo, hi = np.minimum(a[:, 0], b[:, 0]), np.maximum(a[:, 0], b[:, 0])
+    t = (x[None, :] - a[:, 0:1]) / np.where(b[:, 0] == a[:, 0], 1, b[:, 0] - a[:, 0])[:, None]
+    yy = np.abs(a[:, 1:2] + t * (b[:, 1] - a[:, 1])[:, None])
+    yy = np.where((x[None, :] >= lo[:, None]) & (x[None, :] <= hi[:, None]), yy, 0)
+    return yy.max(0).astype(np.float32)
+
+
 def raster(poly, x0, y0, dx, nx, ny):
     im = Image.new("L", (nx, ny), 0)
     ImageDraw.Draw(im).polygon([((px - x0) / dx, (py - y0) / dx) for px, py in poly], fill=255)
@@ -128,28 +138,36 @@ def bake(wl, B, T, U, extent, dx, *, cb=0.55, wash=1.0, tau_crest=3.0, trail=0.3
     # foam sources
     slope = np.hypot(gx, gy)
     src_crest = 0.25 * np.clip((slope - 0.5) / 0.4, 0, 1) * (eta > 0.3 * Zb) * min(1.0, FrL / 0.25)
-    half = np.abs(y)[:, None] * m
-    half = half.max(0)                                   # waterline half-breadth per column
+    half = half_breadth(wl, x)                           # waterline half-breadth per column, exact (a raster's
+                                                         # steps showed as a staircase along the sheet's edge)
     d_out = np.abs(y)[:, None] - half[None, :]
     inl = half > 0
     along = np.clip((x - xs) / L, 0, 1)
     # a slow ship pushes a glassy cushion, not white water; a planing bow lifts out
     bow_white = float(np.clip((Zb - 0.5) / 2.5, 0, 1)) * min(1.0, FrL / 0.25) * (1 - 0.5 * plane)
-    # the sheet thickens toward the stem, so it shows past the deck's overhang and flare
-    band = np.maximum(1.5 * dx, (0.06 + 0.12 * along ** 4) * B)
-    src_sheet = inl[None, :] * (d_out > -dx) * (d_out < band[None, :]) * bow_white * along[None, :] ** 3
-
-    # the bow crest peels off the shoulder at the visible wake angle (narrowing as 1/Fr_L at high speed)
+    # One bow crest from the stem: the envelope of lines leaving every waterline point at the visible wake angle
+    # (narrowing as 1/Fr_L at high speed). It hugs the hull while the hull flares faster than that angle and peels
+    # off tangentially where it stops doing so. A sheet strip along the hull plus a separate peel line from the
+    # shoulder drew a square block at the stem and two detached wedges with calm water between them.
     theta = min(KELVIN, 0.16 / FrL) if FrL > 0.45 else KELVIN
     theta = max(theta, beta + math.radians(4))
+    tt = math.tan(theta)
+    off = 0.6 * dx + 0.03 * B                            # the crest stands just off the waterline
+    g = np.where(inl, half + off + x * tt, -np.inf)
+    y_c = np.maximum.accumulate(g[::-1])[::-1] - x * tt  # max over the waterline ahead of each column
+    ahead = np.isfinite(y_c)
+    y_c = np.where(ahead, y_c, 0)
+    sep = np.where(ahead, y_c - half - off, 0)           # how far the crest has left the hull
     x_sh = xb - 0.15 * L
     peel_len = 3.5 * U * U / G * 0.35 * bow_white + 0.15 * L
-    s_back = x_sh - x
-    y_line = 0.45 * B + np.clip(s_back, 0, None) * math.tan(theta)
-    w_line = 0.6 * dx + 0.04 * B + 0.012 * np.clip(s_back, 0, None)
-    reach = (s_back > 0) & (s_back < peel_len)
-    fade = reach * np.clip(1 - s_back / peel_len, 0, 1) ** 0.5
-    src_peel = np.exp(-((np.abs(y)[:, None] - y_line[None, :]) / w_line[None, :]) ** 2) * (fade * bow_white)[None, :]
+    s_back = np.clip(x_sh - x, 0, None)
+    fade = ahead * np.cos(0.5 * math.pi * np.clip(s_back / peel_len, 0, 1)) ** 2   # eases out, no cut-off end
+    w_line = 0.6 * dx + 0.04 * B + 0.04 * sep
+    src_peel = np.exp(-((np.abs(y)[:, None] - y_c[None, :]) / w_line[None, :]) ** 2) * (fade * bow_white)[None, :]
+    # the sheet: white water between the hull and the crest, thickest toward the stem so it shows past the deck's
+    # overhang and flare, but never outside the crest, so it tapers to the stem with it
+    band = np.minimum(np.maximum(1.5 * dx, (0.06 + 0.12 * along ** 4) * B), y_c - half)
+    src_sheet = (inl[None, :] * (d_out > -dx) * (d_out < band[None, :]) * bow_white * along[None, :] ** 3)
     src = np.maximum(np.maximum(src_crest, src_sheet), src_peel)
     if plane > 0:
         # spray whiskers from the chine of a semi-planing hull, ~12 deg out

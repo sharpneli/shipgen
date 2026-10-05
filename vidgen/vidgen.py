@@ -499,7 +499,7 @@ class Scene:
         res, style = self.report["results"], self.report["inputs"].get("style")
         deck = np.array(self.hit["hull"]["points"] if isinstance(self.hit["hull"], dict) else self.hit["hull"])
         L, B = res["length_m"], res["beam_m"]
-        wl = wake.waterline(deck, style, L)
+        self.wl = wl = wake.waterline(deck, style, L)
         self.stem = np.array([deck[:, 0].max(), 0.0])
         W, H, s = self.W, self.H, self.s
         h = math.radians(self.heading)
@@ -605,13 +605,16 @@ class Scene:
         if not n:
             return
         B = self.report["results"]["beam_m"]
-        p = self.stem + np.stack([-rng.uniform(0, 0.08, n) * self.wake_info["L"], rng.normal(0, 0.05 * B, n)], 1)
-        side = np.where(p[:, 1] >= 0, 1.0, -1.0)
+        # thrown from where the bow crest leaves the hull, along the waterline's first stretch: spawned on the
+        # centreline with big soft blobs, it read as a fuzzy block ahead of the stem, apart from the crest
+        xw = self.wl[:, 0].max() - rng.uniform(0, 0.12, n) ** 1.5 * self.wake_info["L"]
+        side = np.where(rng.random(n) < 0.5, 1.0, -1.0)
+        p = np.stack([xw, side * (wake.half_breadth(self.wl, xw) + rng.uniform(0, 0.04, n) * B)], 1)
         out = np.stack([rng.uniform(-0.1, 0.25, n), side * rng.uniform(0.2, 0.5, n)], 1) * self.speed
         w, v = self.world_of(p), self.dir_of(out)
         fs = min(1.0, max(0.3, self.wake_info["L"] / 150))
-        self.spray.add(x=w[:, 0], y=w[:, 1], vx=v[:, 0], vy=v[:, 1], life=rng.uniform(0.5, 1.2, n),
-                       r0=0.4 * fs, r1=rng.uniform(1.0, 2.2, n) * fs, a0=rng.uniform(0.2, 0.45, n))
+        self.spray.add(x=w[:, 0], y=w[:, 1], vx=v[:, 0], vy=v[:, 1], life=rng.uniform(0.3, 0.8, n),
+                       r0=0.3 * fs, r1=rng.uniform(0.6, 1.3, n) * fs, a0=rng.uniform(0.15, 0.35, n))
 
     def spawn_smoke(self, dt):
         rng = self.rng

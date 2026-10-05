@@ -61,6 +61,14 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
     slowly, and the bow sheet thickens toward the stem so it shows past the deck's overhang. Only the crest itself
     is full strength; what it leaves behind in the water is a trail at 0.35 (`trail`). Carrying the full value aft
     filled the wedge inside the oblique peel line with solid foam, about twice the beam wide on a 36 kn destroyer.
+  - **Bow crest:** one line from the stem, the envelope of lines leaving every waterline point at the wake angle.
+    It hugs the hull while the hull flares faster than that angle, then peels off tangentially and eases out with
+    a cos² fade. The bow sheet fills only the gap between the hull and that line, so it tapers to the stem with it.
+    The earlier sheet strip and separate peel line (starting at 0.45 B off the shoulder) drew a square block at the
+    stem and two detached wedges with calm water between them. Half-breadths come from the waterline polygon, not
+    a raster (a staircase along the sheet's edge).
+  - **Stem spray:** spawned at the waterline edge along the bow's first stretch, small and short-lived. Spawned on
+    the centreline with big soft blobs, it read as a fuzzy block ahead of the stem.
   - **Wash front:** the wash is born over a short ramp (`0.03 L + 0.2 B`) whose front curves aft off the centreline,
     where the flow closes in behind the stern. A step at the transom read as a straight edge across the track
     (Bismarck).
