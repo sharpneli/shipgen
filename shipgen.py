@@ -686,8 +686,18 @@ def build_hull(spec, scale, align=2, shadows=True):
 
     lines = plank_lines(-hull.L / 2, hull.L / 2)
     line_col = pal["deck_line"] if spec.get("deck") == "wood" else pal.get("steel_line", pal["deck_line"])
-    low.append(f'<g clip-path="url(#deckclip)" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '
-                f'stroke-opacity="{f(P.shapes.get("deck_line_opacity", 0.45))}">{"".join(lines)}</g>')
+    # a margin plank round the deck's edge (every deck has one, the raised ones too): the planking stops at it
+    margin = 2 * spacing / 3
+    mhw = spec.get("deck_max_hw")
+    main_margin_d = hull_path(hull, inset=inset + margin, max_hw=mhw - margin if mhw else None,
+                              x_min=spec["deck_x0"] + margin if spec.get("deck_x0") is not None else None,
+                              x_max=spec["deck_x1"] - margin if spec.get("deck_x1") is not None else None)
+    defs += f'<clipPath id="deckmargin"><path d="{main_margin_d}"/></clipPath>'
+    line_op = f(P.shapes.get("deck_line_opacity", 0.45))
+    low.append(f'<path d="{main_margin_d}" fill="none" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '
+               f'stroke-opacity="{line_op}"/>'
+               f'<g clip-path="url(#deckmargin)" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '
+               f'stroke-opacity="{line_op}">{"".join(lines)}</g>')
 
     # raised decks (forecastle, bridge deck, poop): the hull outline between x0 and x1, a step up, lighter per deck.
     # Each is laid as its own deck: planks shifted half a plank on alternate levels, butt seams from its own end,
@@ -696,8 +706,8 @@ def build_hull(spec, scale, align=2, shadows=True):
         lv = rd.get("levels", 1)
         rd_in = rd.get("inset", 0.3)
         rd_d = hull_path(hull, inset=rd_in, x_min=rd["x0"], x_max=rd["x1"])
-        margin_d = hull_path(hull, inset=rd_in + 2 * spacing / 3, x_min=rd["x0"] + 2 * spacing / 3,
-                             x_max=rd["x1"] - (2 * spacing / 3 if rd["x1"] < hull.L / 2 - 0.5 else 0.0))
+        margin_d = hull_path(hull, inset=rd_in + margin, x_min=rd["x0"] + margin,
+                             x_max=rd["x1"] - (margin if rd["x1"] < hull.L / 2 - 0.5 else 0.0))
         defs += f'<clipPath id="rdclip{i}"><path d="{margin_d}"/></clipPath>'
         rd_lines = plank_lines(rd["x0"], rd["x1"], spacing / 2 if lv % 2 else 0.0, 1.5 * spacing * lv)
         low.append(f'<path d="{rd_d}" fill="{shade(deck_col, 1.07 ** lv)}" {P.stroke()}/>'
