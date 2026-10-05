@@ -204,6 +204,22 @@ _PLAIN_MASTS = {s_: {"top_r": 0.0, "cage_r": 0.0} for s_ in ("merchant", "carrie
 # The eras a look can be drawn in, oldest first
 ERAS = ("victorian", "great_war", "treaty", "wwii", "cold_war")
 
+# How muted each era's national looks are drawn (user, 2026-10-05: "a slowly diminishing wildness factor", from the
+# Great War, still the wildest, to the Cold War, which is muted by hand and gets none). 0 = as written; m takes m of
+# the saturation from the paint (MUTE_PAINT: decks, turret roofs, funnels) and m/2 from the hull and upperworks
+# (MUTE_BODY, teak included), keeping each navy's own hue and lightness. Markings (MUTE_MARKS: stripes, camouflage,
+# numbers, turret bands) also lose contrast, pulled m toward the look's own upperworks grey (desaturating alone
+# barely quietens a red and white pattern), and painted decks (dazzle_decks) fade by m. The values were set by
+# measuring the sprites' 90th-percentile chroma over every navy (heavy cruiser, Dreadnought, destroyer): unmuted
+# Great War 40, treaty 42, WWII 50 against the Cold War's 32; these give about 36, 35, 33.5, an even step down. Naval styles only, except camouflage, which is navy paint on a merchant too. Every navy, generic included;
+# the Victorian liveries stay as written. (Pulling toward the generic look instead was tried: blue decks mixed
+# with generic teak turned a muddy brown and the navies lost their identity.)
+ERA_MUTE = {"victorian": 0.0, "great_war": 0.12, "treaty": 0.27, "wwii": 0.43, "cold_war": 0.0}
+MUTE_PAINT = ["deck", "deck_line", "steel_line", "flight_deck", "turret", "barbette", "funnel", "funnel_band",
+              "funnel_cap", "awning", "stripe"]
+MUTE_BODY = ["hull", "levels", "boat", "fitting", "tub", "wood"]   # teak is a material more than paint
+MUTE_MARKS = ["camo", "recog_a", "recog_b", "number"]
+
 # NAVIES[navy]["eras"][era] is one look. National navies are named after a dockyard; "generic" is no navy in
 # particular and stands in for any navy without its own entry for an era
 NAVIES = {
@@ -729,22 +745,56 @@ def validate(design) -> list[str]:
     return errs
 
 
+def _mute_amount(design, marks=False) -> float:
+    """ERA_MUTE for the design's look, or 0 where muting doesn't apply (merchants, but for their marks)."""
+    navy, era = resolve(design)
+    if style_name(design) not in NAVAL and not marks:
+        return 0.0
+    return ERA_MUTE.get(era, 0.0)
+
+
+def _mute_colour(c, m, ref=None):
+    """c with m of its saturation taken away, and with a ref (a mark's background) pulled m toward it."""
+    c = adjust_colour(c, {"saturate": -m})
+    return adjust_colour(c, {"tint": [ref, m]}) if ref else c
+
+
+def _marks_ref(design) -> str:
+    return {**DEFAULT_PALETTE, **palette({**design, "palette": {}}, mute=False)}["levels"][1]
+
+
 def shapes(design) -> dict:
     lk = get(design)
     out = {"clutter": look_of(design)["era"],
            **lk["shapes"], **lk.get("shapes_by_style", {}).get(style_name(design), {})}
     if look_of(design).get("number"):
         out["number"] = str(look_of(design)["number"])
+    m = _mute_amount(design, marks=True)
+    if m:
+        if out.get("dazzle_decks"):
+            out["dazzle_decks"] = out["dazzle_decks"] * (1 - m)
+        if out.get("turret_bands"):   # literal colours here; palette keys are muted in palette()
+            ref = _marks_ref(design)
+            out["turret_bands"] = [_mute_colour(c, m, ref) if c.startswith("#") else c for c in out["turret_bands"]]
     return out
 
 
-def palette(design) -> dict:
-    """The design's palette overrides (merged over DEFAULT_PALETTE by the renderer)."""
+def palette(design, mute=True) -> dict:
+    """The design's palette overrides (merged over DEFAULT_PALETTE by the renderer), muted by ERA_MUTE."""
     lk, st = get(design), style_name(design)
     pal = {**lk["palette"], **STYLE_PALETTES.get(st, {}), **lk["by_style"].get(st, {})}
     ops = [op for op in lk.get("adjust", []) + lk.get("adjust_by_style", {}).get(st, []) if st in op.get("styles", [st])]
     if ops:
         pal = adjust_palette({**DEFAULT_PALETTE, **pal}, ops)
+    m, mm = (_mute_amount(design), _mute_amount(design, marks=True)) if mute else (0.0, 0.0)
+    if mm:
+        pal = {**DEFAULT_PALETTE, **pal}
+        ref = pal["levels"][1]
+        for keys, mk, r in ((MUTE_PAINT, m, None), (MUTE_BODY, m / 2, None), (MUTE_MARKS, mm, ref)):
+            for k in keys:
+                v = pal.get(k)
+                if v is not None and mk:
+                    pal[k] = [_mute_colour(c, mk, r) for c in v] if isinstance(v, list) else _mute_colour(v, mk, r)
     return {**pal, **design.get("palette", {})}
 
 

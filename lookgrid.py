@@ -8,6 +8,8 @@ Writes to --out:
     <navy>.png      one sheet per navy: every design in that navy's look, at the same scale, in a grid
     compare.png     every design in a row, one column per navy (smaller scale), for spotting looks that are
                     too alike
+With --falloff, instead: falloff_<id>.png per design, every navy (rows) in every era (columns), to judge how the
+looks quieten over time (looks.ERA_MUTE).
 Like design.py this joins the two sides; neither imports it.
 """
 from __future__ import annotations
@@ -102,6 +104,22 @@ def compare_sheet(era, navies, ships, imgs, factor):
     return sheet
 
 
+def falloff_sheet(ship, navies, imgs):
+    """One design: rows are navies, columns eras."""
+    head_f = render._font(18, True)
+    w = max(im.width for im in imgs.values()) + GAP
+    h = max(im.height for im in imgs.values()) + GAP // 2
+    sheet = on_sea(130 + w * len(looks.ERAS), 44 + h * len(navies))
+    dr = ImageDraw.Draw(sheet)
+    for c, e in enumerate(looks.ERAS):
+        dr.text((130 + c * w, 12), e, font=head_f, fill=INK)
+    for r, n in enumerate(navies):
+        dr.text((GAP, 44 + r * h + h // 3), n, font=head_f, fill=INK)
+        for c, e in enumerate(looks.ERAS):
+            sheet.alpha_composite(imgs[(n, e)], (130 + c * w, 44 + r * h))
+    return sheet
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("designs", nargs="+")
@@ -111,11 +129,22 @@ def main():
     ap.add_argument("--cols", type=int, default=3, help="columns on the navy sheets (default 3)")
     ap.add_argument("--compare-scale", type=float, default=0.5, help="the compare sheet's size against the navy sheets")
     ap.add_argument("--jobs", type=int, default=os.cpu_count())
+    ap.add_argument("--falloff", action="store_true", help="one sheet per design: every navy in every era")
     ap.add_argument("--out", default="out_lookgrid")
     args = ap.parse_args()
 
     navies = args.navies.split(",")
     ships = [shipdesign.build(json.load(open(p))) for p in args.designs]
+    if args.falloff:
+        os.makedirs(args.out, exist_ok=True)
+        for ship in ships:
+            jobs = [(n, e) for n in navies for e in looks.ERAS]
+            with ProcessPoolExecutor(args.jobs) as ex:
+                imgs = dict(zip(jobs, ex.map(draw_one, [(ship, n, e, args.scale * 0.6) for n, e in jobs])))
+            path = os.path.join(args.out, f'falloff_{ship["design"]["id"]}.png')
+            falloff_sheet(ship, navies, imgs).convert("RGB").save(path)
+            print("wrote", path)
+        return
     jobs = [(d, n) for d in range(len(ships)) for n in navies]
     with ProcessPoolExecutor(args.jobs) as ex:
         done = ex.map(draw_one, [(ships[d], n, args.era, args.scale) for d, n in jobs])
