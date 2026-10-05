@@ -35,11 +35,12 @@ def tube_footprint(t, x, y, bearing):
 
 
 def add_mount(lay, mounts, kind, t_id, t, mid, x, y, base, rest, level=0, armour_mm=0, depth=10.0, top=None,
-              footprint_r=None, label="Mount", **extra):
+              footprint_r=None, label="Mount", deck=0.0, **extra):
     """One mount: footprint, weights and the mount record, for every style. A fixed tube (t["fixed_tube"]) keeps
     `rest` as its fixed bearing. top defaults to base + the turret's height; footprint_r to its body and ears.
     The weights: the mount ("<label> <id>"), its barbette if it stands above the deck, and its ammunition
-    ("Magazine <id>", which ordnance.stow moves into its magazine). extra goes into the mount record."""
+    ("Magazine <id>", which ordnance.stow moves into its magazine). deck: the weather deck under it (m above the main
+    deck; navarch.mount_weights). extra goes into the mount record."""
     th = turret_height(t) if kind != "torpedo" or t.get("fixed_tube") else 1.1
     top = base + th if top is None else top
     mounts.append(dict(id=mid, kind=kind, type=t_id, t=t, x=x, y=y, level=level, base=base, top=top,
@@ -55,7 +56,7 @@ def add_mount(lay, mounts, kind, t_id, t, mid, x, y, base, rest, level=0, armour
         lay.weights.append(Weight(mid, "armament", torpedo_weight(t["barrels"], t.get("fixed_tube", False)), x=x,
                                   z_rel=("deck", base + 0.5)))
         return mounts[-1]
-    tw, bw, aw = mount_weights(t, armour_mm, depth, level)
+    tw, bw, aw = mount_weights(t, armour_mm, depth, level, deck)
     lay.weights += [Weight(f"{label} {mid}", "armament", tw, x=x, z_rel=("deck", (base + top) / 2)),
                     Weight(f"Magazine {mid}", "armament", aw, x=x, z_rel=("frac", 0.25))]
     if bw and base > 0.5:

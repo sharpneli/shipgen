@@ -26,14 +26,15 @@ import re
 
 from geometry import (make_turret_type, make_torpedo_type, rrect_polygon, rrect_clamped, circle_polygon,
                       turret_shapes, turret_height, turret_reach, point_in_polygon, polygons_intersect,
-                      sector_polygon, superfire_step, polygon_centroid, polygon_y_span, clip_convex, simplify_polygon)
+                      sector_polygon, superfire_step, polygon_centroid, polygon_y_span, clip_convex, simplify_polygon,
+                      DECK_PITCH)
 import ordnance
 import powerplant
 from navarch import Weight, mount_weights, torpedo_weight, TUNING
 from hitbox import ARC_BEAM, ARC_CROSS
 from geometry import Hull, AA_CFG
 
-LEVEL_H = 2.6  # height of one superstructure level, metres
+LEVEL_H = DECK_PITCH  # height of one superstructure level, metres: one deck (geometry.DECK_PITCH)
 CASEMATE_BEAM = 0.7    # casemates stand where the hull is at least this fraction of its full beam
 
 
@@ -103,6 +104,8 @@ class Layout:
         self.shift_range = (0.0, 0.0)
         self.compartments = []
         self.decks = []         # raised decks and flight decks: dict(id, kind, points, base, top)
+        self.raised = []        # raised stretches of hull (forecastle, poop): dict(id, x0, x1, levels), their weather
+                                # deck levels x LEVEL_H above the main deck (deck_level, deck_z)
         self.sponsons = []      # platforms outboard of a flight deck: dict(id, points, base, top)
         self.sweeps = []        # main turrets' barrel sweep zones: dict(owner, polys, axis)
         self.funnels_planned = []    # funnels with their machinery segment ("seg"); add_machinery_rooms adds "serves"
@@ -182,6 +185,15 @@ class Layout:
                 if polygons_intersect(poly, p):
                     return False
         return True
+
+    def deck_level(self, x, r=0.0):
+        """How many decks the weather deck stands above the main deck at x: a raised stretch's levels, else 0.
+        r: the highest under a footprint reaching x - r .. x + r (what stands there stands on that)."""
+        return max((s["levels"] for s in self.raised if s["x0"] - r <= x <= s["x1"] + r), default=0)
+
+    def deck_z(self, x, r=0.0):
+        """Height of the weather deck at x (m above the main deck); r as deck_level."""
+        return self.deck_level(x, r) * LEVEL_H
 
     def on_deck(self, x, y):
         """Is (x, y) on a deck that overhangs the hull (a flight deck)?"""
@@ -1768,13 +1780,14 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                 # the rest stand flush behind and fire to the sides only
                 flush = i >= max(stepped[gname], 1)
                 level = 0 if flush else i
-                base = 1.2 + level * superfire_step(th)
+                dz = lay.deck_z(x, reach)
+                base = dz + 1.2 + level * superfire_step(th)
                 mid = turret_name(names[gname], i)
                 # a flush turret stows pointing away from the stepped turret ahead of it
                 m = armament.add_mount(lay, mounts, "main", tm_id, tm, mid, x, 0.0, base,
                                        (180 if gname == "A" else 0) if flush else rest, level=level,
                                        armour_mm=armour.get("turret_mm", 0), depth=depth, footprint_r=reach,
-                                       label="Turret")
+                                       label="Turret", deck=dz)
                 if flush:
                     m["arc_role"] = "beam"
                 lay.reserve_sweep(m)
@@ -1878,12 +1891,12 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     # standing on its roof (stands_on "deckhouse") and the upper casemates' housings
     riders = []
     if nm or nw:
-        mid_base = (LEVEL_H if mid_raised else 0.0) + 1.2
-
         def main_mount(mid, x, y, rest, **kw):
-            lay.reserve_sweep(armament.add_mount(lay, mounts, "main", tm_id, tm, mid, x, y, mid_base, rest,
+            dz = lay.deck_z(x, reach)
+            lay.reserve_sweep(armament.add_mount(lay, mounts, "main", tm_id, tm, mid, x, y,
+                                                 dz + (LEVEL_H if mid_raised else 0.0) + 1.2, rest,
                                                  armour_mm=armour.get("turret_mm", 0), depth=depth,
-                                                 footprint_r=reach, label="Turret", **kw))
+                                                 footprint_r=reach, label="Turret", deck=dz, **kw))
             if mid_raised:
                 riders.append((x - reach - DH_INSET, x + reach + DH_INSET, abs(y) + reach + DH_INSET))
 
@@ -1999,7 +2012,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             off = min(0.0, off + 0.25)
         for i in idx:
             fx_final[i] = fxs[i] + off
-            lay.occupy(fun_fp(fx_final[i]), 0, fun_top, f"Funnel {i + 1}")
+            lay.occupy(fun_fp(fx_final[i]), lay.deck_z(fx_final[i], fl / 2), fun_top, f"Funnel {i + 1}")
 
     funnels = []
     for i, fx in enumerate(fx_final):
@@ -2009,6 +2022,8 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             lay.fail("length", f"{fid} would stand in a turret's sweep or against the bridge: use fewer funnels "
                                "or midships turrets.")
         funnels.append(dict(id=fid, x=fx, y=0.0, l=fl, w=fw, pipes=2 if fw > 4 else 1, seg=f_seg[i]))
+        if lay.deck_z(fx, fl / 2):     # standing on a raised stretch
+            funnels[-1]["z0"] = lay.deck_z(fx, fl / 2)
         seg = mach_placed[f_seg[i]]
         add_funnel_weights(lay, funnels[-1], fun_top, (seg[1] + seg[2]) / 2, depth)
 
@@ -2023,12 +2038,14 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             continue
         pre, cal = sec["prefix"], f"{sec['calibre_mm']:g} mm"
         raised = stands_on(sec) == "deckhouse"
-        sec_base = LEVEL_H if raised else 0.0
         ts_id, ts = make_turret_type(sec["calibre_mm"], sec["calibre_length"], sec["barrels"])
         turret_types[ts_id] = ts
         rs = ts["r"]
         rs_reach = max(rs, turret_reach({**ts, "barrel_len": 0}))
         ths = turret_height(ts)
+
+        def sec_base(x):   # on the weather deck, or a level up on the deckhouse
+            return lay.deck_z(x, rs_reach) + (LEVEL_H if raised else 0.0)
         x_lo, x_hi = mid_aft + rs_reach + 0.5, mid_fwd - rs_reach - 0.5
         inner = max([b["w"] / 2 for b in blocks if b["level"] >= 2] + [fw / 2] + ([reach] if nm else [])) \
             + rs_reach + 0.4
@@ -2059,7 +2076,7 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             # amidships, at the preferred pitch if they fit, else the minimum
             def spot_ok(x):
                 fps = [_fp_circle(x, s * y_at(x), rs_reach) for s in (1, -1)]
-                return all(lay.free(fp, 0.4) and lay.clear(fp, sec_base + ths) for fp in fps)
+                return all(lay.free(fp, 0.4) and lay.clear(fp, sec_base(x) + ths) for fp in fps)
             spots = sorted((x for x in (x_lo + 0.5 * k for k in range(int(max(0.0, x_hi - x_lo) * 2) + 1))
                             if spot_ok(x)), key=lambda x: abs(x - c))
             for sp in (2.2 * rs + 4.0, pitch_s):
@@ -2076,14 +2093,15 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             sxs.sort()
         for i, sx in enumerate(sxs):
             y_s = y_at(sx)
-            if not lay.clear(_fp_circle(sx, y_s, rs_reach), sec_base + ths):
+            if not lay.clear(_fp_circle(sx, y_s, rs_reach), sec_base(sx) + ths):
                 lay.fail("length", f"Secondary mounts {pre}{i + 1} would stand in a main turret's sweep: use fewer "
                                    "secondaries.")
             for side in (1, -1):
                 mid = f"{pre}{i + 1}{'S' if side > 0 else 'P'}"
-                armament.add_mount(lay, mounts, "secondary", ts_id, ts, mid, sx, side * y_s, sec_base, 90 * side,
-                                   armour_mm=sec.get("armour_mm", 25), depth=depth, top=sec_base + ths,
-                                   footprint_r=rs_reach, material=sec.get("material"))
+                armament.add_mount(lay, mounts, "secondary", ts_id, ts, mid, sx, side * y_s, sec_base(sx),
+                                   90 * side, armour_mm=sec.get("armour_mm", 25), depth=depth,
+                                   top=sec_base(sx) + ths, footprint_r=rs_reach, material=sec.get("material"),
+                                   deck=lay.deck_z(sx, rs_reach))
         if raised and sxs:
             y_s = max(y_at(sx) for sx in sxs)
             riders += [(sx - rs_reach - DH_INSET, sx + rs_reach + DH_INSET, y_s + rs_reach + DH_INSET) for sx in sxs]
@@ -2168,14 +2186,15 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                 if y < sweep:
                     continue
                 fps = [_fp_circle(x, y, sweep), _fp_circle(x, -y, sweep)]
-                if all(lay.free(fp, 0.3) and lay.clear(fp, 1.4) for fp in fps):
+                dz = lay.deck_z(x, sweep)
+                if all(lay.free(fp, 0.3) and lay.clear(fp, dz + 1.4) for fp in fps):
                     for side, fp in zip((1, -1), fps):
                         mid = f"T{placed // 2 + 1}{'S' if side > 0 else 'P'}"
                         mounts.append(dict(id=mid, kind="torpedo", type=tt_id, t=tt, x=x, y=side * y, level=0,
-                                           base=0.3, top=1.4, rest=90 * side))
-                        lay.occupy(fp, 0, 1.4, mid)
+                                           base=dz + 0.3, top=dz + 1.4, rest=90 * side))
+                        lay.occupy(fp, dz, dz + 1.4, mid)
                         lay.weights.append(Weight(mid, "armament", torpedo_weight(tt["barrels"]), x=x,
-                                                  z_rel=("deck", 1)))
+                                                  z_rel=("deck", dz + 1)))
                         placed += 1
         if placed < ntp:     # no room at the deck edges, or they are taken: on the centreline
             cands = sorted([mid_aft + 0.5 * k for k in range(int((mid_fwd - mid_aft) * 2) + 1)],
@@ -2184,12 +2203,14 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                 if placed >= ntp:
                     break
                 fp = _fp_circle(x, 0, sweep)
-                if lay.free(fp, 0.3) and lay.clear(fp, 1.4) and hull.half_width(x) > tt["r"] + 0.5:
+                dz = lay.deck_z(x, sweep)
+                if lay.free(fp, 0.3) and lay.clear(fp, dz + 1.4) and hull.half_width(x) > tt["r"] + 0.5:
                     mid = f"T{placed + 1}"
-                    mounts.append(dict(id=mid, kind="torpedo", type=tt_id, t=tt, x=x, y=0.0, level=0, base=0.3,
-                                       top=1.4, rest=90))
-                    lay.occupy(fp, 0, 1.4, mid)
-                    lay.weights.append(Weight(mid, "armament", torpedo_weight(tt["barrels"]), x=x, z_rel=("deck", 1)))
+                    mounts.append(dict(id=mid, kind="torpedo", type=tt_id, t=tt, x=x, y=0.0, level=0,
+                                       base=dz + 0.3, top=dz + 1.4, rest=90))
+                    lay.occupy(fp, dz, dz + 1.4, mid)
+                    lay.weights.append(Weight(mid, "armament", torpedo_weight(tt["barrels"]), x=x,
+                                              z_rel=("deck", dz + 1)))
                     placed += 1
         if placed < ntp and dh_blocks:   # the deck is taken: on the deckhouse roof, on its centreline
             cands = sorted([b_["x0"] + sweep + 0.5 * k for b_ in dh_blocks
@@ -2240,13 +2261,14 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         while x > -L / 2 + 2:       # along the deck edges: on a raised platform, else on the deck
             yy = hull.half_width(x) - rr - 0.5
             if yy > rr + 0.5:
-                scored.append((abs(x - mach_c) / L + AA_PLATFORM_PEN, (x, yy, AA_PLATFORM_H, -yy, 0.0)))
-                scored.append((abs(x - mach_c) / L + AA_DECK_PEN, (x, yy, 0.0)))
+                dz = lay.deck_z(x, rr)
+                scored.append((abs(x - mach_c) / L + AA_PLATFORM_PEN, (x, yy, dz + AA_PLATFORM_H, -yy, dz)))
+                scored.append((abs(x - mach_c) / L + AA_DECK_PEN, (x, yy, dz)))
             x -= 0.5
         cands = [c for _, c in sorted(scored, key=lambda s: s[0])]
         sx = -L / 2 + rr + 2.5
         if hull.half_width(sx) > rr + 0.6:
-            cands.append((sx, 0.0, 0.0))
+            cands.append((sx, 0.0, lay.deck_z(sx, rr)))
         return cands
 
     def place_aa(kind, count):
@@ -2258,7 +2280,8 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
     for a in aa_out:      # the raised platforms under deck-edge AA: a pedestal block as wide as the tub
         if "platform" in a:
             rr = AA_CFG[a["type"]][0]
-            block(f"AA platform {a['id'][2:]}", a["x"] - rr, a["x"] + rr, 2 * rr, 1, rr, rr, y=a["y"])
+            block(f"AA platform {a['id'][2:]}", a["x"] - rr, a["x"] + rr, 2 * rr, 1, rr, rr, y=a["y"],
+                  z0=a["platform"])
             lay.footprints.pop()      # the AA mount's own footprint already claims the column
 
     # ---------------- masts and boats (decorative but drawn) ----------------

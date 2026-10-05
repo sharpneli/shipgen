@@ -331,6 +331,10 @@ def turret_height(t: dict) -> float:
     return {"bb": 0.42, "dp": 0.55, "open": 0.9, "torp": 0.5, "tube": 1.6, "casemate": 0.42}[t.get("shape", "bb")] * t["r"]
 
 
+DECK_PITCH = 2.6   # m between decks: the hull's deck stack below the main deck, raised stretches of hull above it
+                  # and superstructure levels share it, so a raised deck one pitch up stands where level 1 would
+
+
 def superfire_step(th: float) -> float:
     """How much higher each superfiring tier stands than the one it fires over, metres, for a turret th tall.
     About one deck, a little more for big turrets: Iowa's 16in turret II stands 2.6 m over turret I, and

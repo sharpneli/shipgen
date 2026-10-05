@@ -16,7 +16,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-from geometry import superfire_step
+from geometry import DECK_PITCH, superfire_step
 import hullweight
 import powerplant
 
@@ -105,8 +105,9 @@ def rounds_per_gun(cal_mm):
     return TUNING["rounds_light"]
 
 
-def mount_weights(t: dict, armour_mm: float, depth: float, level: int):
-    """(turret incl. guns+armour, barbette armour, magazine/ammo) for one mount of type t."""
+def mount_weights(t: dict, armour_mm: float, depth: float, level: int, deck: float = 0.0):
+    """(turret incl. guns+armour, barbette armour, magazine/ammo) for one mount of type t. deck: the height of the
+    weather deck it stands on above the main deck (a raised stretch: its barbette runs up through it)."""
     cal, cl, n, r = t["calibre_mm"], t["calibre_length"], t["barrels"], t["r"]
     guns = n * gun_tube_t(cal, cl)
     mech = TUNING["mount_k"] * guns + (4.0 * min(1.0, (cal / 76.0) ** 3) if cal < 150 else 0.0)
@@ -115,7 +116,7 @@ def mount_weights(t: dict, armour_mm: float, depth: float, level: int):
     t_avg = TUNING["turret_t_avg"] * armour_mm / 1000.0
     turret = guns + mech + area * t_avg * STEEL
     # barbette: from the armour deck up to the turret base (superfiring turrets are taller)
-    bh = 0.45 * depth + level * superfire_step(th)
+    bh = 0.45 * depth + deck + level * superfire_step(th)
     barbette = 2 * math.pi * 0.95 * r * bh * (0.8 * armour_mm / 1000.0) * STEEL if t.get("barbette", True) else 0.0
     ammo = n * rounds_per_gun(cal) * TUNING["shell_k"] * cal ** 3 / 1000.0 * TUNING["ammo_mult"]
     return turret, barbette, ammo
@@ -404,7 +405,6 @@ def hull_structure(design, L, B, cb, D, full, arm, above=None):
     return {**out, "depth_m": depth}
 
 
-DECK_PITCH = 2.6       # m between the hull's decks below the main deck (one superstructure level, the lower casemates)
 MIN_TIER = 1.0         # a deck closer than this (m) to the inner bottom (the keel on a planing craft) is left out
 DECK_NAMES = ["Main deck", "Second deck", "Third deck", "Fourth deck", "Fifth deck", "Sixth deck", "Seventh deck",
               "Eighth deck", "Ninth deck", "Tenth deck"]
