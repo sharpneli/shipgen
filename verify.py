@@ -102,6 +102,23 @@ def check_traverse(hb, sp):
                          f"and arcs {c['arcs_deg']}")
         if sp_tr.get(c["id"]) != c.get("traverse_deg"):
             probs.append(f"{c['id']}: sprite.json traverse {sp_tr.get(c['id'])} differs")
+        if c["kind"] == "secondary" and c.get("rotating", True):
+            # stowed barrels (armament.stow_bearing) lie clear of everything around them at their axis height
+            axis = c["base"] + 0.55 * (c["top"] - c["base"])
+            hits = set()
+            for o in hb["components"]:
+                if o is c or not (o.get("top", 0) > axis + 1e-6 and o.get("base", 0) < axis):
+                    continue
+                if not (o.get("points") or "local" in o):
+                    continue
+                for b in c["local"]["barrels"]:     # past the root, which sits in the gun house or casemate face
+                    out = [(x, y) for x, y in b if x > 0.25 * max(p[0] for p in b)]
+                    for px, py in rotate_translate(out, c["rest_deg"], c["x"], c["y"]):
+                        if (point_in_polygon(px, py, o["points"]) if o.get("points") else point_in_polygon(
+                                px, py, rotate_translate(o["local"]["body"], o["rest_deg"], o["x"], o["y"]))):
+                            hits.add(o["id"])
+            if hits:
+                probs.append(f"{c['id']}: stowed barrels at {c['rest_deg']} hit {', '.join(sorted(hits))}")
         if c["kind"] != "main":
             continue
         R = max(p[0] for b in c["local"]["barrels"] for p in b)

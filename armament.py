@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import math
 
-from geometry import make_torpedo_type, make_turret_type, superfire_step, turret_height, turret_reach
+from geometry import make_torpedo_type, make_turret_type, rotate_translate, superfire_step, turret_height, turret_reach
+from geometry import turret_shapes
 from layout import _fp_circle, _fp_rect, _overlap, stepped_counts, turret_name
 from navarch import TUNING, Weight, mount_weights, torpedo_weight
 from geometry import AA_CFG
@@ -20,6 +21,27 @@ from geometry import AA_CFG
 def body_reach(t):
     """Radius of the turret body and its ears (not the barrels): its footprint on deck."""
     return max(t["r"], turret_reach({**t, "barrel_len": 0}))
+
+
+def stow_bearing(x, side, half):
+    """Rest bearing of a side mount at x (m forward of amidships) on `side` (+1 starboard), whose arc is +-half about
+    its own beam: trained toward the nearer end of the ship (amidships counts as forward), stopping at the edge of
+    its arc. Deck secondaries (+-90) so lie fore-and-aft, like Iowa's 5in or Bismarck's 15 cm turrets in harbour;
+    casemates (+-60) lie along the hull side, 30 degrees off the centreline. The arc doesn't move."""
+    return 90.0 * side + (-1.0 if x >= 0 else 1.0) * side * half
+
+
+def barrel_footprint(t, x, y, bearing):
+    """Axis-aligned box around a mount's barrels (as shown) trained to `bearing`."""
+    pts = [p for poly in turret_shapes(t)["barrels"] for p in rotate_translate(poly, bearing, x, y)]
+    return _fp_rect(min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts))
+
+
+def barrel_band(base, top, t):
+    """The heights (lo, hi) above the main deck that a mount's barrels take, about their axis."""
+    axis = base + 0.55 * (top - base)
+    hw = t["barrel_w"] / 2 + 0.1
+    return axis - hw, axis + hw
 
 
 def gun_type(gun):
@@ -52,6 +74,8 @@ def add_mount(lay, mounts, kind, t_id, t, mid, x, y, base, rest, level=0, armour
         r = footprint_r if footprint_r is not None else (body_reach(t) if kind != "torpedo"
                                                           else t["barrel_len"] / 2 + 0.3)
         lay.occupy(_fp_circle(x, y, r), base, top, mid)
+        if extra.get("side_mount"):     # stowed fore-and-aft: the barrels lie along the deck (stow_bearing)
+            lay.occupy(barrel_footprint(t, x, y, rest), *barrel_band(base, top, t), mid)
     if kind == "torpedo":
         lay.weights.append(Weight(mid, "armament", torpedo_weight(t["barrels"], t.get("fixed_tube", False)), x=x,
                                   z_rel=("deck", base + 0.5)))
@@ -103,28 +127,41 @@ def side_pairs(lay, mounts, turret_types, kind, t_id, t, per_side, cands, prefix
                armour_mm=25.0, depth=10.0, label="Secondary", ignore=()):
     """per_side mounts on each side. cands: (x, y, base) for the starboard side (y > 0), in order of
     preference, mirrored to -y; or (x, y, base, y_port) when the sides differ (an angled flight deck).
-    A candidate is used when both sides are free and it keeps pitch from the others already placed."""
+    A candidate is used when both sides are free and it keeps pitch from the others already placed. Guns stow
+    fore-and-aft (stow_bearing), so their barrels must be free too, and a mount keeps its barrels' length from the
+    next one in the direction they point; torpedo mounts stow on the beam."""
     if not per_side:
         return 0
     turret_types[t_id] = t
     reach = body_reach(t) if kind != "torpedo" else t["barrel_len"] / 2 + 0.3
     pitch = pitch or 2.1 * reach + 1.0
+    guns = kind != "torpedo"
+    pitch_stowed = turret_reach(t) + reach + 0.4      # barrels lying toward the next mount
     placed = []
     for c in cands:
         x, y, base = c[:3]
         y_port = c[3] if len(c) > 3 else -y
         if len(placed) >= per_side:
             break
-        if any(abs(x - px) < pitch for px in placed):
+        if any(abs(x - px) < pitch or (guns and (x >= 0) == (px >= 0) and abs(x - px) < pitch_stowed)
+               for px in placed):
             continue
         fps = [_fp_circle(x, y, reach), _fp_circle(x, y_port, reach)]
         if _overlap(fps[0], fps[1], 0.4) or not all(lay.free(fp, 0.4, ignore) for fp in fps):
             continue
+        if guns:
+            band = barrel_band(base, base + turret_height(t), t)
+            if not all(lay.free_at(barrel_footprint(t, x, yy, stow_bearing(x, side, 90.0)), *band, 0.2, ignore)
+                       for side, yy in ((1, y), (-1, y_port))):
+                continue
         k = len(placed) + 1
         for side, yy in ((1, y), (-1, y_port)):
             mid = f"{prefix}{k}{'S' if side > 0 else 'P'}"
-            add_mount(lay, mounts, kind, t_id, t, mid, x, yy, base, 90 * side,
-                      armour_mm=armour_mm, depth=depth)
+            if guns:
+                add_mount(lay, mounts, kind, t_id, t, mid, x, yy, base, stow_bearing(x, side, 90.0),
+                          armour_mm=armour_mm, depth=depth, side_mount=True)
+            else:
+                add_mount(lay, mounts, kind, t_id, t, mid, x, yy, base, 90 * side, armour_mm=armour_mm, depth=depth)
         placed.append(x)
     if len(placed) < per_side:
         lay.fail("length", f"Only {len(placed)} of {per_side} {label.lower()} mounts per side fit.")

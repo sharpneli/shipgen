@@ -886,6 +886,7 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
     enough apart for an upper gun between each pair, else closer."""
     import armament     # armament imports layout
     from geometry import CASEMATE_SHIELD
+    from hitbox import ARC_CASEMATE
     bats = []
     for sec in secs:
         n = sec.get("per_side", sec.get("count", 0) // 2)
@@ -1022,8 +1023,8 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
             base, top = (0.0, LEVEL_H) if upper else (-LEVEL_H, 0.0)
             for side in (1, -1):
                 mid = f"{sec['prefix']}{i + 1}{'S' if side > 0 else 'P'}"
-                armament.add_mount(lay, mounts, "secondary", t_id, t, mid, x, side * yo, base, 90 * side,
-                                   armour_mm=arm, depth=depth, top=top, footprint_r=CASEMATE_SHIELD * rc,
+                armament.add_mount(lay, mounts, "secondary", t_id, t, mid, x, side * yo, base,
+                                   armament.stow_bearing(x, side, ARC_CASEMATE), armour_mm=arm, depth=depth, top=top, footprint_r=CASEMATE_SHIELD * rc,
                                    casemate=True, material=sec.get("material"))
     # housings close together (no lower shield between them) join into one gallery, its outer face the innermost
     galleries.sort()
@@ -2221,6 +2222,18 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             fits = [x for x in xs_probe if outer_at(x) >= inner]
             x_lo, x_hi = min(fits), max(fits)
         pitch_s = 2.1 * rs_reach + 1.0
+        # the guns stow fore-and-aft toward the nearer end (armament.stow_bearing): their barrels lie along the deck,
+        # so a mount keeps its barrels' length from the next one the way they point, and they must lie clear
+        pitch_stowed = turret_reach(ts) + rs_reach + 0.4
+
+        def pitch_ok(x, others, sp):
+            return all(abs(x - o) >= sp and ((x >= 0) != (o >= 0) or abs(x - o) >= pitch_stowed) for o in others)
+
+        def barrels_ok(x):
+            b = sec_base(x)
+            band = armament.barrel_band(b, b + ths, ts)
+            fps = [armament.barrel_footprint(ts, x, s * y_at(x), armament.stow_bearing(x, s, 90.0)) for s in (1, -1)]
+            return all(lay.free_at(fp, *band, 0.2) and lay.clear(fp, band[1]) for fp in fps)
         if x_hi <= x_lo:
             lay.fail("length", "No room amidships for the secondary battery.")
         elif first and nsec > 1 and (x_hi - x_lo) / (nsec - 1) < pitch_s:
@@ -2229,18 +2242,19 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
         step = min((x_hi - x_lo) / max(nsec - 1, 1), 2.2 * rs + 4.0)
         c = (x_lo + x_hi) / 2
         sxs = [c + (i - (nsec - 1) / 2) * step if nsec > 1 else c for i in range(nsec)]
-        if nw or not first:
-            # wing turrets (or the batteries placed before) break up the middle: take the free spots nearest
-            # amidships, at the preferred pitch if they fit, else the minimum
+        spread_ok = all(pitch_ok(x, sxs[:i], 0.0) and barrels_ok(x) for i, x in enumerate(sxs))
+        if nw or not first or not spread_ok:
+            # wing turrets (or the batteries placed before, or stowed barrels that won't lie clear) break up the
+            # middle: take the free spots nearest amidships, at the preferred pitch if they fit, else the minimum
             def spot_ok(x):
                 fps = [_fp_circle(x, s * y_at(x), rs_reach) for s in (1, -1)]
-                return all(lay.free(fp, 0.4) and lay.clear(fp, sec_base(x) + ths) for fp in fps)
+                return all(lay.free(fp, 0.4) and lay.clear(fp, sec_base(x) + ths) for fp in fps) and barrels_ok(x)
             spots = sorted((x for x in (x_lo + 0.5 * k for k in range(int(max(0.0, x_hi - x_lo) * 2) + 1))
                             if spot_ok(x)), key=lambda x: abs(x - c))
             for sp in (2.2 * rs + 4.0, pitch_s):
                 sxs = []
                 for x in spots:
-                    if len(sxs) < nsec and all(abs(x - o) >= sp for o in sxs):
+                    if len(sxs) < nsec and pitch_ok(x, sxs, sp):
                         sxs.append(x)
                 if len(sxs) == nsec:
                     break
@@ -2257,9 +2271,9 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
             for side in (1, -1):
                 mid = f"{pre}{i + 1}{'S' if side > 0 else 'P'}"
                 armament.add_mount(lay, mounts, "secondary", ts_id, ts, mid, sx, side * y_s, sec_base(sx),
-                                   90 * side, armour_mm=sec.get("armour_mm", 25), depth=depth,
-                                   top=sec_base(sx) + ths, footprint_r=rs_reach, material=sec.get("material"),
-                                   deck=lay.deck_z(sx, rs_reach))
+                                   armament.stow_bearing(sx, side, 90.0), armour_mm=sec.get("armour_mm", 25),
+                                   depth=depth, top=sec_base(sx) + ths, footprint_r=rs_reach,
+                                   material=sec.get("material"), deck=lay.deck_z(sx, rs_reach), side_mount=True)
         if raised and sxs:     # level 1 under them, where no raised stretch already is
             y_s = max(y_at(sx) for sx in sxs)
             riders += [(sx - rs_reach - DH_INSET, sx + rs_reach + DH_INSET, y_s + rs_reach + DH_INSET) for sx in sxs

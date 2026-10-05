@@ -6,14 +6,18 @@ above the main deck. They describe the ship only (where things are, what armours
 what a hit does is the game's business.
 
 Firing arcs are fixed by the kind of mount, not computed from what stands around it, so the player only
-picks counts and calibres. Every arc is centred on the mount's rest bearing (degrees clockwise from ahead):
+picks counts and calibres. Every arc is centred on the mount's rest bearing (degrees clockwise from ahead), except
+side guns, whose arcs are centred on their own beam while they stow toward the nearer end of the ship, at the edge
+of the arc (armament.stow_bearing):
     centreline guns of a forward or after group (rest 0 or 180)   +-ARC_END
     centreline guns with a turret ahead of them: a flush turret
     behind a superfiring one, or an amidships turret               +-ARC_BEAM about each beam
-    side mounts: secondaries, sponson guns, side torpedo mounts,
-    wing turrets (which stow fore-and-aft, at the edge of the arc) +-ARC_SIDE   (bow to stern, own side)
+    side mounts: secondaries and sponson guns (stowed fore-and-aft),
+    side torpedo mounts (stowed on the beam), wing turrets
+    (stowed fore-and-aft)                                         +-ARC_SIDE   (bow to stern, own side)
     cross-deck echelon wing turrets: that, and across the deck      +-ARC_CROSS about the far beam
-    casemate guns, in the hull side                               +-ARC_CASEMATE about their beam
+    casemate guns, in the hull side (stowed along it, at the arc's
+    edge toward the nearer end)                                   +-ARC_CASEMATE about their beam
     centreline trainable torpedo mounts                           +-ARC_TORPEDO about each beam
     fixed tubes (MTBs; the boat aims them)                        +-ARC_FIXED about their bearing
 """
@@ -67,10 +71,12 @@ def _arc(centre, half):
 def mount_arcs(m):
     if m.get("fixed") is not None:
         return [_arc(m["fixed"], ARC_FIXED)]
+    own = 90.0 if m["y"] > 0 else 270.0     # a side mount's own beam
     if m.get("casemate"):
-        return [_arc(m["rest"], ARC_CASEMATE)]
+        return [_arc(own, ARC_CASEMATE)]
+    if m.get("side_mount"):
+        return [_arc(own, ARC_SIDE)]
     if m.get("wing"):
-        own = 90.0 if m["y"] > 0 else 270.0
         if m.get("cross_deck"):     # own side first, then the cross-deck arc
             return [_arc(own, ARC_SIDE), _arc(own + 180.0, ARC_CROSS)]
         return [_arc(own, ARC_SIDE)]
@@ -119,7 +125,8 @@ def mount_traverse(m):
 def assign_arcs(lay):
     """Give every mount its fixed arcs (see the module docstring) and wrap its rest bearing to -180..180. The
     layout sets the rest bearing: inside the arcs, except side-firing centreline turrets, which stow
-    fore-and-aft (pointing away from the turret they stand behind) and train out before firing."""
+    fore-and-aft (pointing away from the turret they stand behind) and train out before firing, and side guns
+    (secondaries, casemates, wing turrets), which stow at the edge of their arc toward the nearer end."""
     for m in lay.mounts:
         m["arcs"] = mount_arcs(m)
         m["traverse"] = mount_traverse(m)
