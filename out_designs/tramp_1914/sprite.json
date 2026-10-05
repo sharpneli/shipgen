@@ -1,0 +1,161 @@
+{
+  "id": "tramp_1914",
+  "name": "Tramp steamer (1914)",
+  "scale_px_per_m": 10.0,
+  "size_px": [
+    1472,
+    256
+  ],
+  "origin_px": [
+    736.0,
+    128.0
+  ],
+  "orientation": "bow points +x (right); angles clockwise, 0 = ahead",
+  "layer_order": [
+    "hull",
+    "turrets (ascending z)"
+  ],
+  "layers": {
+    "hull": "hull.png",
+    "hull_mips": "hull_mips.png"
+  },
+  "turret_types": {
+    "t1x76L40": {
+      "file": "turrets/t1x76L40.png",
+      "size_px": [
+        128,
+        128
+      ],
+      "pivot_px": [
+        64.0,
+        64.0
+      ],
+      "desc": "1 x 76mm/40",
+      "mips_file": "turrets/t1x76L40_mips.png",
+      "mip_rects": [
+        [
+          0,
+          0,
+          128,
+          128
+        ],
+        [
+          128,
+          0,
+          64,
+          64
+        ],
+        [
+          128,
+          64,
+          32,
+          32
+        ],
+        [
+          160,
+          64,
+          16,
+          16
+        ],
+        [
+          160,
+          80,
+          8,
+          8
+        ],
+        [
+          168,
+          80,
+          4,
+          4
+        ]
+      ]
+    }
+  },
+  "mips": {
+    "levels": 5,
+    "scale_px_per_m": [
+      10.0,
+      5.0,
+      2.5,
+      1.25,
+      0.625,
+      0.3125
+    ],
+    "rule": "each layer has <name>_mips.png with level k at mip_rects[k] = [x, y, w, h]; within level k, size, origin_px, pivot_px and mount px are the level-0 values / 2^k"
+  },
+  "shadow": {
+    "height_map": "height.png",
+    "height_step_m": 0.25,
+    "deck_m": 2.49,
+    "max_height_m": 22.69,
+    "note": "height map grey value x height_step_m = metres above the waterline (0 = sea); mount top_m is the turret roof above the waterline; see shadow.py",
+    "height_map_mips": "height_mips.png"
+  },
+  "mounts": [
+    {
+      "id": "S1",
+      "kind": "secondary",
+      "type": "t1x76L40",
+      "pos_m": [
+        -62.572,
+        0.0
+      ],
+      "px": [
+        110.27999999999997,
+        128.0
+      ],
+      "rest_deg": -180.0,
+      "arcs_deg": [
+        [
+          45.0,
+          315.0
+        ]
+      ],
+      "traverse_deg": [
+        45.0,
+        315.0
+      ],
+      "z": 0,
+      "top_m": 6.24
+    }
+  ],
+  "mip_rects": [
+    [
+      0,
+      0,
+      1472,
+      256
+    ],
+    [
+      1472,
+      0,
+      736,
+      128
+    ],
+    [
+      1472,
+      128,
+      368,
+      64
+    ],
+    [
+      1840,
+      128,
+      184,
+      32
+    ],
+    [
+      1840,
+      160,
+      92,
+      16
+    ],
+    [
+      1932,
+      160,
+      46,
+      8
+    ]
+  ]
+}

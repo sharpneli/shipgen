@@ -30,6 +30,7 @@ Each look (one navy in one era) has:
                Features painted on (the colours are palette keys, shipgen.deck_paint and dazzle_panels):
                  dazzle         true: dazzle panels in palette "camo" colours over the hull, superstructure and
                                 funnels, a repeatable pattern per design
+                 dazzle_decks   0..1: the dazzle panels also painted across the open decks at this opacity
                  deck_stripes   {"ends": "fore" | "both", "pattern": "chevron" | "diagonal", "n": 5, "slope": 0.8,
                                 "colours": ["recog_a", "recog_b"]}: recognition stripes on the open foredeck
                                 (and quarterdeck)
@@ -270,14 +271,15 @@ NAVIES = {
                             "boat": "#f4f2ec", "fitting": "#8a7d63", "mast": "#b8913f", "crane": "#8a7d63"},
                 "turrets": "slab",
                 "shapes": {"transom": 0.15, "blocks": "boxy"}},
-            # US-inspired 1910s: light blue-tinged grey, cage masts, boxy turrets
+            # US-inspired 1910s: light blue-tinged grey over pale, cool teak, big cage masts, boxy turrets
             "great_war": {
-                "from": "generic/great_war", "desc": "US-inspired 1910s: light blue-grey, cage masts, boxy turrets",
+                "from": "generic/great_war", "desc": "US-inspired 1910s: light blue-grey, pale teak, big cage masts, boxy turrets",
                 "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.12, "styles": NAVAL},
-                           {"keys": ["hull", "upperworks"], "tint": ["#6f8aa3", 0.08], "styles": NAVAL}],
+                           {"keys": ["hull", "upperworks", "armament"], "tint": ["#6f8aa3", 0.18], "styles": NAVAL},
+                           {"keys": "wood", "tint": ["#b9b19c", 1.0], "styles": NAVAL}],
                 "turrets": "slab",
                 "shapes": {"transom": 0.15, "funnel": "box", "blocks": "boxy", "mast": "cage", "tripod": 0.0,
-                           "top_r": 0.0}},
+                           "top_r": 0.0, "cage_r": 3.8}},
             # US-inspired 1920s-30s: light navy grey, the cage masts kept until the rebuilds
             "treaty": {
                 "from": "generic/treaty", "desc": "US-inspired 1920s-30s: light navy grey, cage masts, boxy turrets",
@@ -323,14 +325,16 @@ NAVIES = {
                             "boat": "#9fa29b", "fitting": "#4a4d49", "mast": "#3f423e", "crane": "#4a4d49"},
                 "turrets": "round",
                 "shapes": {"bow_flare": 0.04}},
-            # Japan-inspired 1910s: British-built lines and turrets, dark grey, tripods, black funnel tops
+            # Japan-inspired 1910s: British-built lines and turrets, dark green-grey, red-brown decks, broad white funnel
+            # bands, two-tier tops on the tripods (the pagoda to come)
             "great_war": {
-                "from": "generic/great_war", "desc": "Japan-inspired 1910s: British-built turrets, dark grey, tripods",
-                "palette": {"funnel_band": "#1c1d1e"},
-                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "tint": ["#555a5c", 0.35],
-                            "styles": NAVAL}],
+                "from": "generic/great_war", "desc": "Japan-inspired 1910s: dark green-grey, red-brown decks, white funnel bands, two-tier tops",
+                "palette": {"funnel_band": "#ecebe4"},
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "tint": ["#3f4744", 0.55],
+                            "styles": NAVAL},
+                           {"keys": "wood", "tint": ["#8e5a3c", 1.0], "styles": NAVAL}],
                 "turrets": "classic",
-                "shapes": {"blocks": "soft", "bow_flare": 0.04}},
+                "shapes": {"blocks": "soft", "bow_flare": 0.04, "top_tiers": 2, "top_r": 2.0, "funnel_band_w": 0.7}},
             # Japan-inspired 1920s-30s: the Kure look before the rebuilds: smaller early pagodas, finer bows
             "treaty": {
                 "from": "wwii", "desc": "Japan-inspired 1920s-30s: Kure grey, linoleum decks, early pagoda masts",
@@ -375,12 +379,16 @@ NAVIES = {
                 "palette": {"wood": "#e4d8b8", "deck": "#cbbd99", "deck_line": "#9a8660", "steel_line": "#8f7b56"},
                 "turrets": "classic",
                 "shapes": {"blocks": "bowfront", "top_r": 1.9, "top_tiers": 2}},
-            # UK-inspired 1910s: darker Edwardian grey, weathered teak, tall tripods with spotting tops
+            # UK-inspired 1917-18, the Grand Fleet: dark grey, dark weathered teak, three-colour dazzle carried across the
+            # decks, black and white recognition bands on the turret roofs, tall tripods with spotting tops
             "great_war": {
-                "from": "wwii", "desc": "UK-inspired 1910s: dark grey, weathered teak, tripods with spotting tops",
+                "from": "wwii", "desc": "UK-inspired 1917-18: dark grey and dark teak under dazzle, turret-roof bands, tripods",
+                "palette": {"camo": ["#24292d", "#c4ccd0", "#5d7891"], "recog_a": "#f1efe8", "recog_b": "#1b1d1f"},
                 "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": -0.25, "styles": NAVAL},
-                           {"keys": "decks", "tint": ["#8a6a3e", 0.3], "styles": NAVAL}],
-                "shapes": {"tripod": 1.3, "top_r": 1.4, "funnel_band_w": 0.6, "deck_line_opacity": 0.7},
+                           {"keys": "decks", "tint": ["#8a6a3e", 0.3], "styles": NAVAL},
+                           {"keys": "wood", "tint": ["#7a6a55", 1.0], "styles": NAVAL}],
+                "shapes": {"tripod": 1.3, "top_r": 1.4, "funnel_band_w": 0.6, "deck_line_opacity": 0.7, "dazzle": True, "dazzle_decks": 0.6,
+                           "turret_bands": ["recog_a", "recog_b"]},
                 "shapes_by_style": _PLAIN_MASTS},
             # UK-inspired 1920s-30s: light Home Fleet grey, white teak, tripods with director tops
             "treaty": {
@@ -428,11 +436,14 @@ NAVIES = {
                             "boat": "#eeeeea", "fitting": "#6a7073", "mast": "#5a5f62", "crane": "#6a7073"},
                 "turrets": "faceted",
                 "shapes": {"funnel": "capped", "blocks": "chamfer", "top_r": 1.8}},
-            # German-inspired 1910s: light blue-grey, pole masts with small spotting tops, faceted turrets
+            # German-inspired 1910s: dark decks under light blue-grey upperworks (as in wwii), pole masts with small
+            # spotting tops, faceted turrets
             "great_war": {
-                "from": "generic/great_war", "desc": "German-inspired 1910s: light blue-grey, pole masts, faceted turrets",
+                "from": "generic/great_war", "desc": "German-inspired 1910s: dark decks under light grey, pole masts, faceted turrets",
                 "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.2, "styles": NAVAL},
-                           {"keys": ["hull", "upperworks"], "tint": ["#7d8fa0", 0.08], "styles": NAVAL}],
+                           {"keys": ["hull", "upperworks"], "tint": ["#7d8fa0", 0.08], "styles": NAVAL},
+                           {"keys": "wood", "tint": ["#66625a", 1.0], "styles": NAVAL},
+                           {"keys": "upperworks", "lighten": 0.15, "styles": NAVAL}],
                 "turrets": "faceted",
                 "shapes": {"bow_power": 0.2, "bow_flare": 0.04, "funnel": "capped", "blocks": "chamfer", "tripod": 0.0,
                            "top_r": 0.9}},
@@ -479,12 +490,15 @@ NAVIES = {
                             "funnel": "#d9b25a", "funnel_band": "#f2efe6", "mast": "#3a3631"},
                 "turrets": "hooded",
                 "shapes": {"bow_power": 0.3, "funnel_band_w": 0.5, "top_r": 2.3}},
-            # Italy-inspired 1910s: light grey, white teak, tall pole masts with small tops, the first long turrets
+            # Italy-inspired 1910s: light grey, cream teak, red and white chevrons on the forecastle, tall pole masts with
+            # small tops, the first long turrets
             "great_war": {
-                "from": "wwii", "desc": "Italy-inspired 1910s: light grey, white teak, pole masts, long turrets",
-                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": -0.08, "styles": NAVAL}],
+                "from": "wwii", "desc": "Italy-inspired 1910s: light grey, cream teak, red and white bow chevrons, long turrets",
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": -0.08, "styles": NAVAL},
+                           {"keys": "wood", "tint": ["#e6dab9", 1.0], "styles": NAVAL}],
                 "shapes": {"blocks": "soft", "funnel_rake": 0.0, "funnel_cap": None, "dazzle": False,
-                           "deck_stripes": None, "top_r": 0.9, "deck_line_opacity": 0.55}},
+                           "deck_stripes": {"ends": "fore", "pattern": "chevron", "n": 3}, "top_r": 0.9,
+                           "deck_line_opacity": 0.55}},
             # Italy-inspired 1920s-30s: the palest grey afloat, raked funnels with frying-pan caps, tower bridges,
             # peacetime awnings
             "treaty": {
@@ -545,12 +559,16 @@ NAVIES = {
                            "blocks": "soft"},
                 "shapes_by_style": {"merchant": {"tumblehome": 0.0, "awnings": False},
                                     "planing": {"tumblehome": 0.0, "awnings": False}}},
-            # France-inspired 1910s: "gris bleu", weathered teak, a little tumblehome left, tall pole masts
+            # France-inspired 1910s: "gris bleu" all over, the decks painted to match, tumblehome, tall pole masts
             "great_war": {
-                "from": "wwii", "desc": "France-inspired 1910s: gris bleu, teak, tall pole masts, a little tumblehome",
+                "from": "wwii", "desc": "France-inspired 1910s: gris bleu all over, decks included, tall pole masts, tumblehome",
                 "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.14, "styles": NAVAL},
-                           {"keys": "decks", "tint": ["#8a6a3e", 0.2], "styles": NAVAL}],
-                "shapes": {"funnel": "oval", "funnel_rake": 0.0, "turret_bands": None, "tumblehome": 0.03,
+                           {"keys": ["hull", "upperworks", "armament", "funnels"], "tint": ["#4d6a8c", 0.3],
+                            "saturate": 0.0, "styles": NAVAL},
+                           {"keys": "decks", "tint": ["#8a6a3e", 0.2], "styles": NAVAL},
+                           {"keys": "wood", "tint": ["#6f8399", 1.0], "styles": NAVAL},
+                           {"keys": "deck_line", "tint": ["#2c3846", 1.0], "styles": NAVAL}],
+                "shapes": {"funnel": "oval", "funnel_rake": 0.0, "turret_bands": None, "tumblehome": 0.05,
                            "top_r": 0.9, "deck_line_opacity": 0.6, "funnel_band_w": 0.5},
                 "shapes_by_style": {"merchant": {"tumblehome": 0.0}, "planing": {"tumblehome": 0.0},
                                     "carrier": {"tumblehome": 0.0}}},

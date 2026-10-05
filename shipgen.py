@@ -127,13 +127,14 @@ class Painter:
         # keep outlines at least ~0.6 px wide whatever the scale
         self.sw = max(0.12, 0.6 / scale)
 
-    def dazzled(self, d):
+    def dazzled(self, d, opacity=1.0):
         """The dazzle panels clipped to the outline d (an SVG path), or "" with no dazzle."""
-        if not self.dazzle:
+        if not self.dazzle or opacity <= 0:
             return ""
         self._clip_n += 1
         cid = f"dz{self._clip_n}"
-        return (f'<clipPath id="{cid}"><path d="{d}"/></clipPath><g clip-path="url(#{cid})">'
+        op = f' opacity="{f(opacity)}"' if opacity < 1 else ""
+        return (f'<clipPath id="{cid}"><path d="{d}"/></clipPath><g clip-path="url(#{cid})"{op}>'
                 + "".join(f'<path d="{poly(pts)}" fill="{col}"/>' for pts, col in self.dazzle) + "</g>")
 
     def stroke(self, k=1.0):
@@ -663,6 +664,7 @@ def build_hull(spec, scale, align=2, shadows=True):
                           x_min=spec.get("deck_x0"), x_max=spec.get("deck_x1"))
     deck_col = pal["wood"] if spec.get("deck") == "wood" else pal["deck"]
     low.append(f'<path d="{deck_d}" fill="{deck_col}"/>')
+    low.append(P.dazzled(deck_d, sh.get("dazzle_decks", 0.0)))   # painted decks, under the planking lines
     defs += f'<clipPath id="deckclip"><path d="{deck_d}"/></clipPath>'
 
     # planking / plating lines
@@ -712,6 +714,7 @@ def build_hull(spec, scale, align=2, shadows=True):
         defs += f'<clipPath id="rdclip{i}"><path d="{margin_d}"/></clipPath>'
         rd_lines = plank_lines(rd["x0"], rd["x1"], spacing / 2 if lv % 2 else 0.0, 1.5 * spacing * lv)
         low.append(f'<path d="{rd_d}" fill="{shade(deck_col, 1.07 ** lv)}" {P.stroke()}/>'
+                   + P.dazzled(rd_d, sh.get("dazzle_decks", 0.0)) +
                    f'<path d="{margin_d}" fill="none" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '
                    f'stroke-opacity="0.45"/>'
                    f'<g clip-path="url(#rdclip{i})" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '

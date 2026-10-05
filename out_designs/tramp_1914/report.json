@@ -1,0 +1,505 @@
+{
+  "id": "tramp_1914",
+  "name": "Tramp steamer (1914)",
+  "valid": true,
+  "errors": [],
+  "warnings": [],
+  "inputs": {
+    "id": "tramp_1914",
+    "name": "Tramp steamer (1914)",
+    "look": {
+      "navy": "generic",
+      "era": "great_war"
+    },
+    "type": "AK",
+    "style": "merchant",
+    "hull": {
+      "block_coefficient": 0.76,
+      "construction": {
+        "name": "Mild steel hull, high-tensile strength deck, riveted",
+        "yield_mpa": 290,
+        "join_factor": 1.1,
+        "standard": 1.0
+      },
+      "freeboard": 1.0
+    },
+    "armour": {
+      "belt_mm": 0,
+      "belt_depth_m": 2.2,
+      "belt_height_m": 2.2,
+      "belt_bottom_mm": 0,
+      "bulkhead_mm": 0,
+      "upper_belt": {
+        "mm": 0,
+        "to_deck": 0,
+        "extent": "citadel"
+      },
+      "end_belts": {
+        "fore": {
+          "mm": 0,
+          "tip_mm": 0
+        },
+        "aft": {
+          "mm": 0,
+          "tip_mm": 0
+        }
+      },
+      "decks": [],
+      "materials": {
+        "belt": "mild steel",
+        "upper_belt": "mild steel",
+        "end_belts": "mild steel",
+        "bulkheads": "mild steel",
+        "decks": "mild steel",
+        "turrets": "mild steel",
+        "barbettes": "mild steel",
+        "conning_tower": "mild steel",
+        "secondary": "mild steel"
+      }
+    },
+    "speed_kn": 9,
+    "range_nm": 9000,
+    "crew": {
+      "standard": {
+        "name": "Hammocks over mess tables",
+        "sleep_rating_m2": 1.1,
+        "sleep_cpo_m2": 1.8,
+        "sleep_officer_m2": 5.0,
+        "mess_seats_per_man": 0.0,
+        "galley_k": 0.3,
+        "galley_min_m2": 4.0,
+        "sanitary_m2": 0.1,
+        "sickbay_beds_per_man": 0.01,
+        "welfare_m2": 0.0,
+        "services_k": 0.03,
+        "passage_factor": 1.15,
+        "deck_height_m": 2.3,
+        "provisions_m3_per_day": 0.007,
+        "water_l_per_day": 15,
+        "hotel_fraction": 0.05,
+        "cpo_fraction": 0.08,
+        "tolerance_days": 30
+      },
+      "endurance_days": 45,
+      "distiller": true,
+      "buffer_days": 5,
+      "water_l_per_day": 15,
+      "berth_ratio": 1.0,
+      "officer_fraction": 0.08
+    },
+    "cargo": {
+      "kind": "dry",
+      "deadweight_t": 6000
+    },
+    "machinery": {
+      "position": "amidships",
+      "shafts": 1,
+      "stress": 0.0,
+      "units_per_shaft": 1,
+      "transmission": "mechanical",
+      "arrangement": "grouped",
+      "centreline_bulkhead": false,
+      "bunkers": "ends",
+      "wing_bunker_m": 2.0,
+      "tech": {
+        "name": "Triple expansion, cylindrical (Scotch) boilers, natural draught (1910)",
+        "fuel": "coal",
+        "weight_kg_per_kw": 160.0,
+        "stress_floor": 0.45,
+        "sfc_g_per_kwh": 900,
+        "density_t_per_m3": 0.28,
+        "unit_max_mw": 12.0,
+        "unit": {
+          "mw": 5,
+          "height_m": 7.5,
+          "width_m": 4.5,
+          "length_m": 9
+        },
+        "boiler_fraction": 0.55,
+        "crew_k": 34,
+        "part_load": "REC",
+        "draught": {
+          "system": "natural",
+          "velocity_m_s": 4.0,
+          "reach_m": 9.8,
+          "gas_temp_k": 600,
+          "air_fuel_ratio": 18
+        }
+      }
+    },
+    "aa": {
+      "light": 0
+    },
+    "secondary": {
+      "calibre_mm": 76,
+      "calibre_length": 40,
+      "barrels": 1,
+      "count": 1,
+      "where": "ends"
+    },
+    "superstructure": {
+      "t_per_m2": 0.32,
+      "material": "steel"
+    },
+    "fire_control": {
+      "main": {
+        "directors": 0,
+        "rangefinder_m": 0.0,
+        "armour_mm": 0,
+        "radar_t": 0.0,
+        "computer_t": 0.0
+      },
+      "secondary": {
+        "directors": 0,
+        "rangefinder_m": 0.0,
+        "armour_mm": 0,
+        "radar_t": 0.0,
+        "computer_t": 0.0
+      },
+      "aa": {
+        "directors": 0,
+        "rangefinder_m": 0.0,
+        "armour_mm": 0,
+        "radar_t": 0.0,
+        "computer_t": 0.0
+      },
+      "search_radar_t": 0.0
+    }
+  },
+  "results": {
+    "length_m": 135.0,
+    "beam_m": 16.88,
+    "block_coefficient": 0.76,
+    "standard_displacement_t": 2889,
+    "full_displacement_t": 9448,
+    "draught_m": 5.32,
+    "depth_m": 7.81,
+    "freeboard_m": 2.49,
+    "power_shp": 800.0,
+    "fuel_t": 558,
+    "crew": 52,
+    "gm_full_m": 2.89,
+    "gm_light_m": 8.65,
+    "roll_period_s": 7.7,
+    "windage_m2": 1086,
+    "gale_heel_deg": 0.8,
+    "gale_heel_condition": "light",
+    "deck_edge_deg": 36.2,
+    "deck_edge_wind_kn": 371,
+    "trim_m": 0.0,
+    "lcg_m": 1.62,
+    "lcb_m": 1.62,
+    "layout_shift_m": 0.0,
+    "cargo_t": 6000,
+    "deadweight_t": 6558,
+    "cargo_kind": "dry",
+    "holds": 6,
+    "machinery_position": "amidships"
+  },
+  "plant": {
+    "name": "Triple expansion, cylindrical (Scotch) boilers, natural draught (1910)",
+    "fuel": "coal",
+    "rated_kw": 620,
+    "rated_shp": 830.0,
+    "continuous_kw": 620,
+    "overload_max": 1.15,
+    "shafts": 1,
+    "units": 1,
+    "unit_mw": 0.62,
+    "weight_t": 99.2,
+    "sfc_g_per_kwh": 900.0,
+    "part_load": {
+      "curve": "REC",
+      "loads": [
+        0.1,
+        0.25,
+        0.5,
+        0.75,
+        1.0
+      ],
+      "multipliers": [
+        1.45,
+        1.2,
+        1.07,
+        1.02,
+        1.0
+      ],
+      "overload_per_tenth": 0.5
+    },
+    "draught": "natural",
+    "stress": 0.0,
+    "transmission": "mechanical",
+    "arrangement": "grouped",
+    "crew": 24,
+    "machinery_length_m": 16.3,
+    "boiler_rooms": 1,
+    "engine_rooms": 1,
+    "rows": 5,
+    "protrusion_m": 0.0,
+    "space_m": {
+      "width": 15.53,
+      "height": 6.81
+    },
+    "wing_bunkers_t": 0,
+    "end_bunkers_m": 7.6,
+    "funnels": 1,
+    "funnel_gas_area_m2": 1.2,
+    "funnel_gas_velocity_m_s": 4.1,
+    "smoke_reach_m": 9.0
+  },
+  "hull": {
+    "construction": "Mild steel hull, high-tensile strength deck, riveted",
+    "structure_t": 2164,
+    "min_gauge_t": 1963,
+    "strength_t": 201,
+    "plate_min_mm": 8.1,
+    "plate_strength_mm": 12.9,
+    "girder": {
+      "allowable_stress_mpa": 138.1,
+      "required_m4": 10.06,
+      "plating_m4": 10.06,
+      "armour_decks_m4": 0
+    }
+  },
+  "crew": {
+    "complement": 52,
+    "quartered_in_superstructure": 0,
+    "superstructure_quarters": {},
+    "officers": 4,
+    "cpos": 4,
+    "ratings": 44,
+    "departments": {
+      "engineering": 24,
+      "weapons": 9,
+      "deck_and_command": 16,
+      "hotel": 3
+    },
+    "standard": "Hammocks over mess tables",
+    "endurance_days": 45,
+    "range_days": 42,
+    "distiller": true,
+    "berth_ratio": 1.0,
+    "living_m3": 261,
+    "provisions_m3": 23,
+    "water_m3": 4,
+    "water_in_double_bottom_m3": 4,
+    "distiller_m3_per_day": 0.9,
+    "space_needed_m3": 284,
+    "space_usable_m3": 2870,
+    "space_free_m3": 4416,
+    "sleep_m2_per_man": 1.45,
+    "sleep_standard_m2": 1.1,
+    "headroom_m": 2.3,
+    "deck_height_m": 2.3,
+    "sickbay_beds": 1,
+    "tolerance_days": 30
+  },
+  "fire_control": [],
+  "weight_groups_t": {
+    "cargo": 6000,
+    "hull": 2334,
+    "fuel": 558,
+    "superstructure": 320,
+    "machinery": 115,
+    "misc": 111,
+    "armament": 11
+  },
+  "weights": [
+    {
+      "name": "Hull structure",
+      "group": "hull",
+      "t": 2163.6,
+      "x": -1.35,
+      "z": 4.53
+    },
+    {
+      "name": "Machinery",
+      "group": "machinery",
+      "t": 99.2,
+      "x": -4.7,
+      "z": 2.5
+    },
+    {
+      "name": "Forecastle",
+      "group": "hull",
+      "t": 29.2,
+      "x": 59.42,
+      "z": 9.68
+    },
+    {
+      "name": "Bridge deck",
+      "group": "hull",
+      "t": 101.1,
+      "x": -2.7,
+      "z": 9.94
+    },
+    {
+      "name": "Poop",
+      "group": "hull",
+      "t": 39.7,
+      "x": -61.5,
+      "z": 9.85
+    },
+    {
+      "name": "House",
+      "group": "superstructure",
+      "t": 64.2,
+      "x": -2.48,
+      "z": 11.71
+    },
+    {
+      "name": "Boat deck house",
+      "group": "superstructure",
+      "t": 40.4,
+      "x": -0.8,
+      "z": 14.31
+    },
+    {
+      "name": "Bridge",
+      "group": "superstructure",
+      "t": 24.4,
+      "x": 4.22,
+      "z": 16.91
+    },
+    {
+      "name": "Funnel 1",
+      "group": "superstructure",
+      "t": 10.7,
+      "x": -7.16,
+      "z": 15.31
+    },
+    {
+      "name": "Uptakes Funnel 1",
+      "group": "machinery",
+      "t": 15.3,
+      "x": -5.93,
+      "z": 7.57
+    },
+    {
+      "name": "Mount S1",
+      "group": "armament",
+      "t": 6.1,
+      "x": -62.57,
+      "z": 11.13
+    },
+    {
+      "name": "Magazine S1",
+      "group": "armament",
+      "t": 4.5,
+      "x": -55.95,
+      "z": 1.8
+    },
+    {
+      "name": "Mast 1",
+      "group": "superstructure",
+      "t": 35.0,
+      "x": 24.42,
+      "z": 14.54
+    },
+    {
+      "name": "Mast 2",
+      "group": "superstructure",
+      "t": 35.0,
+      "x": 53.85,
+      "z": 14.54
+    },
+    {
+      "name": "Mast 3",
+      "group": "superstructure",
+      "t": 35.0,
+      "x": -28.47,
+      "z": 14.54
+    },
+    {
+      "name": "Mast 4",
+      "group": "superstructure",
+      "t": 35.0,
+      "x": -55.2,
+      "z": 14.54
+    },
+    {
+      "name": "Hatch covers",
+      "group": "superstructure",
+      "t": 40.1,
+      "x": 0.0,
+      "z": 8.81
+    },
+    {
+      "name": "Crew and effects",
+      "group": "misc",
+      "t": 6.2,
+      "x": 0.0,
+      "z": 6.31
+    },
+    {
+      "name": "Provisions",
+      "group": "misc",
+      "t": 13.8,
+      "x": 0.0,
+      "z": 3.12
+    },
+    {
+      "name": "Fresh water",
+      "group": "misc",
+      "t": 3.9,
+      "x": -4.7,
+      "z": 0.39
+    },
+    {
+      "name": "Equipment, outfit, crew & stores",
+      "group": "misc",
+      "t": 86.7,
+      "x": 0.0,
+      "z": 3.9
+    },
+    {
+      "name": "Fuel",
+      "group": "fuel",
+      "t": 558.2,
+      "x": -4.7,
+      "z": 1.41
+    },
+    {
+      "name": "Cargo, hold 1",
+      "group": "cargo",
+      "t": 1149.3,
+      "x": 16.94,
+      "z": 3.51
+    },
+    {
+      "name": "Cargo, hold 2",
+      "group": "cargo",
+      "t": 1149.3,
+      "x": 31.9,
+      "z": 3.51
+    },
+    {
+      "name": "Cargo, hold 3",
+      "group": "cargo",
+      "t": 1149.3,
+      "x": 46.87,
+      "z": 3.51
+    },
+    {
+      "name": "Cargo, hold 4",
+      "group": "cargo",
+      "t": 1018.0,
+      "x": -21.66,
+      "z": 3.51
+    },
+    {
+      "name": "Cargo, hold 5",
+      "group": "cargo",
+      "t": 767.0,
+      "x": -35.28,
+      "z": 3.51
+    },
+    {
+      "name": "Cargo, hold 6",
+      "group": "cargo",
+      "t": 767.0,
+      "x": -48.89,
+      "z": 3.51
+    }
+  ]
+}
