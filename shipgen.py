@@ -681,11 +681,11 @@ def build_hull(spec, scale, align=2, shadows=True):
     low.append(f'<g clip-path="url(#deckclip)" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '
                 f'stroke-opacity="{f(P.shapes.get("deck_line_opacity", 0.45))}">{"".join(lines)}</g>')
 
-    # raised decks (forecastle, bridge deck, poop): the hull outline between x0 and x1, a step up
+    # raised decks (forecastle, bridge deck, poop): the hull outline between x0 and x1, a step up, lighter per deck
     for i, rd in enumerate(spec.get("raised_decks", [])):
         rd_d = hull_path(hull, inset=rd.get("inset", 0.3), x_min=rd["x0"], x_max=rd["x1"])
         defs += f'<clipPath id="rdclip{i}"><path d="{rd_d}"/></clipPath>'
-        low.append(f'<path d="{rd_d}" fill="{shade(deck_col, 1.07)}" {P.stroke()}/>'
+        low.append(f'<path d="{rd_d}" fill="{shade(deck_col, 1.07 ** rd.get("levels", 1))}" {P.stroke()}/>'
                     f'<g clip-path="url(#rdclip{i})" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '
                     f'stroke-opacity="0.45">{"".join(lines)}</g>')
     for ht in spec.get("hatches", []):
