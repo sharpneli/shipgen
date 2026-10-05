@@ -7,6 +7,7 @@ python design.py designs/x.json --no-limits # skip the input ranges; errors (cap
 python design.py designs/x.json --no-previews # game assets only (sprites, mips, height map): ~0.5 s, not ~3 s
 python verify.py out_designs/battleship     # pixel check: sprites vs hitboxes
 python shipgen.py                           # the original hand-authored fleet (fleet.py)
+python vidgen/vidgen.py bismarck            # style check: a short gameplay-style video -> vidgen/out/bismarck.mp4
 ```
 
 ## Pipeline
@@ -395,6 +396,23 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
   - Views: from the starboard bow, the port quarter, a side elevation, and an internal view that shows only rooms (less the quarters, stores, double bottom and torpedo protection that fill the rest), barbettes, uptakes and armour inside the hull's edges.
   - `hitbox_cells.png`: every tier of the subdivision in plan, keel tier at the bottom, with cells coloured by their room's kind. Labels give the section, `+` for a shared cell, and the crew.
   - The hull is translucent and the waterline is drawn in blue. Colours are by kind, with a legend.
+
+## Style videos (vidgen/)
+`vidgen/vidgen.py` makes a short MP4 of one exported ship, to judge how the sprites look in motion. It reads only
+`out_designs/<id>/`, as the game would, and changes nothing there. Needs `pip install imageio-ffmpeg` (it bundles
+an ffmpeg binary) besides numpy and pillow.
+- The camera looks straight down and follows the ship at its design speed (`inputs.speed_kn`). The ship is scaled
+  to fit the frame (never above the sprites' own 10 px/m). Procedural water, a bow wave that spreads into Kelvin
+  arms, stern wash, and funnel smoke on the wind (darker on coal).
+- Timeline: weapons at rest, then every mount whose arcs hold the target bearing (`--target`, relative to the
+  bow) trains on it, moving only inside its `traverse_deg`. Then they fire: main guns in salvos, secondaries on their
+  own beat, torpedo mounts once. Muzzle points come from the barrel polygons in `hitboxes.json`. Mounts that can't
+  bear stay at rest.
+- Shadows as README "Shadows": `shadow.shadow_mask` on the height map, and turret sprites in black, offset by
+  `(top_m - deck_m) / tan(elevation)` and kept where the height map is below `top_m`. Smoke casts a soft shadow.
+- `vidgen.py all`, `--size 1920x1080`, `--heading`, `--target`, `--seconds`, `--seed`, `--crf`; `--still T` writes
+  one PNG at time T instead. About 0.35 s a frame at 720p, so a 14 s clip takes 2–3 minutes. Videos go to
+  `vidgen/out/` (git-ignored).
 
 ## Conventions
 - Bow → +x. Angles run clockwise from dead ahead (90 = starboard). Arcs are `[start, end]` intervals, clockwise; `end` may exceed 360.

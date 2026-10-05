@@ -344,5 +344,6 @@ Housekeeping, whenever convenient:
 - **Height map:** columns only, so mast yards, derricks and barrels are left out. It's 8-bit with a 0.25 m step, so anything above 63.75 m clips.
 - **Baked lighting:** the light rim on the upper-left edges of blocks and funnels is still baked in.
 - **No aircraft are drawn** on carriers; the game is assumed to spawn them.
+- **Style videos (`vidgen/`, 2026-10-05; user: "we just want to see how the ships would look like in an actual game").** A consumer of `out_designs/` only, like the game. My picks, all drawing-side and tuned by eye: training rates 30°/s main, 40°/s secondary (about 5–10× real, to keep clips short); every mount whose arcs hold the target bearing trains and fires, the rest stay stowed; foam size scales with hull length; the ripple tile grows when zoomed far out (Gangut). Ideas not done: shell splashes at a visible target, a turning ship, aircraft on carriers, recoil, smoke from funnels by plant load.
 - **Wing turrets on the main deck** (`amidships_stands_on: "deck"`) may overlap the bridge's level-1 core where they stand next to the bridge. The size search hasn't produced it on Dreadnought, so it hasn't been handled.
 - **Missing turrets:** a mount that doesn't fit (beam too narrow, deck taken) is left off the drawing and listed as an error, even with `--no-limits`.
