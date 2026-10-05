@@ -9,10 +9,11 @@ Conventions
   The origin (0, 0) is the ship's centre and is also the exact centre of every hull image.
 * Sprites face RIGHT (bow at +x). Angle 0 = dead ahead; positive angles turn clockwise
   on screen (toward starboard), the same as most 2D engines whose y axis points down.
-* Each ship becomes three layers, drawn in this order:
-    1. hull_base   - hull, deck, low deckhouses, barbettes, low AA guns
-    2. turrets     - separate sprites, pivot at the image centre, sorted by mount "z"
-    3. hull_upper  - bridge, towers, funnels, masts, boats (drawn above the turrets)
+* Each ship becomes a static hull image and turret sprites, drawn in this order:
+    1. hull     - everything that doesn't rotate: hull, deck, superstructure, funnels, masts, boats, AA
+    2. turrets  - separate sprites, pivot at the image centre, sorted by mount "z"
+  Turrets draw over the whole hull image: what stands taller than a turret's guns keeps out of its sweep,
+  and shadows come from the height map, so nothing needs to draw over a turret.
 * Rendering: an SVG with a viewBox in metres, rasterised at --scale px per metre.
 
 Usage
@@ -120,7 +121,7 @@ class Painter:
         self.p = palette
         self.shapes = shapes or {}   # a look's drawing variations (looks.py)
         self.shadows = shadows  # bake drop shadows in; off when the game casts them from a height map
-        self.dazzle = []        # dazzle camouflage panels [(points, colour)], set by build_hull_layers
+        self.dazzle = []        # dazzle camouflage panels [(points, colour)], set by build_hull
         self._clip_n = 0
         # keep outlines at least ~0.6 px wide whatever the scale
         self.sw = max(0.12, 0.6 / scale)
@@ -635,7 +636,7 @@ def look_hull_spec(spec):
     return {**spec, "bow": bow, "stern": stern}
 
 
-def build_hull_layers(spec, scale, align=2, shadows=True):
+def build_hull(spec, scale, align=2, shadows=True):
     pal = {**DEFAULT_PALETTE, **spec.get("palette", {})}
     P = Painter(pal, scale, shadows, spec.get("shapes"))
     sh = P.shapes
@@ -649,16 +650,18 @@ def build_hull_layers(spec, scale, align=2, shadows=True):
     if sh.get("dazzle") and pal.get("camo"):
         P.dazzle = dazzle_panels(spec, hull, pal["camo"])
 
-    base, upper = [], []
+    # two passes in one image: low (hull, deck, level 1, what stands on the deck), then high (what stands on
+    # a roof, and the tall stuff), so a roof never draws over what stands on it
+    low, high = [], []
 
     # --- hull and deck -------------------------------------------------------
-    base.append(f'<path d="{hull_d}" fill="{pal["hull"]}" {P.stroke(1.4)}/>')
-    base.append(P.dazzled(hull_d))
+    low.append(f'<path d="{hull_d}" fill="{pal["hull"]}" {P.stroke(1.4)}/>')
+    low.append(P.dazzled(hull_d))
     inset = spec.get("deck_inset", 0.55)
     deck_d = hull_path(hull, inset=inset, max_hw=spec.get("deck_max_hw"),
                           x_min=spec.get("deck_x0"), x_max=spec.get("deck_x1"))
     deck_col = pal["wood"] if spec.get("deck") == "wood" else pal["deck"]
-    base.append(f'<path d="{deck_d}" fill="{deck_col}"/>')
+    low.append(f'<path d="{deck_d}" fill="{deck_col}"/>')
     defs += f'<clipPath id="deckclip"><path d="{deck_d}"/></clipPath>'
 
     # planking / plating lines
@@ -675,20 +678,20 @@ def build_hull_layers(spec, scale, align=2, shadows=True):
         lines.append(f'<line x1="{f(xx)}" y1="{f(-hull.B / 2)}" x2="{f(xx)}" y2="{f(hull.B / 2)}" stroke-dasharray="{f(spacing)} {f(spacing * 2)}"/>')
         xx += seam
     line_col = pal["deck_line"] if spec.get("deck") == "wood" else pal.get("steel_line", pal["deck_line"])
-    base.append(f'<g clip-path="url(#deckclip)" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '
+    low.append(f'<g clip-path="url(#deckclip)" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '
                 f'stroke-opacity="{f(P.shapes.get("deck_line_opacity", 0.45))}">{"".join(lines)}</g>')
 
     # raised decks (forecastle, bridge deck, poop): the hull outline between x0 and x1, a step up
     for i, rd in enumerate(spec.get("raised_decks", [])):
         rd_d = hull_path(hull, inset=rd.get("inset", 0.3), x_min=rd["x0"], x_max=rd["x1"])
         defs += f'<clipPath id="rdclip{i}"><path d="{rd_d}"/></clipPath>'
-        base.append(f'<path d="{rd_d}" fill="{shade(deck_col, 1.07)}" {P.stroke()}/>'
+        low.append(f'<path d="{rd_d}" fill="{shade(deck_col, 1.07)}" {P.stroke()}/>'
                     f'<g clip-path="url(#rdclip{i})" stroke="{line_col}" stroke-width="{f(P.sw * 0.7)}" '
                     f'stroke-opacity="0.45">{"".join(lines)}</g>')
     for ht in spec.get("hatches", []):
-        base.append(P.hatch(ht))
+        low.append(P.hatch(ht))
     paint, number = deck_paint(spec, hull, P)
-    base.append(paint)
+    low.append(paint)
 
     # bow details: anchor chains, breakwater, bollards
     bx = spec.get("chain_x")
@@ -696,43 +699,43 @@ def build_hull_layers(spec, scale, align=2, shadows=True):
         x_haw = hull.L / 2 - spec.get("hawse_back", 6.0)
         hw_haw = hull.half_width(x_haw) - 0.6
         for side in (-1, 1):
-            base.append(f'<line x1="{f(bx)}" y1="{f(side * 1.6)}" x2="{f(x_haw)}" y2="{f(side * hw_haw)}" '
+            low.append(f'<line x1="{f(bx)}" y1="{f(side * 1.6)}" x2="{f(x_haw)}" y2="{f(side * hw_haw)}" '
                         f'stroke="{pal["chain"]}" stroke-width="{f(max(0.45, P.sw * 2))}" stroke-dasharray="0.45 0.25"/>')
-            base.append(f'<circle cx="{f(bx)}" cy="{f(side * 1.6)}" r="0.9" fill="{pal["fitting"]}" {P.stroke()}/>')
-            base.append(f'<path d="M{f(x_haw - 1.2)},{f(side * (hw_haw + 0.2))} l1.6,{f(side * 0.6)} l0.6,{f(-side * 0.9)} Z" '
+            low.append(f'<circle cx="{f(bx)}" cy="{f(side * 1.6)}" r="0.9" fill="{pal["fitting"]}" {P.stroke()}/>')
+            low.append(f'<path d="M{f(x_haw - 1.2)},{f(side * (hw_haw + 0.2))} l1.6,{f(side * 0.6)} l0.6,{f(-side * 0.9)} Z" '
                         f'fill="{pal["chain"]}"/>')
     bw = spec.get("breakwater_x")
     if bw:
         hwb = hull.half_width(bw) - 1.2
-        base.append(f'<path d="M{f(bw - hwb * 0.55)},{f(-hwb)} L{f(bw)},0 L{f(bw - hwb * 0.55)},{f(hwb)}" '
+        low.append(f'<path d="M{f(bw - hwb * 0.55)},{f(-hwb)} L{f(bw)},0 L{f(bw - hwb * 0.55)},{f(hwb)}" '
                     f'fill="none" stroke="{shade(deck_col, 0.6)}" stroke-width="{f(max(0.45, P.sw * 2.2))}"/>')
     for bxx in spec.get("bollards", []):
         for side in (-1, 1):
             by = side * (hull.half_width(bxx) - 1.1)
-            base.append(f'<circle cx="{f(bxx)}" cy="{f(by)}" r="0.35" fill="{pal["fitting"]}" {P.stroke(0.6)}/>'
+            low.append(f'<circle cx="{f(bxx)}" cy="{f(by)}" r="0.35" fill="{pal["fitting"]}" {P.stroke(0.6)}/>'
                         f'<circle cx="{f(bxx + 0.9)}" cy="{f(by)}" r="0.35" fill="{pal["fitting"]}" {P.stroke(0.6)}/>')
 
-    base.append(number)   # over the chains, so it stays readable
+    low.append(number)   # over the chains, so it stays readable
 
     # --- aircraft carrier flight deck ---------------------------------------
     fd = spec.get("flight_deck")
     if fd:
         for sp in expand(spec.get("sponsons"), hull):
-            base.append(P.fitting({**sp, "color": pal["deck"], "r": 0.8}))
+            low.append(P.fitting({**sp, "color": pal["deck"], "r": 0.8}))
         fd = flight_deck_spec(fd)
         for el in fd.get("edge_elevators", []):
-            base.append(P.fitting({**el, "color": pal["flight_deck"], "r": 0.4}))
+            low.append(P.fitting({**el, "color": pal["flight_deck"], "r": 0.4}))
         fd_d = poly(fd["points"])
         defs += f'<clipPath id="fdclip"><path d="{fd_d}"/></clipPath>'
         # shadow of the flight deck on the hull/sea is implied by a dark rim
-        base.append(f'<path d="{fd_d}" fill="{pal["flight_deck"]}" {P.stroke(1.3)}/>')
+        low.append(f'<path d="{fd_d}" fill="{pal["flight_deck"]}" {P.stroke(1.3)}/>')
         pk = fd["planks"]
         fl = []
         yy = pk["y0"]
         while yy < pk["y1"]:
             fl.append(f'<line x1="{f(pk["x0"])}" y1="{f(yy)}" x2="{f(pk["x1"])}" y2="{f(yy)}"/>')
             yy += pk["step"]
-        base.append(f'<g clip-path="url(#fdclip)" stroke="{shade(pal["flight_deck"], 0.75)}" '
+        low.append(f'<g clip-path="url(#fdclip)" stroke="{shade(pal["flight_deck"], 0.75)}" '
                     f'stroke-width="{f(P.sw * 0.7)}" stroke-opacity="0.6">{"".join(fl)}</g>')
         mk = pal["marking"]
         g = [f'<g clip-path="url(#fdclip)">']
@@ -758,40 +761,38 @@ def build_hull_layers(spec, scale, align=2, shadows=True):
                      f'font-size="{f(num.get("size", 9))}" fill="{mk}" text-anchor="middle" dominant-baseline="central" '
                      f'transform="rotate(90 {f(nx)} {f(ny)})">{num["text"]}</text>')
         g.append("</g>")
-        base.append("".join(g))
+        low.append("".join(g))
         defs = defs.replace('<clipPath id="hullclip">', '<clipPath id="hullclip_unused">')
         defs += f'<clipPath id="hullclip"><path d="{hull_d}"/><path d="{fd_d}"/></clipPath>'
 
     # --- superstructure, fittings, AA, boats --------------------------------
     for sb in expand(spec.get("superstructure"), hull):
         layer = sb.get("layer", "base" if sb.get("level", 1) <= 1 else "upper")
-        (base if layer == "base" else upper).append(P.block(sb, clip="hullclip"))
-    base.append(vents(spec, hull, P))
+        (low if layer == "base" else high).append(P.block(sb, clip="hullclip"))
+    low.append(vents(spec, hull, P))
     for ft in expand(spec.get("fittings"), hull):
-        (upper if ft.get("layer") == "upper" else base).append(P.fitting(ft))
+        (high if ft.get("layer") == "upper" else low).append(P.fitting(ft))
     for a in expand(spec.get("aa"), hull):
-        (upper if a.get("layer") == "upper" else base).append(P.aa(a))
+        (high if a.get("layer") == "upper" else low).append(P.aa(a))
     for b in expand(spec.get("boats"), hull):
-        (base if b.get("layer") == "base" else upper).append(P.boat(b))
+        (low if b.get("layer") == "base" else high).append(P.boat(b))
 
-    # --- turret barbettes (base layer, under the rotating turrets) ----------
+    # --- turret barbettes (low pass) ------------------------------------------
     mounts = expand(spec.get("turrets"), hull)
     for m in mounts:
         t = turret_types(spec)[m["type"]]
         if t.get("barbette", True):
-            base.append(P.barbette(m["x"], m["y"] if "y" in m else 0, t["r"] * t.get("barbette_k", 0.95)))
+            low.append(P.barbette(m["x"], m["y"] if "y" in m else 0, t["r"] * t.get("barbette_k", 0.95)))
 
     # --- tall stuff ----------------------------------------------------------
     for fn in expand(spec.get("funnels"), hull):
-        upper.append(P.funnel(fn, clip="hullclip"))
+        high.append(P.funnel(fn, clip="hullclip"))
     for m in expand(spec.get("masts"), hull):
-        upper.append(P.mast(m))
+        high.append(P.mast(m))
     for c in expand(spec.get("cranes"), hull):
-        upper.append(P.crane(c))
+        high.append(P.crane(c))
 
-    return (svg_doc("".join(base), vb, scale, defs),
-            svg_doc("".join(upper), vb, scale, defs),
-            vb, mounts, hull)
+    return svg_doc("".join(low + high), vb, scale, defs), vb, mounts, hull
 
 
 # ----------------------------------------------------------------------------
@@ -1054,17 +1055,14 @@ def clamp_angle(target, rest, trav):
     return rest + d
 
 
-def composite(base_png, upper_png, turret_pngs, meta, angle_fn):
-    base = Image.open(base_png).convert("RGBA")
-    upper = Image.open(upper_png).convert("RGBA")
-    canvas = base.copy()
+def composite(hull_png, turret_pngs, meta, angle_fn):
+    canvas = Image.open(hull_png).convert("RGBA")
     for m in sorted(meta["mounts"], key=lambda m: m["z"]):
         timg = Image.open(turret_pngs[m["type"]]).convert("RGBA")
         ang = angle_fn(m)
         rot = timg.rotate(-ang, resample=Image.BICUBIC)
         cx, cy = m["px"]
         canvas.alpha_composite(rot, (round(cx - rot.width / 2), round(cy - rot.height / 2)))
-    canvas.alpha_composite(upper)
     return canvas
 
 
@@ -1116,7 +1114,7 @@ def main():
 
     ships = [s for s in FLEET if not args.only or s["id"] in args.only]
     manifest = {"scale_px_per_m": S, "orientation": "bow points +x (right); angles clockwise, 0 = ahead",
-                "layer_order": ["hull_base", "turrets (ascending z)", "hull_upper"],
+                "layer_order": ["hull", "turrets (ascending z)"],
                 "turrets": {}, "ships": []}
 
     # turret sprites (shared between ships)
@@ -1139,15 +1137,15 @@ def main():
         sid = spec["id"]
         d = os.path.join(args.out, "ships", sid)
         os.makedirs(d, exist_ok=True)
-        base_svg, upper_svg, vb, mounts, hull = build_hull_layers(spec, S)
-        render(base_svg, os.path.join(d, "hull_base.png"), os.path.join(d, "hull_base.svg"))
-        render(upper_svg, os.path.join(d, "hull_upper.png"), os.path.join(d, "hull_upper.svg"))
-        W, H = Image.open(os.path.join(d, "hull_base.png")).size
+        hull_svg, vb, mounts, hull = build_hull(spec, S)
+        hull_p = os.path.join(d, "hull.png")
+        render(hull_svg, hull_p, os.path.join(d, "hull.svg"))
+        W, H = Image.open(hull_p).size
         ox, oy = W / 2, H / 2
         meta = {"id": sid, "name": spec["name"], "class": spec["class"],
                 "length_m": hull.L, "beam_m": hull.B, "scale_px_per_m": S,
                 "size_px": [W, H], "origin_px": [ox, oy],
-                "layers": {"base": f"ships/{sid}/hull_base.png", "upper": f"ships/{sid}/hull_upper.png"},
+                "layers": {"hull": f"ships/{sid}/hull.png"},
                 "mounts": []}
         for i, m in enumerate(mounts):
             y = m.get("y", 0)
@@ -1160,10 +1158,8 @@ def main():
             json.dump(meta, fh, indent=2)
         manifest["ships"].append({"id": sid, "meta": f"ships/{sid}/{sid}.json"})
 
-        rest_img = composite(os.path.join(d, "hull_base.png"), os.path.join(d, "hull_upper.png"),
-                             turret_pngs, meta, lambda m: m["rest_deg"])
-        bs_img = composite(os.path.join(d, "hull_base.png"), os.path.join(d, "hull_upper.png"),
-                           turret_pngs, meta, lambda m: clamp_angle(90, m["rest_deg"], m["traverse_deg"]))
+        rest_img = composite(hull_p, turret_pngs, meta, lambda m: m["rest_deg"])
+        bs_img = composite(hull_p, turret_pngs, meta, lambda m: clamp_angle(90, m["rest_deg"], m["traverse_deg"]))
         rest_img.save(os.path.join(args.out, "preview", f"{sid}_rest.png"))
         bs_img.save(os.path.join(args.out, "preview", f"{sid}_starboard.png"))
         rows.append((spec["name"], f'{spec["class"]} · {hull.L:.0f} × {hull.B:.0f} m', rest_img, bs_img))

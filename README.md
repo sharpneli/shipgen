@@ -31,7 +31,7 @@ design JSON (player input: counts, calibres, armour, speed, look)
    render.py      render_ship(ship, out_dir, scale, mips, look=None, previews=True)
    ├─ looks.py     every colour, turret drawing and silhouette (by the design's "look")
    ├─ hitview.py   debug views of the hitbox model in 3D, and the subdivision in plan (hitbox_*.png)
-   ├─ shipgen.py   SVG/PNG drawing (hull_base, turrets, hull_upper)
+   ├─ shipgen.py   SVG/PNG drawing (hull, turrets)
    └─ shadow.py    rasterises the height-map columns; the reference shadow renderer
 
    geometry.py   shared by both: hull form, turret polygons (sprite AND hitbox), AA sizes, arc helpers
@@ -375,9 +375,9 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
         - `stores` in a tier at least half under water
         - `accommodation` (`Quarters 7`) above that.
 - `sprite.json`: layers, origin_px, mount px positions, rest angles, arcs and z order.
-- `hull_base.png`, `turrets/*.png`, `hull_upper.png`, each with an SVG alongside. Level 0 is `--scale` px/m (default 10). No shadows are baked in.
+- `hull.png` (everything that doesn't rotate) and `turrets/*.png`, each with an SVG alongside. Level 0 is `--scale` px/m (default 10). No shadows are baked in.
 - `height.png`: greyscale height map on the same canvas. Grey × `height_step_m` (0.25) = metres above the waterline, and 0 = sea. Its mips use a 2×2 max filter, not an average, so a tall column never shrinks.
-- `<layer>_mips.png` sits next to each layer PNG (`hull_base`, `hull_upper`, `height`, `turrets/<type>`) and packs level 0 plus every lower level into one image of 1.5W × H. Level 0 is on the left. Level 1 sits to its right at the top, and each next level goes alternately below and to the right of the previous one.
+- `<layer>_mips.png` sits next to each layer PNG (`hull`, `height`, `turrets/<type>`) and packs level 0 plus every lower level into one image of 1.5W × H. Level 0 is on the left. Level 1 sits to its right at the top, and each next level goes alternately below and to the right of the previous one.
   - The exact `[x, y, w, h]` of every level is in `sprite.json`: `mip_rects` for the hull-sized layers, and `turret_types.<type>.mip_rects` for the turrets.
   - Each level is half the one before, made with a 2×2 box filter on premultiplied alpha. `--mips N` sets the count. Every canvas is a multiple of 2^(N+1) px, so each level halves exactly.
   - Within level k, sizes, `origin_px`, `pivot_px` and mount `px` are the level-0 values / 2^k.
@@ -398,13 +398,13 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
   - Centreline torpedo mounts: ±60° about each beam.
   - Fixed tubes: ±1° about their bearing.
   - Nothing on deck limits an arc. Instead, the warship layout places the main turrets first, and each reserves its sweep zone: a sector as long as its barrels, covering its arcs plus the turn from its stowed bearing to the starboard arc, so one side is always free for switching sides. Everything placed afterwards that stands taller than that turret's guns keeps out of the zone: bridge, aft control, funnels, masts, deckhouse, boats, secondaries, torpedo mounts and AA. The bridge and aft control step back, the deckhouse ends are trimmed and shaped (it keeps out of the end turrets' sweeps at any height), and the space needed is budgeted up front (a stowed turret's barrels, and the gap a side-firing turret needs beside its neighbours).
-- Draw order: hull_base, then the turrets by ascending z, then hull_upper. Turret pivot = image centre.
+- Draw order: hull, then the turrets by ascending z. Turret pivot = image centre. Turrets draw over the whole hull: anything taller than a turret's guns keeps out of its sweep, so a turret rarely overlaps taller structure, and where it does (a mast's legs) it wins. Inside `hull.png`, roof items (`layer: "upper"`: level 2+ blocks, AA on roofs, boats) draw after level 1, and funnels, masts and cranes last.
 - Pixel position = origin_px + metres × scale. Canvases are multiples of 2^(mips+1) px, so the origin falls exactly on a pixel at every mip level.
 
 ## Shadows
 The sun is dynamic, so the game casts the shadows. `shadow.py`'s docstring has the details, and `shadow_mask()` there is a numpy reference implementation to port.
 - Static structure: in a shader, march from each pixel toward the sun across `height.png`. A pixel is in shadow if `H(p + t·d) > H(p) + t·tan(elevation)` for some t > 0. `d` is the sun direction in ship-local space (sun bearing minus ship heading). The receiver's own height H(p) makes the result correct for sea, deck and roofs alike. Draw the shadow quad larger than the sprite by `max_height_m / tan(elevation)` and sample with a border of 0.
-- Turrets aren't in the height map because they rotate. Draw each turret sprite in black after `hull_base` and before the turrets. Rotate it with the turret and offset it away from the sun by `(top_m − deck_m) / tan(elevation)`.
+- Turrets aren't in the height map because they rotate. Draw each turret sprite in black after the hull and before the turrets. Rotate it with the turret and offset it away from the sun by `(top_m − deck_m) / tan(elevation)`, and keep it only where `H(p) < top_m` (a turret's shadow doesn't climb a funnel or a tower taller than its roof; `shadow.below_mask`).
 - The lighter rim on the upper-left edges of blocks and funnels is still baked in. It's a highlight, not a shadow.
 
 ## Tuning

@@ -3,7 +3,7 @@
 shadow: height map layer and the reference sun-shadow renderer.
 
 The static part of the ship (hull, superstructure, funnels, masts, AA, boats, barbettes) is written as a
-height map: an 8-bit greyscale PNG on the same canvas as hull_base/hull_upper, value = metres above the
+height map: an 8-bit greyscale PNG on the same canvas as hull.png, value = metres above the
 waterline / HEIGHT_STEP_M (0 = sea). Every pixel is treated as a solid column from the sea up to its height.
 
 Shadow of the height map (what the game shader does, per pixel p, in ship-local space):
@@ -16,7 +16,8 @@ superstructure roofs. Draw the shadow quad larger than the sprite by max_height_
 shadow can fall on the sea beyond the canvas.
 
 Turrets rotate, so they are not in the height map: draw each turret sprite in black, rotated like the turret,
-offset away from the sun by (top_m - deck_m) / k, after hull_base and before the turrets themselves.
+offset away from the sun by (top_m - deck_m) / k, after the hull and before the turrets themselves. Keep it only
+where H < top_m (below_mask): a turret's shadow doesn't climb a funnel or a tower taller than its roof.
 
 The columns come from the design side (shipdesign.height_columns); build_height_svg only rasterises them.
 shadow_mask() below is the reference implementation (numpy); render.py uses it for the previews.
@@ -93,6 +94,13 @@ def shadow_mask(height: Image.Image, S, sun_az_deg, sun_el_deg, pad_px=0, soft_m
         dist_m = math.hypot(ox, oy) / S
         np.maximum(shade, np.clip((occ - (H + dist_m * k)) / soft_m, 0, 1), out=shade)
     return Image.fromarray((shade * 255).astype(np.uint8))
+
+
+def below_mask(height: Image.Image, top_m, pad_px=0):
+    """'L' image, 255 where the height map is lower than top_m: where a shadow cast from top_m can fall. The
+    height map's size plus pad_px per side (the sea beyond it is 0, so always below)."""
+    H = np.pad(np.asarray(height, dtype=np.float32) * HEIGHT_STEP_M, pad_px)
+    return Image.fromarray(np.where(H < top_m, 255, 0).astype(np.uint8), "L")
 
 
 def sun_offset_px(S, sun_az_deg, sun_el_deg, height_m):

@@ -6,9 +6,9 @@ verify: checks that hitboxes and sprites agree, pixel for pixel.
 
 For every rotating mount, the turret sprite is rotated to several angles and pasted at its mount,
 then compared with the hitbox polygons (body + parts + barrels), rotated and placed the same way.
-Reports IoU (intersection over union) per mount and angle. Fixed parts are checked too: upper-layer
+Reports IoU (intersection over union) per mount and angle. Fixed parts are checked too: raised
 blocks and funnels must be fully opaque inside their hitbox polygon, and the hull outline is
-compared against the base layer.
+compared against the hull image.
 
 The subdivision is checked too (check_subdivision): every cell has one owning room, points inside the hull below
 the main deck each fall in exactly one cell, neighbours are mutual, and every mount's magazine is a room.
@@ -114,7 +114,8 @@ def check(d):
         rows.append((c["id"], c["kind"], min(scores)))
         worst = min(worst, min(scores))
 
-    upper = Image.open(os.path.join(d, "hull_upper.png")).getchannel("A").load()
+    hull_a = Image.open(os.path.join(d, "hull.png")).getchannel("A")
+    opaque = hull_a.load()
     fixed_worst = 1.0
     for c in hb["components"]:
         if c.get("kind") in ("funnel",) or (c.get("kind") == "superstructure" and c["base"] > 0):
@@ -125,14 +126,13 @@ def check(d):
                 for x in range(W):
                     if pm[x, y] > 127:
                         n += 1
-                        ok += upper[x, y] > 127
+                        ok += opaque[x, y] > 127
             cov = ok / n if n else 1.0
             fixed_worst = min(fixed_worst, cov)
             rows.append((c["id"], c["kind"], cov))
-    base_a = Image.open(os.path.join(d, "hull_base.png")).getchannel("A")
-    # the base layer is the hull plus whatever overhangs it: flight decks, sponsons, deck-edge elevators
+    # the hull image is the hull plus whatever overhangs it: flight decks, sponsons, deck-edge elevators
     outline = [hb["hull"]] + [c["points"] for c in hb["components"] if c.get("kind") in ("flight_deck", "sponson")]
-    hull_iou = iou(base_a.point(lambda v: 255 if v > 127 else 0), mask_from_polys((W, H), outline, S, ox, oy))
+    hull_iou = iou(hull_a.point(lambda v: 255 if v > 127 else 0), mask_from_polys((W, H), outline, S, ox, oy))
     print(f"\n{os.path.basename(d)} @ {S} px/m   hull IoU {hull_iou:.3f}   "
           f"worst turret IoU {worst:.3f}   worst fixed coverage {fixed_worst:.3f}")
     for rid, kind, v in rows:

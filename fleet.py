@@ -7,8 +7,8 @@ the ship's centre. Any list item may use:
     "edge": d        -> set y to (hull half-width at x) - d, on the side given by the sign of "y"
 
 Superstructure blocks: x0/x1 (aft/fwd ends), w (width), y, level (1 = lowest),
-    rf/rb (front/back corner radius). Level 1 goes on the base layer, level 2+ on the upper layer,
-    unless you set "layer" yourself.
+    rf/rb (front/back corner radius). Level 1 draws in the hull image's low pass, level 2+ in the high pass
+    (over what stands on level 1), unless you set "layer" ("base" or "upper") yourself.
 Turret mounts: type, x, y, z (draw order), rest (degrees, 0 = ahead), traverse (+/- degrees).
 """
 

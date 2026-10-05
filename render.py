@@ -21,7 +21,7 @@ import hitview
 import looks
 import shadow
 from geometry import nearest_allowed, rotate_translate
-from shipgen import build_hull_layers, build_turret, render, DEFAULT_PALETTE
+from shipgen import build_hull, build_turret, render, DEFAULT_PALETTE
 
 Image.MAX_IMAGE_PIXELS = None   # our own output: a 1 km ship makes very large sheets
 PREVIEW_SUN = (240.0, 50.0)   # ship-local bearing and elevation of the sun in the previews, degrees
@@ -65,13 +65,15 @@ def write_mips(out_dir, rel, levels, height=False):
     return dict(file=out, rects=rects)
 
 
-def composite(base_p, upper_p, turret_pngs, meta, angle_fn, sun=None, height_p=None, pad=0):
-    """Layers in draw order. With a sun (bearing, elevation), cast shadows the way the game should: turret
-    silhouettes offset away from the sun, under the turrets, plus the height-map shadow over everything."""
+def composite(hull_p, turret_pngs, meta, angle_fn, sun=None, height_p=None, pad=0):
+    """The hull, then the turrets. With a sun (bearing, elevation), cast shadows the way the game should: turret
+    silhouettes offset away from the sun, under the turrets and only where the hull is lower than the turret's
+    roof, plus the height-map shadow over everything."""
     S = meta["scale_px_per_m"]
-    base = Image.open(base_p).convert("RGBA")
-    canvas = Image.new("RGBA", (base.width + 2 * pad, base.height + 2 * pad), (0, 0, 0, 0))
-    canvas.alpha_composite(base, (pad, pad))
+    hull = Image.open(hull_p).convert("RGBA")
+    canvas = Image.new("RGBA", (hull.width + 2 * pad, hull.height + 2 * pad), (0, 0, 0, 0))
+    canvas.alpha_composite(hull, (pad, pad))
+    height = Image.open(height_p) if sun else None
     turrets = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
     t_shadow = Image.new("L", canvas.size, 0)
     for m in sorted(meta["mounts"], key=lambda m: m["z"]):
@@ -82,16 +84,13 @@ def composite(base_p, upper_p, turret_pngs, meta, angle_fn, sun=None, height_p=N
             dx, dy = shadow.sun_offset_px(S, *sun, m["top_m"] - meta["shadow"]["deck_m"])
             sil = Image.new("L", canvas.size, 0)
             sil.paste(rot.getchannel("A"), (round(cx + dx - rot.width / 2), round(cy + dy - rot.height / 2)))
+            sil = ImageChops.multiply(sil, shadow.below_mask(height, m["top_m"], pad))
             t_shadow = ImageChops.lighter(t_shadow, sil)
     canvas.alpha_composite(turrets)
-    upper = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
-    upper.paste(Image.open(upper_p).convert("RGBA"), (pad, pad))
-    canvas.alpha_composite(upper)
     if sun:
-        # turrets don't shadow themselves, and their shadow stays under the taller upper layer
-        covered = ImageChops.lighter(turrets.getchannel("A"), upper.getchannel("A"))
-        mask = ImageChops.multiply(t_shadow, ImageChops.invert(covered))
-        mask = ImageChops.lighter(mask, shadow.shadow_mask(Image.open(height_p), S, *sun, pad_px=pad))
+        # turrets don't shadow themselves
+        mask = ImageChops.multiply(t_shadow, ImageChops.invert(turrets.getchannel("A")))
+        mask = ImageChops.lighter(mask, shadow.shadow_mask(height, S, *sun, pad_px=pad))
         black = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
         black.putalpha(mask.point(lambda v: round(v * SHADOW_OPACITY)))
         canvas.alpha_composite(black)
@@ -123,22 +122,22 @@ def render_ship(ship, out_dir, S, mips=0, look=None, previews=True):
         w, h = Image.open(png).size
         tmeta[tid] = dict(file=f"turrets/{tid}.png", size_px=[w, h], pivot_px=[w / 2, h / 2], desc=t["desc"])
 
-    base_svg, upper_svg, vb, mounts, hull = build_hull_layers(spec, S, align, shadows=False)
-    render(base_svg, os.path.join(out_dir, "hull_base.png"), os.path.join(out_dir, "hull_base.svg"))
-    render(upper_svg, os.path.join(out_dir, "hull_upper.png"), os.path.join(out_dir, "hull_upper.svg"))
+    hull_svg, vb, mounts, hull = build_hull(spec, S, align, shadows=False)
+    hull_p = os.path.join(out_dir, "hull.png")
+    render(hull_svg, hull_p, os.path.join(out_dir, "hull.svg"))
     deck_m = rd["deck_m"]
     height_svg, max_h = shadow.build_height_svg(rd["columns"], vb, S, hull)
     height_p = os.path.join(out_dir, "height.png")
     render(height_svg, height_p)
     shadow.to_height_png(height_p)
-    W, H = Image.open(os.path.join(out_dir, "hull_base.png")).size
+    W, H = Image.open(hull_p).size
     ox, oy = W / 2, H / 2
     by_id = {m["id"]: m for m in rd["mounts"]}
     meta = dict(id=design["id"], name=design.get("name", design["id"]), scale_px_per_m=S,
                 size_px=[W, H], origin_px=[ox, oy],
                 orientation="bow points +x (right); angles clockwise, 0 = ahead",
-                layer_order=["hull_base", "turrets (ascending z)", "hull_upper"],
-                layers=dict(base="hull_base.png", upper="hull_upper.png"), turret_types=tmeta,
+                layer_order=["hull", "turrets (ascending z)"],
+                layers=dict(hull="hull.png"), turret_types=tmeta,
                 mips=dict(levels=mips, scale_px_per_m=[S / 2 ** k for k in range(mips + 1)],
                           rule="each layer has <name>_mips.png with level k at mip_rects[k] = [x, y, w, h]; "
                                "within level k, size, origin_px, pivot_px and mount px are the level-0 values / 2^k"),
@@ -153,8 +152,7 @@ def render_ship(ship, out_dir, S, mips=0, look=None, previews=True):
                                    px=[ox + m["x"] * S, oy + m["y"] * S], rest_deg=lm["rest"],
                                    arcs_deg=lm["arcs"], z=m["z"], top_m=round(deck_m + lm["top"], 2),
                                    **({"mount": lm["mount"]} if "mount" in lm else {})))
-    meta["layers"]["base_mips"] = write_mips(out_dir, "hull_base.png", mips)["file"]
-    meta["layers"]["upper_mips"] = write_mips(out_dir, "hull_upper.png", mips)["file"]
+    meta["layers"]["hull_mips"] = write_mips(out_dir, "hull.png", mips)["file"]
     meta["shadow"]["height_map_mips"] = write_mips(out_dir, "height.png", mips, height=True)["file"]
     meta["mip_rects"] = mip_rects(W, H, mips)
     for tm in tmeta.values():
@@ -165,15 +163,14 @@ def render_ship(ship, out_dir, S, mips=0, look=None, previews=True):
 
     if not previews:
         return meta
-    base_p, upper_p = os.path.join(out_dir, "hull_base.png"), os.path.join(out_dir, "hull_upper.png")
     rest_angle, stbd_angle = (lambda m: m["rest_deg"]), (lambda m: nearest_allowed(m["arcs_deg"], 90))
     pad = max(0, math.ceil(max_h / math.tan(math.radians(PREVIEW_SUN[1])) * S))   # room for the shadow on the sea
-    rest = composite(base_p, upper_p, turret_pngs, meta, rest_angle, PREVIEW_SUN, height_p, pad)
-    stbd = composite(base_p, upper_p, turret_pngs, meta, stbd_angle, PREVIEW_SUN, height_p, pad)
+    rest = composite(hull_p, turret_pngs, meta, rest_angle, PREVIEW_SUN, height_p, pad)
+    stbd = composite(hull_p, turret_pngs, meta, stbd_angle, PREVIEW_SUN, height_p, pad)
     rest.save(os.path.join(out_dir, "preview_rest.png"))
     stbd.save(os.path.join(out_dir, "preview_starboard.png"))
     hb = ship["hitboxes"]
-    debug = debug_overlay(composite(base_p, upper_p, turret_pngs, meta, rest_angle), hb, S, ox, oy)
+    debug = debug_overlay(composite(hull_p, turret_pngs, meta, rest_angle), hb, S, ox, oy)
     debug.save(os.path.join(out_dir, "debug_hitboxes.png"))
     hitview.render_views(ship, out_dir)
     sheet(ship, design, rest, stbd, S, os.path.join(out_dir, "sheet.png"))
