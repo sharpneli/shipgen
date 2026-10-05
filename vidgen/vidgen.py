@@ -51,7 +51,8 @@ TRAIN_RATE = {"main": 30.0, "secondary": 40.0, "torpedo": 30.0}
 
 SUN_AZ = 225.0            # screen bearing toward the sun (clockwise from +x screen): upper left
 SUN_EL = 45.0
-WIND = np.array([0.0, 6.0])   # m/s in screen-world axes (blowing toward screen-down)
+WIND = np.array([0.0, -6.0])  # m/s in screen-world axes: from the south (screen bottom), carrying smoke away from
+                              # the starboard (lower) side the guns fire to by default
 SHADE = 0.5              # how much a full shadow darkens
 
 WATER_DEEP = np.array([0.075, 0.175, 0.235], np.float32)
@@ -342,7 +343,7 @@ class Scene:
         self.churn = Particles((0, 0), 3.0)
         self.kelvin = Particles((0, 0), 12.0)   # bow-wave crests keep running out along the Kelvin arms
         self.smoke = Particles(WIND, 1.2)
-        self.gsmoke = Particles(WIND, 0.6)
+        self.gsmoke = Particles(WIND, 1.6)      # the blast carries it out before the wind turns it
         self.glow = []                            # (x, y, r, intensity, t0, life, core)
         self.tracers = []                         # [x, y, vx, vy, t0]
         self.fish = []                            # torpedoes [x, y, vx, vy, t0]

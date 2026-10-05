@@ -36,8 +36,8 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
   the tips of each barrel polygon in `hitboxes.json`.
 - **Scale:** the ship fits 80% × 62% of the frame and is never drawn above the sprite's own px/m. It sits 7% of
   the width ahead of centre, so the wake has room.
-- **Lighting and wind:** sun at bearing 225° on screen (upper left), elevation 45°. Wind blows 6 m/s toward
-  screen-down. The ship's heading is fixed for the whole clip.
+- **Lighting and wind:** sun at bearing 225° on screen (upper left), elevation 45°. Wind blows 6 m/s from the
+  south (screen bottom, user 2026-10-05) so smoke drifts away from the starboard guns. The ship's heading is fixed for the whole clip.
 - **Particles:** everything is splatted into half-resolution density buffers in blur buckets (`Density`).
   Buckets with a big radius are splatted into coarser grids, which halved the frame time.
   - Foam size scales with hull length (`fs`), so a PT boat gets a crisp Kelvin V and not blobs.
