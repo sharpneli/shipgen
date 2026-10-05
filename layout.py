@@ -435,9 +435,7 @@ MAST_T_K = 0.012
 # deckhouse, 2-3 the bridge and aft control, 4+ the tower), single mounts on a roof's line, the deck edges
 AA_ROOF_PEN = (0.05, 0.05, 0.0, 0.0, 0.03)
 AA_SINGLE_PEN = 0.1
-AA_PLATFORM_PEN = 0.15   # on a raised platform (a pedestal block AA_PLATFORM_H tall) at the deck edge
-AA_PLATFORM_H = LEVEL_H
-AA_DECK_PEN = 0.3        # on the bare deck: only where a raised tub would stand in a turret's sweep
+AA_DECK_PEN = 0.3        # on the bare deck edge: only once the roofs are full (no one-off pedestals, user 2026-10-05)
 
 
 def battery_of(mid):
@@ -2425,8 +2423,9 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
 
     def aa_slots(kind):
         """AA stands high, as on real ships: in tubs on the superstructure's roofs (the bridge, tower and aft control
-        levels first, then the tower's top, then the deckhouse), with the deck edges along the hull as the last
-        resort; nearest amidships first within each. Pairs come before single mounts on a roof's centreline, and
+        levels first, then the tower's top, then the deckhouse), with the bare deck edges along the hull as the last
+        resort (no pedestals of their own: AA goes high only where the superstructure is); nearest amidships first
+        within each. Pairs come before single mounts on a roof's centreline, and
         a single leftover mount goes on the centreline at the stern."""
         rr = AA_CFG[kind][0]
         scored = []
@@ -2438,12 +2437,10 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
             elif abs(y) < 1e-6:
                 scored.append((abs(x - mach_c) / L + pen + AA_SINGLE_PEN, (x, 0.0, z0)))
         x = L / 2 - 0.06 * L
-        while x > -L / 2 + 2:       # along the deck edges: on a raised platform, else on the deck
+        while x > -L / 2 + 2:       # along the deck edges, on the deck
             yy = hull.half_width(x) - rr - 0.5
             if yy > rr + 0.5:
-                dz = lay.deck_z(x, rr)
-                scored.append((abs(x - mach_c) / L + AA_PLATFORM_PEN, (x, yy, dz + AA_PLATFORM_H, -yy, dz)))
-                scored.append((abs(x - mach_c) / L + AA_DECK_PEN, (x, yy, dz)))
+                scored.append((abs(x - mach_c) / L + AA_DECK_PEN, (x, yy, lay.deck_z(x, rr))))
             x -= 0.5
         cands = [c for _, c in sorted(scored, key=lambda s: s[0])]
         sx = -L / 2 + rr + 2.5
@@ -2457,12 +2454,6 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
 
     place_aa("quad40", aa_req.get("heavy", 0))
     place_aa("single20", aa_req.get("light", 0))
-    for a in aa_out:      # the raised platforms under deck-edge AA: a pedestal block as wide as the tub
-        if "platform" in a:
-            rr = AA_CFG[a["type"]][0]
-            block(f"AA platform {a['id'][2:]}", a["x"] - rr, a["x"] + rr, 2 * rr, 1, rr, rr, y=a["y"],
-                  z0=a["platform"])
-            lay.footprints.pop()      # the AA mount's own footprint already claims the column
 
     # ---------------- masts and boats (decorative but drawn) ----------------
     mast_top = fun_top + 6.0

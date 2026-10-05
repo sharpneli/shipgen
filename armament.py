@@ -241,18 +241,16 @@ def fixed_tube_pairs(lay, mounts, turret_types, tp, xs, y_of_x, base=0.2, toe_de
     return placed
 
 
-AA_TUB_T = {"quad40": 3.0, "twin40": 1.5, "single20": 0.3}   # a raised mount's tub, platform and splinter shield (E)
+AA_TUB_T = {"quad40": 3.0, "twin40": 1.5, "single20": 0.3}   # a raised mount's tub and splinter shield (E)
 
 
 def place_aa(lay, aa_out, kind, count, cands, spacing=None, ignore=(), layer_of=None):
-    """AA mounts in pairs from cands (x, y, base[, y_port[, foot]]) with y >= 0, in order of preference, mirrored to
+    """AA mounts in pairs from cands (x, y, base[, y_port]) with y >= 0, in order of preference, mirrored to
     -y unless y_port is given; y == 0, or y_port None, means a single mount at y (on the centreline, or on an
     off-centre island). Single slots are taken two at a time while the count left is even, so they never leave an
     odd mount that only a pair slot could take; a lone single slot fills an odd count (offer one last to keep it for
-    the leftover). foot: a raised platform's foot (m above the main deck): the space from there up to the mount must
-    be free too, and the mount record gets "platform": foot for the style to build it. A slot must be free of
-    what's placed at its height (ignore: ids to disregard, or a function of the slot's base giving them) and clear
-    of the guns' sweeps. A mount above the main deck stands in a tub (AA_TUB_T, weighed with it). layer_of(base):
+    the leftover). A slot must be free of what's placed at its height (ignore: ids to disregard, or a function of the
+    slot's base giving them) and clear of the guns' sweeps. A mount above the main deck stands in a tub (AA_TUB_T, weighed with it). layer_of(base):
     the sprite layer ("base" by default)."""
     rr = AA_CFG[kind][0]
     spacing = spacing if spacing is not None else (3.0 if kind == "quad40" else 2.2)
@@ -272,22 +270,19 @@ def place_aa(lay, aa_out, kind, count, cands, spacing=None, ignore=(), layer_of=
                for fp in fps for o in list(aa_fps) + list(also)):
             return None
         ign = ignore(base) if callable(ignore) else ignore
-        foot = c[4] if len(c) > 4 else None
-        if not all(lay.free_at(fp, base if foot is None else foot, base + 2.0, 0.4, ign) for fp in fps) or \
+        if not all(lay.free_at(fp, base, base + 2.0, 0.4, ign) for fp in fps) or \
                 not all(lay.clear(fp, base + 2.0) for fp in fps):
             return None
-        return [(fp, base, foot, cx) for fp in fps]
+        return [(fp, base, cx) for fp in fps]
 
     def put(mounts):
-        for fp, base, foot, cx in mounts:
+        for fp, base, cx in mounts:
             aa_fps.append(fp)
             y = fp[2]
             aid = f"AA{len(aa_out) + 1}"
             d = 180 if (y == 0 and cx < 0) else (90 if y > 0 else -90 if y < 0 else 0)
             aa_out.append(dict(id=aid, type=kind, x=fp[1], y=y, dir=d, base=base,
                                layer=layer_of(base) if layer_of else "base"))
-            if foot is not None:
-                aa_out[-1]["platform"] = foot
             lay.occupy(fp, base, base + 2.0, aid)
             lay.weights.append(Weight(aid, "armament", TUNING["aa_t"][kind] + (AA_TUB_T[kind] if base > 0.5 else 0.0),
                                       x=fp[1], z_rel=("deck", base + 1.0)))

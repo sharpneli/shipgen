@@ -58,7 +58,7 @@ BLOCK_ROLES = {
     "Aft control": "aft_control", "Aft control upper": "aft_control", "Aft control base": "aft_control",
     "Island": "island", "Island upper": "island",
     "Hangar": "hangar", "Hangar roof": "hangar",
-    "Casemate housing": "casemate", "AA platform": "aa_platform",
+    "Casemate housing": "casemate",
 }
 
 

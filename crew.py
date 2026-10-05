@@ -198,7 +198,7 @@ def crew_space(lay, design, res):
     if plan.get("tds") and cit:
         taken += 2 * plan["tds"] * (cit[1] - cit[0]) * low
     rooms = {b["id"]: b.get("area", (b["x1"] - b["x0"]) * b["w"]) * LEVEL_H * 0.9 for b in lay.blocks if b["kind"] != "director"
-             and block_role(b["id"]) not in ("hangar", "director", "casemate", "aa_platform")}
+             and block_role(b["id"]) not in ("hangar", "director", "casemate")}
     sup = sum(rooms.values())
     sup += lay.geo.get("upper_volume_m3", 0.0)
     free = max(0.0, hull_v - taken) + raised + sup
@@ -265,7 +265,7 @@ def apply(lay, design, res, style):
                             "cruising speed.")
     # the crew lives in the hull first (research/superstructure-research.md: the hull fills first, the overflow goes
     # up); whoever doesn't fit there is quartered in the superstructure, spread over its blocks by volume (not
-    # directors, casemate housings, AA platforms or hangars)
+    # directors, casemate housings or hangars)
     frac = min(1.0, max(0.0, (need - room["hull_usable_m3"]) / need)) if need > 0 else 0.0
     up = round(n * frac)
     up_blocks = spread(up, room["blocks_m3"])
