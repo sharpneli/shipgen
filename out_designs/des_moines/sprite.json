@@ -1,0 +1,472 @@
+{
+  "id": "des_moines",
+  "name": "Des Moines-like (1949)",
+  "scale_px_per_m": 10.0,
+  "size_px": [
+    2048,
+    320
+  ],
+  "origin_px": [
+    1024.0,
+    160.0
+  ],
+  "orientation": "bow points +x (right); angles clockwise, 0 = ahead",
+  "layer_order": [
+    "hull",
+    "turrets (ascending z)"
+  ],
+  "layers": {
+    "hull": "hull.png",
+    "hull_mips": "hull_mips.png"
+  },
+  "turret_types": {
+    "t3x203L55": {
+      "file": "turrets/t3x203L55.png",
+      "size_px": [
+        256,
+        256
+      ],
+      "pivot_px": [
+        128.0,
+        128.0
+      ],
+      "desc": "3 x 203mm/55",
+      "mips_file": "turrets/t3x203L55_mips.png",
+      "mip_rects": [
+        [
+          0,
+          0,
+          256,
+          256
+        ],
+        [
+          256,
+          0,
+          128,
+          128
+        ],
+        [
+          256,
+          128,
+          64,
+          64
+        ],
+        [
+          320,
+          128,
+          32,
+          32
+        ],
+        [
+          320,
+          160,
+          16,
+          16
+        ],
+        [
+          336,
+          160,
+          8,
+          8
+        ]
+      ]
+    },
+    "t2x127L38": {
+      "file": "turrets/t2x127L38.png",
+      "size_px": [
+        128,
+        128
+      ],
+      "pivot_px": [
+        64.0,
+        64.0
+      ],
+      "desc": "2 x 127mm/38",
+      "mips_file": "turrets/t2x127L38_mips.png",
+      "mip_rects": [
+        [
+          0,
+          0,
+          128,
+          128
+        ],
+        [
+          128,
+          0,
+          64,
+          64
+        ],
+        [
+          128,
+          64,
+          32,
+          32
+        ],
+        [
+          160,
+          64,
+          16,
+          16
+        ],
+        [
+          160,
+          80,
+          8,
+          8
+        ],
+        [
+          168,
+          80,
+          4,
+          4
+        ]
+      ]
+    }
+  },
+  "mips": {
+    "levels": 5,
+    "scale_px_per_m": [
+      10.0,
+      5.0,
+      2.5,
+      1.25,
+      0.625,
+      0.3125
+    ],
+    "rule": "each layer has <name>_mips.png with level k at mip_rects[k] = [x, y, w, h]; within level k, size, origin_px, pivot_px and mount px are the level-0 values / 2^k"
+  },
+  "shadow": {
+    "height_map": "height.png",
+    "height_step_m": 0.25,
+    "deck_m": 4.97,
+    "max_height_m": 24.77,
+    "note": "height map grey value x height_step_m = metres above the waterline (0 = sea); mount top_m is the turret roof above the waterline; see shadow.py",
+    "height_map_mips": "height_mips.png"
+  },
+  "mounts": [
+    {
+      "id": "A",
+      "kind": "main",
+      "type": "t3x203L55",
+      "pos_m": [
+        40.96242980833358,
+        0.0
+      ],
+      "px": [
+        1433.6242980833358,
+        160.0
+      ],
+      "rest_deg": 0.0,
+      "arcs_deg": [
+        [
+          225.0,
+          495.0
+        ]
+      ],
+      "traverse_deg": [
+        225.0,
+        495.0
+      ],
+      "z": 0,
+      "top_m": 8.03
+    },
+    {
+      "id": "B",
+      "kind": "main",
+      "type": "t3x203L55",
+      "pos_m": [
+        28.17462980833358,
+        0.0
+      ],
+      "px": [
+        1305.746298083336,
+        160.0
+      ],
+      "rest_deg": 0.0,
+      "arcs_deg": [
+        [
+          225.0,
+          495.0
+        ]
+      ],
+      "traverse_deg": [
+        225.0,
+        495.0
+      ],
+      "z": 2,
+      "top_m": 10.41
+    },
+    {
+      "id": "Y",
+      "kind": "main",
+      "type": "t3x203L55",
+      "pos_m": [
+        -43.09260542757518,
+        0.0
+      ],
+      "px": [
+        593.0739457242482,
+        160.0
+      ],
+      "rest_deg": -180.0,
+      "arcs_deg": [
+        [
+          45.0,
+          315.0
+        ]
+      ],
+      "traverse_deg": [
+        45.0,
+        315.0
+      ],
+      "z": 0,
+      "top_m": 8.03
+    },
+    {
+      "id": "S1S",
+      "kind": "secondary",
+      "type": "t2x127L38",
+      "pos_m": [
+        -21.36858192872308,
+        7.428533836271151
+      ],
+      "px": [
+        810.3141807127693,
+        234.2853383627115
+      ],
+      "rest_deg": -180.0,
+      "arcs_deg": [
+        [
+          0.0,
+          180.0
+        ]
+      ],
+      "traverse_deg": [
+        0.0,
+        180.0
+      ],
+      "z": 1,
+      "top_m": 9.08
+    },
+    {
+      "id": "S1P",
+      "kind": "secondary",
+      "type": "t2x127L38",
+      "pos_m": [
+        -21.36858192872308,
+        -7.428533836271151
+      ],
+      "px": [
+        810.3141807127693,
+        85.71466163728849
+      ],
+      "rest_deg": -180.0,
+      "arcs_deg": [
+        [
+          180.0,
+          360.0
+        ]
+      ],
+      "traverse_deg": [
+        180.0,
+        360.0
+      ],
+      "z": 1,
+      "top_m": 9.08
+    },
+    {
+      "id": "S2S",
+      "kind": "secondary",
+      "type": "t2x127L38",
+      "pos_m": [
+        -11.305381928723083,
+        7.584244258089808
+      ],
+      "px": [
+        910.9461807127692,
+        235.84244258089808
+      ],
+      "rest_deg": -180.0,
+      "arcs_deg": [
+        [
+          0.0,
+          180.0
+        ]
+      ],
+      "traverse_deg": [
+        0.0,
+        180.0
+      ],
+      "z": 1,
+      "top_m": 9.08
+    },
+    {
+      "id": "S2P",
+      "kind": "secondary",
+      "type": "t2x127L38",
+      "pos_m": [
+        -11.305381928723083,
+        -7.584244258089808
+      ],
+      "px": [
+        910.9461807127692,
+        84.15755741910192
+      ],
+      "rest_deg": -180.0,
+      "arcs_deg": [
+        [
+          180.0,
+          360.0
+        ]
+      ],
+      "traverse_deg": [
+        180.0,
+        360.0
+      ],
+      "z": 1,
+      "top_m": 9.08
+    },
+    {
+      "id": "S3S",
+      "kind": "secondary",
+      "type": "t2x127L38",
+      "pos_m": [
+        -1.242181928723082,
+        7.65195
+      ],
+      "px": [
+        1011.5781807127692,
+        236.5195
+      ],
+      "rest_deg": -180.0,
+      "arcs_deg": [
+        [
+          0.0,
+          180.0
+        ]
+      ],
+      "traverse_deg": [
+        0.0,
+        180.0
+      ],
+      "z": 1,
+      "top_m": 9.08
+    },
+    {
+      "id": "S3P",
+      "kind": "secondary",
+      "type": "t2x127L38",
+      "pos_m": [
+        -1.242181928723082,
+        -7.65195
+      ],
+      "px": [
+        1011.5781807127692,
+        83.48049999999999
+      ],
+      "rest_deg": -180.0,
+      "arcs_deg": [
+        [
+          180.0,
+          360.0
+        ]
+      ],
+      "traverse_deg": [
+        180.0,
+        360.0
+      ],
+      "z": 1,
+      "top_m": 9.08
+    },
+    {
+      "id": "S4S",
+      "kind": "secondary",
+      "type": "t2x127L38",
+      "pos_m": [
+        8.821018071276917,
+        7.560314132870027
+      ],
+      "px": [
+        1112.2101807127692,
+        235.60314132870027
+      ],
+      "rest_deg": 0.0,
+      "arcs_deg": [
+        [
+          0.0,
+          180.0
+        ]
+      ],
+      "traverse_deg": [
+        0.0,
+        180.0
+      ],
+      "z": 1,
+      "top_m": 9.08
+    },
+    {
+      "id": "S4P",
+      "kind": "secondary",
+      "type": "t2x127L38",
+      "pos_m": [
+        8.821018071276917,
+        -7.560314132870027
+      ],
+      "px": [
+        1112.2101807127692,
+        84.39685867129973
+      ],
+      "rest_deg": 0.0,
+      "arcs_deg": [
+        [
+          180.0,
+          360.0
+        ]
+      ],
+      "traverse_deg": [
+        180.0,
+        360.0
+      ],
+      "z": 1,
+      "top_m": 9.08
+    }
+  ],
+  "mip_rects": [
+    [
+      0,
+      0,
+      2048,
+      320
+    ],
+    [
+      2048,
+      0,
+      1024,
+      160
+    ],
+    [
+      2048,
+      160,
+      512,
+      80
+    ],
+    [
+      2560,
+      160,
+      256,
+      40
+    ],
+    [
+      2560,
+      200,
+      128,
+      20
+    ],
+    [
+      2688,
+      200,
+      64,
+      10
+    ]
+  ]
+}

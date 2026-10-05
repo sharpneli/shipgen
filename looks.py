@@ -313,12 +313,14 @@ NAVIES = {
                                       "levels": ["#62705c", "#6f7d68", "#7c8a75", "#8a9782"]}},
                 turrets="slab",
                 shapes={"transom": 0.15, "funnel": "box", "blocks": "boxy"}),
-            # US-inspired 1950s-60s: haze grey over deck-grey non-skid
+            # US-inspired 1950s-60s: haze grey over a dark, faintly blue non-skid (the deck blue's echo), weathered grey teak, white hull numbers on the
+            # foredeck
             "cold_war": {
-                "from": "generic/cold_war", "desc": "US-inspired 1950s-60s: haze grey, deck-grey non-skid, boxy turrets",
-                "palette": {"deck": "#454c54", "flight_deck": "#3b424a"},
+                "from": "generic/cold_war", "desc": "US-inspired 1950s-60s: haze grey, dark non-skid, foredeck numbers",
+                "palette": {"deck": "#404a57", "flight_deck": "#3b424a", "number": "#e4e6e2", "wood": "#8b8579",
+                            "deck_line": "#5a5040"},
                 "turrets": "slab",
-                "shapes": {"transom": 0.15, "funnel": "box"}},
+                "shapes": {"transom": 0.15, "funnel": "box", "hull_number": True}},
         }),
     "kure": dict(
         desc="Japan-inspired",
@@ -372,9 +374,11 @@ NAVIES = {
                 shapes={"bow_flare": 0.08, "funnel": "oval", "blocks": "soft", "tripod": 1.4, "top_r": 3.2,
                         "top_tiers": 3},
                 shapes_by_style=_PLAIN_MASTS),
-            # Japan-inspired 1950s-60s: Kure-tinted haze grey, rounded turrets, flared bows
+            # Japan-inspired 1950s-60s: Kure-tinted haze grey over a muted brown non-skid (the linoleum's echo), rounded
+            # turrets, flared bows
             "cold_war": {
-                "from": "generic/cold_war", "desc": "Japan-inspired 1950s-60s: Kure-tinted haze grey, rounded turrets",
+                "from": "generic/cold_war", "desc": "Japan-inspired 1950s-60s: Kure-tinted grey, brown non-skid, rounded turrets",
+                "palette": {"deck": "#584c44", "steel_line": "#3a312b", "wood": "#9b7a60"},
                 "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "tint": ["#555a5c", 0.2],
                             "styles": NAVAL}],
                 "turrets": "round",
@@ -430,13 +434,14 @@ NAVIES = {
                 shapes={"bow_power": 0.35, "transom": 0.05, "blocks": "bowfront", "dazzle": True, "dazzle_decks": 0.55},
                 # Admiralty disruptive camouflage on the warships; merchants keep their tramp colours
                 shapes_by_style={"merchant": {"dazzle": False}}),
-            # UK-inspired 1950s-60s: light Admiralty grey over dark non-skid, black funnel tops
+            # UK-inspired 1950s-60s: light Admiralty grey over a faintly green dark-grey non-skid, pale teak, broad black
+            # funnel tops
             "cold_war": {
-                "from": "generic/cold_war", "desc": "UK-inspired 1950s-60s: light Admiralty grey, dark non-skid decks",
-                "palette": {"funnel_band": "#1e2022"},
+                "from": "generic/cold_war", "desc": "UK-inspired 1950s-60s: light Admiralty grey, green-grey non-skid, black funnel tops",
+                "palette": {"funnel_band": "#1e2022", "deck": "#535a54", "steel_line": "#2f3530", "wood": "#cbc4ae"},
                 "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.08, "styles": NAVAL}],
                 "turrets": "classic",
-                "shapes": {"bow_power": 0.35, "transom": 0.05, "blocks": "bowfront"}},
+                "shapes": {"bow_power": 0.35, "transom": 0.05, "blocks": "bowfront", "funnel_band_w": 0.9}},
         }),
     "kiel": dict(
         desc="Germany-inspired",
@@ -497,9 +502,11 @@ NAVIES = {
                 shapes={"bow_power": 0.2, "bow_flare": 0.04, "funnel": "capped", "blocks": "chamfer", "mast": "pole",
                         "dazzle": True, "dazzle_upperworks": 0.0},
                 shapes_by_style={"merchant": {"dazzle": False}}),
-            # German-inspired 1950s-60s: light haze grey, faceted turrets, capped funnels
+            # German-inspired 1950s-60s: the Bundesmarine's light grey over light steel decks and silver-grey teak,
+            # faceted turrets, capped funnels
             "cold_war": {
-                "from": "generic/cold_war", "desc": "German-inspired 1950s-60s: light haze grey, faceted turrets",
+                "from": "generic/cold_war", "desc": "German-inspired 1950s-60s: light grey, light steel decks, silver teak",
+                "palette": {"deck": "#6c7176", "steel_line": "#45494d", "wood": "#a39f95", "deck_line": "#5a5650"},
                 "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.1, "styles": NAVAL}],
                 "turrets": "faceted",
                 "shapes": {"bow_power": 0.2, "bow_flare": 0.04, "funnel": "capped",
@@ -559,10 +566,12 @@ NAVIES = {
                 shapes_by_style={"merchant": {"funnel_rake": 0.0, "funnel_cap": None, "blocks": "soft",
                                               "dazzle": False, "awnings": False, "deck_stripes": None},
                                  "carrier": {"top_r": 0.0}}),
-            # Italy-inspired 1950s-60s: light haze grey, black funnel tops, lattice masts, pennant numbers
+            # Italy-inspired 1950s-60s: light haze grey over a warm grey non-skid and cream teak, black funnel tops, lattice
+            # masts, pennant numbers
             "cold_war": {
                 "from": "generic/cold_war", "desc": "Italy-inspired 1950s-60s: light haze grey, lattice masts, numbers",
-                "palette": {"funnel_band": "#1f2224", "funnel_cap": "#1f2224"},
+                "palette": {"funnel_band": "#1f2224", "funnel_cap": "#1f2224", "wood": "#e6d6ab", "deck": "#6c6862",
+                            "steel_line": "#4a4642"},
                 "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.12, "styles": NAVAL}],
                 "turrets": "lancia",
                 "shapes": {"funnel": "oval", "funnel_rake": 1.0, "funnel_cap": "pan", "blocks": "tower",
@@ -633,10 +642,12 @@ NAVIES = {
                 shapes={"funnel_rake": 3.0, "block_round": [2.2, 0.2], "mast": "pole", "funnel_band_w": 0.5,
                         "turret_bands": ["recog_a", "recog_b"]},
                 shapes_by_style={"merchant": {"funnel_rake": 0.0, "block_round": None}}),
-            # France-inspired 1950s-60s: deep blue-grey, broad black funnel hats, lattice masts, pennant numbers
+            # France-inspired 1950s-60s: deep blue-grey, blue-grey painted decks, broad black funnel hats, lattice masts,
+            # pennant numbers
             "cold_war": {
                 "from": "generic/cold_war", "desc": "France-inspired 1950s-60s: deep blue-grey, black funnel hats, lattice masts",
-                "palette": {"funnel_cap": "#141618", "funnel_band": "#141618"},
+                "palette": {"funnel_cap": "#141618", "funnel_band": "#141618", "deck": "#4d5867", "steel_line": "#2f3843",
+                            "wood": "#6c7b8d", "deck_line": "#36414e"},
                 "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "tint": ["#3f5064", 0.3],
                             "styles": NAVAL}],
                 "turrets": "quadruple",
