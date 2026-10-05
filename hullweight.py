@@ -75,6 +75,12 @@ def deck_t_per_m2(L, c):
     return RHO * K_S * (T_MIN[0] + T_MIN[1] * min(L, LONG)) * c["standard"] * (1 + F_FIT) * c["join_factor"]
 
 
+def raised_t(L, c, deck_m2, side_m2, end_m2):
+    """A raised stretch of hull (forecastle, poop) at minimum gauge: its deck, its two sides and the breaks at its
+    open ends, framed as the rest of the hull (deck_t_per_m2), with the breaks at bulkhead gauge."""
+    return deck_t_per_m2(L, c) * (deck_m2 + SHELL_SIDE * side_m2 + BHD_T * end_m2)
+
+
 def weight(L, B, D, cb, full, c, n_int, double_bottom, armour_decks=(), bulkhead_depth=None):
     """The hull structure: dict(t, min_gauge_t, strength_t, t_min_mm, t_str_mm, stress_mpa, i_req_m4, i_armour_m4,
     i_plating_m4). The girder's moment of inertia amidships is i_plating_m4 + i_armour_m4, at least i_req_m4: the

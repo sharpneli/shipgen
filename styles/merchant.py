@@ -20,14 +20,14 @@ import armament
 import firecontrol
 import ordnance
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
-                    add_steering, boiler_seg, clamp, finish_layout, plan_funnels, plan_machinery,
+                    add_raised, add_steering, boiler_seg, clamp, finish_layout, plan_funnels, plan_machinery,
                     set_citadel, stack_machinery)
 from navarch import Weight
 from geometry import AA_CFG, Hull
 from styles.base import Style
 from styles.carrier import SECONDARY_LIMITS, _vdc, guns_are_secondaries
 
-RAISED_H = 2.4      # forecastle, bridge deck and poop stand this far above the main deck
+RAISED_H = LEVEL_H  # forecastle, bridge deck and poop stand one deck above the main deck (layout.add_raised)
 
 
 
@@ -186,14 +186,9 @@ def _layout(design, res, shift):
         bxc = -0.02 * L + shift
     islands = [("Forecastle", L / 2 - fc_len, L / 2), ("Bridge deck", bxc - bd_len / 2, bxc + bd_len / 2),
                ("Poop", -L / 2, -L / 2 + poop_len)]
-    raised = []
     for name, x0, x1 in islands:
-        lay.decks.append(dict(id=name, kind="deck", points=hull.points(inset=0.3, x_min=x0, x_max=x1),
-                              base=0.0, top=RAISED_H))
-        raised.append(dict(x0=x0, x1=x1))
-
-    def deck_h(x):
-        return RAISED_H if any(x0 <= x <= x1 for _, x0, x1 in islands) else 0.0
+        add_raised(lay, design, name, x0, x1, round(RAISED_H / LEVEL_H))
+    deck_h = lay.deck_z
 
     # ---------------- houses, funnel, boats ----------------
     blocks, funnels, boats = [], [], []
@@ -366,7 +361,7 @@ def _layout(design, res, shift):
     set_citadel(lay, m0, m1)
 
     return finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top,
-                         boats=boats, raised_decks=raised, hatches=hatches, fittings=fittings,
+                         boats=boats, hatches=hatches, fittings=fittings,
                          bollards=[L / 2 - 0.04 * L, -L / 2 + 0.04 * L],
                          chain_x=L / 2 - 0.05 * L, hawse_back=0.025 * L + 1.0)
 

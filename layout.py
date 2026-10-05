@@ -120,12 +120,15 @@ class Layout:
             self.short.add(need)
 
     def free(self, fp, margin=0.4, ignore=()):
+        """Is the deck under a footprint free of everything placed, whatever its height? Raised stretches of hull
+        don't count: what stands there stands on their deck (deck_z); free_at sees them."""
         x0, y0, x1, y1 = _bbox(fp)
         x0, y0, x1, y1 = x0 - margin, y0 - margin, x1 + margin, y1 + margin
+        raised = {s["id"] for s in self.raised}
         for o in self.footprints:
             b = _bbox(o[0])
             if b[0] < x1 and x0 < b[2] and b[1] < y1 and y0 < b[3] and o[3] not in ignore \
-                    and _overlap(fp, o[0], margin):
+                    and o[3] not in raised and _overlap(fp, o[0], margin):
                 return False
         return True
 
@@ -245,6 +248,34 @@ def add_block(lay, blocks, bid, x0, x1, w, level, rf, rb, y=0.0, z0=0.0, layer=N
     lay.weights.append(Weight(bid, "superstructure", area * t_per_m2,
                               x=xc, z_rel=("deck", (block_base(b) + block_top(b)) / 2)))
     return b
+
+
+RAISED_INSET = 0.3     # a raised stretch's deck stands this far inside the hull's edge (the drawn step)
+
+
+def add_raised(lay, design, rid, x0, x1, levels=1):
+    """A raised stretch of hull (forecastle, poop, a three-island ship's bridge deck): the weather deck `levels` decks
+    above the main deck from x0 to x1. It goes in lay.raised (deck_level, deck_z), lay.decks (drawing, windage,
+    hitboxes) and the footprints (free_at sees it; free() doesn't, as what stands there stands on its deck), and is
+    weighed at the hull's minimum gauge (hullweight.raised_t): its deck, sides, and a break at each end short of the
+    hull's ends."""
+    import hullweight
+    hull = lay.hull
+    L = hull.L
+    h = levels * LEVEL_H
+    pts = hull.points(inset=RAISED_INSET, x_min=x0, x_max=x1)
+    lay.raised.append(dict(id=rid, x0=x0, x1=x1, levels=levels))
+    lay.decks.append(dict(id=rid, kind="deck", points=pts, base=0.0, top=h))
+    lay.occupy(_fp_poly(pts), 0.0, h, rid)
+    area, xc = polygon_centroid(pts)
+    ends = [x for x in (x0, x1) if -L / 2 + 0.5 < x < L / 2 - 0.5]
+    end_m2 = sum(2 * hull.half_width(x) * h for x in ends)
+    side_m2 = 2 * (x1 - x0) * h
+    c = hullweight.construction(design)
+    t = hullweight.raised_t(L, c, area, side_m2, end_m2)
+    lay.weights.append(Weight(rid, "hull", t, x=xc, z_rel=("deck", h * (area + 0.5 * (side_m2 + end_m2)) /
+                                                           (area + side_m2 + end_m2))))
+    return lay.raised[-1]
 
 
 def roof_spots(blocks, l, w, step=0.5):
@@ -695,6 +726,8 @@ def finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts,
                         for b in blocks],
         funnels=[{k: v for k, v in f_.items() if k not in ("id", "seg", "serves")} for f_ in funnels],
         masts=masts, aa=[{k: v for k, v in a.items() if k not in ("id", "base")} for a in aa_out],
+        **({"raised_decks": [dict(x0=s["x0"], x1=s["x1"], levels=s["levels"]) for s in lay.raised]}
+           if lay.raised else {}),
         **extra)
     lay.mounts, lay.blocks, lay.funnels, lay.aa, lay.fun_top = mounts, blocks, funnels, aa_out, fun_top
     import firecontrol
