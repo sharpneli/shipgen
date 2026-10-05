@@ -867,12 +867,12 @@ def look_turret_body(look, r):
                 rrect_polygon(x0 * r, -y1 * r, x1 * r, -y0 * r, rad * r, rad * r, seg=4)]
 
     if look == "slab":       # boxy, slab-sided, rangefinder hoods on the rear corners
-        body = rrect_polygon(-0.95 * r, -0.84 * r, 0.86 * r, 0.84 * r, 0.1 * r, 0.28 * r)
-        return body, ears(-0.8, -0.56, -1.0, -0.7), 0.86 * r, 0.74 * r
+        body = rrect_polygon(-0.95 * r, -0.82 * r, 0.86 * r, 0.82 * r, 0.32 * r, 0.5 * r)
+        return body, ears(-0.72, -0.5, -1.0, -0.7), 0.86 * r, 0.6 * r
     if look == "round":      # flat face, straight cheeks, a rounded rear; a long rangefinder right across
         rear = [(-0.05 - 0.92 * math.sin(math.radians(a)), -0.9 * math.cos(math.radians(a))) for a in range(0, 91, 10)]
-        body = mirror([(0.8, -0.48)] + rear)
-        return body, [rrect_polygon(-0.42 * r, -1.14 * r, -0.24 * r, 1.14 * r, 0.09 * r, 0.09 * r, seg=4)], 0.8 * r, 0.48 * r
+        body = mirror([(0.84, -0.5), (0.45, -0.84)] + rear)
+        return body, [rrect_polygon(-0.6 * r, -1.08 * r, -0.42 * r, 1.08 * r, 0.09 * r, 0.09 * r, seg=4)], 0.84 * r, 0.5 * r
     if look == "classic":    # straight sides into a semicircular rear
         rear = [(-0.18 - 0.8 * math.sin(math.radians(a)), -0.8 * math.cos(math.radians(a))) for a in range(0, 91, 10)]
         body = mirror([(0.86, -0.62), (0.76, -0.8)] + rear)
@@ -897,8 +897,8 @@ def look_turret_body(look, r):
                 for a in range(0, 360, 10)]
         return body, [], 0.9 * r, 0.0
     if look == "quadruple":  # a wide flat face, chamfered front corners, a tapering rear; two halves for four guns
-        body = mirror([(0.86, -0.76), (0.72, -0.9), (-0.5, -0.9), (-0.95, -0.48), (-0.95, 0.0)])
-        return body, ears(-0.62, -0.46, -1.02, -0.86), 0.86 * r, 0.76 * r
+        body = mirror([(0.86, -0.68), (0.7, -0.86), (-0.5, -0.86), (-0.95, -0.45), (-0.95, 0.0)])
+        return body, ears(-0.62, -0.46, -1.02, -0.84), 0.86 * r, 0.68 * r
     raise ValueError(f"unknown turret look {look!r}")
 
 

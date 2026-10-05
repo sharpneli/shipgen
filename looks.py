@@ -398,14 +398,14 @@ NAVIES = {
                            {"keys": "wood", "tint": ["#7a6a55", 1.0], "styles": NAVAL}],
                 "shapes": {"tripod": 1.3, "top_r": 1.4, "funnel_band_w": 0.6, "deck_line_opacity": 0.7, "dazzle": True, "dazzle_decks": 0.6,
                            "turret_bands": ["recog_a", "recog_b"]},
-                "shapes_by_style": _PLAIN_MASTS},
+                "shapes_by_style": {**_PLAIN_MASTS, "merchant": {**_PLAIN_MASTS["merchant"], "dazzle": True}}},
             # UK-inspired 1920s-30s, the Mediterranean Fleet: pale Med grey, teak holystoned nearly white, red, white and
             # blue bands across the turret roofs (the 1936-39 Spanish neutrality patrol), tripods with director tops
             "treaty": {
                 "from": "wwii", "desc": "UK-inspired 1920s-30s: pale Med grey, white teak, red-white-blue turret bands",
                 "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.18, "styles": NAVAL},
                            {"keys": "wood", "tint": ["#ebe6d6", 1.0], "styles": NAVAL}],
-                "shapes": {"tripod": 1.2, "top_r": 1.1, "funnel_band_w": 0.4,
+                "shapes": {"tripod": 1.2, "top_r": 1.1, "funnel_band_w": 0.4, "dazzle": False,
                            "turret_bands": ["#c0262d", "#f4f2ea", "#1f3f8a"]},
                 "shapes_by_style": _PLAIN_MASTS},
             # UK-inspired: pale Admiralty grey, holystoned teak, white boats, black funnel tops, straight-sided turrets
@@ -416,7 +416,8 @@ NAVIES = {
                          "levels": ["#a9b1b5", "#b6bdc0", "#c3c9cb", "#d0d5d7"],
                          "turret": "#adb5b9", "barbette": "#828b90", "barrel": "#4c5458", "tub": "#8e979b",
                          "funnel": "#a9b1b5", "funnel_cap": "#1e2022", "funnel_band": "#1e2022", "boat": "#ecebe4",
-                         "fitting": "#737c81", "mast": "#3b4246", "flight_deck": "#7d868b", "stripe": "#ecebe4"},
+                         "fitting": "#737c81", "mast": "#3b4246", "flight_deck": "#7d868b", "stripe": "#ecebe4",
+                         "camo": ["#eef1ee", "#9cc2c9", "#7fa596"]},
                 # merchants: tramp colours, buff funnel
                 by_style={"merchant": {"hull": "#232324", "deck": "#a39478", "deck_line": "#55493a",
                                        "levels": ["#e6e1d4", "#ebe7dc", "#efece3", "#f3f1ea"], "funnel": "#c9a24c",
@@ -424,7 +425,9 @@ NAVIES = {
                           "planing": {"hull": "#8a9397", "deck": "#9aa3a7", "deck_line": "#5e676b",
                                       "levels": ["#b3bbbe", "#bfc6c9", "#cbd1d3", "#d7dcde"]}},
                 turrets="classic",
-                shapes={"bow_power": 0.35, "transom": 0.05, "blocks": "bowfront"}),
+                shapes={"bow_power": 0.35, "transom": 0.05, "blocks": "bowfront", "dazzle": True, "dazzle_decks": 0.55},
+                # Admiralty disruptive camouflage on the warships; merchants keep their tramp colours
+                shapes_by_style={"merchant": {"dazzle": False}}),
             # UK-inspired 1950s-60s: light Admiralty grey over dark non-skid, black funnel tops
             "cold_war": {
                 "from": "generic/cold_war", "desc": "UK-inspired 1950s-60s: light Admiralty grey, dark non-skid decks",
@@ -463,21 +466,23 @@ NAVIES = {
             # with spotting tops
             "treaty": {
                 "from": "wwii", "desc": "German-inspired 1920s-30s: dark decks, light grey, black-white-red turret bands",
+                "palette": {"turret": "#9da2a5", "wood": "#9e8159", "deck_line": "#3d3122"},
                 "adjust": [{"keys": "hull", "lighten": 0.12, "styles": NAVAL},
                            {"keys": "upperworks", "lighten": 0.12, "styles": NAVAL},
                            {"keys": "wood", "tint": ["#55585a", 1.0], "styles": NAVAL},
                            {"keys": "deck_line", "tint": ["#2e3133", 1.0], "styles": NAVAL}],
-                "shapes": {"top_r": 0.9, "turret_bands": ["#1a1a1a", "#f4f2ea", "#c0262d"]},
+                "shapes": {"top_r": 0.9, "turret_bands": ["#1a1a1a", "#f4f2ea", "#c0262d"], "dazzle": False},
                 "shapes_by_style": _PLAIN_MASTS},
             # German-inspired: dark grey hull and decks under light grey upperworks, mid teak, grey funnel caps,
             # faceted turrets
             "wwii": dict(
                 desc="German-inspired: dark hull, light upperworks, faceted turrets",
-                palette={"hull": "#4f5458", "deck": "#64696d", "wood": "#9e8159", "deck_line": "#3d3122",
+                palette={"hull": "#4f5458", "deck": "#64696d",
                          "levels": ["#a2a7aa", "#aeb3b5", "#babec0", "#c6c9cb"],
-                         "turret": "#9da2a5", "barbette": "#61666a", "barrel": "#3c4044", "tub": "#7a7f82",
+                         "barbette": "#61666a", "barrel": "#3c4044", "tub": "#7a7f82",
                          "funnel": "#a2a7aa", "funnel_cap": "#2a2d30", "funnel_band": "#868b8e", "boat": "#cfd2d3",
-                         "fitting": "#55595d", "mast": "#33373a", "flight_deck": "#6c675d", "stripe": "#e9ece6"},
+                         "fitting": "#55595d", "mast": "#33373a", "flight_deck": "#6c675d", "stripe": "#e9ece6",
+                         "camo": ["#1d1f21", "#eef0f0"], "wood": "#54585b", "deck_line": "#2b2e30", "turret": "#d0a83a"},
                 # merchants: dark hull, light grey house
                 by_style={"merchant": {"hull": "#3a3e42", "deck": "#6f695f", "deck_line": "#3b362f",
                                        "levels": ["#d8dad8", "#dfe1df", "#e5e6e5", "#ebecea"], "funnel": "#1e1e1e",
@@ -485,7 +490,11 @@ NAVIES = {
                           "planing": {"hull": "#8e9396", "deck": "#9fa4a7", "deck_line": "#5d6265",
                                       "levels": ["#b5b9bb", "#c0c4c6", "#cbcfd0", "#d6d9da"]}},
                 turrets="faceted",
-                shapes={"bow_power": 0.2, "bow_flare": 0.04, "funnel": "capped", "blocks": "chamfer", "mast": "pole"}),
+                # the 1941 Baltic scheme's black and white stripes on the hull and upperworks (not the decks), dark
+                # grey decks, yellow turret roofs for aircraft recognition (1940-41)
+                shapes={"bow_power": 0.2, "bow_flare": 0.04, "funnel": "capped", "blocks": "chamfer", "mast": "pole",
+                        "dazzle": True},
+                shapes_by_style={"merchant": {"dazzle": False}}),
             # German-inspired 1950s-60s: light haze grey, faceted turrets, capped funnels
             "cold_war": {
                 "from": "generic/cold_war", "desc": "German-inspired 1950s-60s: light haze grey, faceted turrets",
@@ -616,6 +625,9 @@ NAVIES = {
                           "planing": {"hull": "#4c5866", "deck": "#5b6570", "deck_line": "#38414b",
                                       "levels": ["#66717d", "#727d89", "#7e8995", "#8a95a0"]}},
                 turrets="quadruple",
+                # decks painted gris bleu, as in every French era
+                adjust=[{"keys": "wood", "tint": ["#66788c", 1.0], "styles": NAVAL},
+                        {"keys": "deck_line", "tint": ["#323e4b", 1.0], "styles": NAVAL}],
                 shapes={"funnel_rake": 3.0, "block_round": [2.2, 0.2], "mast": "pole", "funnel_band_w": 0.5,
                         "turret_bands": ["recog_a", "recog_b"]},
                 shapes_by_style={"merchant": {"funnel_rake": 0.0, "block_round": None}}),
