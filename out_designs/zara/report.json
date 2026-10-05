@@ -1,0 +1,924 @@
+{
+  "id": "zara",
+  "name": "Zara-like heavy cruiser (1931)",
+  "valid": true,
+  "errors": [],
+  "warnings": [],
+  "inputs": {
+    "id": "zara",
+    "name": "Zara-like heavy cruiser (1931)",
+    "look": {
+      "navy": "la_spezia",
+      "era": "treaty"
+    },
+    "type": "CA",
+    "hull": {
+      "block_coefficient": 0.52,
+      "construction": {
+        "name": "High-tensile steel (D, Ducol, HTS), riveted",
+        "yield_mpa": 340,
+        "join_factor": 1.08,
+        "standard": 1.0
+      },
+      "freeboard": 1.0,
+      "raised": [
+        {
+          "from": "bow",
+          "to": "bridge",
+          "decks": 1
+        }
+      ]
+    },
+    "speed_kn": 32,
+    "range_nm": 5400,
+    "crew": {
+      "standard": {
+        "name": "Tiered bunks and separate messdecks",
+        "sleep_rating_m2": 1.3,
+        "sleep_cpo_m2": 2.5,
+        "sleep_officer_m2": 6.0,
+        "mess_seats_per_man": 0.33,
+        "galley_k": 0.3,
+        "galley_min_m2": 5.0,
+        "sanitary_m2": 0.2,
+        "sickbay_beds_per_man": 0.01,
+        "welfare_m2": 0.03,
+        "services_k": 0.05,
+        "passage_factor": 1.2,
+        "deck_height_m": 2.4,
+        "provisions_m3_per_day": 0.009,
+        "water_l_per_day": 60,
+        "hotel_fraction": 0.06,
+        "cpo_fraction": 0.08,
+        "tolerance_days": 60
+      },
+      "endurance_days": 28,
+      "distiller": true,
+      "buffer_days": 5,
+      "water_l_per_day": 60,
+      "berth_ratio": 1.0,
+      "officer_fraction": 0.08
+    },
+    "machinery": {
+      "stress": 0.55,
+      "shafts": 2,
+      "units_per_shaft": 1,
+      "transmission": "mechanical",
+      "arrangement": "grouped",
+      "centreline_bulkhead": false,
+      "bunkers": "ends",
+      "wing_bunker_m": 2.0,
+      "tech": {
+        "name": "Geared turbines, oil-fired small-tube boilers (1930)",
+        "fuel": "oil",
+        "weight_kg_per_kw": 52.0,
+        "stress_floor": 0.42,
+        "sfc_g_per_kwh": 430,
+        "density_t_per_m3": 0.32,
+        "unit_max_mw": 35.0,
+        "unit": {
+          "mw": 15,
+          "height_m": 4.5,
+          "width_m": 4.5,
+          "length_m": 8
+        },
+        "boiler_fraction": 0.55,
+        "crew_k": 12,
+        "part_load": "GTB",
+        "draught": {
+          "system": "forced",
+          "velocity_m_s": 14.0,
+          "reach_m": 20.0,
+          "gas_temp_k": 570,
+          "air_fuel_ratio": 15
+        }
+      }
+    },
+    "armour": {
+      "belt_mm": 150,
+      "belt_depth_m": 2.4,
+      "belt_height_m": 2.4,
+      "belt_bottom_mm": 90,
+      "bulkhead_mm": 120,
+      "upper_belt": {
+        "mm": 0,
+        "to_deck": 0,
+        "extent": "citadel"
+      },
+      "end_belts": {
+        "fore": {
+          "mm": 0,
+          "tip_mm": 0
+        },
+        "aft": {
+          "mm": 0,
+          "tip_mm": 0
+        }
+      },
+      "decks": [
+        {
+          "deck": 1,
+          "mm": 70,
+          "extent": "citadel"
+        }
+      ],
+      "turret_mm": 150,
+      "materials": {
+        "belt": "Terni cemented",
+        "upper_belt": "Terni cemented",
+        "end_belts": "Terni cemented",
+        "bulkheads": "Terni cemented",
+        "decks": "high-tensile steel",
+        "turrets": "Terni cemented",
+        "barbettes": "Terni cemented",
+        "conning_tower": "Terni cemented",
+        "secondary": "Terni cemented"
+      }
+    },
+    "main": {
+      "calibre_mm": 203,
+      "calibre_length": 53,
+      "barrels": 2,
+      "fore": 2,
+      "aft": 2
+    },
+    "superstructure": {
+      "t_per_m2": 0.32,
+      "material": "steel",
+      "tower_levels": 6,
+      "deckhouse_levels": 1
+    },
+    "fire_control": {
+      "main": {
+        "directors": 2,
+        "rangefinder_m": 5.0,
+        "armour_mm": 0,
+        "radar_t": 0.0,
+        "computer_t": 4.0
+      },
+      "secondary": {
+        "directors": 1,
+        "rangefinder_m": 3.0,
+        "armour_mm": 0,
+        "radar_t": 0.0,
+        "computer_t": 1.0
+      },
+      "aa": {
+        "directors": 0,
+        "rangefinder_m": 0.0,
+        "armour_mm": 0,
+        "radar_t": 0.0,
+        "computer_t": 0.0
+      },
+      "search_radar_t": 0.0
+    },
+    "secondary": [
+      {
+        "calibre_mm": 100,
+        "calibre_length": 47,
+        "barrels": 2,
+        "per_side": 4,
+        "stands_on": "deckhouse"
+      }
+    ],
+    "funnels": 2,
+    "aa": {
+      "heavy": 0,
+      "light": 4
+    }
+  },
+  "results": {
+    "length_m": 184.0,
+    "beam_m": 22.55,
+    "block_coefficient": 0.52,
+    "standard_displacement_t": 14620,
+    "full_displacement_t": 16119,
+    "draught_m": 7.29,
+    "depth_m": 12.1,
+    "freeboard_m": 4.81,
+    "power_shp": 94700.0,
+    "fuel_t": 1499,
+    "crew": 781,
+    "gm_full_m": 1.31,
+    "gm_light_m": 0.91,
+    "roll_period_s": 14.4,
+    "windage_m2": 1874,
+    "gale_heel_deg": 4.1,
+    "gale_heel_condition": "light",
+    "deck_edge_deg": 26.0,
+    "deck_edge_wind_kn": 132,
+    "trim_m": 0.06,
+    "lcg_m": -2.12,
+    "lcb_m": -2.21,
+    "layout_shift_m": -3.08
+  },
+  "plant": {
+    "name": "Geared turbines, oil-fired small-tube boilers (1930)",
+    "fuel": "oil",
+    "rated_kw": 70652,
+    "rated_shp": 94750.0,
+    "continuous_kw": 64823,
+    "overload_max": 1.067,
+    "shafts": 2,
+    "units": 4,
+    "unit_mw": 17.66,
+    "weight_t": 2501.9,
+    "sfc_g_per_kwh": 448.9,
+    "part_load": {
+      "curve": "GTB",
+      "loads": [
+        0.1,
+        0.25,
+        0.5,
+        0.75,
+        1.0
+      ],
+      "multipliers": [
+        1.9,
+        1.45,
+        1.18,
+        1.05,
+        1.0
+      ],
+      "overload_per_tenth": 0.3
+    },
+    "draught": "forced",
+    "stress": 0.55,
+    "transmission": "mechanical",
+    "arrangement": "grouped",
+    "crew": 292,
+    "machinery_length_m": 58.8,
+    "boiler_rooms": 3,
+    "engine_rooms": 3,
+    "rows": 3,
+    "protrusion_m": 0.0,
+    "space_m": {
+      "width": 20.75,
+      "height": 8.5
+    },
+    "wing_bunkers_t": 0,
+    "end_bunkers_m": 1.9,
+    "funnels": 2,
+    "funnel_gas_area_m2": 16.3,
+    "funnel_gas_velocity_m_s": 14.0,
+    "smoke_reach_m": 22.6
+  },
+  "hull": {
+    "construction": "High-tensile steel (D, Ducol, HTS), riveted",
+    "structure_t": 4259,
+    "min_gauge_t": 4259,
+    "strength_t": 0,
+    "plate_min_mm": 9.5,
+    "plate_strength_mm": 3.4,
+    "girder": {
+      "allowable_stress_mpa": 161.9,
+      "required_m4": 27.74,
+      "plating_m4": 19.36,
+      "armour_decks_m4": 20.87
+    }
+  },
+  "crew": {
+    "complement": 781,
+    "quartered_in_superstructure": 0,
+    "superstructure_quarters": {},
+    "officers": 62,
+    "cpos": 62,
+    "ratings": 657,
+    "departments": {
+      "engineering": 292,
+      "weapons": 345,
+      "deck_and_command": 97,
+      "hotel": 47
+    },
+    "standard": "Tiered bunks and separate messdecks",
+    "endurance_days": 28,
+    "range_days": 15,
+    "distiller": true,
+    "berth_ratio": 1.0,
+    "living_m3": 5804,
+    "provisions_m3": 276,
+    "water_m3": 234,
+    "water_in_double_bottom_m3": 0,
+    "distiller_m3_per_day": 56.2,
+    "space_needed_m3": 6317,
+    "space_usable_m3": 14730,
+    "space_free_m3": 22661,
+    "sleep_m2_per_man": 1.77,
+    "sleep_standard_m2": 1.3,
+    "headroom_m": 2.4,
+    "deck_height_m": 2.4,
+    "sickbay_beds": 8,
+    "tolerance_days": 60
+  },
+  "fire_control": [
+    {
+      "id": "Main director",
+      "battery": "main",
+      "x": 39.17,
+      "y": 0.0,
+      "eye_height_m": 21.91,
+      "horizon_km": 18.1,
+      "rangefinder_m": 5.0,
+      "armour_mm": 0,
+      "radar_t": 0.0,
+      "weight_t": 14.5
+    },
+    {
+      "id": "Main director 2",
+      "battery": "main",
+      "x": -45.41,
+      "y": 0.0,
+      "eye_height_m": 19.31,
+      "horizon_km": 17.0,
+      "rangefinder_m": 5.0,
+      "armour_mm": 0,
+      "radar_t": 0.0,
+      "weight_t": 14.5
+    },
+    {
+      "id": "Secondary director 1",
+      "battery": "secondary",
+      "x": 32.92,
+      "y": 0.0,
+      "eye_height_m": 21.91,
+      "horizon_km": 18.1,
+      "rangefinder_m": 3.0,
+      "armour_mm": 0,
+      "radar_t": 0.0,
+      "weight_t": 7.7
+    }
+  ],
+  "bridge": {
+    "level": 5,
+    "tower_levels": 6,
+    "eye_height_m": 16.91,
+    "horizon_km": 15.9,
+    "sees_over_turrets": true,
+    "level_to_see_over_turrets": 5
+  },
+  "weight_groups_t": {
+    "hull": 4472,
+    "armour": 4125,
+    "machinery": 2680,
+    "fuel": 1499,
+    "misc": 1297,
+    "armament": 1147,
+    "superstructure": 862,
+    "fire_control": 37
+  },
+  "weights": [
+    {
+      "name": "Hull structure",
+      "group": "hull",
+      "t": 4259.0,
+      "x": -1.84,
+      "z": 7.02
+    },
+    {
+      "name": "Machinery",
+      "group": "machinery",
+      "t": 2501.9,
+      "x": -4.89,
+      "z": 3.87
+    },
+    {
+      "name": "Forecastle",
+      "group": "hull",
+      "t": 212.9,
+      "x": 51.01,
+      "z": 14.22
+    },
+    {
+      "name": "Turret A",
+      "group": "armament",
+      "t": 156.8,
+      "x": 59.9,
+      "z": 16.65
+    },
+    {
+      "name": "Magazine A",
+      "group": "armament",
+      "t": 49.0,
+      "x": 59.9,
+      "z": 2.65
+    },
+    {
+      "name": "Barbette A",
+      "group": "armour",
+      "t": 161.1,
+      "x": 59.9,
+      "z": 9.08
+    },
+    {
+      "name": "Turret B",
+      "group": "armament",
+      "t": 156.8,
+      "x": 49.06,
+      "z": 18.95
+    },
+    {
+      "name": "Magazine B",
+      "group": "armament",
+      "t": 49.0,
+      "x": 49.06,
+      "z": 2.65
+    },
+    {
+      "name": "Barbette B",
+      "group": "armour",
+      "t": 207.1,
+      "x": 49.06,
+      "z": 9.08
+    },
+    {
+      "name": "Turret Y",
+      "group": "armament",
+      "t": 156.8,
+      "x": -69.68,
+      "z": 14.05
+    },
+    {
+      "name": "Magazine Y",
+      "group": "armament",
+      "t": 49.0,
+      "x": -69.68,
+      "z": 2.65
+    },
+    {
+      "name": "Barbette Y",
+      "group": "armour",
+      "t": 109.0,
+      "x": -69.68,
+      "z": 9.08
+    },
+    {
+      "name": "Turret X",
+      "group": "armament",
+      "t": 156.8,
+      "x": -58.84,
+      "z": 16.35
+    },
+    {
+      "name": "Magazine X",
+      "group": "armament",
+      "t": 49.0,
+      "x": -58.84,
+      "z": 2.65
+    },
+    {
+      "name": "Barbette X",
+      "group": "armour",
+      "t": 155.1,
+      "x": -58.84,
+      "z": 9.08
+    },
+    {
+      "name": "Bridge base 2",
+      "group": "superstructure",
+      "t": 28.0,
+      "x": 35.96,
+      "z": 16.0
+    },
+    {
+      "name": "Bridge base 3",
+      "group": "superstructure",
+      "t": 28.0,
+      "x": 35.96,
+      "z": 18.6
+    },
+    {
+      "name": "Bridge base 4",
+      "group": "superstructure",
+      "t": 28.0,
+      "x": 35.96,
+      "z": 21.2
+    },
+    {
+      "name": "Bridge",
+      "group": "superstructure",
+      "t": 28.0,
+      "x": 35.96,
+      "z": 23.8
+    },
+    {
+      "name": "Bridge upper",
+      "group": "superstructure",
+      "t": 19.0,
+      "x": 36.36,
+      "z": 26.4
+    },
+    {
+      "name": "Conning tower",
+      "group": "armour",
+      "t": 96.2,
+      "x": 38.92,
+      "z": 14.7
+    },
+    {
+      "name": "Aft control base 2",
+      "group": "superstructure",
+      "t": 20.1,
+      "x": -46.23,
+      "z": 16.0
+    },
+    {
+      "name": "Aft control base 3",
+      "group": "superstructure",
+      "t": 20.1,
+      "x": -46.23,
+      "z": 18.6
+    },
+    {
+      "name": "Aft control",
+      "group": "superstructure",
+      "t": 20.1,
+      "x": -46.23,
+      "z": 21.2
+    },
+    {
+      "name": "Aft control upper",
+      "group": "superstructure",
+      "t": 6.1,
+      "x": -46.28,
+      "z": 23.8
+    },
+    {
+      "name": "Funnel 1",
+      "group": "superstructure",
+      "t": 30.3,
+      "x": 0.32,
+      "z": 18.8
+    },
+    {
+      "name": "Uptakes Funnel 1",
+      "group": "machinery",
+      "t": 65.8,
+      "x": 4.67,
+      "z": 8.93
+    },
+    {
+      "name": "Gratings Funnel 1",
+      "group": "armour",
+      "t": 4.9,
+      "x": 9.02,
+      "z": 9.5
+    },
+    {
+      "name": "Funnel 2",
+      "group": "superstructure",
+      "t": 30.3,
+      "x": -8.79,
+      "z": 18.8
+    },
+    {
+      "name": "Uptakes Funnel 2",
+      "group": "machinery",
+      "t": 112.2,
+      "x": 0.12,
+      "z": 8.93
+    },
+    {
+      "name": "Gratings Funnel 2",
+      "group": "armour",
+      "t": 4.9,
+      "x": 9.02,
+      "z": 9.5
+    },
+    {
+      "name": "Mount S1S",
+      "group": "armament",
+      "t": 19.4,
+      "x": -20.14,
+      "z": 15.38
+    },
+    {
+      "name": "Magazine S1S",
+      "group": "armament",
+      "t": 20.5,
+      "x": -35.03,
+      "z": 3.95
+    },
+    {
+      "name": "Barbette S1S",
+      "group": "armour",
+      "t": 12.6,
+      "x": -20.14,
+      "z": 9.08
+    },
+    {
+      "name": "Mount S1P",
+      "group": "armament",
+      "t": 19.4,
+      "x": -20.14,
+      "z": 15.38
+    },
+    {
+      "name": "Magazine S1P",
+      "group": "armament",
+      "t": 20.5,
+      "x": -35.03,
+      "z": 3.95
+    },
+    {
+      "name": "Barbette S1P",
+      "group": "armour",
+      "t": 12.6,
+      "x": -20.14,
+      "z": 9.08
+    },
+    {
+      "name": "Mount S2S",
+      "group": "armament",
+      "t": 19.4,
+      "x": -10.7,
+      "z": 15.38
+    },
+    {
+      "name": "Magazine S2S",
+      "group": "armament",
+      "t": 20.5,
+      "x": -35.03,
+      "z": 3.95
+    },
+    {
+      "name": "Barbette S2S",
+      "group": "armour",
+      "t": 12.6,
+      "x": -10.7,
+      "z": 9.08
+    },
+    {
+      "name": "Mount S2P",
+      "group": "armament",
+      "t": 19.4,
+      "x": -10.7,
+      "z": 15.38
+    },
+    {
+      "name": "Magazine S2P",
+      "group": "armament",
+      "t": 20.5,
+      "x": -35.03,
+      "z": 3.95
+    },
+    {
+      "name": "Barbette S2P",
+      "group": "armour",
+      "t": 12.6,
+      "x": -10.7,
+      "z": 9.08
+    },
+    {
+      "name": "Mount S3S",
+      "group": "armament",
+      "t": 19.4,
+      "x": -1.26,
+      "z": 15.38
+    },
+    {
+      "name": "Magazine S3S",
+      "group": "armament",
+      "t": 20.5,
+      "x": 25.25,
+      "z": 3.95
+    },
+    {
+      "name": "Barbette S3S",
+      "group": "armour",
+      "t": 12.6,
+      "x": -1.26,
+      "z": 9.08
+    },
+    {
+      "name": "Mount S3P",
+      "group": "armament",
+      "t": 19.4,
+      "x": -1.26,
+      "z": 15.38
+    },
+    {
+      "name": "Magazine S3P",
+      "group": "armament",
+      "t": 20.5,
+      "x": 25.25,
+      "z": 3.95
+    },
+    {
+      "name": "Barbette S3P",
+      "group": "armour",
+      "t": 12.6,
+      "x": -1.26,
+      "z": 9.08
+    },
+    {
+      "name": "Mount S4S",
+      "group": "armament",
+      "t": 19.4,
+      "x": 8.17,
+      "z": 15.38
+    },
+    {
+      "name": "Magazine S4S",
+      "group": "armament",
+      "t": 20.5,
+      "x": 25.25,
+      "z": 3.95
+    },
+    {
+      "name": "Barbette S4S",
+      "group": "armour",
+      "t": 12.6,
+      "x": 8.17,
+      "z": 9.08
+    },
+    {
+      "name": "Mount S4P",
+      "group": "armament",
+      "t": 19.4,
+      "x": 8.17,
+      "z": 15.38
+    },
+    {
+      "name": "Magazine S4P",
+      "group": "armament",
+      "t": 20.5,
+      "x": 25.25,
+      "z": 3.95
+    },
+    {
+      "name": "Barbette S4P",
+      "group": "armour",
+      "t": 12.6,
+      "x": 8.17,
+      "z": 9.08
+    },
+    {
+      "name": "Deckhouse",
+      "group": "superstructure",
+      "t": 585.5,
+      "x": -5.15,
+      "z": 13.4
+    },
+    {
+      "name": "Main director",
+      "group": "superstructure",
+      "t": 0.0,
+      "x": 39.08,
+      "z": 29.0
+    },
+    {
+      "name": "Main director",
+      "group": "fire_control",
+      "t": 10.5,
+      "x": 39.17,
+      "z": 28.8
+    },
+    {
+      "name": "Plotting room (Main director)",
+      "group": "fire_control",
+      "t": 4.0,
+      "x": 39.17,
+      "z": 3.63
+    },
+    {
+      "name": "Main director 2",
+      "group": "superstructure",
+      "t": 0.0,
+      "x": -45.5,
+      "z": 26.4
+    },
+    {
+      "name": "Main director 2",
+      "group": "fire_control",
+      "t": 10.5,
+      "x": -45.41,
+      "z": 26.2
+    },
+    {
+      "name": "Plotting room (Main director 2)",
+      "group": "fire_control",
+      "t": 4.0,
+      "x": -45.41,
+      "z": 3.63
+    },
+    {
+      "name": "Secondary director 1",
+      "group": "superstructure",
+      "t": 0.0,
+      "x": 32.89,
+      "z": 29.0
+    },
+    {
+      "name": "Secondary director 1",
+      "group": "fire_control",
+      "t": 6.7,
+      "x": 32.92,
+      "z": 28.8
+    },
+    {
+      "name": "Plotting room (Secondary director 1)",
+      "group": "fire_control",
+      "t": 1.0,
+      "x": 32.92,
+      "z": 3.63
+    },
+    {
+      "name": "AA1",
+      "group": "armament",
+      "t": 1.3,
+      "x": -5.05,
+      "z": 15.7
+    },
+    {
+      "name": "AA2",
+      "group": "armament",
+      "t": 1.3,
+      "x": -5.05,
+      "z": 15.7
+    },
+    {
+      "name": "AA3",
+      "group": "armament",
+      "t": 1.3,
+      "x": 1.95,
+      "z": 15.7
+    },
+    {
+      "name": "AA4",
+      "group": "armament",
+      "t": 1.3,
+      "x": 1.95,
+      "z": 15.7
+    },
+    {
+      "name": "Foremast",
+      "group": "superstructure",
+      "t": 14.1,
+      "x": 29.32,
+      "z": 22.0
+    },
+    {
+      "name": "Mainmast",
+      "group": "superstructure",
+      "t": 4.5,
+      "x": -46.36,
+      "z": 21.8
+    },
+    {
+      "name": "Crew and effects",
+      "group": "misc",
+      "t": 93.7,
+      "x": 0.0,
+      "z": 10.6
+    },
+    {
+      "name": "Provisions",
+      "group": "misc",
+      "t": 165.3,
+      "x": 0.0,
+      "z": 4.84
+    },
+    {
+      "name": "Fresh water",
+      "group": "misc",
+      "t": 234.3,
+      "x": -4.89,
+      "z": 0.61
+    },
+    {
+      "name": "Belt armour",
+      "group": "armour",
+      "t": 1431.4,
+      "x": -4.89,
+      "z": 7.47
+    },
+    {
+      "name": "Bulkheads",
+      "group": "armour",
+      "t": 285.5,
+      "x": -4.89,
+      "z": 6.33
+    },
+    {
+      "name": "Deck armour (second deck)",
+      "group": "armour",
+      "t": 1569.1,
+      "x": -4.89,
+      "z": 9.5
+    },
+    {
+      "name": "Equipment, outfit, crew & stores",
+      "group": "misc",
+      "t": 804.1,
+      "x": 0.0,
+      "z": 6.05
+    },
+    {
+      "name": "Fuel",
+      "group": "fuel",
+      "t": 1498.6,
+      "x": -4.89,
+      "z": 2.18
+    }
+  ]
+}

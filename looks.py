@@ -282,13 +282,18 @@ NAVIES = {
                 "turrets": "slab",
                 "shapes": {"transom": 0.15, "funnel": "box", "blocks": "boxy", "mast": "cage", "tripod": 0.0,
                            "top_r": 0.0, "cage_r": 3.8, "dazzle": True, "dazzle_decks": 0.75}},
-            # US-inspired 1920s-30s: light navy grey, the cage masts kept until the rebuilds
+            # US-inspired 1920s-30s, the Battle Fleet: navy grey over honey-oiled teak, big white hull numbers on the
+            # foredeck, the cage masts kept until the rebuilds
             "treaty": {
-                "from": "generic/treaty", "desc": "US-inspired 1920s-30s: light navy grey, cage masts, boxy turrets",
-                "adjust": [{"keys": ["hull", "upperworks"], "tint": ["#6f8aa3", 0.08], "styles": NAVAL}],
+                "from": "generic/treaty", "desc": "US-inspired 1920s-30s: navy grey, honey teak, foredeck numbers, cage masts",
+                "palette": {"number": "#f4f2ea"},
+                "adjust": [{"keys": ["hull", "upperworks"], "tint": ["#6f8aa3", 0.08], "styles": NAVAL},
+                           {"keys": ["hull", "upperworks", "armament"], "lighten": -0.12, "styles": NAVAL},
+                           {"keys": "wood", "tint": ["#bb8a50", 1.0], "styles": NAVAL},
+                           {"keys": "deck_line", "tint": ["#6b4a26", 1.0], "styles": NAVAL}],
                 "turrets": "slab",
                 "shapes": {"transom": 0.15, "funnel": "box", "blocks": "boxy", "mast": "cage", "tripod": 0.0,
-                           "top_r": 0.0}},
+                           "top_r": 0.0, "cage_r": 3.4, "hull_number": True}},
             # US-inspired: Measure 21-style deck blue on every horizontal surface, boxy slab-sided turrets
             "wwii": dict(
                 desc="US-inspired: deck-blue horizontals, boxy turrets",
@@ -339,8 +344,10 @@ NAVIES = {
                 "shapes": {"blocks": "soft", "bow_flare": 0.04, "top_tiers": 2, "top_r": 2.0, "funnel_band_w": 0.7}},
             # Japan-inspired 1920s-30s: the Kure look before the rebuilds: smaller early pagodas, finer bows
             "treaty": {
-                "from": "wwii", "desc": "Japan-inspired 1920s-30s: Kure grey, linoleum decks, early pagoda masts",
-                "shapes": {"bow_flare": 0.04, "top_r": 2.6, "top_tiers": 2}},
+                "from": "wwii", "desc": "Japan-inspired 1920s-30s: Kure grey, chocolate linoleum decks, early pagodas",
+                "adjust": [{"keys": "wood", "tint": ["#6b4635", 1.0], "styles": NAVAL},
+                           {"keys": "deck_line", "tint": ["#b39050", 1.0], "styles": NAVAL}],
+                "shapes": {"bow_flare": 0.04, "top_r": 2.6, "top_tiers": 2, "deck_line_opacity": 0.6}},
             # Japan-inspired: dark Kure grey, pale hinoki wood, brown linoleum on steel decks, black-topped funnels,
             # rounded turrets with long rangefinder arms, red and white carrier deck stripes
             "wwii": dict(
@@ -392,12 +399,14 @@ NAVIES = {
                 "shapes": {"tripod": 1.3, "top_r": 1.4, "funnel_band_w": 0.6, "deck_line_opacity": 0.7, "dazzle": True, "dazzle_decks": 0.6,
                            "turret_bands": ["recog_a", "recog_b"]},
                 "shapes_by_style": _PLAIN_MASTS},
-            # UK-inspired 1920s-30s: light Home Fleet grey, white teak, tripods with director tops
+            # UK-inspired 1920s-30s, the Mediterranean Fleet: pale Med grey, teak holystoned nearly white, red, white and
+            # blue bands across the turret roofs (the 1936-39 Spanish neutrality patrol), tripods with director tops
             "treaty": {
-                "from": "wwii", "desc": "UK-inspired 1920s-30s: light Home Fleet grey, white teak, director tops",
-                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.1, "styles": NAVAL},
-                           {"keys": "wood", "tint": ["#e6dcc0", 0.3], "styles": NAVAL}],
-                "shapes": {"tripod": 1.2, "top_r": 1.1, "funnel_band_w": 0.4},
+                "from": "wwii", "desc": "UK-inspired 1920s-30s: pale Med grey, white teak, red-white-blue turret bands",
+                "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.18, "styles": NAVAL},
+                           {"keys": "wood", "tint": ["#ebe6d6", 1.0], "styles": NAVAL}],
+                "shapes": {"tripod": 1.2, "top_r": 1.1, "funnel_band_w": 0.4,
+                           "turret_bands": ["#c0262d", "#f4f2ea", "#1f3f8a"]},
                 "shapes_by_style": _PLAIN_MASTS},
             # UK-inspired: pale Admiralty grey, holystoned teak, white boats, black funnel tops, straight-sided turrets
             # with a rounded rear
@@ -449,11 +458,16 @@ NAVIES = {
                 "turrets": "faceted",
                 "shapes": {"bow_power": 0.2, "bow_flare": 0.04, "funnel": "capped", "blocks": "chamfer", "tripod": 0.0,
                            "top_r": 0.9}},
-            # German-inspired 1920s-30s: the Reichsmarine's lighter hull, pole masts with spotting tops
+            # German-inspired 1920s-30s: the Reichsmarine's lighter hull, dark grey decks under light grey upperworks,
+            # black, white and red bands across the turret roofs (the 1936-39 Spanish neutrality patrol), pole masts
+            # with spotting tops
             "treaty": {
-                "from": "wwii", "desc": "German-inspired 1920s-30s: lighter hull, pole masts with spotting tops",
-                "adjust": [{"keys": "hull", "lighten": 0.12, "styles": NAVAL}],
-                "shapes": {"top_r": 0.9},
+                "from": "wwii", "desc": "German-inspired 1920s-30s: dark decks, light grey, black-white-red turret bands",
+                "adjust": [{"keys": "hull", "lighten": 0.12, "styles": NAVAL},
+                           {"keys": "upperworks", "lighten": 0.12, "styles": NAVAL},
+                           {"keys": "wood", "tint": ["#55585a", 1.0], "styles": NAVAL},
+                           {"keys": "deck_line", "tint": ["#2e3133", 1.0], "styles": NAVAL}],
+                "shapes": {"top_r": 0.9, "turret_bands": ["#1a1a1a", "#f4f2ea", "#c0262d"]},
                 "shapes_by_style": _PLAIN_MASTS},
             # German-inspired: dark grey hull and decks under light grey upperworks, mid teak, grey funnel caps,
             # faceted turrets
@@ -506,8 +520,9 @@ NAVIES = {
             "treaty": {
                 "from": "wwii", "desc": "Italy-inspired 1920s-30s: palest grey, raked pan-capped funnels, awnings",
                 "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.14, "styles": NAVAL},
-                           {"keys": "wood", "tint": ["#ece2c6", 0.35], "styles": NAVAL}],
-                "shapes": {"dazzle": False, "deck_stripes": None, "awnings": True, "top_r": 1.0}},
+                           {"keys": "wood", "tint": ["#e9dcb6", 1.0], "styles": NAVAL}],
+                "shapes": {"dazzle": False, "deck_stripes": {"ends": "fore", "pattern": "chevron", "n": 3},
+                           "awnings": True, "top_r": 1.0}},
             # Italy-inspired: light grey under dark grey and blue-grey dazzle panels, red and white recognition chevrons
             # fore and aft, long wedge-faced turrets, round tower bridges, raked funnels with frying-pan caps
             "wwii": dict(
@@ -578,7 +593,8 @@ NAVIES = {
             "treaty": {
                 "from": "wwii", "desc": "France-inspired 1920s-30s: light blue-grey, white teak, tripods, awnings",
                 "adjust": [{"keys": ["hull", "upperworks", "armament", "funnels"], "lighten": 0.3, "styles": NAVAL},
-                           {"keys": "wood", "tint": ["#e6dcc0", 0.35], "styles": NAVAL}],
+                           {"keys": "wood", "tint": ["#8597ad", 1.0], "styles": NAVAL},
+                           {"keys": "deck_line", "tint": ["#3a4858", 1.0], "styles": NAVAL}],
                 "shapes": {"funnel_rake": 1.0, "turret_bands": None, "awnings": True, "mast": None, "tripod": 1.2,
                            "top_r": 1.1},
                 "shapes_by_style": {**_PLAIN_MASTS, "merchant": {**_PLAIN_MASTS["merchant"], "awnings": False}}},
