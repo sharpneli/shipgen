@@ -4,7 +4,9 @@ vidgen: a short top-down gameplay-style video of one exported ship, to judge how
 
 It reads only what the game would: out_designs/<id>/ (sprite.json, hitboxes.json, report.json, hull.png,
 height.png, turrets/*.png). The camera looks straight down and follows the ship as it steams through procedural
-water at its design speed, with a bow wave, Kelvin wake, stern wash and funnel smoke drifting on the wind.
+water at its design speed, with funnel smoke drifting on the wind. The wake (bow-wave sheet, the crest peeling off
+the shoulder, divergent waves and the propulsor wash) is baked once per clip by wake.py and only its foam texture
+animates, anchored to the water.
 The weapons start at rest and then train on a target bearing. Each mount turns only inside its traverse_deg, as
 the game must, and only mounts whose arcs hold the bearing train. Then they fire: muzzle flash, gun smoke, a
 blast ring on the water for big guns and tracers; torpedo mounts launch fish.
@@ -29,6 +31,7 @@ import math
 import os
 import re
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -37,6 +40,8 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from shadow import HEIGHT_STEP_M, shadow_mask, sun_offset_px  # noqa: E402
+
+import wake  # noqa: E402  (vidgen/wake.py)
 
 KN = 0.514444             # m/s per knot
 G = 9.81
@@ -276,7 +281,9 @@ class Water:
         iy = ((Y + oy) * k).astype(np.int32) % n
         return self.rx[iy, ix], self.ry[iy, ix]
 
-    def shade(self, cam, t):
+    def shade(self, cam, t, wake=None):
+        """wake: (hx, hy, calm) full-frame: the baked wake's slopes, added, and how much its slick flattens the
+        ripples (0..1)."""
         # the swell is smooth, so it's summed at half resolution and upsampled; ripples stay full resolution
         Xh, Yh = self.mx[::2, ::2] + cam[0], self.my[::2, ::2] + cam[1]
         hx = np.zeros_like(Xh)
@@ -286,13 +293,18 @@ class Water:
             hx += c * kx / math.hypot(kx, ky)
             hy += c * ky / math.hypot(kx, ky)
         hx, hy = upscale(hx, self.W, self.H), upscale(hy, self.W, self.H)
+        calm = 1.0
+        if wake is not None:
+            hx += wake[0]
+            hy += wake[1]
+            calm = 1 - wake[2]
         X, Y = self.mx + cam[0], self.my + cam[1]
         for scale, vel, amp in ((1.0, (1.1, 1.6), 0.10), (0.45, (-0.7, 1.2), 0.07)):
             if self.ripple_m * scale * self.s < 40:
                 continue
             rx, ry = self.ripple(X, Y, scale, -vel[0] * t, -vel[1] * t)
-            hx += rx * amp
-            hy += ry * amp
+            hx += rx * amp * calm
+            hy += ry * amp * calm
         inv = 1 / np.sqrt(hx * hx + hy * hy + 1)
         nx, ny, nz = -hx * inv, -hy * inv, inv
         diff = np.clip(nx * self.L[0] + ny * self.L[1] + nz * self.L[2], 0, 1)
@@ -339,9 +351,9 @@ class Scene:
 
         self.water = Water(self.rng, W, H, s, self.C)
         self.dens = Density(W, H)
+        self._wake()
         self.foam = Particles((0, 0), 2.5)       # water at rest; the push from the hull dies away
-        self.churn = Particles((0, 0), 3.0)
-        self.kelvin = Particles((0, 0), 12.0)   # bow-wave crests keep running out along the Kelvin arms
+        self.spray = Particles((0, 0), 0.6)      # thrown off the stem, falls back within a second
         self.smoke = Particles(WIND, 1.2)
         self.gsmoke = Particles(WIND, 1.6)      # the blast carries it out before the wind turns it
         self.glow = []                            # (x, y, r, intensity, t0, life, core)
@@ -479,6 +491,83 @@ class Scene:
             r = math.sqrt(max(area, 1.0) / math.pi)
             self.funnels.append((p.mean(axis=0), r, c["top"] + self.freeboard))
 
+    def _wake(self):
+        """Bake the steady wake once (wake.py) and warp it to the frame: the heading is fixed and the camera follows
+        the ship, so the wake's envelope stands still on screen. Only the foam's texture moves, anchored to the
+        water, so the ship steams through it."""
+        t0 = time.perf_counter()
+        res, style = self.report["results"], self.report["inputs"].get("style")
+        deck = np.array(self.hit["hull"]["points"] if isinstance(self.hit["hull"], dict) else self.hit["hull"])
+        L, B = res["length_m"], res["beam_m"]
+        wl = wake.waterline(deck, style, L)
+        self.stem = np.array([deck[:, 0].max(), 0.0])
+        W, H, s = self.W, self.H, self.s
+        h = math.radians(self.heading)
+        c, sn = math.cos(h), math.sin(h)
+        # every pixel in ship-local metres
+        u, v = np.meshgrid(np.arange(W, dtype=np.float32) + 0.5, np.arange(H, dtype=np.float32) + 0.5)
+        dX, dY = u - self.C[0], v - self.C[1]
+        self.lx, self.ly = (c * dX + sn * dY) / s, (-sn * dX + c * dY) / s
+        pad = 4 / s + 5
+        extent = (float(self.lx.min()) - pad, float(self.lx.max()) + pad,
+                  float(max(-self.ly.min(), self.ly.max())) + pad)
+        dx = max(1.5 / s, L / 400)
+        shafts = int(self.report.get("plant", {}).get("shafts", 2) or 2)
+        wash = (2.0 if style == "planing" else 1.0) * (0.85 + 0.075 * min(shafts, 4))
+        bk = wake.bake(wl, B, res.get("draught_m", self.deck_m), self.speed, extent, dx,
+                       cb=res.get("block_coefficient", 0.55), wash=wash)
+        self.wake_info = bk.info
+        gy, gx = np.gradient(bk.eta, bk.dx)
+        k = 1 / (s * bk.dx)
+        data = (c * k, sn * k, (-c * self.C[0] - sn * self.C[1]) * k - bk.x0 / bk.dx,
+                -sn * k, c * k, (sn * self.C[0] - c * self.C[1]) * k - bk.y0 / bk.dx)
+
+        def warp(a):
+            return np.asarray(Image.fromarray(np.ascontiguousarray(a, np.float32), "F").transform(
+                (W, H), Image.AFFINE, data, resample=Image.BILINEAR))
+        gain = 1.0                       # wake.md suggests 2-3x; the swell here already carries the light
+        sx, sy = warp(gx) * gain, warp(gy) * gain
+        hx, hy = c * sx - sn * sy, sn * sx + c * sy                     # ship axes -> screen axes
+        lim = 0.3 / np.maximum(np.hypot(hx, hy), 0.3)                    # the linear field's steepest bits are a glare
+        self.wake_hx, self.wake_hy = hx * lim, hy * lim
+        self.wake_crest, self.wake_wash = warp(bk.crest), warp(bk.wash)
+        self.wake_calm = np.clip(self.wake_wash * 0.9, 0, 0.75)
+
+        # foam tiles in ship axes, anchored to the water: streaky along the track for the wash, rounder for crests
+        feat = max(1.0, 2.5 / s)         # foam clump size, m: never finer than about two and a half pixels
+        n = 512
+        self.tile_k = 4 / feat           # tile px per metre
+        rng = self.rng
+
+        def tile(lu, lv):
+            f = np.fft.fftfreq(n)
+            fu, fv = np.meshgrid(f, f)
+            out = 0
+            for oct_, amp in ((1, 1.0), (2.5, 0.45)):
+                spec = np.fft.fft2(rng.standard_normal((n, n))) * np.exp(
+                    -((fu * lu * oct_) ** 2 + (fv * lv * oct_) ** 2) * 2 * math.pi ** 2)
+                fld = np.real(np.fft.ifft2(spec))
+                out = out + amp * fld / fld.std()
+            return (out / out.std()).astype(np.float32)     # unit gaussian
+        self.tiles_wash = (tile(7, 1.6), tile(7, 1.6))
+        self.tiles_crest = (tile(2.5, 1.8), tile(2.5, 1.8))
+        self.spray_rate = self.speed * max(0.0, bk.info["Zb"] - 1.0) * 4
+        self.wake_info["t_setup"] = time.perf_counter() - t0
+
+    def foam_tex(self, tiles, t, ridged=False):
+        """Two water-anchored gaussian tiles crossfaded slowly (cos/sin weights keep it unit gaussian), so foam
+        clumps re-form as well as scroll past, mapped to uniform 0..1 so a threshold means coverage. Ridged, it
+        peaks along the noise's zero lines: a lacy net of filaments."""
+        n = tiles[0].shape[0]
+        a = math.radians(self.heading)
+        du, dv = self.pos[0] * math.cos(a) + self.pos[1] * math.sin(a), -self.pos[0] * math.sin(a) + self.pos[1] * math.cos(a)
+        iu = ((self.lx + du) * self.tile_k).astype(np.int32) % n
+        iv = ((self.ly + dv) * self.tile_k).astype(np.int32) % n
+        ph = 2 * math.pi * t / 14.0
+        g = tiles[0][iv, iu] * math.cos(ph) + tiles[1][iv, iu] * math.sin(ph)
+        th = np.tanh(0.7978845 * (g + 0.044715 * g * g * g))     # 2 Phi(g) - 1
+        return 1 - np.abs(th) if ridged else 0.5 + 0.5 * th
+
     def _hud(self):
         im = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
         d = ImageDraw.Draw(im)
@@ -503,50 +592,20 @@ class Scene:
         u = smoothstep((t - t0) / (t1 - t0)) if t1 > t0 else float(t >= t0)
         return mt.rest + (mt.aim - mt.rest) * u
 
-    def spawn_wake(self, dt):
+    def spawn_spray(self, dt):
+        """Spray thrown off the stem when the bow wave stands high (wake.md 3.2 item 5); the wake itself is baked."""
         rng = self.rng
-        hull = np.array(self.hit["hull"]["points"] if isinstance(self.hit["hull"], dict) else self.hit["hull"])
-        L = hull[:, 0].max() - hull[:, 0].min()
-        xb = hull[:, 0].max()
-        spd = self.speed
-        fs = min(1.2, max(0.3, L / 150))     # foam size follows the ship: a PT boat's bow wave is small
-        # bow wave: along the forward quarter of each side, pushed out at 0.36 v (the Kelvin angle's tangent)
-        fwd = hull[hull[:, 0] > xb - 0.12 * L]
-        n = int(rng.poisson(dt * (30 + 0.3 * L) * min(1.5, spd / 10) / fs))
-        if n and len(fwd):
-            p = fwd[rng.integers(0, len(fwd), n)] + rng.normal(0, 0.4, (n, 2))
-            side = np.sign(p[:, 1] + 1e-6)
-            out = np.stack([np.full(n, 0.1), side], 1) * spd * rng.uniform(0.25, 0.4, (n, 1))
-            w = self.world_of(p)
-            v = self.dir_of(out)
-            self.kelvin.add(x=w[:, 0], y=w[:, 1], vx=v[:, 0], vy=v[:, 1], life=rng.uniform(6, 12, n),
-                            r0=0.6 * fs, r1=rng.uniform(1.5, 3.5, n) * fs, a0=rng.uniform(0.12, 0.3, n))
-        # side wash: thin foam along the waterline
-        n = int(rng.poisson(dt * 0.25 * L * min(1.5, spd / 10)))
-        if n:
-            p = hull[rng.integers(0, len(hull), n)] + rng.normal(0, 0.3, (n, 2))
-            w = self.world_of(p)
-            out = np.stack([np.zeros(n), np.sign(p[:, 1] + 1e-6)], 1) * rng.uniform(0.5, 2, (n, 1))
-            v = self.dir_of(out)
-            self.foam.add(x=w[:, 0], y=w[:, 1], vx=v[:, 0], vy=v[:, 1], life=rng.uniform(1.0, 2.5, n),
-                          r0=0.4 * fs, r1=rng.uniform(0.8, 1.6, n) * fs, a0=rng.uniform(0.15, 0.3, n))
-        # stern wash: propeller churn dragged along behind
-        xs = hull[:, 0].min()
-        aft = hull[hull[:, 0] < xs + 0.06 * L]
-        half_b = max(1.0, np.abs(aft[:, 1]).max() * 0.75) if len(aft) else 2.0
-        n = int(rng.poisson(dt * (20 + 0.12 * L)))
-        if n:
-            p = np.stack([np.full(n, xs) + rng.uniform(-1.5, 2, n), rng.uniform(-half_b, half_b, n)], 1)
-            w = self.world_of(p)
-            v = np.tile(self.vel * 0.35, (n, 1)) + rng.normal(0, 1.2, (n, 2))
-            self.churn.add(x=w[:, 0], y=w[:, 1], vx=v[:, 0], vy=v[:, 1], life=rng.uniform(10, 18, n),
-                           r0=half_b * 0.4, r1=half_b * 0.9 + 4 * fs, a0=rng.uniform(0.10, 0.2, n))
-            m = int(rng.poisson(dt * (10 + 0.06 * L) / fs))
-            p = np.stack([np.full(m, xs) + rng.uniform(-1.5, 2, m), rng.uniform(-half_b, half_b, m)], 1)
-            w = self.world_of(p)
-            v = np.tile(self.vel * 0.35, (m, 1)) + rng.normal(0, 1.2, (m, 2))
-            self.foam.add(x=w[:, 0], y=w[:, 1], vx=v[:, 0], vy=v[:, 1], life=rng.uniform(3, 7, m),
-                          r0=0.8 * fs, r1=rng.uniform(1.5, 3.5, m) * fs, a0=rng.uniform(0.25, 0.5, m))
+        n = int(rng.poisson(dt * self.spray_rate))
+        if not n:
+            return
+        B = self.report["results"]["beam_m"]
+        p = self.stem + np.stack([-rng.uniform(0, 0.08, n) * self.wake_info["L"], rng.normal(0, 0.05 * B, n)], 1)
+        side = np.where(p[:, 1] >= 0, 1.0, -1.0)
+        out = np.stack([rng.uniform(-0.1, 0.25, n), side * rng.uniform(0.2, 0.5, n)], 1) * self.speed
+        w, v = self.world_of(p), self.dir_of(out)
+        fs = min(1.0, max(0.3, self.wake_info["L"] / 150))
+        self.spray.add(x=w[:, 0], y=w[:, 1], vx=v[:, 0], vy=v[:, 1], life=rng.uniform(0.5, 1.2, n),
+                       r0=0.4 * fs, r1=rng.uniform(1.0, 2.2, n) * fs, a0=rng.uniform(0.2, 0.45, n))
 
     def spawn_smoke(self, dt):
         rng = self.rng
@@ -594,13 +653,13 @@ class Scene:
     def step(self, dt):
         self.pos = self.pos + self.vel * dt
         self.t += dt
-        self.spawn_wake(dt)
+        self.spawn_spray(dt)
         self.spawn_smoke(dt)
         while self.next_ev < len(self.events) and self.events[self.next_ev][0] <= self.t:
             _, mt, i = self.events[self.next_ev]
             self.fire(mt, i)
             self.next_ev += 1
-        for ps in (self.foam, self.kelvin, self.churn, self.smoke, self.gsmoke):
+        for ps in (self.foam, self.spray, self.smoke, self.gsmoke):
             ps.step(dt)
         for f in self.fish:
             f[0] += f[2] * dt
@@ -628,11 +687,18 @@ class Scene:
 
     def render(self):
         W, H, s = self.W, self.H, self.s
-        frame = self.water.shade(self.pos, self.t)
+        frame = self.water.shade(self.pos, self.t, (self.wake_hx, self.wake_hy, self.wake_calm))
 
-        churn = upscale(self.field(self.churn), W, H)
-        frame += (CHURN - frame) * np.clip(1 - np.exp(-churn), 0, 0.8)[..., None]
-        foam = upscale(self.field(self.foam) + self.field(self.kelvin), W, H) * self.water.foam_noise
+        # baked wake: the wash tints the water to a pale churned slick, then both foam densities are broken up by
+        # water-anchored noise (foam where density beats the noise), with a solid core only where it is dense
+        frame += (CHURN - frame) * np.clip(self.wake_wash * 0.9, 0, 0.7)[..., None]
+        tw = self.foam_tex(self.tiles_wash, self.t, ridged=True)
+        tc = self.foam_tex(self.tiles_crest, self.t, ridged=True)
+        fw = np.clip((self.wake_wash - 0.03 - (1 - tw) * 1.0) / 0.25, 0, 1) * 0.9
+        fc = np.clip((self.wake_crest - 0.03 - (1 - tc) * 0.95) / 0.2, 0, 1) * 0.9
+        f = np.maximum(np.maximum(fw, fc), np.clip(self.wake_crest - 0.9, 0, 0.1) * 8)
+        frame += (FOAM - frame) * f[..., None]
+        foam = upscale(self.field(self.foam) + self.field(self.spray), W, H) * self.water.foam_noise
         frame += (FOAM - frame) * np.clip(1 - np.exp(-1.6 * foam), 0, 0.95)[..., None]
 
         # hull, then static and turret shadows on everything below the turrets
@@ -757,6 +823,11 @@ class Scene:
 # ---------------------------------------------------------------- driver
 def make(src: Path, out: Path, args, still=None):
     sc = Scene(src, args.w, args.h, args.fps, args.heading, args.target, args.seed, args.seconds)
+    if not args.quiet:
+        i = sc.wake_info
+        print(f"  {src.name} wake: Fr_L {i['FrL']:.2f}, Zb {i['Zb']:.1f} m, solve {i['solve'][0]}x{i['solve'][1]}, "
+              f"grid {i['grid'][0]}x{i['grid'][1]}, bake {i['t_total'] * 1000:.0f} ms, "
+              f"setup {i['t_setup'] * 1000:.0f} ms")
     dt = 1.0 / args.fps
     for _ in range(int(WARM_S * args.fps)):
         sc.step(dt)

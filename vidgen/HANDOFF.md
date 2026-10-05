@@ -16,7 +16,8 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
   - bow is +x, bearings run clockwise from ahead
   - `traverse_deg` is one interval that never wraps
   - a mount's `top_m` and the height map are metres above the waterline; hitbox heights are above the main deck
-- **Code:** `from shadow import HEIGHT_STEP_M, shadow_mask, sun_offset_px`. It reaches shipgen's root through
+- **Code:** `wake.py` is vidgen's own (numpy only); `wake.md` and `wake_bake_ref.py` are its research notes and
+  the scipy prototype it was ported from. `from shadow import HEIGHT_STEP_M, shadow_mask, sun_offset_px`. It reaches shipgen's root through
   `sys.path`. `shadow.py` imports `shipgen.py`, which needs cairosvg. In a new repo, copy `shadow_mask` and
   `sun_offset_px` (about 40 lines of numpy) and set `HEIGHT_STEP_M = 0.25`. Point `--designs` at shipgen's
   `out_designs`; the default `ROOT / "out_designs"` assumes vidgen sits inside shipgen.
@@ -38,14 +39,37 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
   the width ahead of centre, so the wake has room.
 - **Lighting and wind:** sun at bearing 225° on screen (upper left), elevation 45°. Wind blows 6 m/s from the
   south (screen bottom, user 2026-10-05) so smoke drifts away from the starboard guns. The ship's heading is fixed for the whole clip.
-- **Particles:** everything is splatted into half-resolution density buffers in blur buckets (`Density`).
-  Buckets with a big radius are splatted into coarser grids, which halved the frame time.
-  - Foam size scales with hull length (`fs`), so a PT boat gets a crisp Kelvin V and not blobs.
-  - Bow foam (the `kelvin` system) keeps its outward push longer, so the arms spread.
+- **Wake (2026-10-05, from `wake.md`):** `wake.py` bakes the steady ship-frame wake once per clip: one FFT of the
+  linear pressure-patch model gives the surface height, and two foam densities (`crest`: bow sheet, peel line,
+  breaking crests; `wash`: the propulsor's wake) are advected bow to stern. It takes 50–250 ms. The heading is fixed
+  and the camera follows the ship, so `Scene._wake` warps the bake to the frame once; per frame only the foam
+  texture moves. That's two gaussian noise tiles in ship axes, anchored to the water and crossfaded over 14 s, mapped
+  to uniform 0..1 and thresholded by the density (wake.md 3.2 item 3). The wash uses ridged noise for lace. Stem spray
+  is still particles (rate from Noblesse's Zb), as are the gun blasts and torpedo tracks. Frame time is unchanged.
+  Departures from wake.md, all mine and tuned by eye:
+  - **Waterline:** shipgen exports only the deck edge, so `wake.waterline` shrinks it by an assumed stem rake,
+    stern overhang and flare per style. wake.md 3.2 item 7 asks shipgen to export the real waterline; when it does,
+    use that.
+  - **Entrance angle:** from Cb, `8 + (Cb - 0.45) * 50` degrees, capped at 30. The steeper mapping in wake.md made a
+    Liberty at 11 kn white at the bow. Bow whiteness and crest breaking also fade below Fr_L 0.25.
+  - **Domain:** solved on a padded grid (3 spans behind, the Kelvin spread sideways, at most ~3M cells), then
+    resampled onto a fine grid that covers only the frame. Without the padding the waves wrapped round the FFT and
+    showed ahead of the bow.
+  - **Normals:** the wake's slopes at 1x, not wake.md's 2–3x (the swell already carries the light), capped at 0.3,
+    and eta is left whole under the hull: zeroing it there put a cliff in the normals that read as a halo.
+  - **Crest foam:** slope breaking is weighted 0.25 and `tau_crest` is 5 s, not 8 s. The peel line spreads more
+    slowly, and the bow sheet thickens toward the stem so it shows past the deck's overhang.
+  - **Wash:** capped at 0.85, so the noise always breaks it up (else a planing boat's wash is a flat slab). The
+    wash multiplier is 2 for planing craft and 0.925–1.15 by shaft count. The wash also tints the sea toward
+    `CHURN` and flattens the ripples, the slick.
+  - Semi-planing hulls (Fr_L > 0.6) get the chine whiskers and a smaller bow sheet (wake.md 4).
+- **Particles:** smoke, spray, gun smoke and blast foam are splatted into half-resolution density buffers in blur
+  buckets (`Density`). Buckets with a big radius are splatted into coarser grids, which halved the frame time.
 - **Water:** 14 low-steepness components with no dominant pair, because two strong crossing swells read as a
   lattice. The swell is summed at half resolution, with ripples at full resolution. The ripple tile grows when
   zoomed far out (Gangut, 904 m), where it would alias.
-- **Speed:** about 0.35 s a frame at 720p, so 2–3 minutes a clip.
+- **Speed:** about 0.35 s a frame at 720p, so 2–3 minutes a clip (unchanged by the baked wake). The foam lace makes
+  the MP4s 3–4× bigger (Bismarck 13.6 MB, was 3.5 MB); raise `--crf` if that matters.
 
 - **Turret shadows depart from shipgen's README "Shadows"** (user, 2026-10-05: "barbettes don't have shadows
   rendered"). Barbettes are in the height map, but the turret above them rotates, so the README stamps one
@@ -63,13 +87,13 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
   shipgen's `shadow.py` docs and `render.py`.
 
 ## Known oddities
-- Gangut is so small on screen that its stern churn piles into a disc.
 - Masts cast long, thin, solid shadows on the sea. That's correct for a 23 m mast at 45°, but it can look heavy.
 - Coal smoke shades the deck dark around the funnels. That's intended.
 
 ## Ideas not done
 - Shell splashes at a target that's in view
-- A turning ship, with the heading changing over the clip
+- A turning ship, with the heading changing over the clip. The baked wake would then need wake.md 3.2's runtime
+  half: shear the near-field lookup by the yaw rate, and draw a trail ribbon along the track
 - Aircraft on carriers
 - Recoil
 - Funnel smoke by plant load
