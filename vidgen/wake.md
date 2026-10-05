@@ -163,6 +163,69 @@ LOD: beyond some zoom, drop the normal map and draw only the foam ribbon. Only t
 4. Add a high-Fr stylisation path (> 0.6) for FACs and MTBs.
 5. Optional: shell splashes and explosion rings as wave-particle overlays.
 
+---
+
+## 6. Fix: "blocky bow" / foam doesn't detach (2026-10-05)
+
+Symptom (game build, reproduced exactly by v1 `wake_bake_ref.py`): the eta field shows a dark wedge around the bow and **no crest at the stem**. The foam map shows straight-edged parallelograms: a hull-parallel band, a straight peel line, and the whole area behind them filled in. Reference fix: `claude/wake_bake_ref_v2.py` (`bake2`). The comparison image `bow_fix_v1_vs_v2.png` was delivered in chat.
+
+**Causes, most important first:**
+1. **The pressure-patch forcing is the wrong model for a displacement bow.** A positive surface pressure makes a *depression* under and around it, because it models a planing pad. A fine bow is a slowly rising pressure, so the near field is a trough and the stem never gets a crest. Everything downstream (crest-driven breaking) has nothing to work with near the bow.
+   **Fix:** force with a thin-ship (Michell-style) **source distribution** `q = U·∂m/∂x` on the waterplane. It is + on the entrance (pushes water out → crest at the stem) and − on the run (stern wave). Use draft attenuation `(1−e^{−kT})/k`. Response: `φ̂ = −g·q̂·att / D`, `η ∝ ∂φ/∂x`. Then auto-check two signs: waves must trail, and η at the stem must be positive. Same single FFT cost.
+2. **Foam is advected straight along −x with one long-τ max.** Every source pixel smears into a horizontal streak. That gives the hard straight edges and fills everything behind the peel line.
+   **Fix:** advect along **streamlines** of the surface flow (−U + u′, v′). The flow comes from the same FFT (`u′ = g·η/U`, v′ from ∂φ/∂y), smoothed over ~B/4 and clamped (|u′| ≤ 0.3U, |v′| ≤ U·tan(β+8°)). Implementation: a bow→stern column march where each column backtraces rows by `v/|ux|·dx` (one 1-D interp per column, trivially parallel on GPU). The bow sheet then curves outward and detaches.
+3. **Single foam tier.** Split it into three:
+   - **fresh whitewater**: max-combined, τ ≈ 1.5 s, bright;
+   - **residual foam**: additive, fed at ~8 % of fresh, τ ≈ 15 s, blurred laterally with σ ∝ √age, drawn at ~45 % opacity;
+   - **wash**: as before.
+4. **Geometric foam primitives with hard edges** (boolean hull band using `|y| − half(x)`, a hand-placed peel line). `|y| − half(x)` is not a distance: at a fine bow it underestimates the normal distance by 1/cos, so the band pinches, and at the stem (half → 0) it leaks a needle along the centreline ahead of the bow. That is the thin bright line in the game images.
+   **Fix:** use a true distance transform (EDT) of the waterplane with a Gaussian falloff. Drop the peel line, so breaking comes from the computed crest: `smoothstep(η/Zb, 0.35, 0.8) · smoothstep(slope, 0.15, 0.35)`.
+5. **Binary waterplane raster.** The staircase at the sharp stem causes Gibbs ringing in the FFT, which shows as blocky crests. **Fix:** 4×4 supersampled coverage, plus only a light blur (σ ≈ 0.04 B) instead of B/5 (the big blur also fattened the bow ahead of the stem).
+
+**v2.1 tuning (done, in `wake_bake_ref_v2.py`).** The image `wake_v21_nearfield.png` was delivered in chat.
+
+| Problem in v2 | Cause | Fix |
+|---|---|---|
+| Residual foam envelope too wide around midships | Residual was fed `0.08·src` *per column*, so it scaled with 1/dx (resolution-dependent), plus a wide blur | Residual gains the share of whitewater that decays each step: `r = r·e^{−dx/(Uτr)} + 0.5·a·(1−e^{−dx/(Uτf)})`. Blur k 0.12 → 0.08. Drawn at 50 % opacity |
+| Lens at the transom | Stern sink → converging streamlines concentrate foam | Potential-flow steering faded to 0 between x = −0.2 L and the stern. The wash is never steered |
+| Bow foam cut off abruptly at the shoulder | Inward flow along the run steered foam *into* the hull mask | Outward-only steering (`slope_y·sign(y) > 0`), v clamp tightened to U·tan(β+4°) |
+| Bow foam "ears" too fat, then a hard end | Broad breaking source and τ_fresh = 1.5 s | Breaking = front face only (`smoothstep(η/Zb, .5, .9)·smoothstep(slope, .2, .4)`), thinner hull band (0.04 B), τ_fresh = 3 s, so the sheet tapers into trailing streaks |
+| Iowa stern crest too white | Linear stern crest ≥ bow crest at Fr_L ≈ 0.3 | Stern-crest breaking weight = clamp(0.3 + 2(Fr_L − 0.3), 0.3, 1), full along the forward/mid body |
+| Visible steps in the wash width | Age blur applied in hard column bands | 8 blur levels (geomspace σ) with a per-column lerp between neighbours |
+
+**Shader note.** A hard threshold on the density field reads as blocky edges even when the field is smooth. Use the soft breakup:
+- `t = 1 − d`
+- `brk = saturate((noise − t + 0.18)/0.36)`
+- `alpha = brk · saturate(1.6·d)`
+
+Use streaky world-space noise (cells ~2.5 m, stretched ×4 along the track).
+
+**Timings v2.1 (numpy):**
+- 512-class grids: FAC 134 ms, Fletcher 123 ms, Iowa 99 ms.
+- 1024-wide FAC: 1.6 s.
+
+The FFT part is still only 17–100 ms. The rest is the Python column march and the blur stack, which are per-row/per-column parallel and belong in compute or C++.
+
+**Remaining known limits:**
+- FAC (Fr_L 0.74) aft white water is very large. That matches the reference photo, but it is still a linear model past its range (see the regime table discussion: semi-planing Fr_∇ ≈ 2).
+- Iowa's bow white is thin because its long waves never get steep. If it looks too tame in game, make breaking use height relative to Zb more and slope less for large hulls.
+
+**v2.2: foam lane too wide (user review).** In v2.1, Fletcher's foam fanned out into a wide V within ~2 L. Big ships actually leave a fairly **stable, narrow foam lane**: observed turbulent/bubble wakes are tens to ~160 m wide, persist for ~10 min (max ~30 min), and stay visible for km ([Ocean Science preprint os-2020-59](https://os.copernicus.org/preprints/os-2020-59/os-2020-59-manuscript-version5.pdf)).
+
+Causes and fixes:
+1. **Breaking was allowed along the whole Kelvin V.** The linear arms stay steep far out, but a displacement ship's divergent waves don't whitecap in a calm sea. Breaking is now limited to a band around the hull: `exp(−(d_hull/band)²)` with `band = B·(0.5 + 2·max(Fr_L − 0.5, 0))`, i.e. ~0.6 B for Fletcher at 35 kn and ~1 B for the FAC. The V shows only as wave shading.
+2. **The wash dimmed as it widened** (a mass-conserving blur), so it vanished after a few hundred metres. It now keeps most of its peak while spreading: `turb *= (pre_peak/post_peak)^0.75`. Spreading is slower (k 0.15 → 0.10).
+3. **The Kelvin arms stayed crisp for many L.** η is now faded with distance astern by `1/(1 + behind/1.5 L)` (artistic, ~1/r), so the V reads near the ship and becomes subtle shading further back.
+4. Wash start width scales with √wash (waterjets get a wider lane).
+
+Result: the foam lane half-width at 300 m / 550 m astern is
+- Fletcher 35 kn: 9 / 10 m (B = 12);
+- Fletcher 20 kn: 7 / 3 m (fading);
+- Iowa 32 kn: 17 / 20 m (B = 33);
+- FAC 30 kn: 9 / 11 m (B = 8).
+
+The image `wake_v22_long.png` was delivered in chat.
+
 ## Sources
 
 - Rabaud & Moisy, "Ship wakes: Kelvin or Mach angle?", PRL 2013 — https://www.irphe.fr/~duchemin/Journal_Club/Rabaud20132.pdf

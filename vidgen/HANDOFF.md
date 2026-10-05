@@ -17,7 +17,7 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
   - `traverse_deg` is one interval that never wraps
   - a mount's `top_m` and the height map are metres above the waterline; hitbox heights are above the main deck
 - **Code:** `wake.py` is vidgen's own (numpy only); `wake.md` and `wake_bake_ref.py` are its research notes and
-  the scipy prototype it was ported from. `from shadow import HEIGHT_STEP_M, shadow_mask, sun_offset_px`. It reaches shipgen's root through
+  the scipy prototype (v2.2) it was ported from. `from shadow import HEIGHT_STEP_M, shadow_mask, sun_offset_px`. It reaches shipgen's root through
   `sys.path`. `shadow.py` imports `shipgen.py`, which needs cairosvg. In a new repo, copy `shadow_mask` and
   `sun_offset_px` (about 40 lines of numpy) and set `HEIGHT_STEP_M = 0.25`. Point `--designs` at shipgen's
   `out_designs`; the default `ROOT / "out_designs"` assumes vidgen sits inside shipgen.
@@ -39,47 +39,36 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
   the width ahead of centre, so the wake has room.
 - **Lighting and wind:** sun at bearing 225° on screen (upper left), elevation 45°. Wind blows 6 m/s from the
   south (screen bottom, user 2026-10-05) so smoke drifts away from the starboard guns. The ship's heading is fixed for the whole clip.
-- **Wake (2026-10-05, from `wake.md`):** `wake.py` bakes the steady ship-frame wake once per clip: one FFT of the
-  linear pressure-patch model gives the surface height, and two foam densities (`crest`: bow sheet, peel line,
-  breaking crests; `wash`: the propulsor's wake) are advected bow to stern. It takes 50–250 ms. The heading is fixed
-  and the camera follows the ship, so `Scene._wake` warps the bake to the frame once; per frame only the foam
-  texture moves. That's two gaussian noise tiles in ship axes, anchored to the water and crossfaded over 14 s, mapped
-  to uniform 0..1 and thresholded by the density (wake.md 3.2 item 3). The wash uses ridged noise for lace. Stem spray
-  is still particles (rate from Noblesse's Zb), as are the gun blasts and torpedo tracks. Frame time is unchanged.
-  Departures from wake.md, all mine and tuned by eye:
+- **Wake (2026-10-05, from `wake.md` v2.2 and `wake_bake_ref.py`):** `wake.py` bakes the steady ship-frame wake
+  once per clip. The hull is a thin-ship source sheet `q = U dm/dx`, and one FFT gives the perturbation potential.
+  Eta, its slopes and the surface velocity all come from it. Three foam densities are advected bow to stern along
+  the streamlines: `fresh` (the breaking crest's front face near the hull, plus the hull sheet), `resid` (residual
+  foam fed by decaying whitewater) and `wash` (the propulsor lane). The bake takes 0.4–2 s; the column march and
+  age blur dominate. The heading is fixed and the camera follows the ship, so `Scene._wake` warps the bake to the
+  frame once; per frame only the foam texture moves. That's two gaussian noise tiles in ship axes, anchored to the
+  water and crossfaded over 14 s, mapped to uniform 0..1. They are drawn with wake.md 6's soft breakup
+  (`alpha = sat((noise - (1 - d) + 0.18) / 0.36) * sat(1.6 d)`), with the residual at half opacity. The wash also
+  tints the sea toward `CHURN` and flattens the ripples (the slick). Stem spray is still particles (rate from
+  Noblesse's Zb), as are the gun blasts and torpedo tracks.
+  The port replaced the earlier pressure-patch bake and its hand tweaks (bow crest envelope, peel line, wash cap
+  0.85, crest trail 0.35, chine whiskers); those are in git history (f92886d4). Departures from the reference:
+  - **numpy only:** gaussian blurs are spectral (m and the velocity in the 2-D spectrum, the age blur by a padded
+    1-D FFT). The distance to the waterline is the exact distance to the polygon near the hull, not an EDT.
   - **Waterline:** shipgen exports only the deck edge, so `wake.waterline` shrinks it by an assumed stem rake,
     stern overhang and flare per style. wake.md 3.2 item 7 asks shipgen to export the real waterline; when it does,
-    use that.
-  - **Entrance angle:** from Cb, `8 + (Cb - 0.45) * 50` degrees, capped at 30. The steeper mapping in wake.md made a
-    Liberty at 11 kn white at the bow. Bow whiteness and crest breaking also fade below Fr_L 0.25.
-  - **Domain:** solved on a padded grid (3 spans behind, the Kelvin spread sideways, at most ~3M cells), then
-    resampled onto a fine grid that covers only the frame. Without the padding the waves wrapped round the FFT and
-    showed ahead of the bow.
-  - **Normals:** the wake's slopes at 1x, not wake.md's 2–3x (the swell already carries the light), capped at 0.3,
-    and eta is left whole under the hull: zeroing it there put a cliff in the normals that read as a halo.
-  - **Crest foam:** slope breaking is weighted 0.25 and `tau_crest` is 3 s, not 8 s. The peel line spreads more
-    slowly, and the bow sheet thickens toward the stem so it shows past the deck's overhang. Only the crest itself
-    is full strength; what it leaves behind in the water is a trail at 0.35 (`trail`). Carrying the full value aft
-    filled the wedge inside the oblique peel line with solid foam, about twice the beam wide on a 36 kn destroyer.
-  - **Bow crest:** one line from the stem, the envelope of lines leaving every waterline point at the wake angle.
-    It hugs the hull while the hull flares faster than that angle, then peels off tangentially and eases out with
-    a cos² fade. The bow sheet fills only the gap between the hull and that line, so it tapers to the stem with it.
-    The earlier sheet strip and separate peel line (starting at 0.45 B off the shoulder) drew a square block at the
-    stem and two detached wedges with calm water between them. Half-breadths come from the waterline polygon, not
-    a raster (a staircase along the sheet's edge).
-  - **Stem spray:** spawned at the waterline edge along the bow's first stretch, small and short-lived. Spawned on
-    the centreline with big soft blobs, it read as a fuzzy block ahead of the stem.
-  - **Wash front:** the wash is born over a short ramp (`0.03 L + 0.2 B`) whose front curves aft off the centreline,
-    where the flow closes in behind the stern. A step at the transom read as a straight edge across the track
-    (Bismarck).
-  - **Precision:** slopes are taken spectrally on the solve grid and resampled bicubically. A gradient of the
-    bilinearly resampled eta was constant per solve cell (about 3 px on a destroyer), which showed as blocks. The
-    foam noise tiles are sampled bilinearly, and clumps are floored at 0.6 m (was 1 m, nearest-sampled), so a
-    ship that fills the frame doesn't get stair-stepped clumps.
-  - **Wash:** capped at 0.85, so the noise always breaks it up (else a planing boat's wash is a flat slab). The
-    wash multiplier is 2 for planing craft and 0.925–1.15 by shaft count. The wash also tints the sea toward
-    `CHURN` and flattens the ripples, the slick.
-  - Semi-planing hulls (Fr_L > 0.6) get the chine whiskers and a smaller bow sheet (wake.md 4).
+    use that. It is rasterised 4x4 supersampled from that polygon, not from fore/aft exponents.
+  - **Entrance angle:** from Cb, `8 + (Cb - 0.45) * 50` degrees, capped at 30.
+  - **Grids:** the FFT runs on the reference's padded domain (grown to cover the frame) at half the reference's
+    step. Everything after it runs on a fine grid over the frame only, with eta, slopes (spectral) and velocity
+    resampled bicubically. The reference's resolution-tied widths (the hull band's `1.5 dx`, the smoothing of m)
+    use the reference's own step `d_ref`. Smoothing m at the fine step let very short divergent waves through,
+    and they showed as fine straight streaks.
+  - **Normals:** the wake's slopes at 1x, not wake.md's 2–3x (the swell already carries the light), capped at 0.3.
+- **Wake: open after the port (first look, 2026-10-05).** The bake's shapes match the reference (checked by
+  running `wake_bake_ref.py` through a numpy shim for scipy). The look is let down by the drawing: density at 1 or
+  more draws solid, so the bow sheet beside the forward hull and the wash lane are flat white slabs. And the soft
+  breakup on smooth gaussian noise reads as mush, not lace. Next: the shader and noise, then whether the wash and
+  sheet densities need a cap.
 - **Particles:** smoke, spray, gun smoke and blast foam are splatted into half-resolution density buffers in blur
   buckets (`Density`). Buckets with a big radius are splatted into coarser grids, which halved the frame time.
 - **Water:** 14 low-steepness components with no dominant pair, because two strong crossing swells read as a

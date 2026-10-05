@@ -519,8 +519,8 @@ class Scene:
         self.wake_info = bk.info
         gx, gy = bk.gx, bk.gy
         k = 1 / (s * bk.dx)
-        data = (c * k, sn * k, (-c * self.C[0] - sn * self.C[1]) * k - bk.x0 / bk.dx,
-                -sn * k, c * k, (sn * self.C[0] - c * self.C[1]) * k - bk.y0 / bk.dx)
+        data = (c * k, sn * k, (-c * self.C[0] - sn * self.C[1]) * k - bk.x0 / bk.dx + 0.5,   # + 0.5: PIL samples
+                -sn * k, c * k, (sn * self.C[0] - c * self.C[1]) * k - bk.y0 / bk.dx + 0.5)  # at pixel centres
 
         def warp(a):
             return np.asarray(Image.fromarray(np.ascontiguousarray(a, np.float32), "F").transform(
@@ -530,11 +530,12 @@ class Scene:
         hx, hy = c * sx - sn * sy, sn * sx + c * sy                     # ship axes -> screen axes
         lim = 0.3 / np.maximum(np.hypot(hx, hy), 0.3)                    # the linear field's steepest bits are a glare
         self.wake_hx, self.wake_hy = hx * lim, hy * lim
-        self.wake_crest, self.wake_wash = warp(bk.crest), warp(bk.wash)
+        self.wake_fresh, self.wake_resid, self.wake_wash = warp(bk.fresh), warp(bk.resid), warp(bk.wash)
         self.wake_calm = np.clip(self.wake_wash * 0.9, 0, 0.75)
 
-        # foam tiles in ship axes, anchored to the water: streaky along the track for the wash, rounder for crests
-        feat = max(0.6, 2.5 / s)         # foam clump size, m: never finer than about two and a half pixels
+        # foam tiles in ship axes, anchored to the water: streaky along the track (wake.md: cells ~2.5 m, stretched
+        # x4 along it), never finer than about two and a half pixels
+        feat = max(2.5, 2.5 / s)
         n = 512
         self.tile_k = 4 / feat           # tile px per metre
         rng = self.rng
@@ -549,8 +550,8 @@ class Scene:
                 fld = np.real(np.fft.ifft2(spec))
                 out = out + amp * fld / fld.std()
             return (out / out.std()).astype(np.float32)     # unit gaussian
-        self.tiles_wash = (tile(7, 1.6), tile(7, 1.6))
-        self.tiles_crest = (tile(2.5, 1.8), tile(2.5, 1.8))
+        self.tiles_wash = (tile(6, 1.5), tile(6, 1.5))
+        self.tiles_crest = (tile(4, 1.5), tile(4, 1.5))
         self.spray_rate = self.speed * max(0.0, bk.info["Zb"] - 1.0) * 4
         self.wake_info["t_setup"] = time.perf_counter() - t0
 
@@ -698,14 +699,16 @@ class Scene:
         W, H, s = self.W, self.H, self.s
         frame = self.water.shade(self.pos, self.t, (self.wake_hx, self.wake_hy, self.wake_calm))
 
-        # baked wake: the wash tints the water to a pale churned slick, then both foam densities are broken up by
-        # water-anchored noise (foam where density beats the noise), with a solid core only where it is dense
+        # baked wake: the wash tints the water to a pale churned slick, then the three foam densities are broken up
+        # by water-anchored noise (wake.md 6, shader note), the residual foam at half opacity
         frame += (CHURN - frame) * np.clip(self.wake_wash * 0.9, 0, 0.7)[..., None]
-        tw = self.foam_tex(self.tiles_wash, self.t, ridged=True)
-        tc = self.foam_tex(self.tiles_crest, self.t, ridged=True)
-        fw = np.clip((self.wake_wash - 0.03 - (1 - tw) * 1.0) / 0.25, 0, 1) * 0.9
-        fc = np.clip((self.wake_crest - 0.03 - (1 - tc) * 0.95) / 0.2, 0, 1) * 0.9
-        f = np.maximum(np.maximum(fw, fc), np.clip(self.wake_crest - 0.9, 0, 0.1) * 8)
+        tw = self.foam_tex(self.tiles_wash, self.t)
+        tc = self.foam_tex(self.tiles_crest, self.t)
+
+        def breakup(d, noise):
+            return np.clip((noise - (1 - d) + 0.18) / 0.36, 0, 1) * np.clip(1.6 * d, 0, 1)
+        f = np.maximum(np.maximum(breakup(self.wake_wash, tw), breakup(self.wake_fresh, tc)),
+                       0.5 * breakup(self.wake_resid, 1 - tc))
         frame += (FOAM - frame) * f[..., None]
         foam = upscale(self.field(self.foam) + self.field(self.spray), W, H) * self.water.foam_noise
         frame += (FOAM - frame) * np.clip(1 - np.exp(-1.6 * foam), 0, 0.95)[..., None]

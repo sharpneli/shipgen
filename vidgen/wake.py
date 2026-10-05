@@ -1,19 +1,28 @@
 """
-Steady ship-frame wake bake for vidgen (after wake.md and wake_bake_ref.py, ported to numpy without scipy).
+Steady ship-frame wake bake for vidgen: wake_bake_ref.py (v2.2 of wake.md) ported to numpy without scipy.
 
-One FFT solves the linearised free surface under a moving pressure patch, the ship's waterplane (Havelock /
-Darmon et al.). The surface height eta gives the divergent-wave shading. Two foam densities are advected bow to
-stern and decayed: `crest` (breaking crests, the bow-wave sheet on the hull and the peel line off the shoulder;
-it dies within a ship length or so) and `wash` (the propulsor's bubbly wake from the transom; long-lived, spreading
-with age). vidgen bakes once per clip, so a ship's heading and speed must stay fixed.
+The hull is a thin-ship source sheet q = U dm/dx on the waterplane (+ at the entrance, - along the run), attenuated
+over the draught. One FFT solves the linearised steady free surface for its perturbation potential phi; eta ~ phi_x
+gives the divergent-wave shading and the bow crest, and the same spectrum gives the surface velocity. Three foam
+densities are advected bow to stern along the streamlines of that flow:
+- `fresh`: whitewater from the breaking front face of the crest (near the hull only) and the hull sheet, max-combined
+  with a short life;
+- `resid`: residual foam fed by the share of whitewater that decays each step, long-lived, spreading with age;
+- `wash`: the propulsor's bubbly wake from the transom, a stable lane that widens slowly and keeps its whiteness.
+vidgen bakes once per clip, so a ship's heading and speed must stay fixed.
 
-Departures from wake.md, all for a visualiser:
+Departures from wake_bake_ref.py, for a visualiser and for numpy:
 - The waterline is the exported deck outline shrunk by an assumed overhang and flare (`waterline`), because
-  shipgen exports only the deck edge. wake.md §3.2 item 7 asks shipgen for a real waterline outline.
-- The domain covers the frame plus about one wavelength behind the stern (not 4 spans), so the grid can be fine
-  enough to show the near-hull field at screen resolution.
-- The entrance angle comes from the block coefficient, and the wash multiplier from the style (planing craft 2x).
-- Semi-planing hulls (Fr_L > 0.6) get the stylised chine whiskers of wake.md §4 and a smaller bow sheet.
+  shipgen exports only the deck edge (wake.md 3.2 item 7), and it is rasterised from that polygon, not from the
+  analytic fore/aft exponents.
+- The entrance angle comes from the block coefficient (`8 + (Cb - 0.45) * 50` deg, capped at 30).
+- The FFT runs on the reference's padded domain (grown to cover the frame if that is bigger), at half the reference's step (capped at ~3M cells).
+  Everything after it runs on a fine grid that covers only the frame: eta, its slopes and the velocity are
+  resampled bicubically. The slopes are taken spectrally, not by differencing the masked eta.
+- Gaussian blurs are applied in the spectrum (the smoothing of m and of the velocity) or by a padded 1-D FFT (the
+  age blur). The distance to the waterline is the exact distance to the polygon, near the hull only (no EDT).
+- The reference's resolution-tied widths (the hull band's 1.5 dx, the smoothing of m) use the reference's own grid
+  step, so the look doesn't change with the frame's zoom.
 """
 from __future__ import annotations
 
@@ -24,24 +33,11 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 G = 9.81
-KELVIN = math.radians(19.47)
 
 
-def blur_axis(a, r, axis, passes=3):
-    """Separable 3-pass box blur along one axis (sigma^2 ~ r(r+1)), edges clamped."""
-    if r < 1:
-        return a
-    n = a.shape[axis]
-    for _ in range(passes):
-        p = np.pad(a, [(r + 1, r) if ax == axis else (0, 0) for ax in range(a.ndim)], mode="edge")
-        c = np.cumsum(p, axis=axis, dtype=np.float32)
-        a = (np.take(c, np.arange(2 * r + 1, 2 * r + 1 + n), axis=axis)
-             - np.take(c, np.arange(0, n), axis=axis)) / (2 * r + 1)
-    return a
-
-
-def blur(a, r):
-    return blur_axis(blur_axis(a, r, 0), r, 1)
+def sm(a, lo, hi):
+    t = np.clip((np.asarray(a, np.float32) - lo) / (hi - lo), 0, 1)
+    return t * t * (3 - 2 * t)
 
 
 def waterline(deck, style, L):
@@ -64,10 +60,51 @@ def half_breadth(poly, x):
     return yy.max(0).astype(np.float32)
 
 
-def raster(poly, x0, y0, dx, nx, ny):
-    im = Image.new("L", (nx, ny), 0)
-    ImageDraw.Draw(im).polygon([((px - x0) / dx, (py - y0) / dx) for px, py in poly], fill=255)
-    return np.asarray(im, np.float32) / 255
+def coverage(poly, x0, y0, dx, nx, ny, ss=4):
+    """Anti-aliased waterplane coverage 0..1 on the grid x0 + i*dx, y0 + j*dx (ss x ss supersampling), so the
+    sharp stem has no staircase to ring in the FFT."""
+    im = Image.new("L", (nx * ss, ny * ss), 0)
+    ImageDraw.Draw(im).polygon([(((px - x0) / dx + 0.5) * ss, ((py - y0) / dx + 0.5) * ss) for px, py in poly],
+                               fill=255)
+    return np.asarray(im, np.float32).reshape(ny, ss, nx, ss).mean((1, 3)) / 255
+
+
+def dist_out(poly, x, y, reach):
+    """Distance (m) from each grid point to the polygon's edge, within `reach` of the hull (inf further out)."""
+    d = np.full((len(y), len(x)), np.inf, np.float32)
+    cx = np.nonzero((x > poly[:, 0].min() - reach) & (x < poly[:, 0].max() + reach))[0]
+    cy = np.nonzero(np.abs(y) < np.abs(poly[:, 1]).max() + reach)[0]
+    if not len(cx) or not len(cy):
+        return d
+    px, py = np.meshgrid(x[cx], y[cy])
+    best = np.full(px.shape, np.inf, np.float32)
+    for a, b in zip(poly, np.roll(poly, -1, 0)):
+        e = b - a
+        ll = float(e @ e)
+        if ll == 0:
+            continue
+        t = np.clip(((px - a[0]) * e[0] + (py - a[1]) * e[1]) / ll, 0, 1)
+        np.minimum(best, (px - a[0] - t * e[0]) ** 2 + (py - a[1] - t * e[1]) ** 2, out=best)
+    d[cy[0]:cy[-1] + 1, cx[0]:cx[-1] + 1] = np.sqrt(best)
+    return d
+
+
+def age_blur(f, sig):
+    """Blur each column of f along y by its own sigma (cells): a few gaussian levels via a padded 1-D FFT,
+    lerped per column between the two nearest (hard column bands showed as steps in the width)."""
+    ny = f.shape[0]
+    levels = np.geomspace(max(float(sig.min()), 0.3), max(float(sig.max()), 0.31), 8)
+    pad = int(min(4 * levels[-1] + 2, 2 * ny))
+    n = ny + 2 * pad
+    F = np.fft.rfft(np.pad(f, ((pad, pad), (0, 0))), axis=0)
+    k = 2 * math.pi * np.fft.rfftfreq(n)
+    t = np.interp(np.log(np.clip(sig, levels[0], levels[-1])), np.log(levels), np.arange(len(levels)))
+    out = np.zeros_like(f)
+    for i, s in enumerate(levels):
+        w = np.clip(1 - np.abs(t - i), 0, 1).astype(np.float32)
+        if w.any():
+            out += np.fft.irfft(F * np.exp(-0.5 * (k * s) ** 2)[:, None], n, axis=0)[pad:pad + ny].astype(np.float32) * w
+    return out
 
 
 class Bake:
@@ -75,151 +112,156 @@ class Bake:
     starboard)."""
 
 
-def bake(wl, B, T, U, extent, dx, *, cb=0.55, wash=1.0, tau_crest=3.0, trail=0.35, tau_wash=45.0, damp=0.08):
+def bake(wl, B, T, U, extent, dx, *, cb=0.55, wash=1.0, tau_fresh=3.0, tau_resid=15.0, tau_turb=45.0,
+         resid_share=0.5, damp=0.08, max_cells=3.0e6):
     """wl: waterline polygon (n, 2), B beam, T draught, U speed (m/s), extent (xmin, xmax, ymax) the ship-local
     box that must be covered, dx grid step (m)."""
     t0 = time.perf_counter()
-    U = max(U, 0.5)
-    xb, xs = wl[:, 0].max(), wl[:, 0].min()
+    U, T = max(U, 0.5), max(T, 0.3)
+    xb, xs = float(wl[:, 0].max()), float(wl[:, 0].min())
     L = xb - xs
+    xm = 0.5 * (xb + xs)                               # the reference's origin: midships of the waterline
     lam = 2 * math.pi * U * U / G
     span = max(L, lam)
     FrL = U / math.sqrt(G * L)
-    FrD = U / math.sqrt(G * max(T, 0.3))
-    beta = math.radians(np.clip(8 + (cb - 0.45) * 50, 6, 30))      # entrance half-angle from fullness
+    FrD = U / math.sqrt(G * T)
+    beta = math.radians(float(np.clip(8 + (cb - 0.45) * 50, 6, 30)))  # entrance half-angle from fullness
     Zb = 2.2 * U * U / G * math.tan(beta) / (math.cos(beta) * (1 + FrD))   # Noblesse bow-wave height
-    plane = float(np.clip((FrL - 0.6) / 0.4, 0, 1))                 # semi-planing stylisation weight
+    ahead, behind = 0.5 * L + 0.6 * span, 0.5 * L + 4.0 * span
+    d_ref = max(L / 80, (ahead + behind) / 1024)      # the reference's grid step, for its resolution-tied widths
 
-    # the solve runs on a big, coarser grid: 3 spans behind and the Kelvin spread sideways, so the damped waves die
-    # before they wrap round the FFT. The output grid covers only `extent`, at dx, with eta resampled onto it.
-    X0, X1 = xs - 3 * span, xb + 0.6 * span
-    YH = ((xb - X0) * math.tan(KELVIN) + B) * 1.2
-    dxs = max(dx, math.sqrt((X1 - X0) * 2 * YH / 3.0e6))
+    # ---- solve grid: the reference's padded domain, grown to the frame ----------------------------------------
+    X0 = min(xm - behind, extent[0] - 0.1 * span)
+    X1 = max(xm + ahead, extent[1] + 0.1 * span)
+    YH = max(0.45 * behind + B, extent[2] + 0.1 * span)
+    # the source is smoothed at the reference's scale, so half its step resolves everything (the slopes stay smooth
+    # when resampled bicubically)
+    dxs = max(dx, 0.5 * d_ref, math.sqrt((X1 - X0) * 2 * YH / max_cells))
     sx, sy = int(math.ceil((X1 - X0) / dxs)) // 2 * 2 + 2, int(math.ceil(2 * YH / dxs)) // 2 * 2 + 2
-    ms = blur(raster(wl, X0, -YH, dxs, sx, sy), max(1, int(round(B / 5 / dxs))))
+    xg = X0 + dxs * np.arange(sx)
+    yg = -YH + dxs * np.arange(sy)
+    cov = coverage(wl, X0, -YH, dxs, sx, sy)
 
-    # linear steady response: eta^ = -g T |k| m^ / (g|k| - U^2 kx^2 - i eps U kx); with numpy's FFT convention
-    # this damping sign puts the waves behind the ship
-    kx = 2 * math.pi * np.fft.rfftfreq(sx, dxs).astype(np.float32)
-    ky = 2 * math.pi * np.fft.fftfreq(sy, dxs).astype(np.float32)
+    kx = 2 * math.pi * np.fft.rfftfreq(sx, dxs)
+    ky = 2 * math.pi * np.fft.fftfreq(sy, dxs)
     KX, KY = np.meshgrid(kx, ky)
     K = np.sqrt(KX * KX + KY * KY)
-    D = G * K - (U * KX) ** 2 - 1j * (damp * G) * KX
-    D[0, 0] = 1
-    H = -G * T * K * np.fft.rfft2(ms) / D
-    H[0, 0] = 0
-    big = np.fft.irfft2(H, s=(sy, sx)).astype(np.float32)
-    # slopes taken spectrally on the solve grid and resampled: a gradient of the bilinearly resampled eta is
-    # constant per solve cell, which showed as blocks in the shading and the slope-breaking foam
-    bgx = np.fft.irfft2(1j * KX * H, s=(sy, sx)).astype(np.float32)
-    bgy = np.fft.irfft2(1j * KY * H, s=(sy, sx)).astype(np.float32)
-    t_fft = time.perf_counter() - t0
-    Zcal = float(np.percentile(big[ms < 0.05], 99.9))
+    K[0, 0] = 1e-6
 
-    x0, x1, yh = extent[0], extent[1], extent[2]
+    def gauss(sig_m):
+        return np.exp(-0.5 * (K * sig_m) ** 2)
+    # light smoothing, at the reference's grid scale: a finer grid resolves very short divergent waves (the source
+    # sheet's sharp stem excites them) that the reference never had, and they showed as fine straight streaks
+    Q = U * 1j * KX * np.fft.rfft2(cov) * gauss(max(0.75 * d_ref, 0.04 * B))
+    QA = -G * Q * (1 - np.exp(-K * T)) / K            # source sheet over the draught
+    eps = damp * G / U
+
+    def solve(sign):
+        Phi = QA / (G * K - (U * KX) ** 2 + sign * 1j * eps * U * KX)
+        Phi[0, 0] = 0
+        return Phi
+    Phi = solve(-1)
+    eta = np.fft.irfft2(1j * KX * Phi, s=(sy, sx))    # eta ~ phi_x (Bernoulli, linear)
+    if np.abs(eta[:, xg > xb + 0.2 * span]).mean() > np.abs(eta[:, xg < xs - span]).mean():
+        Phi = solve(+1)                               # waves on the wrong side: flip the radiation condition
+        eta = np.fft.irfft2(1j * KX * Phi, s=(sy, sx))
+    stem = (np.abs(xg - xb) < 0.05 * L)[None, :] & (np.abs(yg) < B)[:, None]
+    if eta[stem].max() < -eta[stem].min():            # the crest at the stem must be positive
+        Phi, eta = -Phi, -eta
+    Zcal = float(eta[stem & (cov < 0.5)].max())
+    cal = Zb / max(Zcal, 1e-9)
+    # slopes and velocity from the same spectrum; u' = g eta / U. Linear theory blows up at the waterline edges and
+    # foam only needs the gentle outer flow: smoothed over ~B/4 and clamped (the sheet leaves at ~ the entrance angle)
+    gxs = np.fft.irfft2(-KX * KX * Phi, s=(sy, sx)) * cal
+    gys = np.fft.irfft2(-KX * KY * Phi, s=(sy, sx)) * cal
+    Ps = Phi * gauss(0.25 * B) * (cal * G / U)
+    us = np.fft.irfft2(1j * KX * Ps, s=(sy, sx))
+    vs = np.fft.irfft2(1j * KY * Ps, s=(sy, sx))
+    if np.mean(vs[stem] * np.sign(np.broadcast_to(yg[:, None], vs.shape)[stem])) < 0:
+        vs = -vs                                      # v must push water away from the centreline at the entrance
+    v_max = math.tan(beta + math.radians(4)) * U
+    us, vs = np.clip(us, -0.3 * U, 0.3 * U), np.clip(vs, -v_max, v_max)
+    eta *= cal
+    tx = np.clip((xg - X0) / (0.15 * (X1 - X0)), 0, 1)[None, :]
+    ty = np.clip((YH - np.abs(yg)) / (0.15 * YH), 0, 1)[:, None]
+    taper = (tx * ty) ** 2                            # edge taper against the FFT's wrap
+    t_fft = time.perf_counter() - t0
+
+    # ---- the fine grid over the frame -------------------------------------------------------------------------
+    x0, x1, yh = extent
     nx, ny = int(math.ceil((x1 - x0) / dx)), int(math.ceil(2 * yh / dx))
-    x = x0 + dx * np.arange(nx, dtype=np.float32)
-    y = -yh + dx * np.arange(ny, dtype=np.float32)
+    x = (x0 + dx * np.arange(nx)).astype(np.float32)
+    y = (-yh + dx * np.arange(ny)).astype(np.float32)
     k = dx / dxs
 
-    def resample(a):
-        return np.asarray(Image.fromarray(a, "F").transform(
-            (nx, ny), Image.AFFINE, (k, 0, (x0 - X0) / dxs, 0, k, (YH - yh) / dxs), resample=Image.BICUBIC))
-    m = raster(wl, x0, -yh, dx, nx, ny)
+    def resample(a, how=Image.BICUBIC):
+        return np.asarray(Image.fromarray(np.ascontiguousarray(a, np.float32), "F").transform(
+            (nx, ny), Image.AFFINE, (k, 0, (x0 - X0) / dxs + 0.5 - 0.5 * k, 0, k, (YH - yh) / dxs + 0.5 - 0.5 * k),
+            resample=how))   # PIL maps pixel centres: the 0.5 - 0.5 k lines grid points up
+    m = coverage(wl, x0, -yh, dx, nx, ny)
+    # far-field readability: the linear Kelvin arms stay crisp for many L; fade with distance astern (~1/r) so the
+    # V reads near the ship and becomes subtle shading further back
+    fade = (1.0 / (1.0 + np.clip(xs - x, 0, None) / (1.5 * L)))[None, :]
+    eta = resample(eta * taper) * fade
+    gx, gy = resample(gxs * taper) * fade, resample(gys * taper) * fade
+    u, v = resample(us, Image.BILINEAR), resample(vs, Image.BILINEAR)
+    Xr = ((x - xm) / L)[None, :]                     # the reference's X / L
+    Y = y[:, None]
 
-    # calibrate the crest to Zb; the linear model overshoots at a full transom, so clamp the troughs (the slopes
-    # go flat where it clamps)
-    cal = Zb / max(Zcal, 1e-3)
-    eta = resample(big) * cal
-    live = np.abs(eta) < 1.5 * Zb
-    eta = np.clip(eta, -1.5 * Zb, 1.5 * Zb)    # left whole under the hull: a cut there would be a cliff in the normals
-    gx, gy = resample(bgx) * cal * live, resample(bgy) * cal * live
-
-    # foam sources
+    # ---- foam sources -----------------------------------------------------------------------------------------
     slope = np.hypot(gx, gy)
-    src_crest = 0.25 * np.clip((slope - 0.5) / 0.4, 0, 1) * (eta > 0.3 * Zb) * min(1.0, FrL / 0.25)
-    half = half_breadth(wl, x)                           # waterline half-breadth per column, exact (a raster's
-                                                         # steps showed as a staircase along the sheet's edge)
-    d_out = np.abs(y)[:, None] - half[None, :]
-    inl = half > 0
-    along = np.clip((x - xs) / L, 0, 1)
-    # a slow ship pushes a glassy cushion, not white water; a planing bow lifts out
-    bow_white = float(np.clip((Zb - 0.5) / 2.5, 0, 1)) * min(1.0, FrL / 0.25) * (1 - 0.5 * plane)
-    # One bow crest from the stem: the envelope of lines leaving every waterline point at the visible wake angle
-    # (narrowing as 1/Fr_L at high speed). It hugs the hull while the hull flares faster than that angle and peels
-    # off tangentially where it stops doing so. A sheet strip along the hull plus a separate peel line from the
-    # shoulder drew a square block at the stem and two detached wedges with calm water between them.
-    theta = min(KELVIN, 0.16 / FrL) if FrL > 0.45 else KELVIN
-    theta = max(theta, beta + math.radians(4))
-    tt = math.tan(theta)
-    off = 0.6 * dx + 0.03 * B                            # the crest stands just off the waterline
-    g = np.where(inl, half + off + x * tt, -np.inf)
-    y_c = np.maximum.accumulate(g[::-1])[::-1] - x * tt  # max over the waterline ahead of each column
-    ahead = np.isfinite(y_c)
-    y_c = np.where(ahead, y_c, 0)
-    sep = np.where(ahead, y_c - half - off, 0)           # how far the crest has left the hull
-    x_sh = xb - 0.15 * L
-    peel_len = 3.5 * U * U / G * 0.35 * bow_white + 0.15 * L
-    s_back = np.clip(x_sh - x, 0, None)
-    fade = ahead * np.cos(0.5 * math.pi * np.clip(s_back / peel_len, 0, 1)) ** 2   # eases out, no cut-off end
-    w_line = 0.6 * dx + 0.04 * B + 0.04 * sep
-    src_peel = np.exp(-((np.abs(y)[:, None] - y_c[None, :]) / w_line[None, :]) ** 2) * (fade * bow_white)[None, :]
-    # the sheet: white water between the hull and the crest, thickest toward the stem so it shows past the deck's
-    # overhang and flare, but never outside the crest, so it tapers to the stem with it
-    band = np.minimum(np.maximum(1.5 * dx, (0.06 + 0.12 * along ** 4) * B), y_c - half)
-    src_sheet = (inl[None, :] * (d_out > -dx) * (d_out < band[None, :]) * bow_white * along[None, :] ** 3)
-    src = np.maximum(np.maximum(src_crest, src_sheet), src_peel)
-    if plane > 0:
-        # spray whiskers from the chine of a semi-planing hull, ~12 deg out
-        xc = xs + 0.55 * L
-        s2 = xc - x
-        y2 = 0.5 * B + np.clip(s2, 0, None) * math.tan(math.radians(12))
-        w2 = 0.6 * dx + 0.03 * B + 0.01 * np.clip(s2, 0, None)
-        f2 = (s2 > 0) * np.clip(1 - s2 / (1.5 * L), 0, 1)
-        src = np.maximum(src, np.exp(-((np.abs(y)[:, None] - y2[None, :]) / w2[None, :]) ** 2) * (0.8 * plane * f2)[None, :])
-    src *= 1 - m
+    bow_white = float(sm(Zb, 0.5, 3.0))
+    src_break = sm(eta / Zb, 0.5, 0.9) * sm(slope, 0.2, 0.4)          # front face of the crest only
+    band = B * (0.5 + 2.0 * max(FrL - 0.5, 0.0))      # breaking is near the hull: ~0.6 B for a fast destroyer
+    hull_w = 0.04 * B + 1.5 * d_ref
+    d_out = dist_out(wl, x, y, 3 * max(band, hull_w))
+    out = m < 0.5
+    along = sm(Xr + 0.5, 0.3, 1.0)
+    src_hull = np.exp(-(d_out / hull_w) ** 2) * out * along * bow_white * (np.abs(Xr) < 0.55)
+    aft_w = float(np.clip(0.3 + 2.0 * (FrL - 0.3), 0.3, 1.0))         # stern-crest breaking grows with speed
+    w_break = aft_w + (1 - aft_w) * sm(Xr, -0.45, -0.15)
+    w_near = np.exp(-(d_out / band) ** 2)
+    src_fresh = np.clip(np.maximum(src_break * w_break * w_near * bow_white * 1.2, src_hull), 0, 1).astype(np.float32)
 
-    # propulsor wash, injected over the transom's breadth
-    i_tr = int(np.clip((xs - x0) / dx, 0, nx - 1))
-    w0 = 0.4 * B
-    inj = np.exp(-(y / w0) ** 2) * min(U / 10, 1.0) * 0.8 * wash * (1 + plane)
+    s_aft = xs - x[None, :]                           # transom wash, over the first few columns behind it
+    src_turb = (sm(s_aft, 0, 2 * dx) * (s_aft < 3 * dx) * np.exp(-(Y / (0.3 * B * math.sqrt(wash))) ** 2)
+                * min(U / 10, 1) * 0.8 * wash).astype(np.float32)
+    ramp = sm(s_aft, 0, 0.6 * B)                      # whitens over ~0.6 B (dead-water hollow at the transom)
 
-    # advect bow -> stern (water runs -x at U). The breaking crest itself is the bright line; what it leaves in the
-    # water is a weaker trail that decays fast. Carrying the full value aft (a max along each row) filled the whole
-    # wedge inside an oblique peel line with solid foam, a slab twice the beam wide on a fast destroyer.
-    dc = math.exp(-dx / (U * tau_crest))
-    crest = np.empty_like(src)
+    # ---- advect along streamlines, bow -> stern ---------------------------------------------------------------
+    slope_y = np.clip(-v / np.minimum(-U + u, -0.2 * U), -1.0, 1.0)     # dy per unit -dx travelled
+    slope_y *= sm(Xr, -0.5, -0.2)                     # no steering aft: the stern sink would focus foam (a lens)
+    slope_y = np.where(slope_y * np.sign(Y) > 0, slope_y, 0.0)          # outward only, else it runs into the hull
+    rows = np.arange(ny, dtype=np.float32)
+    fresh = np.empty((ny, nx), np.float32)
+    resid = np.empty((ny, nx), np.float32)
+    turb = np.empty((ny, nx), np.float32)
     a = np.zeros(ny, np.float32)
+    r = np.zeros(ny, np.float32)
+    bb = np.zeros(ny, np.float32)
+    df, dr, dtb = (math.exp(-dx / (U * t)) for t in (tau_fresh, tau_resid, tau_turb))
     for i in range(nx - 1, -1, -1):
-        a = np.maximum(a * dc, trail * src[:, i])
-        crest[:, i] = np.maximum(a, src[:, i])
-    dw = math.exp(-dx / (U * tau_wash))
-    wsh = np.zeros_like(src)
-    if i_tr > 0:
-        wsh[:, :i_tr + 1] = inj[:, None] * (dw ** (i_tr - np.arange(i_tr + 1)))[None, :]
-        # the wash is born where the flow closes in behind the stern: on the centreline at the transom, further aft
-        # off it, and over a short run rather than a step (a step read as a straight edge across the track)
-        ramp = 0.03 * L + 0.2 * B
-        front = xs + 0.5 * ramp - 1.2 * (y / B) ** 2 * B
-        age0 = np.clip((front[:, None] - x[None, :i_tr + 1]) / ramp, 0, 1)
-        wsh[:, :i_tr + 1] *= age0 * age0 * (3 - 2 * age0)
-        # lateral spreading ~ sqrt(age): banded blur, keeping each column's total
-        age = (xs - x)[:i_tr + 1]
-        step = max(dx, float(age.max()) / 48)
-        for lo in np.arange(0, age.max() + step, step):
-            cols = np.nonzero((age >= lo) & (age < lo + step))[0]
-            if not len(cols):
-                continue
-            rr = int(round(0.15 * math.sqrt(B * (lo + 0.5 * step + 1)) / dx))
-            part = wsh[:, cols]
-            bl = blur_axis(part, rr, 0)
-            wsh[:, cols] = bl * (part.sum(0) / np.maximum(bl.sum(0), 1e-6))[None, :]
-    wsh = np.clip(wsh, 0, 0.85) * (1 - m)     # capped so the noise always breaks it up
+        src_rows = rows - slope_y[:, i]
+        a, r = np.interp(src_rows, rows, a), np.interp(src_rows, rows, r)   # the wash is not steered
+        r = r * dr + resid_share * a * (1 - df)       # residual = the share of whitewater decaying this step
+        a = np.maximum(a * df, src_fresh[:, i])
+        bb = bb * dtb + src_turb[:, i]
+        fresh[:, i], resid[:, i], turb[:, i] = a, r, bb
+    # lateral spreading with age, sigma ~ k sqrt(B age)
+    resid = np.clip(age_blur(resid, 0.08 * np.sqrt(B * (np.clip(xb - x, 0, None) + 1)) / dx), 0, 1)
+    # a plain blur conserves bubble 'mass' and dims the lane as it widens; a big ship's wake stays a stable white
+    # lane for minutes, so keep most of the pre-blur peak
+    pre = turb.max(axis=0)
+    turb = age_blur(turb, 0.10 * np.sqrt(B * (np.clip(xs - x, 0, None) + 1)) / dx)
+    post = np.maximum(turb.max(axis=0), 1e-6)
+    turb *= np.where(pre > 1e-4, (pre / post) ** 0.75, 1.0)[None, :]
+    turb = np.clip(turb, 0, 1.5) * ramp
 
     b = Bake()
     b.x0, b.y0, b.dx, b.nx, b.ny = float(x0), float(-yh), dx, nx, ny
-    b.eta, b.gx, b.gy, b.crest, b.wash, b.mask = eta, gx, gy, np.clip(crest, 0, 1), wsh, m
-    b.info = dict(solve=(sx, sy), dx_solve=dxs, L=L, U=U, FrL=FrL, FrD=FrD, Zb=Zb, lam=lam, theta_deg=math.degrees(theta),
+    b.eta, b.gx, b.gy, b.mask = eta, gx, gy, m
+    b.fresh, b.resid, b.wash = fresh * (1 - m), resid * (1 - m), turb * (1 - m)
+    b.info = dict(solve=(sx, sy), dx_solve=dxs, L=L, U=U, FrL=FrL, FrD=FrD, Zb=Zb, lam=lam,
                   entrance_deg=math.degrees(beta), grid=(nx, ny), dx=dx, t_fft=t_fft,
                   t_total=time.perf_counter() - t0)
     return b
