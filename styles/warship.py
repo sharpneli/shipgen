@@ -21,8 +21,8 @@ class Warship(Style):
     RAISED_MOUNTS = True     # main.amidships_stands_on, secondary.stands_on
     RAISED_HULL = True       # hull.raised
 
-    def build_layout(self, design, res, shift=0.0):
-        return build_layout(design, res, shift)
+    def build_layout(self, design, res, shift=0.0, spread=0.0):
+        return build_layout(design, res, shift, spread)
 
 
 STYLE = Warship()

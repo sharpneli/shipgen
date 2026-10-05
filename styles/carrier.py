@@ -215,7 +215,7 @@ class Carrier(Style):
         return dict(super().tuning(design), freeboard_a=0.024, freeboard_b=2.5, misc_frac=0.075, hull_z_frac=0.5,
                     flight_deck_t_per_m2=0.34, hangar_t_per_m2=0.32)
 
-    def build_layout(self, design, res, shift=0.0):
+    def build_layout(self, design, res, shift=0.0, spread=0.0):
         if aviation(design)["flight_deck"] == "none":
             return _seaplane_layout(design, res, shift)
         return _flight_deck_layout(design, res, shift)

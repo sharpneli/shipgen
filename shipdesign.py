@@ -102,10 +102,10 @@ def beam_needed(design, L, B, weights, geo):
     return hi
 
 
-def lay_out(design, r, shift=0.0):
+def lay_out(design, r, shift=0.0, spread=0.0):
     """The style's layout for the solved weights r, then crewed (crew.apply: complement, space, weights)."""
     style = styles.get(design)
-    lay = style.build_layout(design, r, shift)
+    lay = style.build_layout(design, r, shift, spread)
     crew.apply(lay, design, r, style)
     return lay
 
@@ -195,10 +195,48 @@ def solve(design, iterations=6, hint=None):
             L = min(l_max, max(L + 0.5, round(L * 1.01 * 2) / 2))
     if "length" in lay.short and L >= l_max and not lay.errors:
         lay.errors.append(f"Not everything fits even on the longest hull ({l_max:,.0f} m). Carry less.")
+    if not lay.short:
+        lay, r, sized = spread_ends(sized, lay, r, iterations)
     return lay, r, sized
 
 
-def balance(design, iterations=6):
+def spread_ends(design, lay, r, iterations=6):
+    """The hull is sized with the spare length (a hull longer than its middle needs: crew space, fuel, the speed
+    rule) amidships. Give the ends as much of it as they take (the layout's spread) without the layout faring worse:
+    nothing short, no new errors or layout warnings (a director moved into the smoke, a torpedo mount that no longer
+    fits beside the funnels: the middle's length need doesn't count everything standing there). The citadel then
+    covers the end groups and machinery and no more, and the heavy middle stays compact. Returns the balanced
+    (layout, result, design) with the largest such spread found (bisected), else the ones given."""
+    shift = lay.geo.get("shift", 0.0)
+
+    def outcome(s):
+        l_ = lay_out(design, r, shift, s)
+        r_ = navarch.solve(design, l_.weights, l_.geo)
+        assign_smoke(l_, r_)
+        return bool(l_.short), set(l_.errors) | set(r_.errors), set(l_.warnings)
+
+    _, errs0, warns0 = outcome(0.0)
+
+    def ok(o):
+        return not o[0] and o[1] <= errs0 and o[2] <= warns0
+
+    if ok(outcome(1.0)):
+        s = 1.0
+    else:
+        lo, hi = 0.0, 1.0
+        for _ in range(5):
+            mid = (lo + hi) / 2
+            lo, hi = (mid, hi) if ok(outcome(mid)) else (lo, mid)
+        s = lo
+    if s <= 0.0:
+        return lay, r, design
+    lay2, r2, _ = balance(design, iterations, s)
+    if lay2.short or not set(lay2.errors) | set(r2.errors) <= errs0 or not set(lay2.warnings) <= set(lay.warnings):
+        return lay, r, design      # the balance moved it somewhere worse: keep the middle's spare
+    return lay2, r2, design
+
+
+def balance(design, iterations=6, spread=0.0):
     """Rough solve -> layout -> solve -> shift to balance; repeat until stable. The layout can jump as things
     move (a gun takes another slot), so once the moment changes sign the shift is bisected between the last two,
     and the best balanced shift seen is used."""
@@ -208,7 +246,7 @@ def balance(design, iterations=6):
     best = None                # (|moment|, shift)
     bracket = []               # (shift, moment) on each side of balance
     for _ in range(iterations + 4):
-        lay = lay_out(design, r, shift)
+        lay = lay_out(design, r, shift, spread)
         r = navarch.solve(design, lay.weights, lay.geo)
         shift = lay.geo["shift"]
         moment = sum(w.w * (w.x - r.lcb) for w in r.weights)
@@ -224,7 +262,7 @@ def balance(design, iterations=6):
             break
         shift = new_shift
     shift = best[1]
-    lay = lay_out(design, r, shift)
+    lay = lay_out(design, r, shift, spread)
     r = navarch.solve(design, lay.weights, lay.geo)
     assign_arcs(lay)
     assign_smoke(lay, r)

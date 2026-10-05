@@ -241,7 +241,7 @@ class Style:
         """Overrides of navarch.TUNING for this design."""
         return {}
 
-    def build_layout(self, design, res, shift=0.0):
+    def build_layout(self, design, res, shift=0.0, spread=0.0):
         """Lay the ship out for the solved weights res (navarch.Result: power, depth, draught, fuel, plant)."""
         raise NotImplementedError
 

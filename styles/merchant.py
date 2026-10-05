@@ -127,7 +127,7 @@ class Merchant(Style):
                     cruise_at_service=True, tb_max=0.62, lcb_frac=0.012,
                     gm_stiff_frac=0.2)
 
-    def build_layout(self, design, res, shift=0.0):
+    def build_layout(self, design, res, shift=0.0, spread=0.0):
         return _layout(design, res, shift)
 
     def rough_payload(self, design, D):

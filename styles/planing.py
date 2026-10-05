@@ -52,7 +52,7 @@ class Planing(Style):
                     freeboard_b=0.8, misc_frac=0.07, cruise_kn=25.0, lcb_frac=-0.11, gm_stiff_frac=0.5,
                     fn_warn=99.0, lb_warn=2.8, trim_tol_frac=0.025, trim_warn_frac=0.01)
 
-    def build_layout(self, design, res, shift=0.0):
+    def build_layout(self, design, res, shift=0.0, spread=0.0):
         return _layout(design, res, shift)
 
     def checks(self, design, r, tun):

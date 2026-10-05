@@ -1509,7 +1509,7 @@ def tower_levels(design, default):
     return int((design.get("superstructure") or {}).get("tower_levels", default))
 
 
-def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
+def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> Layout:
     import armament     # armament imports layout
     import firecontrol
     shp, depth = res.power_shp, res.depth
@@ -1861,6 +1861,13 @@ def build_layout(design: dict, res, shift: float = 0.0) -> Layout:
                 "length", f"Not enough length amidships: the machinery, funnels and midships turrets need about "
                 f"{M_req:.0f} m between the turret groups, but only {mid_fwd - mid_aft:.0f} m is free. "
                 "Reduce speed, use a more compact plant, or remove a turret.")
+    elif deficit < 0 and spread > 0:
+        # a hull longer than the middle needs (crew space, fuel, the speed rule) gives spread of the spare length to
+        # the ends, in proportion to their clearances: the citadel runs from end group to end group, so it never
+        # grows for what lives outside it, and the heavy middle stays compact (shipdesign.spread_ends picks spread)
+        bow_c -= spread * deficit * bow_pref / (bow_pref + st_pref)
+        st_c -= spread * deficit * st_pref / (bow_pref + st_pref)
+        fore, aft, mid_fwd, mid_aft = arrangement(bow_c, st_c, 0.0)
 
     # how far the whole arrangement may shift for balance
     def shift_ok(sh):
