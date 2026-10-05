@@ -11,7 +11,8 @@ blocks and funnels must be fully opaque inside their hitbox polygon, and the hul
 compared against the hull image.
 
 The subdivision is checked too (check_subdivision): every cell has one owning room, points inside the hull below
-the main deck each fall in exactly one cell, neighbours are mutual, and every mount's magazine is a room.
+the main deck (or a raised stretch's deck) each fall in exactly one cell, neighbours are mutual, and every mount's
+magazine is a room.
 """
 import json
 import math
@@ -73,7 +74,8 @@ def check_subdivision(hb, samples=3000):
     for _ in range(samples):
         x = rng.uniform(-L / 2, L / 2)
         hw = _half_width(hull, x)
-        y, z = rng.uniform(-hw, hw), rng.uniform(keel, 0.0)
+        top = max([r["top"] for r in hb["vertical"].get("raised", []) if r["x0"] <= x <= r["x1"]] + [0.0])
+        y, z = rng.uniform(-hw, hw), rng.uniform(keel, top)
         n = sum(1 for c in cells.values()
                 if c["x0"] <= x < c["x1"] and c["y0"] <= y < c["y1"] and c["base"] <= z < c["top"])
         bad += n != 1

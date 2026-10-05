@@ -9,9 +9,11 @@ size search never runs it.
             collision bulkhead. Stations closer than MIN_SECTION merge (the more important one stays), and gaps
             longer than MAX_SECTION fill in, except inside one room. Numbered from the bow.
   tiers     between the decks, keel up: the inner bottom (not on planing craft), then the deck stack every
-            navarch.DECK_PITCH up to the main deck (navarch.deck_stack). Armour decks (armour.decks) lie on the
-            stack. Each tier is named after the deck it stands on: "bottom", "hold", then ..., "third", "second"
-            under the main deck. A tier the waterline crosses gives its submerged fraction.
+            navarch.DECK_PITCH up to the main deck (navarch.deck_stack), then the decks of raised stretches of hull
+            (lay.raised: forecastle, poop), which exist only over their spans. Armour decks (armour.decks) lie on
+            the stack. Each tier is named after the deck it stands on: "bottom", "hold", then ..., "third",
+            "second" under the main deck, "main" and "raised deck 1", ... above it. A tier the waterline crosses
+            gives its submerged fraction.
   bands     across the ship: port wing | centre | starboard wing where a longitudinal bulkhead stands (inboard of
             the machinery's wing bunkers, or of the torpedo protection inside the citadel, up to the lowest
             armour deck), else the centre alone. A centreline machinery bulkhead splits the centre into CP | CS.
@@ -31,6 +33,8 @@ with the boundary between them: a bulkhead or deck id, or "open" inside one room
 from __future__ import annotations
 
 import math
+
+from geometry import DECK_PITCH
 
 MIN_SECTION = 0.03      # stations closer than this x L merge, within MIN_SECTION_M..MIN_SECTION_MAX_M (rooms don't
 MIN_SECTION_M = 1.0     # grow with a silly hull's length)
@@ -70,11 +74,23 @@ def _box_overlap(room, cell):
     return v
 
 
-def decks(design, D, ag):
+def raised_spans(raised, k):
+    """Where the hull reaches raised deck k (k decks above the main deck): merged [[x0, x1]], aft to forward."""
+    out = []
+    for x0, x1 in sorted((s["x0"], s["x1"]) for s in raised if s["levels"] >= k):
+        if out and x0 <= out[-1][1] + 1e-6:
+            out[-1][1] = max(out[-1][1], x1)
+        else:
+            out.append([x0, x1])
+    return out
+
+
+def decks(design, D, ag, raised=()):
     """The decks, keel up, as heights above the main deck: [dict(id, kind, z, armour_mm?, x0?, x1?, plates?)]. The
     keel, the inner bottom (not on planing craft), then the deck stack (navarch.deck_stack) up to the main deck. An
     armoured deck carries its armour (navarch.armour_geometry) and the stretch it covers; a deck armoured over
-    several stretches (the citadel and its ends) lists them as plates [dict(armour_mm, x0, x1)]."""
+    several stretches (the citadel and its ends) lists them as plates [dict(armour_mm, x0, x1)]. Above the main
+    deck, the decks of raised stretches (raised: lay.raised), each with the spans where it exists."""
     from navarch import deck_stack, deck_name
     from powerplant import double_bottom
     out = [dict(id="Keel", kind="keel", z=-D)]
@@ -89,6 +105,9 @@ def decks(design, D, ag):
            for n, ps in arm.items()}
     for n, z in reversed(deck_stack(design, D)):
         out.append(dict(id=deck_name(n), kind="main" if n == 0 else "deck", deck=n, z=z - D, **arm.get(n, {})))
+    for k in range(1, max((s["levels"] for s in raised), default=0) + 1):
+        out.append(dict(id=deck_name(-k), kind="raised", deck=-k, z=k * DECK_PITCH,
+                        spans=[[round(a, 3), round(b, 3)] for a, b in raised_spans(raised, k)]))
     return out
 
 
@@ -100,9 +119,13 @@ def tier_name(floor):
     return floor["id"].lower().removesuffix(" deck")
 
 
-def stations(L, rooms, cit, min_gap, max_gap):
-    """Transverse bulkhead positions, bow to stern: [dict(x, kind)], with the hull's ends."""
-    cands = [(L / 2 - COLLISION * L, 9, "collision")]
+BREAK_PRIORITY = 8      # a raised stretch's end (the break) as a station: it bounds the cells above the main deck
+
+
+def stations(L, rooms, cit, min_gap, max_gap, breaks=()):
+    """Transverse bulkhead positions, bow to stern: [dict(x, kind)], with the hull's ends. breaks: the ends of
+    raised stretches, so the sections above the main deck end where they do."""
+    cands = [(L / 2 - COLLISION * L, 9, "collision")] + [(x, BREAK_PRIORITY, "main") for x in breaks]
     if cit:
         cands += [(cit[0], 10, cit[2]), (cit[1], 10, cit[2])]
     for r in rooms:
@@ -154,14 +177,15 @@ def build(lay, design, res, ag, armoured):
     rz = lambda z: z - D
 
     # ---------------- decks and tiers ----------------
-    dks = decks(design, D, ag)
+    dks = decks(design, D, ag, lay.raised)
     has_bottom = dks[1]["kind"] == "inner_bottom"
     tiers = []
     for lo, hi in zip(dks, dks[1:]):
         name = "hold" if lo["kind"] == "keel" and not has_bottom else tier_name(lo)
         sub = min(1.0, max(0.0, (wl - lo["z"]) / (hi["z"] - lo["z"])))
         tiers.append(dict(id=name, base=lo["z"], top=hi["z"], below_waterline=sub >= 1.0 - 1e-6,
-                          submerged=sub, floor=lo["id"], ceiling=hi["id"]))
+                          submerged=sub, floor=lo["id"], ceiling=hi["id"], **(
+                              {"spans": hi["spans"]} if "spans" in hi else {})))
     ib = dks[1]["z"] if has_bottom else -D
     under = (ag["roof_z"] - D) if ag["roof_z"] is not None else 0.0   # rooms' default top: the lowest armour deck
     adecks = [{**d, "z": rz(d["z"])} for d in ag["decks"]]           # armour plates, top down
@@ -181,15 +205,20 @@ def build(lay, design, res, ag, armoured):
         cit = (ag["x0"], ag["x1"], "armoured" if ag["bulkhead_mm"] > 0 else "citadel")
     elif lay.geo.get("citadel") and design.get("style", "warship") in ("warship", "carrier"):
         cit = (*lay.geo["citadel"], "citadel")
-    st = stations(L, rooms, cit, min(MIN_SECTION_MAX_M, max(MIN_SECTION_M, MIN_SECTION * L)), max(MAX_SECTION_M, MAX_SECTION * L))
+    st = stations(L, rooms, cit, min(MIN_SECTION_MAX_M, max(MIN_SECTION_M, MIN_SECTION * L)), max(MAX_SECTION_M, MAX_SECTION * L),
+                  [x for s in lay.raised for x in (s["x0"], s["x1"])])
     sections = []
     for i, (a, b) in enumerate(zip(st, st[1:])):
         sections.append(dict(id=str(i + 1), x0=b["x"], x1=a["x"]))
     nbh = len(st) - 2
     tb = []          # transverse bulkheads, bow to stern
-    for k, s in enumerate(st[1:-1]):
+    def sec_level(sec):      # the raised decks over a section (at its middle)
+        return lay.deck_level((sec["x0"] + sec["x1"]) / 2)
+
+    for k, s in enumerate(st[1:-1]):    # up to the main deck, or to the raised deck over both sides of it
+        top = min(sec_level(sections[k]), sec_level(sections[k + 1])) * DECK_PITCH
         d = dict(id=f"Bulkhead {k + 1}", kind=s["kind"] if s["kind"] in ("collision", "armoured") else "main",
-                 x=round(s["x"], 3), base=round(-D, 2), top=0.0)
+                 x=round(s["x"], 3), base=round(-D, 2), top=round(top, 2) if top else 0.0)
         if s["kind"] == "armoured":
             d.update(armour_mm=round(ag["bulkhead_mm"]), armour_bottom=round(rz(ag["bulkhead_bottom"]), 2),
                      armour_top=round(rz(ag["bulkhead_top"]), 2))
@@ -216,7 +245,7 @@ def build(lay, design, res, ag, armoured):
     for si, sec in enumerate(sections):
         x0, x1 = sec["x0"], sec["x1"]
         xm = (x0 + x1) / 2
-        hws = hw_samples(x0, x1)
+        hws_sec = hws = hw_samples(x0, x1)
         hwmax = max(hull.half_width(x0), hull.half_width(x1), *hws)
         in_mach = mach and mach[0] - 1e-6 <= xm <= mach[1] + 1e-6
         in_cit = cit and cit[0] - 1e-6 <= xm <= cit[1] + 1e-6
@@ -239,6 +268,12 @@ def build(lay, design, res, ag, armoured):
                               y=0.0,
                               x0=round(x0, 3), x1=round(x1, 3), base=round(ib, 2), top=round(under, 2)))
         for ti, tr in enumerate(tiers):
+            x0, x1, hws = sec["x0"], sec["x1"], hws_sec
+            if "spans" in tr:   # above the main deck: only over the raised stretch, its part of the section
+                a, b = max(((max(x0, a_), min(x1, b_)) for a_, b_ in tr["spans"]), key=lambda v: v[1] - v[0])
+                if b - a < 1e-3:
+                    continue
+                x0, x1, hws = a, b, hw_samples(a, b)
             bottom = has_bottom and ti == 0
             banded = split is not None and not bottom and tr["top"] <= s_top + 1e-6
             centre_split = cl and not bottom and tr["top"] <= under + 1e-6

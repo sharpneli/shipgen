@@ -170,8 +170,9 @@ TAKEN = ("magazine", "boiler_room", "engine_room", "bunker", "hold", "cargo_tank
 
 def crew_space(lay, design, res):
     """The ship's empty volume, m3: the hull from the inner bottom to the main deck, less the spaces the machinery,
-    magazines, bunkers, holds, tanks, steering gear and torpedo protection take, plus the superstructure (blocks and
-    raised decks; the style may add more, lay.geo upper_volume_m3, e.g. a carrier's galleries)."""
+    magazines, bunkers, holds, tanks, steering gear and torpedo protection take, with the raised stretches of hull
+    (forecastle, poop), plus the superstructure (blocks; the style may add more, lay.geo upper_volume_m3, e.g. a
+    carrier's galleries)."""
     import powerplant
     from layout import LEVEL_H
     from hitbox import block_role
@@ -184,6 +185,8 @@ def crew_space(lay, design, res):
     plan = lay.geo.get("plant") or {}
     low = (plan.get("top", D) if plan.get("armoured") else D) - db      # default compartment height
     hull_v = L * B * (T * cb + max(0.0, D - T) * cwp(cb)) - db * L * B * cwp(cb) * 0.9
+    # raised stretches of hull (forecastle, poop) are hull: the subdivision quarters men in their cells
+    raised = sum(_area(dk["points"]) * (dk["top"] - dk["base"]) for dk in lay.decks if dk["kind"] == "deck")
     taken = 0.0
     for c in lay.compartments:
         if c["kind"] not in TAKEN:
@@ -197,11 +200,10 @@ def crew_space(lay, design, res):
     rooms = {b["id"]: b.get("area", (b["x1"] - b["x0"]) * b["w"]) * LEVEL_H * 0.9 for b in lay.blocks if b["kind"] != "director"
              and block_role(b["id"]) not in ("hangar", "director", "casemate", "aa_platform")}
     sup = sum(rooms.values())
-    sup += sum(_area(dk["points"]) * (dk["top"] - dk["base"]) for dk in lay.decks if dk["kind"] == "deck")
     sup += lay.geo.get("upper_volume_m3", 0.0)
-    free = max(0.0, hull_v - taken) + sup
-    return dict(hull_m3=hull_v, taken_m3=taken, superstructure_m3=sup, free_m3=free, usable_m3=USABLE * free,
-                hull_usable_m3=USABLE * max(0.0, hull_v - taken), blocks_m3=rooms)
+    free = max(0.0, hull_v - taken) + raised + sup
+    return dict(hull_m3=hull_v + raised, taken_m3=taken, superstructure_m3=sup, free_m3=free, usable_m3=USABLE * free,
+                hull_usable_m3=USABLE * (max(0.0, hull_v - taken) + raised), blocks_m3=rooms)
 
 
 def spread(n, vols):

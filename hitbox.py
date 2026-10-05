@@ -272,7 +272,8 @@ def export_hitboxes(lay, design, res):
                           top=round(c["top"], 2), armour_mm=c["armour_mm"]))
         if c["armour_mm"]:
             with_material(comps[-1], ag["roof_material"])
-    for dk in lay.decks + [{**sp, "kind": "sponson"} for sp in lay.sponsons]:
+    for dk in [d for d in lay.decks if d["kind"] != "deck"] + [{**sp, "kind": "sponson"} for sp in lay.sponsons]:
+        # (raised stretches of hull are cells of the subdivision, and their extent is in vertical.raised)
         comps.append(dict(id=dk["id"], kind=dk["kind"], shape="polygon",
                           points=[[round(x, 3), round(y, 3)] for x, y in dk["points"]],
                           base=round(dk["base"], 2), top=round(dk["top"], 2)))
@@ -321,7 +322,10 @@ def export_hitboxes(lay, design, res):
         length=lay.hull.L, beam=lay.hull.B,
         vertical=dict(keel=-round(D, 2), waterline=-round(D - T, 2),
                       armour_deck=rz(ag["main_z"]) if ag["main_z"] is not None else None,
-                      draught=round(T, 2), depth=round(D, 2), freeboard=round(D - T, 2)),
+                      draught=round(T, 2), depth=round(D, 2), freeboard=round(D - T, 2),
+                      **({"raised": [dict(id=st["id"], x0=round(st["x0"], 3), x1=round(st["x1"], 3),
+                                          top=round(st["levels"] * DECK_PITCH, 2)) for st in lay.raised]}
+                         if lay.raised else {})),
         hull=[[round(x, 3), round(y, 3)] for x, y in lay.hull.points()],
         armour=arm_out,
         components=comps,

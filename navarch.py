@@ -413,6 +413,10 @@ BELT_ENDS = ("fore", "aft")
 
 
 def deck_name(n):
+    """A deck's name by its number: 0 the main deck, 1, 2, ... down the stack; -1, -2, ... the decks of raised
+    stretches of hull above it (forecastle, poop). The game's designer may give them period names."""
+    if n < 0:
+        return f"Raised deck {-n}"
     return DECK_NAMES[n] if n < len(DECK_NAMES) else f"Deck {n + 1}"
 
 
