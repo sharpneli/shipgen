@@ -309,8 +309,8 @@ def build(lay, design, res, ag, armoured, form):
                         v_under += v
                     else:
                         v_over += v
-                if v_under + v_over < 0.01:
-                    continue
+                if v_under + v_over < 0.01 and hw_t < 0.05:     # (a thin wedge over a rising keel the
+                    continue                                      # slices miss still gets its cell)
                 c = dict(id=f"{sec['id']} {tr['id']} {band}", section=sec["id"], tier=tr["id"], band=band,
                          x0=x0, x1=x1, y0=y0, y1=y1, base=tr["base"], top=tr["top"], v_under=v_under,
                          v_over=v_over, below_waterline=tr["below_waterline"], si=si, ti=ti)

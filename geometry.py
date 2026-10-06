@@ -230,15 +230,16 @@ def superellipse_fill(p, q):
 @functools.lru_cache(maxsize=8192)
 def section_exponents(c, k):
     """(p, q) of the superellipse section of fullness c and character k (-1 V .. 1 U): p sets the bottom (over 1
-    flat at the keel), q the side (over 1 upright at the waterline); k pulls them apart, U upright sides over a
-    round bottom, V sloping sides over a flat floor."""
+    flat at the keel, under 1 a hollow fin), q the side (over 1 upright at the waterline); k pulls them apart, U
+    upright sides over a round bottom, V sloping sides over a flat floor. q stays at least 1: under it the side
+    turns flat at the waterline and the hull loses half its breadth just under it."""
     e = math.exp(k * HullForm.KAPPA)
     lo, hi = 0.1, 500.0
     for _ in range(60):
         n = math.sqrt(lo * hi)
-        lo, hi = (lo, n) if superellipse_fill(n / e, n * e) > c else (n, hi)
+        lo, hi = (lo, n) if superellipse_fill(n / e, max(1.0, n * e)) > c else (n, hi)
     n = math.sqrt(lo * hi)
-    return n / e, n * e
+    return n / e, max(1.0, n * e)
 
 
 class HullForm:
@@ -247,8 +248,10 @@ class HullForm:
       keel        the keel's height over the baseline, keel(x). Forward a rounded forefoot over FOREFOOT of the
                   length, cut away more on fast ships. Aft by the stern gear (propulsion.gear): one screw keeps the
                   keel to the sternpost at the rudder, with the counter above the water abaft it; several screws
-                  get a cut-up, the bottom rising so it clears the propellers' tips and running on up to the
-                  counter or transom (COUNTER x T unless the propellers want it higher). A planing hull keeps a
+                  get a cut-up, the bottom rising so it clears the propellers' tips and running on up, smoothly
+                  to the stern, to TRANSOM_DEEP x T x the stern's share of the beam under the waterline (a long
+                  flat counter just under the water had drawn a sliver of hull in every slice above it). A
+                  planing hull keeps a
                   straight keel to its transom and rises in a long rocker forward
       area        the sectional area curve, A(x) over the midship section's (cm B T): a parallel midbody of
                   PMB_K (Cp - PMB_CP) L (next to none on a destroyer's Cp 0.53, an eighth of the length on a
@@ -261,8 +264,9 @@ class HullForm:
       waterplane  each station meets its area with its waterline and its section's fullness together: of the
                   share rho of the midship's breadth x fullness it needs, the waterline takes rho ** lambda and
                   the section the rest (lambda solved so the waterplane fills navarch.cwp, more on the
-                  waterline under U ends, less under V), the waterline never past the deck edge nor wider than
-                  the station nearer amidships (else a shallow run over a cut-up widens it again), the fullness
+                  waterline under U ends, less under V), the waterline never past the deck edge nor narrower
+                  than the station nearer the end (a shallow run over a cut-up wants it wider toward the
+                  transom: the stations ahead are filled out to it, then smoothed), the fullness
                   from C_MIN up to cm at the shoulders, C_END at the ends (a section fuller than amidships turns
                   into a box). Departure: lambda stays in LAM_MIN..LAM_MAX so the section always takes part of
                   the fining. navarch.cwp (0.18 + 0.86 cb) is lean for warships: reaching it took lambda ~1, a fine
@@ -290,8 +294,9 @@ class HullForm:
     ROCKER = 0.45       # a planing keel's rocker, x L from the stem
     PLANING_CM = 0.6    # a planing midship section's fullness to start from (a chine at 0.8 of the draught)
     CUT_CLEAR = 0.1     # the cut-up's bottom over the propellers' tips, x their diameter
-    CUT_RUN = 5.0       # the cut-up's run, x its rise (where it is steepest it climbs at 2 / CUT_RUN)
-    COUNTER = 0.85      # the counter's or transom's underside at the stern, x T
+    CUT_RUN = 7.0       # the cut-up's run, x its rise (where it is steepest it climbs at 2 / CUT_RUN)
+    TRANSOM_DEEP = 0.2  # the stern's underside below the waterline, x T x its share of the beam (a wide transom
+                        # stays immersed; a narrow cruiser stern fades out at the waterline)
     FORE_V, FORE_U = -0.6, 0.8      # forward character: V away from Fn FORE_FN, U at it
     FORE_FN, FORE_FN_W = 0.225, 0.04
     AFT_K = 0.8         # aft character: U with one screw, V (flat floored) with several
@@ -301,6 +306,7 @@ class HullForm:
     LAM_MIN, LAM_MAX = 0.35, 0.75   # the share's range: the section always takes part of the fining
     ROUNDS = 3          # area curve and waterline share, solved in turn
     TRANSOM_C = 0.75    # an immersed transom's fullness
+    SMOOTH = 6          # the end waterlines' smoothing, stations either side (of N)
     C_END = 0.75        # the fullest a section gets at the ends: from cm at the shoulders down to this
 
     @staticmethod
@@ -334,7 +340,8 @@ class HullForm:
         elif not self.planing and props:
             rise = min(0.95 * T, max(p["z"] + p["diameter"] * (0.5 + self.CUT_CLEAR) for p in props))
             x_c = max(p["x"] + 0.5 * p["diameter"] for p in props)
-            self.cut = (x_c, x_c + self.CUT_RUN * rise, rise, max(rise, self.COUNTER * T))
+            end = max(rise, T * (1.0 - self.TRANSOM_DEEP * min(1.0, hull.half_width(-L / 2) / (B / 2))))
+            self.cut = (x_c, x_c + self.CUT_RUN * rise, rise, end)
 
         self.xs = [-L / 2 + L * (k + 0.5) / self.N for k in range(self.N)]
         self._ws = [min(1.0, hull.half_width(x) / (B / 2)) for x in self.xs]
@@ -405,15 +412,20 @@ class HullForm:
             rho = s / dk if dk > 0 else 0.0
             u = min(w, rho ** max(0.05, lam0 + self.LAMBDA_K * k)) if rho > 0 else 0.0
             rows.append([s, w, dk, c_hi, u])
-        # the waterline only narrows from the shoulders out to the ends (a shallow run over a cut-up would
-        # otherwise widen it again toward the transom): the sections take up the rest
-        fore = [i for i in range(self.N) if self.xs[i] > xf]
-        aft = [i for i in reversed(range(self.N)) if self.xs[i] < xa]
-        for end in (fore, aft):
-            u_min = 1.0
+        # the waterline only narrows from the shoulders out to the ends: a shallow run over a cut-up wants it
+        # wide again toward the transom, so the stations ahead of it are filled out to it (never cut down to a
+        # plateau, which met the deck edge in a corner), then smoothed; the sections take up the rest
+        fore = [i for i in reversed(range(self.N)) if self.xs[i] > xf and rows[i][2] > 0]
+        aft = [i for i in range(self.N) if self.xs[i] < xa and rows[i][2] > 0]
+        for end in (fore, aft):         # from the end inward
+            u_max = 0.0
             for i in end:
-                if rows[i][2] > 0:
-                    u_min = rows[i][4] = min(u_min, rows[i][4])
+                u_max = rows[i][4] = min(rows[i][1], max(u_max, rows[i][4]))
+            raw = [rows[i][4] for i in end]
+            h = self.SMOOTH
+            for j, i in enumerate(end):
+                win = raw[max(0, j - h):j + h + 1]
+                rows[i][4] = min(rows[i][1], sum(win) / len(win))
         us, cs, area = [], [], []
         for s, w, dk, c_hi, u in rows:
             if dk <= 0 or w <= 0:           # over a counter, or past the deck's tip
@@ -446,9 +458,12 @@ class HullForm:
             z = T                       # abaft the sternpost: the counter, out of the water
         elif self.cut:
             x_c, x_s, rise, end = self.cut
-            if x < x_s:
-                z = max(z, rise * ((x_s - x) / (x_s - x_c)) ** 2 if x >= x_c else
-                        min(end, rise + 2.0 * rise / (x_s - x_c) * (x_c - x)))
+            if x_c <= x < x_s:
+                z = max(z, rise * ((x_s - x) / (x_s - x_c)) ** 2)
+            elif x < x_c:                   # on up to the stern, the cut-up's slope where they meet
+                run = x_c + L / 2
+                k = max(1.0, 2.0 * rise / (x_s - x_c) * run / (end - rise)) if end > rise + 1e-6 else 1.0
+                z = max(z, rise + (end - rise) * (1.0 - (1.0 - min(1.0, (x_c - x) / run)) ** k))
         return min(T, z)
 
     def waterline(self, x):
