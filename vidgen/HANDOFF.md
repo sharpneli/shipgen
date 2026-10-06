@@ -125,9 +125,20 @@ before a realtime version. `sinkvid.py bismarck [--end stern|bow|both] [--still 
     worker holds the same scene, built from the seed. Snapshots carry the lists and particles; the foam canvases
     and finished frames go through a shared-memory ring (`Ring`). So `render` must not touch the sim's state or
     its rng: boils draw their streaks when made, and are pruned in `step`.
-  - **Memory bandwidth is the limit, not cores:** 8 memory-bound processes triple the step's time, while 8
-    CPU-bound ones don't slow it at all. Past about 6 workers a clip (the default cap), more only contend.
-    Everything was cut for bytes moved:
+  - **DRAM bandwidth is the limit, not cores** (measured on the user's 7950X3D under WSL2):
+    - A STREAM-style triad saturates at about 45 GB/s with 2 processes; one already gets 39. With
+      cache-sized arrays it scales almost linearly to 16 processes (1660 GB/s).
+    - The sim step (15 ms alone) next to 8 background processes:
+      - L2-resident arrays: 18 ms
+      - L3-resident arrays (24 MB in all): 22 ms
+      - L3 full (72 MB): 33 ms
+      - DRAM-streaming arrays: 99 ms; just 2 such processes take it to 36 ms
+
+      So DRAM traffic dominates, L3 contention adds a little, and the cores and vector units barely matter.
+    - Hyperthreading and CCD placement couldn't be tested: WSL2's vCPUs float over the host's cores, so pinning
+      inside the VM doesn't fix which core or CCD a process lands on.
+
+    Past about 6 workers a clip (the default cap), more only contend. Everything was cut for bytes moved:
     - the sim steps on the every-third-point subset
     - foam canvases are updated and copied only inside the box foam has touched (`fbox`)
     - the hull draws only the wall kinds facing the camera (points grouped by normal kind)
