@@ -48,7 +48,7 @@ def iou(a, b):
 
 def check_subdivision(hb, samples=3000):
     """Problems with the subdivision ([] if none)."""
-    from hitview import _half_width
+    from hitview import form_half_width
     probs = []
     cells = {c["id"]: c for c in hb["cells"]}
     rooms = {r["id"]: r for r in hb["rooms"]}
@@ -67,15 +67,15 @@ def check_subdivision(hb, samples=3000):
     for comp in hb["components"]:
         if comp.get("magazine") and comp["magazine"] not in rooms:
             probs.append(f"{comp['id']}: magazine {comp['magazine']} isn't a room")
-    hull = [tuple(p) for p in hb["hull"]]
     L, keel = hb["length"], hb["vertical"]["keel"]
     rng = random.Random(1)
     bad = 0
     for _ in range(samples):
         x = rng.uniform(-L / 2, L / 2)
-        hw = _half_width(hull, x)
         top = max([r["top"] for r in hb["vertical"].get("raised", []) if r["x0"] <= x <= r["x1"]] + [0.0])
-        y, z = rng.uniform(-hw, hw), rng.uniform(keel, top)
+        z = rng.uniform(keel, top)
+        hw = form_half_width(hb, x, z)      # the sections narrow toward the keel
+        y = rng.uniform(-hw, hw)
         n = sum(1 for c in cells.values()
                 if c["x0"] <= x < c["x1"] and c["y0"] <= y < c["y1"] and c["base"] <= z < c["top"])
         bad += n != 1

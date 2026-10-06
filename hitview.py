@@ -21,7 +21,7 @@ import os
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from geometry import rotate_translate
+from geometry import rotate_translate, table_half_width
 
 KIND = {   # fill RGB, alpha
     "hull": ((150, 160, 170), 90),
@@ -64,8 +64,12 @@ def prisms(hb, what):
     vert = hb.get("vertical", {})
     keel = vert.get("keel", -5.0)
     hull = [tuple(p) for p in hb["hull"]]
-    if what == "outside":
-        out.append(("hull", hull, keel, 0.0))
+    if what == "outside":     # the hull in slices, each its outline at the slice's middle: it narrows to the keel
+        wl = vert.get("waterline", 0.0)
+        zs = [keel + (min(wl, 0.0) - keel) * f for f in (0.0, 0.06, 0.15, 0.3, 0.5, 0.75, 1.0)]
+        zs += [0.0] if wl < 0.0 else []
+        for z0, z1 in zip(zs, zs[1:]):
+            out.append(("hull", form_outline(hb, (z0 + z1) / 2), z0, z1))
     for c in hb["components"]:
         kind = c["kind"]
         if what == "internal" and kind not in ("barbette", "uptake", "casing"):
@@ -83,32 +87,54 @@ def prisms(hb, what):
             out.append((kind, [tuple(p) for p in c["points"]], c["base"], c["top"]))
     kinds = {r["id"]: r["kind"] for r in hb.get("rooms", [])}
     for c in hb.get("cells", []):
-        out.append((kinds[c["room"]], cell_outline(hull, c), c["base"], c["top"]))
+        out.append((kinds[c["room"]], cell_outline(hb, c), c["base"], c["top"]))
     arm = hb.get("armour", {})
     slabs = ([("belt", arm["belt"])] if "belt" in arm else []) + [("strake", b) for b in arm.get("strakes", [])]
+    wl = vert.get("waterline", 0.0)
     for kind, b in slabs:
-        for side in (1, -1):     # a thin slab just outside the hull side over its stretch
-            xs = [b["x0"] + (b["x1"] - b["x0"]) * k / 12 for k in range(13)]
-            hw = [_half_width(hull, x) for x in xs]
-            outer = [(x, side * (w + 0.15)) for x, w in zip(xs, hw)]
-            inner = [(x, side * (w - 0.25)) for x, w in zip(xs, hw)][::-1]
-            out.append((kind, outer + inner, b["bottom"], b["top"]))
+        # a thin slab just outside the hull side over its stretch, split at the waterline: it follows the flare
+        zs = [b["bottom"]] + ([wl] if b["bottom"] < wl < b["top"] else []) + [b["top"]]
+        for z0, z1 in zip(zs, zs[1:]):
+            for side in (1, -1):
+                xs = [b["x0"] + (b["x1"] - b["x0"]) * k / 12 for k in range(13)]
+                hw = [form_half_width(hb, x, (z0 + z1) / 2) for x in xs]
+                outer = [(x, side * (w + 0.15)) for x, w in zip(xs, hw)]
+                inner = [(x, side * (w - 0.25)) for x, w in zip(xs, hw)][::-1]
+                out.append((kind, outer + inner, z0, z1))
     for bh in hb.get("bulkheads", []):       # the citadel's armoured ends, across the hull
         if bh.get("kind") == "armoured":
-            hw = _half_width(hull, bh["x"]) - 0.2
+            hw = form_half_width(hb, bh["x"], (bh["armour_bottom"] + bh["armour_top"]) / 2) - 0.2
             out.append(("armoured_bulkhead", [(bh["x"] - 0.15, -hw), (bh["x"] + 0.15, -hw), (bh["x"] + 0.15, hw),
                                               (bh["x"] - 0.15, hw)], bh["armour_bottom"], bh["armour_top"]))
     for d in (arm.get("decks", []) if what == "internal" else []):
         xs = [d["x0"] + (d["x1"] - d["x0"]) * k / 12 for k in range(13)]
-        pts = [(x, _half_width(hull, x) - 0.2) for x in xs] + [(x, -_half_width(hull, x) + 0.2) for x in xs[::-1]]
+        pts = ([(x, form_half_width(hb, x, d["z"]) - 0.2) for x in xs] +
+               [(x, -form_half_width(hb, x, d["z"]) + 0.2) for x in xs[::-1]])
         out.append(("armour_deck", pts, d["z"] - 0.15, d["z"]))
     return out
 
 
-def cell_outline(hull, c, n=8):
-    """A cell's footprint: its box clipped to the hull's outline (sampled along x)."""
+def form_half_width(hb, x, z):
+    """The hull's half-breadth at x and height z (above the main deck): its exported cross-sections
+    (hull_form), or the deck outline's where there are none."""
+    if hb.get("hull_form"):
+        return table_half_width(hb["hull_form"]["stations"], x, z)
+    return _half_width([tuple(p) for p in hb["hull"]], x)
+
+
+def form_outline(hb, z, n=120):
+    """The hull's outline at height z (above the main deck) as a polygon."""
+    L = hb["length"]
+    xs = [-L / 2 + L * (1 - math.cos(math.pi * k / n)) / 2 for k in range(n + 1)]
+    pts = [(x, form_half_width(hb, x, z)) for x in xs]
+    pts = [(x, w) for x, w in pts if w > 0.01]
+    return [(x, -w) for x, w in pts] + [(x, w) for x, w in reversed(pts)]
+
+
+def cell_outline(hb, c, n=8):
+    """A cell's footprint: its box clipped to the hull's outline at the cell's middle height (sampled along x)."""
     xs = [c["x0"] + (c["x1"] - c["x0"]) * k / n for k in range(n + 1)]
-    hw = [_half_width(hull, x) for x in xs]
+    hw = [form_half_width(hb, x, (c["base"] + c["top"]) / 2) for x in xs]
     lo = [(x, max(c["y0"], -w)) for x, w in zip(xs, hw)]
     hi = [(x, min(c["y1"], w)) for x, w in zip(xs, hw)]
     pts = [(x, y) for (x, y), (_, y2) in zip(lo, hi) if y < y2] + \
@@ -221,17 +247,22 @@ def render_view(hb, az, el, what, width=1800, title=""):
                 zs[ok] = depth[ok]
     img = Image.fromarray(np.clip(rgb_buf + 0.5, 0, 255).astype(np.uint8), "RGB")
     d = ImageDraw.Draw(img, "RGBA")
-    if what == "internal":     # the hull's edges: deck and keel outlines and the stem and stern posts
-        keel = hb.get("vertical", {}).get("keel", -5.0)
+    if what == "internal":     # the hull's edges: the deck outline, the keel, the stem and stern posts and a few
+        keel = hb.get("vertical", {}).get("keel", -5.0)            # sections
         hull = [tuple(p) for p in hb["hull"]]
-        for z in (0.0, keel):
-            d.line([proj((x, y, z)) for x, y in hull + hull[:1]], fill=(200, 210, 220, 160), width=1)
+        d.line([proj((x, y, 0.0)) for x, y in hull + hull[:1]], fill=(200, 210, 220, 160), width=1)
+        x0, x1 = min(x for x, _ in hull), max(x for x, _ in hull)
+        d.line([proj((x0, 0.0, keel)), proj((x1, 0.0, keel))], fill=(200, 210, 220, 160), width=1)
         for x, y in (max(hull), min(hull)):
             d.line([proj((x, y, keel)), proj((x, y, 0.0))], fill=(200, 210, 220, 160), width=1)
+        for st in (hb.get("hull_form") or {}).get("stations", [])[4:-4:4]:
+            sec = [(y, z) for y, z in zip(st["y"], st["z"])]
+            pts = [(st["x"], -y, z) for y, z in reversed(sec)] + [(st["x"], y, z) for y, z in sec]
+            d.line([proj(p) for p in pts], fill=(200, 210, 220, 90), width=1)
     wl = hb.get("vertical", {}).get("waterline")
     if wl is not None:
-        hull = [tuple(p) for p in hb["hull"]]
-        d.line([proj((x, y, wl)) for x, y in hull + hull[:1]], fill=(80, 170, 255, 200), width=1)
+        d.line([proj((x, y, wl)) for x, y in form_outline(hb, wl) + form_outline(hb, wl)[:1]],
+               fill=(80, 170, 255, 200), width=1)
     _legend(d, title, sorted({k for k, _, _ in fs}), width)
     return img
 
@@ -288,14 +319,15 @@ def render_subdivision(ship, out_dir, width=1800):
                + "".join(f", under {d['thickness_mm']} mm on the {d['deck'].lower()}"
                          for d in hb.get("armour", {}).get("decks", []) if abs(d["z"] - t["top"]) < 1e-6),
                fill=(220, 225, 230, 255), font=big)
-        d.polygon([P(x, y) for x, y in hull], outline=(200, 210, 220, 255))
+        d.polygon([P(x, y) for x, y in hull], outline=(200, 210, 220, 120))
+        d.polygon([P(x, y) for x, y in form_outline(hb, (t["base"] + t["top"]) / 2)], outline=(200, 210, 220, 255))
         for c in hb["cells"]:
             if c["tier"] != t["id"]:
                 continue
             kind = kinds[c["room"]]
             used.add(kind)
             rgb, _ = KIND.get(kind, ((200, 200, 200), 255))
-            pts = cell_outline(hull, c)
+            pts = cell_outline(hb, c)
             if len(pts) >= 3:
                 d.polygon([P(x, y) for x, y in pts], fill=rgb + (215,), outline=(20, 24, 30, 255))
             if (c["x1"] - c["x0"]) * S > 34 and (c["y1"] - c["y0"]) * S > 14:

@@ -27,7 +27,7 @@ import math
 import re
 
 from geometry import rrect_polygon, block_outline, turret_shapes, turret_reach, _wrap180, angle_allowed, nearest_allowed  # noqa: F401
-from geometry import AA_CFG
+from geometry import AA_CFG, HullForm
 import powerplant
 import subdivision
 
@@ -179,7 +179,7 @@ def export_hitboxes(lay, design, res):
     """hitboxes.json. Heights are metres above the main deck; res (navarch.Result) places the keel, the
     waterline and the armour."""
     from layout import block_base, block_top
-    from navarch import armour_geometry, armour_material, deck_name, DECK_PITCH
+    from navarch import armour_geometry, armour_material, cwp, deck_name, DECK_PITCH
     D, T = res.depth, res.draught
     rz = lambda z: round(z - D, 2)        # metres above the keel -> above the main deck
     ag = armour_geometry(design, lay.hull.L, T, D, lay.geo)
@@ -297,7 +297,9 @@ def export_hitboxes(lay, design, res):
             comps.append(dict(id=c["id"], kind="hangar_bay", shape="polygon",
                               points=[[round(x, 3), round(y, 3)] for x, y in pts], base=round(c["base"], 2),
                               top=round(c["top"], 2)))
-    sub = subdivision.build(lay, design, res, ag, armoured)
+    cb = design["hull"]["block_coefficient"]
+    form = HullForm(lay.hull, cb, cwp(cb), T, D)
+    sub = subdivision.build(lay, design, res, ag, armoured, form)
     arm_out = {}
     if ag["belt_mm"] > 0:
         arm_out["belt"] = with_material(dict(thickness_mm=ag["belt_mm"], x0=round(ag["x0"], 3), x1=round(ag["x1"], 3),
@@ -334,6 +336,9 @@ def export_hitboxes(lay, design, res):
                                           top=round(st["levels"] * DECK_PITCH, 2)) for st in lay.raised]}
                          if lay.raised else {})),
         hull=[[round(x, 3), round(y, 3)] for x, y in lay.hull.points()],
+        hull_form=dict(midship_coefficient=round(form.cm, 3), waterplane_coefficient=round(form.cwp, 3),
+                       stations=[dict(x=round(s["x"], 3), z=[round(z - D, 2) for z in s["z"]],
+                                      y=[round(y, 3) for y in s["y"]]) for s in form.table()]),
         armour=arm_out,
         components=comps,
         **sub,

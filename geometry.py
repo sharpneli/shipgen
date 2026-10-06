@@ -216,6 +216,118 @@ class Hull:
         return [(x, -w) for x, w in pts] + [(x, w) for x, w in reversed(pts)]
 
 
+def midship_coefficient(cb):
+    """The midship section's fullness for a block coefficient (Kerlen's fit), kept to a sane range."""
+    return min(0.995, max(0.6, 1.006 - 0.0056 * cb ** -3.56))
+
+
+class HullForm:
+    """The hull's cross-sections: its half-breadth at x and height z (metres above the keel). The planform (Hull)
+    is the main deck, deliberately fuller than the waterplane (it carries the flare). Here:
+      waterplane  the deck outline fined toward the ends, B / 2 x w(x) ** p with w the deck's share of the beam,
+                  p in 1..P_MAX solved so it fills cwp of its L x B box (the midbody keeps the full beam). A
+                  straight-sided deck with a wide transom (destroyers, planing craft) is far fuller than
+                  navarch.cwp, a fit for cruiser sterns; fining it that far would leave only the midbody, so p
+                  stops at P_MAX and that waterplane comes out fuller than cwp (the volume still matches)
+      below it    each section narrows to the keel, y = hw_wl(x) (1 - (1 - z / T) ** m): full amidships (the
+                  midship coefficient for cb) and sharp at the ends, its fullness c(x) = cm u(x) ** a (u: the
+                  waterline's share of the beam, m = c / (1 - c)) with a in 0..A_MAX solved so the underwater body
+                  holds cb L B T; a long full-width midbody that still holds too much gets a leaner cm (a planing
+                  craft's vee)
+      above it    the side flares straight up from the waterline to the deck edge; raised decks keep the deck's
+                  outline
+    Standard library only: the design side builds it for the hitboxes, the render side reads its table."""
+    N = 400
+    P_MAX = 2.0
+    A_MAX = 4.0
+    C_MIN = 0.35        # the finest section, a little hollower than a vee (c 0.5)
+
+    @staticmethod
+    def _solve(f, lo, hi, target):
+        """x in lo..hi where the decreasing f(x) meets target (an end when it doesn't)."""
+        if f(lo) <= target:
+            return lo
+        if f(hi) >= target:
+            return hi
+        for _ in range(50):
+            mid = (lo + hi) / 2
+            lo, hi = (mid, hi) if f(mid) > target else (lo, mid)
+        return (lo + hi) / 2
+
+    def __init__(self, hull, cb, cwp, T, D):
+        self.hull, self.cb, self.T, self.D = hull, cb, T, D
+        L = hull.L
+        ws = [min(1.0, hull.half_width(-L / 2 + L * (k + 0.5) / self.N) / (hull.B / 2)) for k in range(self.N)]
+        self.p = self._solve(lambda p: sum(w ** p for w in ws) / len(ws), 1.0, self.P_MAX, cwp)
+        us = [w ** self.p for w in ws]
+        self.cwp = sum(us) / len(us)
+        fill = lambda cm, a: sum(u * max(self.C_MIN, cm * u ** a) for u in us) / len(us)   # underwater, of LBT
+        self.cm = midship_coefficient(cb)
+        self.a = self._solve(lambda a: fill(self.cm, a), 0.0, self.A_MAX, cb)
+        # the ends alone can't make it: a leaner (or fuller) midship section takes up the rest
+        if abs(fill(self.cm, self.a) - cb) > 1e-4:      # fill rises with cm: solve on 1 - cm
+            self.cm = 1.0 - self._solve(lambda k: fill(1.0 - k, self.a), 0.005, 1.0 - self.C_MIN, cb)
+
+    def waterline(self, x):
+        """The waterplane's half-breadth at x."""
+        w = min(1.0, self.hull.half_width(x) / (self.hull.B / 2))
+        return self.hull.B / 2 * w ** self.p
+
+    def fullness(self, x):
+        """The section's fullness below the waterline at x: its area over its box's (2 hw_wl x T)."""
+        u = self.waterline(x) / (self.hull.B / 2)
+        return max(self.C_MIN, self.cm * u ** self.a)
+
+    def half_width(self, x, z):
+        """The half-breadth at x and z metres above the keel."""
+        deck = self.hull.half_width(x)
+        if z >= self.D:
+            return deck
+        wl = self.waterline(x)
+        if z >= self.T:
+            return wl + (deck - wl) * (z - self.T) / (self.D - self.T) if self.D > self.T else deck
+        if z <= 0:
+            return 0.0
+        c = self.fullness(x)
+        m = c / (1.0 - c)
+        return min(deck, wl * (1.0 - (1.0 - z / self.T) ** m))
+
+    HEIGHTS = (0.0, 0.03, 0.08, 0.15, 0.25, 0.4, 0.55, 0.7, 0.85, 1.0)     # sampled heights, fractions of T
+
+    def table(self, stations=48):
+        """Sampled sections for the hitboxes: [dict(x, z, y)], z on the keel scale, from the keel up to the
+        main deck (and the waterline among them)."""
+        L = self.hull.L
+        zs = sorted({min(self.T, self.D) * f for f in self.HEIGHTS} | {self.D})
+        out = []
+        for k in range(stations + 1):
+            x = -L / 2 + L * (1 - math.cos(math.pi * k / stations)) / 2
+            out.append(dict(x=x, z=zs, y=[self.half_width(x, z) for z in zs]))
+        return out
+
+
+def table_half_width(table, x, z):
+    """A sampled hull form's (HullForm.table, as exported) half-breadth at x and z: bilinear between stations
+    and heights; above the top height, the top's."""
+    xs = [s["x"] for s in table]
+    if x <= xs[0] or x >= xs[-1]:
+        return 0.0
+    i = max(0, min(len(xs) - 2, next(k for k in range(len(xs) - 1) if xs[k + 1] >= x)))
+
+    def at(s):
+        zs, ys = s["z"], s["y"]
+        if z >= zs[-1]:
+            return ys[-1]
+        if z <= zs[0]:
+            return ys[0]
+        j = next(k for k in range(len(zs) - 1) if zs[k + 1] >= z)
+        f = (z - zs[j]) / (zs[j + 1] - zs[j]) if zs[j + 1] > zs[j] else 0.0
+        return ys[j] + (ys[j + 1] - ys[j]) * f
+    a, b = table[i], table[i + 1]
+    f = (x - a["x"]) / (b["x"] - a["x"]) if b["x"] > a["x"] else 0.0
+    return at(a) + (at(b) - at(a)) * f
+
+
 # ---------------------------------------------------------------------------
 # turret types generated from gun parameters
 # ---------------------------------------------------------------------------

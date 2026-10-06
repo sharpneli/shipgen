@@ -17,16 +17,17 @@ size search never runs it.
   bands     across the ship: port wing | centre | starboard wing where a longitudinal bulkhead stands (inboard of
             the machinery's wing bunkers, or of the torpedo protection inside the citadel, up to the lowest
             armour deck), else the centre alone. A centreline machinery bulkhead splits the centre into CP | CS.
-  cells     section x tier x band boxes. Their y extent reaches the hull's widest point over the section, so the
-            boxes tile the hull: a point inside the hull below the main deck is in exactly one cell.
+  cells     section x tier x band boxes. Their y extent reaches the hull's widest point over the section at the
+            tier's top (geometry.HullForm: the sections narrow toward the keel), so the boxes tile the hull: a
+            point inside the hull below the main deck is in exactly one cell.
   rooms     the layout's compartments, snapped to whole cells: a room owns a cell when it overlaps the cell by at
             least half the shorter of the two along every axis; conflicts go by ROOM_PRIORITY, then overlap. A
             room too small for any cell of its own shares the cell it overlaps most ("also"). Cells no room
             claims become a section's double bottom, stores (at least half under water), quarters (above) or
             torpedo protection (a wing cell inside the citadel). Every cell has exactly one owning room.
 
-Each cell gives its volume (the hull's plan inside the box, times its height; the part below the waterline scaled
-so all underwater parts add up to the displacement volume), its permeability (PERMEABILITY by its room's kind), the
+Each cell gives its volume (the hull's cross-sections inside the box, sampled slice by slice; the part below the
+waterline scaled so all underwater parts add up to the displacement volume exactly), its permeability (PERMEABILITY by its room's kind), the
 armour over it (every armour deck above it, top down) and beside it, its crew (the complement spread over the quarters by volume) and its neighbours, each
 with the boundary between them: a bulkhead or deck id, or "open" inside one room.
 """
@@ -43,6 +44,7 @@ MAX_SECTION = 0.07      # longer gaps get more bulkheads (the research's 0.05-0.
 MAX_SECTION_M = 2.5
 COLLISION = 0.05        # the collision bulkhead, x L abaft the bow
 STEEL_FRAME = 0.92      # usable half-width of the hull, as in powerplant (frames, side plating)
+Z_SAMPLES = 6           # heights a cell's volume is sampled at (the sections narrow toward the keel)
 
 # who keeps a contested cell, and whose ends make the stations
 ROOM_PRIORITY = {"magazine": 9, "steering": 6, "boiler_room": 7, "engine_room": 7, "fuel_tank": 7, "bunker": 6,
@@ -162,9 +164,10 @@ def stations(L, rooms, cit, min_gap, max_gap, breaks=()):
     return out
 
 
-def build(lay, design, res, ag, armoured):
+def build(lay, design, res, ag, armoured, form):
     """The subdivision of the laid-out ship: dict(decks, tiers, sections, bulkheads, cells, rooms) for
-    hitboxes.json. ag is navarch.armour_geometry (heights above the keel)."""
+    hitboxes.json. ag is navarch.armour_geometry (heights above the keel); form the hull's cross-sections
+    (geometry.HullForm)."""
     from navarch import belt_mm_at
     hull = lay.hull
     L, B = hull.L, hull.B
@@ -231,11 +234,14 @@ def build(lay, design, res, ag, armoured):
     tds = plan.get("tds", 0.0) or 0.0
     wing_m = plan.get("wing_m", 0.0) or 0.0
     centreline = bool((design.get("machinery") or {}).get("centreline_bulkhead"))
-    a_plan = sum(2 * hull.half_width(-L / 2 + L * (k + 0.5) / 400) * L / 400 for k in range(400))
-    under_k = min(1.0, cb * L * B / a_plan) if a_plan else 1.0      # plan x height -> underwater volume
+    def xs_in(x0, x1, n=8):
+        return [x0 + (x1 - x0) * (j + 0.5) / n for j in range(n)]
 
     def hw_samples(x0, x1, n=8):
-        return [hull.half_width(x0 + (x1 - x0) * (j + 0.5) / n) for j in range(n)]
+        return [hull.half_width(x) for x in xs_in(x0, x1, n)]
+
+    def widest(x0, x1, z):      # the hull's widest point over x0..x1 at z (above the main deck)
+        return max(form.half_width(x, z + D) for x in [x0, x1] + xs_in(x0, x1))
 
     cells, longi = [], []
     belts = ([dict(x0=ag["x0"], x1=ag["x1"], bottom=ag["belt_bottom"], top=ag["belt_top"], mm=ag["belt_mm"],
@@ -252,8 +258,8 @@ def build(lay, design, res, ag, armoured):
         split, s_kind, s_top = None, None, None
         if wing_m > 0 and in_mach:
             split, s_kind, s_top = plan["width"] / 2, "wing", 0.0
-        elif tds > 0 and in_cit:
-            split = max(0.5, STEEL_FRAME * min(hws) - tds)
+        elif tds > 0 and in_cit:      # torpedo protection is tds deep at the waterline, where torpedoes strike
+            split = max(0.5, STEEL_FRAME * min(form.waterline(x) for x in xs_in(x0, x1)) - tds)
             s_kind, s_top = "tds", under
         if split is not None and split >= hwmax - 0.3:
             split = None
@@ -277,20 +283,30 @@ def build(lay, design, res, ag, armoured):
             bottom = has_bottom and ti == 0
             banded = split is not None and not bottom and tr["top"] <= s_top + 1e-6
             centre_split = cl and not bottom and tr["top"] <= under + 1e-6
+            hw_t = min(hwmax, widest(x0, x1, tr["top"]))      # the sections narrow toward the keel
             if banded:
-                ys = [("P", -hwmax, -split)] + ([("CP", -split, 0.0), ("CS", 0.0, split)] if centre_split
-                                                else [("C", -split, split)]) + [("S", split, hwmax)]
+                ys = [("P", -hw_t, -split)] + ([("CP", -split, 0.0), ("CS", 0.0, split)] if centre_split
+                                               else [("C", -split, split)]) + [("S", split, hw_t)]
             else:
-                ys = [("CP", -hwmax, 0.0), ("CS", 0.0, hwmax)] if centre_split else [("C", -hwmax, hwmax)]
+                ys = [("CP", -hw_t, 0.0), ("CS", 0.0, hw_t)] if centre_split else [("C", -hw_t, hw_t)]
+            zs = [tr["base"] + (tr["top"] - tr["base"]) * (k + 0.5) / Z_SAMPLES for k in range(Z_SAMPLES)]
+            hwz = [[form.half_width(x, z + D) for x in xs_in(x0, x1)] for z in zs]
+            dz = (tr["top"] - tr["base"]) / Z_SAMPLES
             for band, y0, y1 in ys:
-                area = sum(max(0.0, min(h, y1) - max(-h, y0)) for h in hws) * (x1 - x0) / len(hws)
-                h = tr["top"] - tr["base"]
-                vol = area * h * (tr["submerged"] * under_k + 1.0 - tr["submerged"])
-                if vol < 0.01:
+                if y1 - y0 < 1e-6:
+                    continue
+                v_under = v_over = 0.0      # the hull's section inside the band, slice by slice
+                for z, hs in zip(zs, hwz):
+                    v = sum(max(0.0, min(h, y1) - max(-h, y0)) for h in hs) * (x1 - x0) / len(hs) * dz
+                    if z < wl:
+                        v_under += v
+                    else:
+                        v_over += v
+                if v_under + v_over < 0.01:
                     continue
                 c = dict(id=f"{sec['id']} {tr['id']} {band}", section=sec["id"], tier=tr["id"], band=band,
-                         x0=x0, x1=x1, y0=y0, y1=y1, base=tr["base"], top=tr["top"], volume_m3=vol,
-                         below_waterline=tr["below_waterline"], si=si, ti=ti)
+                         x0=x0, x1=x1, y0=y0, y1=y1, base=tr["base"], top=tr["top"], v_under=v_under,
+                         v_over=v_over, below_waterline=tr["below_waterline"], si=si, ti=ti)
                 if in_cit and armoured:
                     c["citadel"] = True
                 above = [d for d in adecks if tr["top"] <= d["z"] + 1e-6 and d["x0"] <= xm <= d["x1"]]
@@ -307,8 +323,17 @@ def build(lay, design, res, ag, armoured):
                     if b.get("material"):
                         c["belt_material"] = b["material"]
                 if banded and band in ("P", "S") and in_cit and tds > 0:
-                    c["tds_m"] = tds
+                    # the protection's depth here: the shell to the torpedo bulkhead at the cell's middle height,
+                    # tds at the waterline, less toward the bilge where the hull narrows
+                    zm = (tr["base"] + tr["top"]) / 2 + D
+                    c["tds_m"] = round(max(0.0, STEEL_FRAME * min(form.half_width(x, zm) for x in xs_in(x0, x1))
+                                           - split), 2)
                 cells.append(c)
+    # underwater, the cells hold the displacement volume (cb L B T) exactly
+    v_u = sum(c["v_under"] for c in cells)
+    under_k = cb * L * B * T / v_u if v_u > 0 else 1.0
+    for c in cells:
+        c["volume_m3"] = c.pop("v_under") * under_k + c.pop("v_over")
 
     # ---------------- rooms take cells ----------------
     owner = {}
@@ -347,7 +372,7 @@ def build(lay, design, res, ag, armoured):
             continue
         if has_bottom and c["ti"] == 0:
             use, name = "double_bottom", "Double bottom"
-        elif c.get("tds_m") and c["band"] in ("P", "S"):
+        elif "tds_m" in c and c["band"] in ("P", "S"):
             use, name = "tds", "Torpedo protection"
         elif tiers[c["ti"]]["submerged"] >= 0.5:
             use, name = "stores", "Stores"
