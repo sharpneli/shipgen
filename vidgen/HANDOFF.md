@@ -119,8 +119,25 @@ before a realtime version. `sinkvid.py bismarck [--end stern|bow|both] [--still 
     colour at 45 %, rainbow at 15 %. At its numbers the slick buried the foam in black discs.
   - Funnel smoke runs until the funnel top goes under, then a steam burst (the doc's "not modelled" cue), drawn
     unlit.
-- **Speed:** about 0.6 s a frame at 720p (step 0.05 s), so a 74 s clip takes about 25 minutes. The foam source
-  is worked out in a window round the ship.
+- **Speed (optimisation pass, 2026-10-06):** both 74 s clips together in about 2 minutes (was 16). One core
+  draws a frame in about 0.13 s and steps in 0.013 s (were 0.48 and 0.045).
+  - **Parallel:** each clip steps its sim in its own process and hands frames to a pool of drawing workers. Each
+    worker holds the same scene, built from the seed. Snapshots carry the lists and particles; the foam canvases
+    and finished frames go through a shared-memory ring (`Ring`). So `render` must not touch the sim's state or
+    its rng: boils draw their streaks when made, and are pruned in `step`.
+  - **Memory bandwidth is the limit, not cores:** 8 memory-bound processes triple the step's time, while 8
+    CPU-bound ones don't slow it at all. Past about 6 workers a clip (the default cap), more only contend.
+    Everything was cut for bytes moved:
+    - the sim steps on the every-third-point subset
+    - foam canvases are updated and copied only inside the box foam has touched (`fbox`)
+    - the hull draws only the wall kinds facing the camera (points grouped by normal kind)
+    - shadows are cast from the subset into a 1x map
+    - z-buffer and shadow map use `np.maximum.at`, not a sort
+    - boils, rings and the collar are worked out at half resolution, the agitation at a quarter
+    - full-frame blends are windowed to where their layer is
+    - the frame centre is float32, since a float64 one promoted every `to_px` result
+  - **vidgen's own `Water.shade` (107 -> 30 ms) and `box_blur`:** precomputed swell phases, 1-D ripple indices
+    and slice-based cumsum windows. vidgen's output is unchanged (at most 1/255 on a few pixels).
 - **Open:** capsize and break-in-two aren't drawn (the timeline refuses a capsize). There are no side, bottom or
   cut-face sprites (doc 2.7): a plunge only shows walls from the height-map steps.
 

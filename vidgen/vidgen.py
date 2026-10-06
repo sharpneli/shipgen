@@ -122,9 +122,10 @@ def box_blur(a, r, passes=3):
             p = np.pad(a, [(r + 1, r) if ax == axis else (0, 0) for ax in (0, 1)], mode="edge")
             c = np.cumsum(p, axis=axis, dtype=np.float32)
             n = a.shape[axis]
-            hi = np.take(c, np.arange(2 * r + 1, 2 * r + 1 + n), axis=axis)
-            lo = np.take(c, np.arange(0, n), axis=axis)
-            a = (hi - lo) / (2 * r + 1)
+            if axis == 0:
+                a = (c[2 * r + 1:2 * r + 1 + n] - c[:n]) / (2 * r + 1)
+            else:
+                a = (c[:, 2 * r + 1:2 * r + 1 + n] - c[:, :n]) / (2 * r + 1)
     return a
 
 
@@ -288,47 +289,68 @@ class Water:
         self.Hh = Hh / np.linalg.norm(Hh)
         noise = rng.standard_normal((H // 8 + 2, W // 8 + 2)).astype(np.float32)
         self.foam_noise = np.clip(0.75 + 0.35 * upscale(box_blur(noise, 1), W, H), 0.3, 1.2)
+        # each swell component's phase over the half-res grid is fixed relative to the frame; the camera and time
+        # only add a constant, so cos(a + b) = cos a cos b - sin a sin b with cos a, sin a computed once
+        Xh, Yh = self.mx[::2, ::2].astype(np.float64), self.my[::2, ::2].astype(np.float64)
+        self.swell = []
+        for kx, ky, steep, w, ph in self.waves:
+            a = kx * Xh + ky * Yh
+            k = math.hypot(kx, ky)
+            self.swell.append((np.cos(a).astype(np.float32), np.sin(a).astype(np.float32),
+                               steep * kx / k, steep * ky / k, kx, ky, w, ph))
 
     def ripple(self, X, Y, scale, ox, oy):
+        """X: the frame's columns, Y: its rows (1-D: the frame is axis-aligned and the camera only shifts it), so
+        the lookup is a gather of tile rows, then of columns."""
         n = self.rx.shape[0]
         k = n / (self.ripple_m * scale)
         ix = ((X + ox) * k).astype(np.int32) % n
         iy = ((Y + oy) * k).astype(np.int32) % n
-        return self.rx[iy, ix], self.ry[iy, ix]
+        return self.rx.take(iy, axis=0).take(ix, axis=1), self.ry.take(iy, axis=0).take(ix, axis=1)
 
-    def shade(self, cam, t, wake=None):
+    def shade(self, cam, t, wake=None, half=None):
         """wake: (hx, hy, calm) full-frame: the baked wake's slopes, added, and how much its slick flattens the
-        ripples (0..1)."""
+        ripples (0..1). half: (hx, hy) more slopes on the half-res swell grid (smooth ones; cheaper to add there)."""
         # the swell is smooth, so it's summed at half resolution and upsampled; ripples stay full resolution
-        Xh, Yh = self.mx[::2, ::2] + cam[0], self.my[::2, ::2] + cam[1]
-        hx = np.zeros_like(Xh)
-        hy = np.zeros_like(Xh)
-        for kx, ky, steep, w, ph in self.waves:
-            c = np.cos(kx * Xh + ky * Yh - w * t + ph) * steep
-            hx += c * kx / math.hypot(kx, ky)
-            hy += c * ky / math.hypot(kx, ky)
+        hx = np.zeros(self.swell[0][0].shape, np.float32) if self.swell else np.zeros(self.mx[::2, ::2].shape, np.float32)
+        hy = np.zeros_like(hx)
+        for ca, sa, ax, ay, kx, ky, w, ph in self.swell:
+            b = kx * cam[0] + ky * cam[1] - w * t + ph
+            c = ca * np.float32(math.cos(b))
+            c -= sa * np.float32(math.sin(b))
+            hx += c * np.float32(ax)
+            hy += c * np.float32(ay)
+        if half is not None:
+            hx += half[0]
+            hy += half[1]
         hx, hy = upscale(hx, self.W, self.H), upscale(hy, self.W, self.H)
         calm = 1.0
         if wake is not None:
             hx += wake[0]
             hy += wake[1]
             calm = 1 - wake[2]
-        X, Y = self.mx + cam[0], self.my + cam[1]
+        X, Y = self.mx[0] + np.float32(cam[0]), self.my[:, 0] + np.float32(cam[1])
         for scale, vel, amp in ((1.0, (1.1, 1.6), 0.10), (0.45, (-0.7, 1.2), 0.07)):
             if self.ripple_m * scale * self.s < 40:
                 continue
-            rx, ry = self.ripple(X, Y, scale, -vel[0] * t, -vel[1] * t)
-            hx += rx * amp * calm
-            hy += ry * amp * calm
+            rx, ry = self.ripple(X, Y, scale, np.float32(-vel[0] * t), np.float32(-vel[1] * t))
+            a = amp * calm
+            hx += rx * a
+            hy += ry * a
         inv = 1 / np.sqrt(hx * hx + hy * hy + 1)
-        nx, ny, nz = -hx * inv, -hy * inv, inv
-        diff = np.clip(nx * self.L[0] + ny * self.L[1] + nz * self.L[2], 0, 1)
-        sky = np.clip(1 - nz, 0, 1) * 6       # tilted facets reflect more sky
-        spec = np.clip(nx * self.Hh[0] + ny * self.Hh[1] + nz * self.Hh[2], 0, 1) ** 400
-        d = (diff - 0.6) / 0.4
-        col = WATER_DEEP + (WATER_LIT - WATER_DEEP) * np.clip(d, 0, 1)[..., None]
-        col = col + (WATER_SKY - col) * np.clip(sky, 0, 0.35)[..., None]
-        return col + spec[..., None] * 0.9
+        L, Hh = self.L.astype(np.float32), self.Hh.astype(np.float32)
+        # n = (-hx, -hy, 1) * inv
+        diff = np.clip((L[2] - hx * L[0] - hy * L[1]) * inv, 0, 1)
+        sky = np.clip((1 - inv) * 6, 0, 0.35)       # tilted facets reflect more sky
+        spec = np.clip((Hh[2] - hx * Hh[0] - hy * Hh[1]) * inv, 0, 1) ** 400 * np.float32(0.9)
+        d = np.clip((diff - 0.6) / 0.4, 0, 1)
+        col = np.empty((self.H, self.W, 3), np.float32)
+        for c in range(3):
+            v = WATER_DEEP[c] + (WATER_LIT[c] - WATER_DEEP[c]) * d
+            v += (WATER_SKY[c] - v) * sky
+            v += spec
+            col[..., c] = v
+        return col
 
 
 # ---------------------------------------------------------------- the scene

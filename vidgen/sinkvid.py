@@ -32,6 +32,8 @@ import sys
 import time
 from pathlib import Path
 
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):   # one thread each: frames are drawn in
+    os.environ.setdefault(_v, "1")                                           # many processes at once
 import numpy as np
 from PIL import Image, ImageDraw
 
@@ -74,6 +76,16 @@ def gblur(a, sigma_px):
         return a
     r = max(1, int(round((math.sqrt(1 + 4 * sigma_px * sigma_px) - 1) / 2)))
     return box_blur(a.astype(np.float32), r)
+
+
+def nonzero_box(m, also=None):
+    """(x0, y0, x1, y1) round a mask's true cells, grown to hold box `also`; None if both are empty."""
+    rows, cols = np.flatnonzero(m.any(axis=1)), np.flatnonzero(m.any(axis=0))
+    box = [int(cols[0]), int(rows[0]), int(cols[-1]) + 1, int(rows[-1]) + 1] if len(rows) else None
+    if also:
+        box = list(also) if box is None else [min(box[0], also[0]), min(box[1], also[1]),
+                                              max(box[2], also[2]), max(box[3], also[3])]
+    return box
 
 
 def pchip(x, y):
@@ -250,10 +262,25 @@ class Ship3D:
         self.n = np.concatenate([np.tile(np.float32([0, 0, 1]), (n, 1)),
                                  np.stack([nx_[rep], ny_[rep], np.zeros(len(rep))], 1)]).astype(np.float32)
         self.top = np.concatenate([np.ones(n, bool), np.zeros(len(rep), bool)])
+        # normals come in a few kinds (deck up, walls facing +-x or +-y): shading looks a kind up, colours are
+        # bytes, so the per-pixel gathers stay small. Points are grouped by kind, so the drawing can take only the
+        # kinds facing the camera as slices: a wall is edge-on at rest and hidden under its top, and only shows
+        # once a pitch or a roll tips it up
+        self.normals, kind = np.unique(self.n, axis=0, return_inverse=True)
+        o = np.argsort(kind.ravel(), kind="stable")
+        self.x, self.y, self.z, self.c, self.n, self.top = (a[o] for a in (self.x, self.y, self.z, self.c, self.n,
+                                                                             self.top))
+        self.nkind = kind.ravel()[o].astype(np.int8)
+        ends = np.searchsorted(self.nkind, np.arange(len(self.normals) + 1))
+        self.kslice = [(int(ends[k]), int(ends[k + 1])) for k in range(len(self.normals))]
+        self.c8 = np.clip(np.rint(self.c * 255), 0, 255).astype(np.uint8)
         sub = (yy % 2 == 0) & (xx % 2 == 0)                  # bottom at half the density
         self.bx, self.by, self.bz = X[sub].astype(np.float32), Y[sub].astype(np.float32), Zb[sub].astype(np.float32)
         self.lcf = hb["hydrostatics"]["lcf"]
         self.ppm = ppm
+        # every third point, contiguous: the sim's waterline cut, collar and footprint use only these
+        self.xs, self.ys, self.zs = self.x[::3].copy(), self.y[::3].copy(), self.z[::3].copy()
+        self.tops = self.top[::3].copy()
 
 
 def transform(x, y, z, pose, lcf, heading, n=None):
@@ -278,6 +305,19 @@ def transform(x, y, z, pose, lcf, heading, n=None):
     return X, Y, Z, np.stack([nx2 * ch - ny1 * sh, nx2 * sh + ny1 * ch, nz2], 1)
 
 
+def rotate_normals(n, pose, heading):
+    """transform()'s rotation alone, for normals."""
+    _, th, ph = pose
+    cp, sp_ = math.cos(ph), math.sin(ph)
+    ct, st = math.cos(th), math.sin(th)
+    ch, sh = math.cos(math.radians(heading)), math.sin(math.radians(heading))
+    ny1 = n[:, 1] * cp + n[:, 2] * sp_
+    nz1 = n[:, 2] * cp - n[:, 1] * sp_
+    nx2 = n[:, 0] * ct + nz1 * st
+    nz2 = nz1 * ct - n[:, 0] * st
+    return np.stack([nx2 * ch - ny1 * sh, nx2 * sh + ny1 * ch, nz2], 1)
+
+
 # ---------------------------------------------------------------- the scene
 class SinkScene:
     def __init__(self, src: Path, W, H, fps, heading, end, seed):
@@ -294,7 +334,7 @@ class SinkScene:
         ch, sh = abs(math.cos(math.radians(heading))), abs(math.sin(math.radians(heading)))
         S0 = self.sprite["scale_px_per_m"]
         self.s = s = min(S0, 0.72 * W / (self.L * ch + self.B * sh), 0.55 * H / (self.L * sh + self.B * ch))
-        self.C = np.array([W / 2, H / 2])
+        self.C = np.array([W / 2, H / 2], np.float32)    # float32: a float64 centre promoted every to_px
         t0 = time.perf_counter()
         self.tl = Timeline(self.hb, end)
         self.ship = Ship3D(src, self.hb, self.sprite, 2 * s)
@@ -361,13 +401,13 @@ class SinkScene:
         self.last_xy, self.last_area = np.zeros(2), 0.0
         self.hit_done = False
         self.duration = None
-        self.cache = None
         self.Zprev = None
         self.zcell_prev = None
-        self._frame_pts(0.0)
-        self.Zprev = self.cache[3].copy()
-        self.Bprev = self.cache[6].copy()
+        self.Zsprev, self.Bprev = self._sim_pts(0.0)[:2]
+        self.fbox = None          # the box the foam canvases have been written in (it only grows)
         self.hud = self._hud()
+        hb_ = nonzero_box(self.hud[..., 3] > 0)
+        self.hud_box = (hb_[1], hb_[0], self.hud[hb_[1]:hb_[3], hb_[0]:hb_[2]].astype(np.float32) / 255)
 
     # ----- setup helpers
     def _tile(self, lu, lv, n=512):
@@ -393,11 +433,11 @@ class SinkScene:
         return ((tile[iv, iu] * (1 - wu) + tile[iv, ju] * wu) * (1 - wv)
                 + (tile[jv, iu] * (1 - wu) + tile[jv, ju] * wu) * wv).astype(np.float32)
 
-    def tex(self, i, t, ridged=True):
+    def tex(self, i, t, win=np.s_[:, :], ridged=True):
         """vidgen's foam texture: two tiles crossfaded over 14 s (stays unit gaussian), mapped to uniform 0..1,
         ridged = high along the zero lines (lace)."""
         ph = 2 * math.pi * t / 14.0
-        g = self.tiles[i][0] * math.cos(ph) + self.tiles[i][1] * math.sin(ph)
+        g = self.tiles[i][0][win] * math.cos(ph) + self.tiles[i][1][win] * math.sin(ph)
         th = np.tanh(0.7978845 * (g + 0.044715 * g * g * g))
         return 1 - np.abs(th) if ridged else 0.5 + 0.5 * th
 
@@ -425,84 +465,100 @@ class SinkScene:
                             self.ship.lcf, self.heading)
         return float(X[0]), float(Y[0]), float(Z[0])
 
-    def _frame_pts(self, t):
-        if self.cache is not None and self.cache[0] == t:
-            return self.cache
-        sh = self.ship
-        pose = self.tl.pose(t)
-        X, Y, Z = transform(sh.x, sh.y, sh.z, pose, sh.lcf, self.heading)
+    def _sim_pts(self, t):
+        """What the step needs: the every-third-point subset and the bottom, and the pose. The sim works on the
+        subset only (each point counting three): the foam it feeds is blurred over a few pixels anyway, and memory
+        traffic, not arithmetic, is what limits drawing in many processes at once."""
+        sh, pose = self.ship, self.tl.pose(t)
+        Xs, Ys, Zs = transform(sh.xs, sh.ys, sh.zs, pose, sh.lcf, self.heading)
         BX, BY, BZ = transform(sh.bx, sh.by, sh.bz, pose, sh.lcf, self.heading)
-        self.cache = (t, X, Y, Z, BX, BY, BZ, pose)
-        return self.cache
+        return Zs, BZ, Xs, Ys, BX, BY, pose
 
-    def splat(self, X, Y, w, roi):
-        """Sum w into the frame pixels of window roi = (x0, y0, x1, y1)."""
+    def splat(self, X, Y, w, roi, f=1):
+        """Sum w into the frame pixels of window roi = (x0, y0, x1, y1), in cells of f x f pixels."""
         x0, y0, x1, y1 = roi
         px, py = self.to_px(X, Y)
-        ix, iy = np.floor(px).astype(np.int32) - x0, np.floor(py).astype(np.int32) - y0
-        w_, h_ = x1 - x0, y1 - y0
+        ix, iy = (np.floor(px).astype(np.int32) - x0) // f, (np.floor(py).astype(np.int32) - y0) // f
+        w_, h_ = (x1 - x0) // f, (y1 - y0) // f
         ok = (ix >= 0) & (ix < w_) & (iy >= 0) & (iy < h_)
         return np.bincount(iy[ok] * w_ + ix[ok], weights=w[ok], minlength=w_ * h_).reshape(h_, w_).astype(np.float32)
 
     # ----- simulation step
     def step(self, dt):
         t = self.t + dt
-        _, X, Y, Z, BX, BY, BZ, pose = self._frame_pts(t)
+        Zs, BZ, Xs, Ys, BX, BY, pose = self._sim_pts(t)
         s = self.s
         rng = self.rng
-        # 1. crossing foam: surface passing down through z = 0 (water pouring over the deck and edge), up (cascade)
-        vz = (Z - self.Zprev) / dt
-        bvz = (BZ - self.Bprev) / dt
+        # 1. crossing foam: surface passing down through z = 0 (water pouring over the deck and edge), up (cascade).
+        # Only the points that changed side are worked on; each subset point stands for three
         dens = (s / self.ship.ppm) ** 2
-
-        def cross(zp, z, v, k):
-            down = (zp > 0) & (z <= 0)
-            up = (zp < 0) & (z >= 0)
-            w = np.zeros_like(z)
-            w[down] = 0.25 + 0.75 * smooth(-v[down], 0.03, 0.8)
-            w[up] = 0.55 * smooth(v[up], 0.05, 1.0)
-            return w * k, down
-        w, down = cross(self.Zprev, Z, vz, 1.0)
-        bw, _ = cross(self.Bprev, BZ, bvz, 4.0)
-        m, bm = w > 0, bw > 0
+        cz = np.flatnonzero((self.Zsprev > 0) != (Zs > 0))
+        zp = self.Zsprev[cz]
+        v = (Zs[cz] - zp) / dt
+        down = zp > 0
+        w = 3 * np.where(down, 0.25 + 0.75 * smooth(-v, 0.03, 0.8), 0.55 * smooth(v, 0.05, 1.0)).astype(np.float32)
+        X, Y = Xs[cz], Ys[cz]
+        bc = np.flatnonzero((self.Bprev > 0) != (BZ > 0))
+        bv = (BZ[bc] - self.Bprev[bc]) / dt
+        bw = 4.0 * np.where(self.Bprev[bc] > 0, 0.25 + 0.75 * smooth(-bv, 0.03, 0.8), 0.55 * smooth(bv, 0.05, 1.0))
+        vzs = (Zs - self.Zsprev) / dt
         # the foam source is worked out in a window round the ship's footprint, not the whole frame
-        px, py = self.to_px(X, Y)
+        px, py = self.to_px(Xs, Ys)
         pad = int(5 * s) + 8
         roi = (max(0, int(px.min()) - pad), max(0, int(py.min()) - pad),
                min(self.W, int(px.max()) + pad), min(self.H, int(py.max()) + pad))
-        if roi[2] > roi[0] and roi[3] > roi[1] and Z.max() > -2:
-            src = np.minimum((self.splat(X[m], Y[m], w[m], roi) + self.splat(BX[bm], BY[bm], bw[bm], roi))
+        zmax = float(Zs.max())
+        roi = (roi[0], roi[1], roi[0] + (roi[2] - roi[0]) // 4 * 4, roi[1] + (roi[3] - roi[1]) // 4 * 4)
+        if roi[2] > roi[0] and roi[3] > roi[1] and zmax > -2:
+            rw, rh = roi[2] - roi[0], roi[3] - roi[1]
+            # the crossing line is thin: full resolution, blurred only over the box it covers
+            src = np.minimum((self.splat(X, Y, w, roi) + self.splat(BX[bc], BY[bc], bw.astype(np.float32), roi))
                              * dens * 3.0, 0.8)
-            # 2. contact collar round the waterline cut: columns with hull both above and below the surface
-            sub = slice(None, None, 3)
-            Xs, Ys, Zs = X[sub], Y[sub], Z[sub]
-            ab = self.splat(Xs, Ys, (Zs > 0).astype(np.float32), roi)
-            be = self.splat(Xs, Ys, (Zs < 0).astype(np.float32), roi) + self.splat(BX, BY, (BZ < 0).astype(np.float32), roi)
+            cb = nonzero_box(src > 0)
+            if cb:
+                g = int(2 * s) + 3
+                cb = (max(0, cb[0] - g), max(0, cb[1] - g), min(rw, cb[2] + g), min(rh, cb[3] + g))
+                c_ = np.s_[cb[1]:cb[3], cb[0]:cb[2]]
+                src[c_] = gblur(src[c_], 0.5 * s)
+            # 2. contact collar round the waterline cut: columns with hull both above and below the surface. It's
+            # smooth (1.3 m wide), so worked out at half resolution, the agitation at a quarter
+            ab = self.splat(Xs, Ys, (Zs > 0).astype(np.float32), roi, 2)
+            be = self.splat(Xs, Ys, (Zs < 0).astype(np.float32), roi, 2) + self.splat(BX, BY, (BZ < 0).astype(np.float32), roi, 2)
             Wc = ((ab > 0) & (be > 0)).astype(np.float32)
             Wc = (box_blur(Wc, 1, passes=1) > 0.3).astype(np.float32)    # close sampling pinholes
             if Wc.any():
                 near = np.abs(Zs) < 1.5
-                agit = self.splat(Xs[near], Ys[near], np.abs(vz[sub][near]), roi)
-                cnt = self.splat(Xs[near], Ys[near], np.ones(int(near.sum()), np.float32), roi)
-                agit = gblur(agit / np.maximum(cnt, 1), 2.0 * s) / np.maximum(gblur((cnt > 0).astype(np.float32), 2.0 * s), 0.05)
-                ring = np.clip(2.0 * gblur(Wc, 0.9 * s), 0, 1) * (1 - Wc)
-                src += ring * (0.18 + 0.82 * smooth(agit, 0.05, 1.2))
-            src = np.clip(gblur(src, 0.5 * s), 0, 1)
+                agit = self.splat(Xs[near], Ys[near], np.abs(vzs[near]), roi, 4)
+                cnt = self.splat(Xs[near], Ys[near], np.ones(int(near.sum()), np.float32), roi, 4)
+                agit = gblur(agit / np.maximum(cnt, 1), 0.5 * s) / np.maximum(gblur((cnt > 0).astype(np.float32), 0.5 * s), 0.05)
+                agit = upscale(agit, rw // 2, rh // 2)
+                ring = np.clip(2.0 * gblur(Wc, 0.45 * s), 0, 1) * (1 - Wc) * (0.18 + 0.82 * smooth(agit, 0.05, 1.2))
+                src += upscale(gblur(ring, 0.25 * s), rw, rh)
+            src = np.clip(src, 0, 1)
         else:
             src = None
-        df, dr = math.exp(-dt / TAU_FRESH), math.exp(-dt / TAU_RESID)
-        self.resid = self.resid * dr + 0.5 * self.fresh * (1 - df)
-        self.fresh *= df
+        # the canvases only change inside the box foam has been written in, so they're updated there alone
         if src is not None:
-            x0, y0, x1, y1 = roi
-            np.maximum(self.fresh[y0:y1, x0:x1], src, out=self.fresh[y0:y1, x0:x1])
-        if int(round(t * self.fps)) % 10 == 0:
-            self.resid = gblur(self.resid, 0.35 * s)
+            g = 8                                     # room for the residual's slow spreading
+            r_ = (max(0, roi[0] - g), max(0, roi[1] - g), min(self.W, roi[2] + g), min(self.H, roi[3] + g))
+            fb = self.fbox
+            self.fbox = r_ if fb is None else (min(fb[0], r_[0]), min(fb[1], r_[1]), max(fb[2], r_[2]), max(fb[3], r_[3]))
+        if self.fbox is not None:
+            b_ = np.s_[self.fbox[1]:self.fbox[3], self.fbox[0]:self.fbox[2]]
+            df, dr = math.exp(-dt / TAU_FRESH), math.exp(-dt / TAU_RESID)
+            fr, re = self.fresh[b_], self.resid[b_]
+            re *= dr
+            re += fr * (0.5 * (1 - df))
+            fr *= df
+            if src is not None:
+                x0, y0, x1, y1 = roi
+                np.maximum(self.fresh[y0:y1, x0:x1], src, out=self.fresh[y0:y1, x0:x1])
+            if int(round(t * self.fps)) % 10 == 0:
+                self.resid[b_] = gblur(self.resid[b_], 0.35 * s)
         # debris off the deck as it goes under
-        dd = down & self.ship.top
-        if dd.any():
-            pick = np.nonzero(dd)[0]
-            pick = pick[rng.random(len(pick)) < 0.0006]
+        dd = np.flatnonzero(down & self.ship.tops[cz])
+        if len(dd):
+            pick = dd[rng.random(len(dd)) < 0.0018]
             self._add_debris(np.stack([X[pick], Y[pick]], 1))
 
         # 3. air: water in = air out, per cell; boils once the vent's under
@@ -529,13 +585,13 @@ class SinkScene:
                 self.acc[c] -= Vr
                 depth = -float(VZ[c])
                 jx, jy = rng.normal(0, 0.25 * self.B, 2)
-                self.boils.append(dict(t=t + depth / 2.0, x=VX[c] + jx, y=VY[c] + jy,
+                self._boil(dict(t=t + depth / 2.0, x=VX[c] + jx, y=VY[c] + jy,
                                        S=0.9 * Vr ** (1 / 3) + 0.10 * depth, I=float(np.clip(1.15 - 0.008 * depth, 0.35, 1))))
         # the hit
         if not self.hit_done and t >= HIT_S:
             self.hit_done = True
             hx, hy, _ = self.world_pt(self.breach_pt, t)
-            self.boils.append(dict(t=t, x=hx, y=hy, S=0.05 * self.L, I=1.0))
+            self._boil(dict(t=t, x=hx, y=hy, S=0.05 * self.L, I=1.0))
             self.rings.append(dict(t=t, x=hx, y=hy, A=0.6))
             n = 70
             a = rng.uniform(0, 2 * math.pi, n)
@@ -543,16 +599,17 @@ class SinkScene:
             self.spray.add(x=hx + rng.normal(0, 2, n), y=hy + rng.normal(0, 2, n), vx=np.cos(a) * sp,
                            vy=np.sin(a) * sp, life=rng.uniform(1.5, 3.5, n), r0=2.0, r1=rng.uniform(4, 9, n), a0=0.55)
         # gone? the slam, the ring, the tanks
-        above = Z > 0
         if self.t_gone is None and t > HIT_S:
-            if above.any():
-                self.last_area = float(above.sum()) / self.ship.ppm ** 2 * 0.5
-                self.last_xy = np.array([X[above].mean(), Y[above].mean()])
+            if zmax > 0:
+                above = Zs > 0
+                if above.any():          # the subset is every third point
+                    self.last_area = 3 * float(above.sum()) / self.ship.ppm ** 2 * 0.5
+                    self.last_xy = np.array([Xs[above].mean(), Ys[above].mean()])
             else:
                 self.t_gone = t
                 cx, cy = self.last_xy
                 S_ = 3.0 + 0.9 * math.sqrt(max(self.last_area, 1.0))
-                self.boils.append(dict(t=t + 0.3, x=cx, y=cy, S=S_, I=1.0))
+                self._boil(dict(t=t + 0.3, x=cx, y=cy, S=S_, I=1.0))
                 self.rings.append(dict(t=t, x=cx, y=cy, A=0.6 + 0.02 * S_))
                 for k in range(8):     # the tanks give way one by one, over a stretch of the wreck
                     jx, jy = rng.normal(0, [0.12 * self.L, 0.4 * self.B])
@@ -562,15 +619,16 @@ class SinkScene:
         # trapped air burps: slowly while afloat (bulkheads failing), faster once under, from the wreck's top
         rate = 1 / 40.0 if self.t_gone is None else 1 / 14.0
         if self.trapped > 1 and rng.random() < dt * 3.0:
-            top = int(np.argmax(Z))
-            depth = max(-float(Z[top]), 0.0)
+            top = int(np.argmax(Zs))
+            depth = max(-float(Zs[top]), 0.0)
+            tx, ty = Xs[top:top + 1], Ys[top:top + 1]
             if 2.0 < depth < 200:
                 Vr = self.trapped * rate / 3.0 * rng.uniform(0.3, 1.7)
                 if rng.random() < 0.04:            # a bulkhead lets go
                     Vr = 0.15 * self.trapped
                 self.trapped -= Vr
                 jx, jy = rng.normal(0, 0.15 * self.B + 0.05 * depth, 2)
-                self.boils.append(dict(t=t + depth / 2.0, x=X[top] + jx, y=Y[top] + jy,
+                self._boil(dict(t=t + depth / 2.0, x=float(tx[0]) + jx, y=float(ty[0]) + jy,
                                        S=0.9 * Vr ** (1 / 3) + 0.10 * depth, I=float(np.clip(1.1 - 0.006 * depth, 0.3, 1))))
         # 5. oil from the torn tanks, once a second, rising from the breach
         if self.hit_done and self.t_gone is None and int(round(t * self.fps)) % self.fps == 0:
@@ -611,8 +669,39 @@ class SinkScene:
                                r1=rng.uniform(0.6, 1.4, n) * r, a0=rng.uniform(0.12, 0.25, n), h=4.0)
         for ps in (self.smoke, self.steam, self.spray):
             ps.step(dt)
-        self.Zprev, self.Bprev = Z, BZ
+        self.boils = [b for b in self.boils if t - b["t"] <= 21 * math.sqrt(b["S"] / 4)]   # 6 lifetimes
+        self.Zsprev, self.Bprev = Zs, BZ
         self.t = t
+
+    # the state a frame is drawn from: the sim steps in one process, frames are drawn in a pool of workers that
+    # each hold the same scene (built from the same seed). Copies, as the step changes the foam arrays in place
+    # and the pool pickles a snapshot later, on its own thread.
+    SNAP = ("t", "t_gone", "boils", "rings", "puddles", "debris", "debris_c", "fbox")
+
+    def snapshot(self, fresh=None, resid=None):
+        """The frame's state. With fresh and resid (shared-memory arrays), the foam canvases are copied there and
+        left out: pickling 7 MB a frame held the GIL long enough to halve the stepping process's speed."""
+        d = {k: getattr(self, k) for k in self.SNAP}
+        d["rings"], d["puddles"] = list(self.rings), list(self.puddles)
+        if fresh is None:
+            d["fresh"], d["resid"] = self.fresh.copy(), self.resid.copy()
+        elif self.fbox is not None:       # the box only grows, so a slot is zero outside it
+            b_ = np.s_[self.fbox[1]:self.fbox[3], self.fbox[0]:self.fbox[2]]
+            fresh[b_], resid[b_] = self.fresh[b_], self.resid[b_]
+        for name in ("smoke", "steam", "spray"):
+            d[name] = {k: v.copy() for k, v in getattr(self, name).d.items()}
+        return d
+
+    def load(self, d, fresh=None, resid=None):
+        for k in self.SNAP:
+            setattr(self, k, d[k])
+        self.fresh, self.resid = (d["fresh"], d["resid"]) if fresh is None else (fresh, resid)
+        for name in ("smoke", "steam", "spray"):
+            getattr(self, name).d = d[name]
+
+    def _boil(self, b):
+        b["k"], b["ph"] = int(self.rng.integers(11, 19)), float(self.rng.random() * 6.283)
+        self.boils.append(b)
 
     def _add_debris(self, p):
         self.debris = np.concatenate([self.debris, p.astype(np.float32)])
@@ -620,35 +709,33 @@ class SinkScene:
 
     # ----- analytic layers
     def boil_fields(self, t):
-        """(foam density, churn, eta) of the boils active at t (sinking_foam.md 2.3)."""
-        H, W, s = self.H, self.W, self.s
+        """(foam density, churn, eta) of the boils active at t (sinking_foam.md 2.3), on the half-resolution grid
+        (they're smooth; the lace's detail comes from the noise), plus the box they cover there, or None."""
+        H, W, s = self.H // 2, self.W // 2, self.s / 2
         dens = np.zeros((H, W), np.float32)
         churn_f = np.zeros((H, W), np.float32)
         eta = np.zeros((H, W), np.float32)
-        keep = []
+        box = [W, H, 0, 0]
         for b in self.boils:
             a = t - b["t"]
-            ts, tb = 1.5 * math.sqrt(b["S"] / 4), 3.5 * math.sqrt(b["S"] / 4)
-            if a > 6 * tb:
-                continue
-            keep.append(b)
             if a < 0:
                 continue
+            ts, tb = 1.5 * math.sqrt(b["S"] / 4), 3.5 * math.sqrt(b["S"] / 4)
             R = b["S"] * (0.5 + 1.5 * (1 - math.exp(-a / ts)))
             cx, cy = self.to_px(b["x"], b["y"])
+            cx, cy = cx / 2, cy / 2
             rr = 2.4 * R * s
             i0, i1 = max(0, int(cx - rr)), min(W, int(cx + rr) + 1)
             j0, j1 = max(0, int(cy - rr)), min(H, int(cy + rr) + 1)
             if i1 <= i0 or j1 <= j0:
                 continue
+            box = [min(box[0], i0), min(box[1], j0), max(box[2], i1), max(box[3], j1)]
             dx = (np.arange(i0, i1, dtype=np.float32) + 0.5 - cx)[None, :] / s
             dy = (np.arange(j0, j1, dtype=np.float32) + 0.5 - cy)[:, None] / s
             q = np.hypot(dx, dy) / R
             ang = np.arctan2(dy, dx)
             q = q * (1 + 0.12 * np.sin(3 * ang + b["S"]) + 0.08 * np.sin(5 * ang + 2 * b["x"]))
             I = b["I"] * math.exp(-a / tb)
-            if "k" not in b:
-                b["k"], b["ph"] = int(self.rng.integers(11, 19)), float(self.rng.random() * 6.283)
             streak = 0.75 + 0.25 * np.cos(b["k"] * ang + b["ph"] + 3.0 * q)
             churn = 0.75 * smooth(1 - q, 0.0, 0.6) * math.exp(-a / (0.6 * tb))
             rim = np.exp(-((q - 0.95) / 0.20) ** 2) * streak
@@ -658,22 +745,28 @@ class SinkScene:
             dens[j0:j1, i0:i1] = np.maximum(cur, new) + 0.35 * np.minimum(cur, new)
             np.maximum(churn_f[j0:j1, i0:i1], I * churn / 0.75, out=churn_f[j0:j1, i0:i1])
             eta[j0:j1, i0:i1] += 0.08 * b["S"] * I * np.exp(-2.5 * q * q)
-        self.boils = keep
-        return np.clip(dens, 0, 1.2), churn_f, eta
+        return np.clip(dens, 0, 1.2), churn_f, eta, (box if box[2] > box[0] else None)
 
-    def ring_eta(self, t):
-        eta = np.zeros((self.H, self.W), np.float32)
-        live = [r for r in self.rings if 0 <= t - r["t"] <= 40]
-        if not live:
-            return eta
-        u, v = np.arange(self.W, dtype=np.float32) + 0.5, np.arange(self.H, dtype=np.float32) + 0.5
-        for r in live:
+    def ring_eta(self, t, eta):
+        """Adds the ring waves to the half-resolution eta, inside each ring's live annulus."""
+        H, W, s = eta.shape[0], eta.shape[1], self.s / 2
+        for r in self.rings:
             a = t - r["t"]
+            if not 0 <= a <= 40:
+                continue
             cx, cy = self.to_px(r["x"], r["y"])
-            d = np.hypot((u - cx)[None, :], (v - cy)[:, None]) / self.s
-            R = 5.0 * a
-            env = np.exp(-((d - R) / (6 + 0.6 * a)) ** 2) * r["A"] * math.exp(-a / 15) / math.sqrt(1 + R / 20)
-            eta += env * np.cos((d - R) / 3.0)
+            cx, cy = cx / 2, cy / 2
+            R, wd = 5.0 * a, 6 + 0.6 * a
+            rr = (R + 3 * wd) * s
+            i0, i1 = max(0, int(cx - rr)), min(W, int(cx + rr) + 1)
+            j0, j1 = max(0, int(cy - rr)), min(H, int(cy + rr) + 1)
+            if i1 <= i0 or j1 <= j0:
+                continue
+            dx = (np.arange(i0, i1, dtype=np.float32) + 0.5 - cx)[None, :]
+            dy = (np.arange(j0, j1, dtype=np.float32) + 0.5 - cy)[:, None]
+            d = np.hypot(dx, dy) / s
+            env = np.exp(-((d - R) / wd) ** 2) * (r["A"] * math.exp(-a / 15) / math.sqrt(1 + R / 20))
+            eta[j0:j1, i0:i1] += env * np.cos((d - R) / 3.0)
         return eta
 
     def oil_thickness(self, t):
@@ -719,39 +812,61 @@ class SinkScene:
     # ----- the hull, z-buffered at 2x with a sun shadow map
     def hull_layers(self, t):
         """Returns (x0, y0, sub_pm, sub_a, sh, top_pm, top_a) on a 1x frame window: the submerged hull
-        (premultiplied, faded with depth), the shadow on the surface, the hull above water (premultiplied)."""
-        _, X, Y, Z, BX, BY, BZ, pose = self._frame_pts(t)
-        keep = Z > -CULL_M
-        if not keep.any():
-            return None
+        (premultiplied, faded with depth), the shadow on the surface, the hull above water (premultiplied).
+        Works on flat pixel indices: the z-buffer and the shadow map are max-reductions (np.maximum.at, far
+        cheaper than sorting the points by height), and only the ship's own pixels are shaded, then summed 2x2
+        into the 1x window by bincount."""
         sh = self.ship
-        X, Y, Z = X[keep], Y[keep], Z[keep]
-        _, _, _, N = transform(sh.x[keep], sh.y[keep], sh.z[keep], pose, sh.lcf, self.heading, sh.n[keep])
-        Cc = sh.c[keep]
+        pose = self.tl.pose(t)
+        # the kinds facing the camera (tops always), as one index array into the grouped points
+        nz = rotate_normals(sh.normals, pose, self.heading)[:, 2]
+        segs = [sh.kslice[k] for k in range(len(sh.normals)) if nz[k] > 0.05]
+        sel = np.concatenate([np.arange(a, b, dtype=np.int32) for a, b in segs])
+        X, Y, Z = transform(sh.x[sel], sh.y[sel], sh.z[sel], pose, sh.lcf, self.heading)
+        keep = np.flatnonzero(Z > -CULL_M)
+        if not len(keep):
+            return None
+        keep = sel[keep]                            # indices into the ship's points
+        X, Y, Z = X[Z > -CULL_M], Y[Z > -CULL_M], Z[Z > -CULL_M]
+        # shadow casters: every third point, walls and all (a column's walls carry its shadow down to the deck),
+        # above water, into a 1x shadow map
+        CX, CY, CZ = transform(sh.xs, sh.ys, sh.zs, pose, sh.lcf, self.heading)
+        up = CZ > 0
+        CX, CY, CZ = CX[up], CY[up], CZ[up]
         s2 = 2 * self.s
         px, py = (X * self.s + self.C[0]) * 2, (Y * self.s + self.C[1]) * 2
-        gx, gy = px - np.maximum(Z, 0) / TAN_E * SUN[0] * s2, py - np.maximum(Z, 0) / TAN_E * SUN[1] * s2
-        x0 = max(0, int(min(px.min(), gx.min())) - 4) & ~1
-        y0 = max(0, int(min(py.min(), gy.min())) - 4) & ~1
-        x1 = min(2 * self.W, int(max(px.max(), gx.max())) + 6) & ~1
-        y1 = min(2 * self.H, int(max(py.max(), gy.max())) + 6) & ~1
+        cgx = (CX * self.s + self.C[0] - CZ * (self.s / TAN_E) * SUN[0]) * 2
+        cgy = (CY * self.s + self.C[1] - CZ * (self.s / TAN_E) * SUN[1]) * 2
+        lo_x, hi_x = float(px.min()), float(px.max())
+        lo_y, hi_y = float(py.min()), float(py.max())
+        if len(CZ):
+            lo_x, hi_x = min(lo_x, float(cgx.min())), max(hi_x, float(cgx.max()))
+            lo_y, hi_y = min(lo_y, float(cgy.min())), max(hi_y, float(cgy.max()))
+        x0 = max(0, int(lo_x) - 4) & ~1
+        y0 = max(0, int(lo_y) - 4) & ~1
+        x1 = min(2 * self.W, int(hi_x) + 6) & ~1
+        y1 = min(2 * self.H, int(hi_y) + 6) & ~1
         if x1 <= x0 or y1 <= y0:
             return None
         w2, h2 = x1 - x0, y1 - y0
+        n2 = w2 * h2
         ix, iy = px.astype(np.int32) - x0, py.astype(np.int32) - y0
-        ok = (ix >= 0) & (ix < w2) & (iy >= 0) & (iy < h2)
-        order = np.nonzero(ok)[0][np.argsort(Z[ok], kind="stable")]
-        idx = np.full((h2, w2), -1, np.int32)
-        zb = np.full((h2, w2), -np.inf, np.float32)
-        idx[iy[order], ix[order]] = order          # the highest point at a pixel is the one seen
-        zb[iy[order], ix[order]] = Z[order]
+        ok = np.flatnonzero((ix >= 0) & (ix < w2) & (iy >= 0) & (iy < h2))
+        pix = iy[ok] * w2 + ix[ok]
+        zo = Z[ok]
+        zb = np.full(n2, -np.inf, np.float32)
+        np.maximum.at(zb, pix, zo)                  # the highest point at a pixel is the one seen
+        win = zo == zb[pix]
+        idx = np.full(n2, -1, np.int32)
+        idx[pix[win]] = ok[win]
+        idx, zb = idx.reshape(h2, w2), zb.reshape(h2, w2)
         # pinholes a rotation opens: an empty pixel with most neighbours filled takes its highest neighbour
-        hit = idx >= 0
         zp = np.pad(zb, 1, constant_values=-np.inf)
         ip = np.pad(idx, 1, constant_values=-1)
         nb = [(dy, dx) for dy in (0, 1, 2) for dx in (0, 1, 2) if (dy, dx) != (1, 1)]
-        count = sum((ip[dy:dy + h2, dx:dx + w2] >= 0).astype(np.int8) for dy, dx in nb)
-        fy, fx = np.nonzero(~hit & (count >= 5))
+        filled = ip >= 0
+        count = sum(filled[dy:dy + h2, dx:dx + w2].view(np.int8) for dy, dx in nb)
+        fy, fx = np.nonzero((idx < 0) & (count >= 5))
         best = np.full(len(fy), -np.inf, np.float32)
         bidx = np.full(len(fy), -1, np.int32)
         for dy, dx in nb:
@@ -760,43 +875,61 @@ class SinkScene:
             best = np.where(take, z, best)
             bidx = np.where(take, ip[fy + dy, fx + dx], bidx)
         idx[fy, fx] = bidx
-        has = idx >= 0
-        ii = np.where(has, idx, 0)
-        top_z = np.where(has, Z[ii], -np.inf)
-        # sun shadow map: every point above water, at its ground projection away from the sun, keeps the highest
-        cast = order[Z[order] > 0]
-        smap = np.full((h2, w2), -np.inf, np.float32)
-        if len(cast):
-            jx, jy = gx[cast].astype(np.int32) - x0, gy[cast].astype(np.int32) - y0
-            okc = (jx >= 0) & (jx < w2) & (jy >= 0) & (jy < h2)
-            smap[jy[okc], jx[okc]] = Z[cast][okc]
-            sp_ = np.pad(smap, 1, constant_values=-np.inf)
-            smap = sp_[1:-1, 1:-1].copy()
-            for dy, dx in nb:
-                np.maximum(smap, sp_[dy:dy + h2, dx:dx + w2], out=smap)
-        zr = np.where(has, np.maximum(top_z, 0), 0).astype(np.float32)
-        u, v = np.meshgrid(np.arange(w2, dtype=np.float32) + 0.5, np.arange(h2, dtype=np.float32) + 0.5)
-        ru = (u - zr / TAN_E * SUN[0] * s2).astype(np.int32)
-        rv = (v - zr / TAN_E * SUN[1] * s2).astype(np.int32)
-        inb = (ru >= 0) & (ru < w2) & (rv >= 0) & (rv < h2)
-        shadow = np.zeros((h2, w2), np.float32)
-        shadow[inb] = (smap[rv[inb], ru[inb]] > zr[inb] + 0.4).astype(np.float32)
-        shadow = box_blur(shadow, 1, passes=2)
-        # lit hull above water: lambert on the rotated normal (a flat deck at rest stays as drawn), wet near the sea
-        Ct, Nt = Cc[ii], N[ii]
-        lam = np.clip(Nt @ LIGHT, 0, 1)
-        fac = np.clip(0.45 + 0.55 * lam / LIGHT[2], 0.35, 1.3)
-        wet = 1 - 0.25 * smooth(1.2 - top_z, 0, 1.2)
-        lit = Ct * (fac * wet * (1 - SHADE * shadow))[..., None]
-        above = (has & (top_z >= 0)).astype(np.float32)
-        under = has & (top_z < 0)
-        vis = np.where(under, 0.85 * np.exp(-np.clip(-top_z, 0, None) / 3.0), 0).astype(np.float32)
-        uw = Ct * 0.75 + 0.25 * V.WATER_LIT
+        flat = idx.ravel()
+        hp = np.flatnonzero(flat >= 0)              # the ship's pixels
+        pi = flat[hp]
+        tz = Z[pi]
+        # sun shadow map at 1x: each caster at its ground projection away from the sun keeps the highest; dilated
+        # a pixel (separably) to close pinholes
+        w1, h1 = w2 // 2, h2 // 2
+        smap = np.full(w1 * h1, -np.inf, np.float32)
+        if len(CZ):
+            jx, jy = (cgx - x0).astype(np.int32) // 2, (cgy - y0).astype(np.int32) // 2
+            okc = (jx >= 0) & (jx < w1) & (jy >= 0) & (jy < h1)
+            np.maximum.at(smap, jy[okc] * w1 + jx[okc], CZ[okc])
+            smap = smap.reshape(h1, w1)
+            m = smap.copy()
+            np.maximum(m[:, 1:], smap[:, :-1], out=m[:, 1:])
+            np.maximum(m[:, :-1], smap[:, 1:], out=m[:, :-1])
+            smap = m.copy()
+            np.maximum(smap[1:], m[:-1], out=smap[1:])
+            np.maximum(smap[:-1], m[1:], out=smap[:-1])
+            smap = smap.ravel()
+        # receivers: the sea (and everything under it) at z = 0 looks up its own pixel; the hull above water
+        # looks up its projection
+        zr = np.maximum(tz, 0)
+        hy_, hx_ = np.divmod(hp, w2)
+        ru = (hx_ + 0.5 - zr * (s2 / TAN_E) * SUN[0]).astype(np.int32) // 2
+        rv = (hy_ + 0.5 - zr * (s2 / TAN_E) * SUN[1]).astype(np.int32) // 2
+        inb = (ru >= 0) & (ru < w1) & (rv >= 0) & (rv < h1)
+        ship_sh = np.where(inb, smap[np.where(inb, rv * w1 + ru, 0)] > zr + 0.4, False)
+        # the ship's pixels: lit above water (lambert on the rotated normal, a flat deck at rest stays as drawn,
+        # wet near the sea), faded with depth below it
+        orig = keep[pi]
+        Ct = sh.c8[orig].astype(np.float32) * (1 / 255)
+        lam = np.clip(rotate_normals(sh.normals, pose, self.heading) @ LIGHT, 0, 1)
+        fac = np.clip(0.45 + 0.55 * lam / LIGHT[2], 0.35, 1.3).astype(np.float32)[sh.nkind[orig]]
+        above = tz >= 0
+        wet = 1 - 0.25 * smooth(1.2 - tz, 0, 1.2)
+        vis = np.where(above, 0, 0.85 * np.exp(np.minimum(tz, 0) / 3.0)).astype(np.float32)
+        # 2x2 sums into the 1x window
+        q = (hy_ // 2) * w1 + hx_ // 2
 
-        def down(a):
-            return a.reshape(h2 // 2, 2, w2 // 2, 2, *a.shape[2:]).mean(axis=(1, 3))
-        return (x0 // 2, y0 // 2, down(uw * vis[..., None]), down(vis), down(shadow * (1 - above)),
-                down(lit * above[..., None]), down(above))
+        def acc(wt):
+            return np.bincount(q, weights=wt, minlength=w1 * h1).reshape(h1, w1).astype(np.float32) * 0.25
+        top_a = acc(above)
+        litw = (fac * wet * above).astype(np.float32)
+        top_pm = np.stack([acc(Ct[:, k] * litw) for k in range(3)], -1)
+        if vis.any():
+            sub_a = acc(vis)
+            sub_pm = np.stack([acc((Ct[:, k] * 0.75 + 0.25 * V.WATER_LIT[k]) * vis) for k in range(3)], -1)
+        else:
+            sub_a, sub_pm = np.zeros((h1, w1), np.float32), np.zeros((h1, w1, 3), np.float32)
+        cover = acc(np.ones(len(hp), np.float32))
+        sh1 = (smap.reshape(h1, w1) > 0.4) * (1 - cover) + acc(ship_sh.astype(np.float32))
+        sh1 = box_blur(sh1.astype(np.float32), 1, passes=1)
+        top_pm *= (1 - SHADE * sh1)[..., None]
+        return x0 // 2, y0 // 2, sub_pm, sub_a, sh1 * (1 - top_a), top_pm, top_a
 
     # ----- drawing
     def field(self, ps, offset=(0.0, 0.0)):
@@ -807,19 +940,20 @@ class SinkScene:
 
     def render(self):
         t, W, H, s = self.t, self.W, self.H, self.s
-        bd, churn, beta = self.boil_fields(t)
-        eta = beta + self.ring_eta(t)
-        gy, gx = np.gradient(eta)
-        hx, hy = gx * s, gy * s
+        bd_h, churn_h, eta_h, bb = self.boil_fields(t)
+        eta_h = self.ring_eta(t, eta_h)
+        gy, gx = np.gradient(eta_h)
+        hx, hy = gx * (s / 2), gy * (s / 2)          # half-res pixels are 2 / s metres
         lim = 0.3 / np.maximum(np.hypot(hx, hy), 0.3)
         oil, ob = self.oil_thickness(t)
-        slick = np.zeros((H, W), np.float32)
-        oily = np.zeros((H, W), np.float32)
+        wake = None
         if ob:
             o = np.s_[ob[1]:ob[3], ob[0]:ob[2]]
+            slick = np.zeros((H, W), np.float32)
             slick[o] = smooth(np.log10(np.maximum(oil[o], 1e-9)), -7.6, -6.6)
-            oily[o] = smooth(oil[o] * 1e6, 50, 600)
-        frame = self.water.shade(np.zeros(2), t, (hx * lim, hy * lim, 0.85 * slick))
+            oily_o = smooth(oil[o] * 1e6, 50, 600)
+            wake = (0.0, 0.0, 0.85 * slick)
+        frame = self.water.shade((0.0, 0.0), t, wake, half=(hx * lim, hy * lim))
         if ob:
             frame[o] = self.oil_colour(frame[o] * (1 - 0.10 * slick[o])[..., None], oil[o], o)
 
@@ -833,15 +967,35 @@ class SinkScene:
             win += sub_pm[:h_, :w_]
 
         # foam, vidgen's lace: boils churn the water like the propulsor wash, the crossing and collar foam is the
-        # wake's fresh foam, the residual its half-opacity residual
-        frame += (CHURN - frame) * np.clip(churn * 0.8, 0, 0.7)[..., None]
-        ta, tb = self.tex(0, t), self.tex(1, t)
-        fm = np.maximum(np.maximum(lace(bd, tb, "wash"), lace(self.fresh, ta, "fresh")),
-                        V.LACE_RESID * lace(np.clip(self.resid, 0, 1), tb, "resid")) * (1 - 0.3 * oily)
-        foam_c = FOAM * (1 - oily[..., None]) + np.float32([0.50, 0.41, 0.30]) * oily[..., None]
-        frame += (foam_c - frame) * fm[..., None]
-        sp = upscale(self.field(self.spray), W, H) * self.water.foam_noise
-        frame += (FOAM - frame) * np.clip(1 - np.exp(-1.6 * sp), 0, 0.95)[..., None]
+        # wake's fresh foam, the residual its half-opacity residual. Worked out only over the box the foam covers.
+        bd = np.zeros((H, W), np.float32)
+        if bb:
+            i0, j0, i1, j1 = bb
+            fb = np.s_[2 * j0:2 * j1, 2 * i0:2 * i1]
+            bd[fb] = upscale(bd_h[j0:j1, i0:i1], 2 * (i1 - i0), 2 * (j1 - j0))
+            churn = upscale(churn_h[j0:j1, i0:i1], 2 * (i1 - i0), 2 * (j1 - j0))
+            frame[fb] += (CHURN - frame[fb]) * np.clip(churn * 0.8, 0, 0.7)[..., None]
+        box = nonzero_box(np.zeros((1, 1), bool), self.fbox)
+        if bb:
+            box = nonzero_box(np.zeros((1, 1), bool), (2 * bb[0], 2 * bb[1], 2 * bb[2], 2 * bb[3]) if box is None else
+                              (min(box[0], 2 * bb[0]), min(box[1], 2 * bb[1]), max(box[2], 2 * bb[2]), max(box[3], 2 * bb[3])))
+        if box:
+            f = np.s_[box[1]:box[3], box[0]:box[2]]
+            ta, tb = self.tex(0, t, f), self.tex(1, t, f)
+            fm = np.maximum(np.maximum(lace(bd[f], tb, "wash"), lace(self.fresh[f], ta, "fresh")),
+                            V.LACE_RESID * lace(np.clip(self.resid[f], 0, 1), tb, "resid"))
+            if ob:
+                oily = np.zeros((H, W), np.float32)
+                oily[o] = oily_o
+                oily = oily[f][..., None]
+                fm *= 1 - 0.3 * oily[..., 0]
+                foam_c = FOAM * (1 - oily) + np.float32([0.50, 0.41, 0.30]) * oily
+            else:
+                foam_c = FOAM
+            frame[f] += (foam_c - frame[f]) * fm[..., None]
+        if len(self.spray):
+            sp = upscale(self.field(self.spray), W, H) * self.water.foam_noise
+            frame += (FOAM - frame) * np.clip(1 - np.exp(-1.6 * sp), 0, 0.95)[..., None]
 
         # debris: small pale bits
         if len(self.debris):
@@ -874,16 +1028,26 @@ class SinkScene:
         if sh.any():
             frame *= (1 - 0.35 * np.clip(1 - np.exp(-upscale(sh, W, H)), 0, 1))[..., None]
         for d, base, lit in layers:          # steam unlit: lit, a thin puff showed a hard dark half
-            gy_, gx_ = np.gradient(d)
-            light = np.clip(1.0 - 3.0 * (gx_ * sd[0] + gy_ * sd[1]), 0.55, 1.35) if lit else np.ones_like(d)
-            col = np.float32(base)[None, None, :] * upscale(light, W, H)[..., None]
-            al = np.clip(1 - np.exp(-1.4 * upscale(d, W, H)), 0, 0.92)[..., None]
-            frame = frame * (1 - al) + col * al
+            hb_ = nonzero_box(d > 0.002)
+            if not hb_:
+                continue
+            i0, j0, i1, j1 = hb_
+            dd = d[j0:j1, i0:i1]
+            f = np.s_[2 * j0:2 * j1, 2 * i0:2 * i1]
+            ww, hh = 2 * (i1 - i0), 2 * (j1 - j0)
+            col = np.float32(base)[None, None, :]
+            if lit:
+                gy_, gx_ = np.gradient(dd)
+                col = col * upscale(np.clip(1.0 - 3.0 * (gx_ * sd[0] + gy_ * sd[1]), 0.55, 1.35), ww, hh)[..., None]
+            al = np.clip(1 - np.exp(-1.4 * upscale(dd, ww, hh)), 0, 0.92)[..., None]
+            frame[f] = frame[f] * (1 - al) + col * al
 
         out = (np.clip(frame, 0, 1) * 255).astype(np.uint8)
-        hud = self.hud.astype(np.float32) / 255
+        hy0, hx0, hud = self.hud_box
+        hh, hw = hud.shape[:2]
         ha = hud[..., 3:4]
-        out = (out * (1 - ha) + hud[..., :3] * 255 * ha).astype(np.uint8)
+        o_ = out[hy0:hy0 + hh, hx0:hx0 + hw]
+        o_[:] = (o_ * (1 - ha) + hud[..., :3] * 255 * ha).astype(np.uint8)
         im = Image.fromarray(out)
         d = ImageDraw.Draw(im, "RGBA")
         d.text((H // 36, H // 36), self.phase(), font=self.font_small, fill=(235, 240, 242, 220))
@@ -905,19 +1069,56 @@ class SinkScene:
 
 
 # ---------------------------------------------------------------- driver
-def make(src: Path, end: str, out: Path, args, still=None):
+_SC = None   # a drawing worker's scene and its view of the shared ring
+
+
+class Ring:
+    """Shared-memory slots, one per frame in flight: the foam canvases in, the drawn frame out."""
+
+    def __init__(self, n, W, H, name=None):
+        from multiprocessing import shared_memory
+        self.n, self.W, self.H = n, W, H
+        self.per = 2 * W * H * 4 + W * H * 3
+        self.shm = shared_memory.SharedMemory(name=name, create=name is None, size=n * self.per)
+        self.name = self.shm.name
+
+    def slot(self, i):
+        buf, o, W, H = self.shm.buf, i * self.per, self.W, self.H
+        fresh = np.ndarray((H, W), np.float32, buf, o)
+        resid = np.ndarray((H, W), np.float32, buf, o + W * H * 4)
+        frame = np.ndarray((H, W, 3), np.uint8, buf, o + 2 * W * H * 4)
+        return fresh, resid, frame
+
+
+def _worker_init(ring_args, *a):
+    global _SC
+    _SC = SinkScene(*a)
+    _SC.ring = Ring(*ring_args)
+
+
+def _draw(snap, i):
+    fresh, resid, frame = _SC.ring.slot(i)
+    _SC.load(snap, fresh, resid)
+    frame[:] = _SC.render()
+    return i
+
+
+def make(src: Path, end: str, out: Path, args, still=None, workers=1):
+    """One clip. With workers > 1 the frames are drawn in a pool while this process steps the sim and encodes."""
     t0 = time.perf_counter()
-    sc = SinkScene(src, args.w, args.h, args.fps, args.heading, end, args.seed)
+    scene_args = (src, args.w, args.h, args.fps, args.heading, end, args.seed)
+    sc = SinkScene(*scene_args)
     dur = args.seconds or (sc.tl.t_last + 4 + TAIL_S)
     if not args.quiet:
         print(f"  {src.name} {end}: {sc.tl.fate} at T+{sc.tl.game_f / 60:.0f} min; {len(sc.ship.x):,} points, "
-              f"setup {sc.setup_s:.1f} s")
+              f"setup {sc.setup_s:.1f} s, {workers} drawing workers")
     dt = 1.0 / args.fps
     if still is not None:
         for _ in range(int(round(still * args.fps))):
             sc.step(dt)
         Image.fromarray(sc.render()).save(out)
         return out
+    import collections
     import imageio_ffmpeg
     w = imageio_ffmpeg.write_frames(str(out), (args.w, args.h), fps=args.fps, codec="libx264",
                                     pix_fmt_out="yuv420p", macro_block_size=1,
@@ -925,13 +1126,38 @@ def make(src: Path, end: str, out: Path, args, still=None):
                                                    "-movflags", "+faststart"])
     w.send(None)
     n = int(round(dur * args.fps))
+    pool = None
+    if workers > 1:
+        from concurrent.futures import ProcessPoolExecutor
+        depth = 2 * workers                     # frames in flight; one ring slot each, plus one being refilled
+        ring = Ring(depth + 1, args.w, args.h)
+        pool = ProcessPoolExecutor(workers, initializer=_worker_init,
+                                   initargs=((depth + 1, args.w, args.h, ring.name),) + scene_args)
+    pending = collections.deque()
+
+    def emit():
+        k = pending.popleft().result()
+        w.send(ring.slot(k)[2].tobytes())
     for i in range(n):
-        w.send(np.ascontiguousarray(sc.render()).tobytes())
+        if pool is None:
+            w.send(np.ascontiguousarray(sc.render()).tobytes())
+        else:
+            while len(pending) >= depth or (pending and pending[0].done()):
+                emit()
+            k = i % (depth + 1)
+            fresh, resid, _ = ring.slot(k)
+            pending.append(pool.submit(_draw, sc.snapshot(fresh, resid), k))
         sc.step(dt)
         if i % args.fps == 0 and not args.quiet:
             print(f"\r  {out.name}: {i / args.fps:4.1f}/{dur:.1f} s", end="", flush=True)
+    while pending:
+        emit()
+    if pool is not None:
+        pool.shutdown()
+        ring.shm.close()
+        ring.shm.unlink()
     w.close()
-    print(f"\r  {out.name}: {dur:.1f} s, {n} frames, {(time.perf_counter() - t0) / 60:.1f} min")
+    print(f"\r  {out.name}: {dur:.1f} s, {n} frames, {(time.perf_counter() - t0) / 60:.1f} min", flush=True)
     return out
 
 
@@ -948,7 +1174,7 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--crf", type=int, default=20)
     ap.add_argument("--still", type=float, nargs="*", default=None, help="write PNGs at these times instead")
-    ap.add_argument("--jobs", type=int, default=0)
+    ap.add_argument("--jobs", type=int, default=0, help="cores to use (default: all)")
     args = ap.parse_args()
     args.w, args.h = (int(v) for v in args.size.lower().split("x"))
     base = Path(args.designs)
@@ -964,7 +1190,24 @@ def main():
                     todo.append((src, end, out / f"{src.name}_sink_{end}_{ts:05.1f}.png", ts))
             else:
                 todo.append((src, end, out / f"{src.name}_sink_{end}.mp4", None))
-    jobs = max(1, min(args.jobs or os.cpu_count() or 1, len(todo)))
+    cores = args.jobs or os.cpu_count() or 1
+    if args.still is None:
+        # videos: every clip at once, each stepping its sim in its own process (the step is sequential) and
+        # sharing out the remaining cores as drawing workers
+        args.quiet = len(todo) > 1
+        # drawing is limited by memory bandwidth, not cores: past about 6 workers a clip, more only contend
+        workers = max(1, min(6, (cores - len(todo)) // len(todo)))
+        if len(todo) == 1:
+            make(*todo[0][:3], args, None, workers)
+            return
+        import multiprocessing as mp
+        procs = [mp.Process(target=make, args=(src, end, path, args, None, workers)) for src, end, path, _ in todo]
+        for p in procs:
+            p.start()
+        for p in procs:
+            p.join()
+        return
+    jobs = max(1, min(cores, len(todo)))
     args.quiet = jobs > 1
     if jobs == 1:
         for src, end, path, ts in todo:
