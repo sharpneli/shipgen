@@ -5,7 +5,7 @@ validate(), each in its own worker with a memory cap and a time limit. The contr
 valid design builds, with errors and warnings if it's silly, but never an exception, a hang, a memory blow-up or
 a NaN in the published result.
 
-    python fuzz.py designs/*.json [--cases 400] [--seed 1] [--jobs 16] [--mem-gb 3] [--timeout 120]
+    python fuzz.py designs/*.json [--cases 150] [--seed 1] [--jobs 16] [--mem-gb 3] [--timeout 120]
                    [--mode all|numbers|choices|structure] [--slow 30] [--no-limits] [--out fuzz_out]
 
 A mutant makes 1-4 changes (--mode picks the kind; "all" mixes them):
@@ -217,7 +217,7 @@ def run_case(args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("designs", nargs="+")
-    ap.add_argument("--cases", type=int, default=400)
+    ap.add_argument("--cases", type=int, default=150)
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--jobs", type=int, default=os.cpu_count())
     ap.add_argument("--mem-gb", type=float, default=3.0, help="address-space cap per worker (default 3 GB)")

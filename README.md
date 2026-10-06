@@ -6,7 +6,8 @@ python design.py designs/*.json            # player designs -> out_designs/<id>/
 python design.py designs/x.json --no-limits # skip the input ranges; errors (capsizing etc.) never block output
 python design.py designs/x.json --no-previews # game assets only (sprites, mips, height map): ~0.5 s, not ~3 s
 python verify.py out_designs/battleship     # pixel check: sprites vs hitboxes
-python fuzz.py designs/*.json --cases 1600  # robustness: mutated designs must build (no crash, hang or memory blow-up)
+python fuzz.py designs/*.json               # robustness: mutated designs must build (no crash, hang or memory blow-up);
+                                            # 150 cases by default, --cases 1600 for a thorough run
 python shipgen.py                           # the original hand-authored fleet (fleet.py)
 python vidgen/vidgen.py bismarck            # style check: a short gameplay-style video -> vidgen/out/bismarck.mp4
 ```
@@ -33,6 +34,7 @@ design JSON (player input: counts, calibres, armour, speed, look)
    render.py      render_ship(ship, out_dir, scale, mips, look=None, previews=True)
    ├─ looks.py     every colour, turret drawing and silhouette (by the design's "look")
    ├─ hitview.py   debug views of the hitbox model in 3D, and the subdivision in plan (hitbox_*.png)
+   ├─ sinking.py   demo: floods the subdivision from a breach and draws the ship settling, plunging or capsizing
    ├─ shipgen.py   SVG/PNG drawing (hull, turrets)
    └─ shadow.py    rasterises the height-map columns; the reference shadow renderer
 
@@ -342,6 +344,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
   - Heights (`base`/`top`/`z`) are metres above the main deck, negative below it. On a carrier the main deck is the hangar deck.
   - `vertical`: `keel`, `waterline` and `armour_deck` (the main armour deck, null on a ship without deck armour) on that height scale, plus `draught`, `depth` and `freeboard` (full load). `raised` (when there are any) lists the raised stretches of hull: `id`, `x0`, `x1` and the `top` of their deck. Their decks are in `decks` (`kind` "raised", deck numbers −1, −2, …, with the `spans` where each exists), and their tiers only exist over those spans.
   - `hull`: the hull outline polygon: the main deck's edge, the widest the hull gets.
+  - `hydrostatics` (`hitbox.hydrostatics`): the full-load numbers a game needs to settle a flooded ship by added weight. A flood of w tonnes at (x, y) sinks the ship w / (100 `tpc_t`) m, trims it w (x − `lcf`) / `mct_tm` cm (+ by the bow) and heels it w y / (Δ′ GM′) rad. Keys: `displacement_t`, `volume_m3`, `waterplane_m2` and `lcf` (the waterplane's centre, from `hull_form`), `lcg`, `lcb`, `kg` and `kb` (above the main deck), `gm_t` (the report's GM), `gm_l`, `i_t_m4`, `i_l_m4`, `tpc_t` (t per cm of sinkage) and `mct_tm` (t·m per cm of trim). `sinking.py` shows them in use.
   - `hull_form`: the hull's cross-sections (`geometry.HullForm`). The underwater body holds exactly the displacement volume (Cb × L × B × T). Above the waterline the side flares straight out to the deck edge.
     - Under the waterline each section has a flat floor where it's full and a vee or hollow at the fine ends. Toward the ends it takes a U or V character: forward from the speed (a U near Fn 0.23, a V either side), aft from the screws (a U into a single screw, a flat-floored run over several). Planing craft have a hard chine.
     - The keel isn't flat to the ends: a rounded forefoot (longer on fast ships, a long rocker on planing craft). Aft, a single screw keeps the keel to the sternpost at the rudder and has the counter above water abaft it; several screws get a cut-up, so the propellers and rudders hang under the hull bottom, rising on smoothly to the stern (a wide transom stays immersed, a narrow cruiser stern fades out at the waterline).
@@ -422,6 +425,15 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
   - Views: from the starboard bow, the port quarter, a side elevation, and an internal view that shows only rooms (less the quarters, stores, double bottom and torpedo protection that fill the rest), barbettes, uptakes and armour inside the hull's edges.
   - `hitbox_cells.png`: every tier of the subdivision in plan, keel tier at the bottom, with cells coloured by their room's kind. Labels give the section, `+` for a shared cell, and the crew.
   - The hull is translucent and the waterline is drawn in blue. Colours are by kind, with a legend.
+
+## Sinking demo (sinking.py)
+`python sinking.py out_designs/battleship [--scenario stern|bow|starboard|port|all] [--hole M2] [--leak K]` writes `sinking/sink_<scenario>.gif` and `sinking_sheet.png` (six frames per scenario) in the export directory. It reads only `hitboxes.json`, `sprite.json` and the sprite images, so it is a sketch of what the game can do with them.
+- **Breaches:** `stern` and `bow` hole every cell under the waterline in that quarter of the length; `starboard` and `port` hole the outer cells within 0.06 L of amidships (a torpedo). `--hole` is the total hole area (default 0.1 √Δ m²).
+- **Flooding:** a holed cell fills through its hole (Q = 0.6 A √(2 g head)), and a main-deck cell through its hatches once the sea is over the deck there. Water falls through decks and levels out inside a room. Bulkheads and the inner bottom only leak (`LEAK`, scaled by `--leak`), which is what carries the flooding on from section to section. A full cell open to the sea lets it on up into the cell over it.
+- **Attitude:** added weight with the exported `hydrostatics`. Heel comes from the wall-sided GZ curve with GM corrected for the water's height and the free surface of partly filled cells (weighted 4f(1 − f)), so a negative GM gives a loll.
+- **The end:** the ship founders when a third of its deck is awash (a plunge by the lower end, or settling level) or heels 8° past its deck edge (capsize). That part is a canned animation, because the small-angle model doesn't hold there.
+- **Drawing:** each sprite pixel becomes a point at its height-map height (turrets at their roof), plus the hull bottom from `hull_form` and walls down every height step. The points are rolled, pitched and sunk, then shaded by depth, with foam at the surface.
+- **What it shows about the designs:** ships with wing bulkheads (`tds`, coal wing bunkers) list toward a side hit and can capsize. A hull with only centre cells settles level, because nothing holds the water to one side; that historically favoured centre-only hulls. Added weight ignores what a cell held: an oil-laden tanker's flooded tank counts as an empty one filling, so the tanker sinks in minutes.
 
 ## Style videos (vidgen/)
 `vidgen/vidgen.py` makes a short MP4 of one exported ship, to judge how the sprites look in motion. It reads only

@@ -498,6 +498,19 @@ class HullForm:
         p, q = section_exponents(round(c, 3), round(0.0 if self.planing else self.character(x, c), 3))
         return min(deck, wl * max(0.0, 1.0 - ((self.T - z) / d) ** q) ** (1.0 / p))
 
+    def waterplane(self, n=400):
+        """The design waterplane: (area m², its centre's x (lcf), its second moments about the lcf
+        athwartships (i_l, for trim) and about the centreline (i_t, for heel), m⁴), by the midpoint rule."""
+        L = self.hull.L
+        dx = L / n
+        xs = [-L / 2 + (i + 0.5) * dx for i in range(n)]
+        hw = [self.waterline(x) for x in xs]
+        area = sum(2 * y for y in hw) * dx
+        lcf = sum(2 * y * x for x, y in zip(xs, hw)) * dx / area
+        i_l = sum(2 * y * (x - lcf) ** 2 for x, y in zip(xs, hw)) * dx
+        i_t = sum(2 / 3 * y ** 3 for y in hw) * dx
+        return area, lcf, i_l, i_t
+
     HEIGHTS = (0.0, 0.01, 0.03, 0.08, 0.15, 0.25, 0.4, 0.55, 0.7, 0.85, 1.0)  # sampled, fractions of the depth
 
     def table(self, stations=48):

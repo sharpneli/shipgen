@@ -236,6 +236,25 @@ def propulsion_components(lay, design, res, form, sub, gear=None):
     return out
 
 
+def hydrostatics(form, res):
+    """The full-load hydrostatics a game needs to settle, trim and heel a flooded ship by added weight: sinkage
+    = w / (100 tpc_t) m, trim = w (x - lcf) / (100 mct_tm) cm (+ down by the bow), heel = w y / (Δ gm_t) rad.
+    Heights above the main deck. gm_t is the report's (navarch's estimate); gm_l comes from the hull form's
+    waterplane with navarch's kb and kg."""
+    from navarch import SEAWATER
+    L, D, T, disp = form.hull.L, res.depth, res.draught, res.full
+    area, lcf, i_l, i_t = form.waterplane()
+    vol = disp / SEAWATER
+    kg = sum(w.w * w.z for w in res.weights) / sum(w.w for w in res.weights)
+    kb = 0.53 * T
+    gm_l = kb + i_l / vol - kg
+    return dict(displacement_t=round(disp), volume_m3=round(vol), waterplane_m2=round(area, 1),
+                lcf=round(lcf, 3), lcg=round(res.lcg, 3), lcb=round(res.lcb, 3), kg=round(kg - D, 2),
+                kb=round(kb - D, 2), gm_t=round(res.gm_full, 3), gm_l=round(gm_l, 1),
+                i_t_m4=round(i_t), i_l_m4=round(i_l), tpc_t=round(SEAWATER * area / 100, 2),
+                mct_tm=round(disp * gm_l / (100 * L), 1))
+
+
 def export_hitboxes(lay, design, res):
     """hitboxes.json. Heights are metres above the main deck; res (navarch.Result) places the keel, the
     waterline and the armour."""
@@ -362,6 +381,7 @@ def export_hitboxes(lay, design, res):
     gear = propulsion.gear(lay, design, res)        # the stern's lines make room for it
     form = HullForm(lay.hull, cb, cwp(cb), T, D, froude(design["speed_kn"], lay.hull.L), gear, res.lcb)
     sub = subdivision.build(lay, design, res, ag, armoured, form)
+    hydro = hydrostatics(form, res)
     comps += propulsion_components(lay, design, res, form, sub, gear)
     arm_out = {}
     if ag["belt_mm"] > 0:
@@ -403,6 +423,7 @@ def export_hitboxes(lay, design, res):
                                           top=round(st["levels"] * DECK_PITCH, 2)) for st in lay.raised]}
                          if lay.raised else {})),
         hull=[[round(x, 3), round(y, 3)] for x, y in lay.hull.points()],
+        hydrostatics=hydro,
         hull_form=dict(midship_coefficient=round(form.cm, 3), waterplane_coefficient=round(form.cwp, 3),
                        stations=[dict(x=round(s["x"], 3), z=[round(z - D, 2) for z in s["z"]],
                                       y=[round(y, 3) for y in s["y"]]) for s in form.table()]),
