@@ -8,6 +8,7 @@ angle (clockwise, 0 = ahead) and translate it to the mount position.
 """
 from __future__ import annotations
 
+import functools
 import math
 
 
@@ -221,6 +222,25 @@ def midship_coefficient(cb):
     return min(0.995, max(0.6, 1.006 - 0.0056 * cb ** -3.56))
 
 
+def superellipse_fill(p, q):
+    """The share of its box that a quadrant (y / b) ** p + s ** q = 1 fills."""
+    return math.gamma(1 + 1 / p) * math.gamma(1 + 1 / q) / math.gamma(1 + 1 / p + 1 / q)
+
+
+@functools.lru_cache(maxsize=8192)
+def section_exponents(c, k):
+    """(p, q) of the superellipse section of fullness c and character k (-1 V .. 1 U): p sets the bottom (over 1
+    flat at the keel), q the side (over 1 upright at the waterline); k pulls them apart, U upright sides over a
+    round bottom, V sloping sides over a flat floor."""
+    e = math.exp(k * HullForm.KAPPA)
+    lo, hi = 0.1, 500.0
+    for _ in range(60):
+        n = math.sqrt(lo * hi)
+        lo, hi = (lo, n) if superellipse_fill(n / e, n * e) > c else (n, hi)
+    n = math.sqrt(lo * hi)
+    return n / e, n * e
+
+
 class HullForm:
     """The hull's cross-sections: its half-breadth at x and height z (metres above the keel). The planform (Hull)
     is the main deck, deliberately fuller than the waterplane (it carries the flare). Here:
@@ -229,11 +249,22 @@ class HullForm:
                   straight-sided deck with a wide transom (destroyers, planing craft) is far fuller than
                   navarch.cwp, a fit for cruiser sterns; fining it that far would leave only the midbody, so p
                   stops at P_MAX and that waterplane comes out fuller than cwp (the volume still matches)
-      below it    each section narrows to the keel, y = hw_wl(x) (1 - (1 - z / T) ** m): full amidships (the
-                  midship coefficient for cb) and sharp at the ends, its fullness c(x) = cm u(x) ** a (u: the
-                  waterline's share of the beam, m = c / (1 - c)) with a in 0..A_MAX solved so the underwater body
-                  holds cb L B T; a long full-width midbody that still holds too much gets a leaner cm (a planing
-                  craft's vee)
+      keel        the keel's height over the baseline, keel(x). Forward a rounded forefoot over FOREFOOT of the
+                  length, cut away more on fast ships. Aft by the stern gear (propulsion.gear): one screw keeps the
+                  keel to the sternpost at the rudder, with the counter above the water abaft it; several screws
+                  get a cut-up, the bottom rising so it clears the propellers' tips and running on up to the
+                  counter or transom (COUNTER x T unless the propellers want it higher). A planing hull keeps a
+                  straight keel to its transom and rises in a long rocker forward
+      sections    below the waterline each section is a superellipse (y / b) ** p + s ** q = 1 over its own depth
+                  (s: the depth below the waterline over the keel's): flat at the keel wherever it is fuller than
+                  a vee, and hollow under c 0.5 at the fine ends. Its fullness c(x) = cm u(x) ** a (u: the
+                  waterline's share of the beam) with a in 0..A_MAX solved so the underwater body holds cb L B T;
+                  a long full-width midbody that still holds too much gets a leaner cm. Its character
+                  (section_exponents) grows from nil amidships: forward a U near Fn 0.225 and a V either side
+                  (Schneekluth & Bertram's tests: U best around Fn 0.23, V under 0.18 and over 0.25), aft a U on
+                  a single screw (an even wake into it) and a flat-floored V run on several; it fades out as the
+                  section thins toward a vee. Planing hulls take a hard chine instead: a straight deadrise from
+                  the keel to a chine, an upright side above it
       above it    the side flares straight up from the waterline to the deck edge; raised decks keep the deck's
                   outline
     Standard library only: the design side builds it for the hitboxes, the render side reads its table."""
@@ -241,6 +272,20 @@ class HullForm:
     P_MAX = 2.0
     A_MAX = 4.0
     C_MIN = 0.35        # the finest section, a little hollower than a vee (c 0.5)
+    KAPPA = 1.2         # how far a full U or V character pulls the section's exponents apart
+    FOREFOOT = 0.03     # the forefoot's run, x L, up to Fn FOREFOOT_FN; then FOREFOOT_K more per unit Fn
+    FOREFOOT_FN = 0.2
+    FOREFOOT_K = 0.25
+    FOREFOOT_MAX = 0.1
+    ROCKER = 0.45       # a planing keel's rocker, x L from the stem
+    PLANING_CM = 0.6    # a planing midship section's fullness to start from (a chine at 0.8 of the draught)
+    CUT_CLEAR = 0.1     # the cut-up's bottom over the propellers' tips, x their diameter
+    CUT_RUN = 5.0       # the cut-up's run, x its rise (where it is steepest it climbs at 2 / CUT_RUN)
+    COUNTER = 0.85      # the counter's or transom's underside at the stern, x T
+    FORE_V, FORE_U = -0.6, 0.8      # forward character: V away from Fn FORE_FN, U at it
+    FORE_FN, FORE_FN_W = 0.225, 0.04
+    AFT_K = 0.8         # aft character: U with one screw, V (flat floored) with several
+    CHAR_RUN = 0.3      # the character grows from nil amidships to full this far from it, x L
 
     @staticmethod
     def _solve(f, lo, hi, target):
@@ -254,19 +299,53 @@ class HullForm:
             lo, hi = (mid, hi) if f(mid) > target else (lo, mid)
         return (lo + hi) / 2
 
-    def __init__(self, hull, cb, cwp, T, D):
-        self.hull, self.cb, self.T, self.D = hull, cb, T, D
+    def __init__(self, hull, cb, cwp, T, D, fn=0.0, gear=None):
+        """fn: the Froude number at the design speed; gear: propulsion.gear (None: a flat keel aft)."""
+        self.hull, self.cb, self.T, self.D, self.fn = hull, cb, T, D, fn
         L = hull.L
-        ws = [min(1.0, hull.half_width(-L / 2 + L * (k + 0.5) / self.N) / (hull.B / 2)) for k in range(self.N)]
+        gear = gear or {}
+        self.planing = bool(gear.get("planing"))
+        self.screws = gear.get("screws", 0)
+        self.forefoot = L * (self.ROCKER if self.planing else
+                             min(self.FOREFOOT_MAX, self.FOREFOOT + self.FOREFOOT_K * max(0.0, fn - self.FOREFOOT_FN)))
+        self.post = self.cut = None
+        props = gear.get("propellers") or []
+        if not self.planing and self.screws == 1 and gear.get("rudders"):
+            self.post = min(r["x0"] for r in gear["rudders"])     # the sternpost: the rudder's heel, aft
+        elif not self.planing and props:
+            rise = min(0.95 * T, max(p["z"] + p["diameter"] * (0.5 + self.CUT_CLEAR) for p in props))
+            x_c = max(p["x"] + 0.5 * p["diameter"] for p in props)
+            self.cut = (x_c, x_c + self.CUT_RUN * rise, rise, max(rise, self.COUNTER * T))
+        self.xs = [-L / 2 + L * (k + 0.5) / self.N for k in range(self.N)]
+        ws = [min(1.0, hull.half_width(x) / (hull.B / 2)) for x in self.xs]
         self.p = self._solve(lambda p: sum(w ** p for w in ws) / len(ws), 1.0, self.P_MAX, cwp)
         us = [w ** self.p for w in ws]
-        self.cwp = sum(us) / len(us)
-        fill = lambda cm, a: sum(u * max(self.C_MIN, cm * u ** a) for u in us) / len(us)   # underwater, of LBT
-        self.cm = midship_coefficient(cb)
+        depths = [max(0.0, T - self.keel(x)) / T for x in self.xs]
+        self.cwp = sum(u for u, d in zip(us, depths) if d > 0) / len(us)
+        fill = lambda cm, a: sum(u * d * max(self.C_MIN, min(0.995, cm * u ** a))
+                                 for u, d in zip(us, depths)) / len(us)      # underwater, of LBT
+        self.cm = self.PLANING_CM if self.planing else midship_coefficient(cb)
         self.a = self._solve(lambda a: fill(self.cm, a), 0.0, self.A_MAX, cb)
         # the ends alone can't make it: a leaner (or fuller) midship section takes up the rest
         if abs(fill(self.cm, self.a) - cb) > 1e-4:      # fill rises with cm: solve on 1 - cm
             self.cm = 1.0 - self._solve(lambda k: fill(1.0 - k, self.a), 0.005, 1.0 - self.C_MIN, cb)
+
+    def keel(self, x):
+        """The keel's height over the baseline at x."""
+        L, T = self.hull.L, self.T
+        z = 0.0
+        run = L / 2 - x                 # from the stem
+        if run < self.forefoot:
+            r = 1.0 - run / self.forefoot
+            z = T * r * r if self.planing else T * (1.0 - math.sqrt(max(0.0, 1.0 - r * r)))
+        if self.post is not None and x < self.post:
+            z = T                       # abaft the sternpost: the counter, out of the water
+        elif self.cut:
+            x_c, x_s, rise, end = self.cut
+            if x < x_s:
+                z = max(z, rise * ((x_s - x) / (x_s - x_c)) ** 2 if x >= x_c else
+                        min(end, rise + 2.0 * rise / (x_s - x_c) * (x_c - x)))
+        return min(T, z)
 
     def waterline(self, x):
         """The waterplane's half-breadth at x."""
@@ -274,9 +353,17 @@ class HullForm:
         return self.hull.B / 2 * w ** self.p
 
     def fullness(self, x):
-        """The section's fullness below the waterline at x: its area over its box's (2 hw_wl x T)."""
+        """The section's fullness below the waterline at x: its area over its box's (2 hw_wl x its depth)."""
         u = self.waterline(x) / (self.hull.B / 2)
-        return max(self.C_MIN, self.cm * u ** self.a)
+        return max(self.C_MIN, min(0.995, self.cm * u ** self.a))
+
+    def character(self, x, c):
+        """The section's character, -1 (V) .. 1 (U), at x for its fullness c."""
+        if x > 0:
+            k = self.FORE_V + (self.FORE_U - self.FORE_V) * math.exp(-((self.fn - self.FORE_FN) / self.FORE_FN_W) ** 2)
+        else:
+            k = self.AFT_K if self.screws == 1 else -self.AFT_K if self.screws else 0.0
+        return k * min(1.0, abs(x) / (self.CHAR_RUN * self.hull.L)) * max(0.0, min(1.0, (c - 0.5) / 0.15))
 
     def half_width(self, x, z):
         """The half-breadth at x and z metres above the keel."""
@@ -286,29 +373,37 @@ class HullForm:
         wl = self.waterline(x)
         if z >= self.T:
             return wl + (deck - wl) * (z - self.T) / (self.D - self.T) if self.D > self.T else deck
-        if z <= 0:
+        zk = self.keel(x)
+        if z <= zk:
             return 0.0
+        d = self.T - zk
         c = self.fullness(x)
-        m = c / (1.0 - c)
-        return min(deck, wl * (1.0 - (1.0 - z / self.T) ** m))
+        if self.planing and c >= 0.5:      # hard chine: a straight deadrise to the chine, upright above it
+            chine = 2.0 * d * (1.0 - c)
+            return min(deck, wl * min(1.0, (z - zk) / chine) if chine > 1e-9 else wl)
+        p, q = section_exponents(round(c, 3), round(0.0 if self.planing else self.character(x, c), 3))
+        return min(deck, wl * max(0.0, 1.0 - ((self.T - z) / d) ** q) ** (1.0 / p))
 
-    HEIGHTS = (0.0, 0.03, 0.08, 0.15, 0.25, 0.4, 0.55, 0.7, 0.85, 1.0)     # sampled heights, fractions of T
+    HEIGHTS = (0.0, 0.01, 0.03, 0.08, 0.15, 0.25, 0.4, 0.55, 0.7, 0.85, 1.0)  # sampled, fractions of the depth
 
     def table(self, stations=48):
-        """Sampled sections for the hitboxes: [dict(x, z, y)], z on the keel scale, from the keel up to the
-        main deck (and the waterline among them)."""
+        """Sampled sections for the hitboxes: [dict(x, z, y)], z on the keel scale, from the section's keel (its
+        first height) up to the main deck (and the waterline among them). A station abaft a sternpost starts
+        at the waterline: nothing of it is under water."""
         L = self.hull.L
-        zs = sorted({min(self.T, self.D) * f for f in self.HEIGHTS} | {self.D})
+        top = min(self.T, self.D)
         out = []
         for k in range(stations + 1):
             x = -L / 2 + L * (1 - math.cos(math.pi * k / stations)) / 2
+            zk = min(self.keel(x), top)
+            zs = sorted({zk + (top - zk) * f for f in self.HEIGHTS} | {self.D})
             out.append(dict(x=x, z=zs, y=[self.half_width(x, z) for z in zs]))
         return out
 
 
 def table_half_width(table, x, z):
     """A sampled hull form's (HullForm.table, as exported) half-breadth at x and z: bilinear between stations
-    and heights; above the top height, the top's."""
+    and heights; under a station's first height (its keel) nothing, above the top height, the top's."""
     xs = [s["x"] for s in table]
     if x <= xs[0] or x >= xs[-1]:
         return 0.0
@@ -318,8 +413,8 @@ def table_half_width(table, x, z):
         zs, ys = s["z"], s["y"]
         if z >= zs[-1]:
             return ys[-1]
-        if z <= zs[0]:
-            return ys[0]
+        if z < zs[0]:
+            return 0.0
         j = next(k for k in range(len(zs) - 1) if zs[k + 1] >= z)
         f = (z - zs[j]) / (zs[j + 1] - zs[j]) if zs[j + 1] > zs[j] else 0.0
         return ys[j] + (ys[j + 1] - ys[j]) * f

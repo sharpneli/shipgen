@@ -75,6 +75,8 @@ def check_subdivision(hb, samples=3000):
         top = max([r["top"] for r in hb["vertical"].get("raised", []) if r["x0"] <= x <= r["x1"]] + [0.0])
         z = rng.uniform(keel, top)
         hw = form_half_width(hb, x, z)      # the sections narrow toward the keel
+        if hw <= 0:                         # under a forefoot, a cut-up or a counter: outside the hull
+            continue
         y = rng.uniform(-hw, hw)
         n = sum(1 for c in cells.values()
                 if c["x0"] <= x < c["x1"] and c["y0"] <= y < c["y1"] and c["base"] <= z < c["top"])

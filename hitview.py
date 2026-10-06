@@ -261,10 +261,16 @@ def render_view(hb, az, el, what, width=1800, title=""):
         keel = hb.get("vertical", {}).get("keel", -5.0)            # sections
         hull = [tuple(p) for p in hb["hull"]]
         d.line([proj((x, y, 0.0)) for x, y in hull + hull[:1]], fill=(200, 210, 220, 160), width=1)
-        x0, x1 = min(x for x, _ in hull), max(x for x, _ in hull)
-        d.line([proj((x0, 0.0, keel)), proj((x1, 0.0, keel))], fill=(200, 210, 220, 160), width=1)
-        for x, y in (max(hull), min(hull)):
-            d.line([proj((x, y, keel)), proj((x, y, 0.0))], fill=(200, 210, 220, 160), width=1)
+        stations = (hb.get("hull_form") or {}).get("stations")
+        if stations:         # the keel line: each section's lowest point, up the stem and the stern
+            d.line([proj((st["x"], 0.0, st["z"][0])) for st in stations], fill=(200, 210, 220, 160), width=1)
+            for st in (stations[0], stations[-1]):
+                d.line([proj((st["x"], 0.0, st["z"][0])), proj((st["x"], 0.0, 0.0))], fill=(200, 210, 220, 160), width=1)
+        else:
+            x0, x1 = min(x for x, _ in hull), max(x for x, _ in hull)
+            d.line([proj((x0, 0.0, keel)), proj((x1, 0.0, keel))], fill=(200, 210, 220, 160), width=1)
+            for x, y in (max(hull), min(hull)):
+                d.line([proj((x, y, keel)), proj((x, y, 0.0))], fill=(200, 210, 220, 160), width=1)
         for st in (hb.get("hull_form") or {}).get("stations", [])[4:-4:4]:
             sec = [(y, z) for y, z in zip(st["y"], st["z"])]
             pts = [(st["x"], -y, z) for y, z in reversed(sec)] + [(st["x"], y, z) for y, z in sec]

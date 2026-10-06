@@ -176,12 +176,12 @@ def block_role(bid):
     return BLOCK_ROLES.get(re.sub(r"\s*\d+[SP]?$", "", bid), "deckhouse")
 
 
-def propulsion_components(lay, design, res, form, sub):
+def propulsion_components(lay, design, res, form, sub, gear=None):
     """The propulsion train (propulsion.build) as components: shafts (segments from the engine room to the
     propeller), shaft alleys, propellers and rudders, linked both ways to the engine rooms and the steering gear.
     The cells they pass through list them in "through"."""
     D = res.depth
-    tr = propulsion.build(lay, design, res, form)
+    tr = propulsion.build(lay, design, res, form, gear)
     z = lambda v: round(v - D, 2)
     rect = lambda x0, x1, y, hw: [[round(x0, 3), round(y - hw, 3)], [round(x1, 3), round(y - hw, 3)],
                                   [round(x1, 3), round(y + hw, 3)], [round(x0, 3), round(y + hw, 3)]]
@@ -240,7 +240,7 @@ def export_hitboxes(lay, design, res):
     """hitboxes.json. Heights are metres above the main deck; res (navarch.Result) places the keel, the
     waterline and the armour."""
     from layout import block_base, block_top
-    from navarch import armour_geometry, armour_material, cwp, deck_name, DECK_PITCH
+    from navarch import armour_geometry, armour_material, cwp, deck_name, froude, DECK_PITCH
     D, T = res.depth, res.draught
     rz = lambda z: round(z - D, 2)        # metres above the keel -> above the main deck
     ag = armour_geometry(design, lay.hull.L, T, D, lay.geo)
@@ -359,9 +359,10 @@ def export_hitboxes(lay, design, res):
                               points=[[round(x, 3), round(y, 3)] for x, y in pts], base=round(c["base"], 2),
                               top=round(c["top"], 2)))
     cb = design["hull"]["block_coefficient"]
-    form = HullForm(lay.hull, cb, cwp(cb), T, D)
+    gear = propulsion.gear(lay, design, res)        # the stern's lines make room for it
+    form = HullForm(lay.hull, cb, cwp(cb), T, D, froude(design["speed_kn"], lay.hull.L), gear)
     sub = subdivision.build(lay, design, res, ag, armoured, form)
-    comps += propulsion_components(lay, design, res, form, sub)
+    comps += propulsion_components(lay, design, res, form, sub, gear)
     arm_out = {}
     if ag["belt_mm"] > 0:
         arm_out["belt"] = with_material(dict(thickness_mm=ag["belt_mm"], x0=round(ag["x0"], 3), x1=round(ag["x1"], 3),

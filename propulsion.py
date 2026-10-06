@@ -60,9 +60,9 @@ def _engine_rooms(lay):
     return sorted(rooms, key=lambda r: -r[1])     # forward first
 
 
-def build(lay, design, res, form):
-    """The propulsion train: dict(shafts, propellers, rudders, alleys), each a list of dicts with heights above the
-    keel (hitbox.export_hitboxes turns them into components)."""
+def gear(lay, design, res):
+    """The stern gear, which the hull's lines must make room for (geometry.HullForm): dict(screws, planing,
+    propellers, rudders, shafts), heights above the keel. The shafts have no exit yet (build)."""
     L, B = lay.hull.L, lay.hull.B
     D, T = res.depth, res.draught
     rated = res.plant_rated or {}
@@ -98,7 +98,7 @@ def build(lay, design, res, form):
     rooms = _engine_rooms(lay)
     pairs = n // 2
     groups = pairs + n % 2          # the outer pair first, forward ... the centre shaft (or inner pair) last, aft
-    shafts, props, alleys = [], [], []
+    shafts, props = [], []
     mach = lay.geo.get("machinery")
     for k, (y, rank) in enumerate(shaft_ys):
         sid, pid = f"Shaft {k + 1}", f"Propeller {k + 1}"
@@ -109,7 +109,22 @@ def build(lay, design, res, form):
         xp = x_p0 + STAGGER * L * (rank - (1 if n % 2 == 0 else 0))
         xp = min(xp, xs - 1.0)
         pos = "centre" if abs(y) < 1e-6 else "wing" if pairs == 1 else "outer" if rank == pairs else "inner"
-        z_at = lambda x, xs=xs, zs=zs, xp=xp: zs + (z_p - zs) * (xs - x) / (xs - xp) if xs != xp else zs
+        shafts.append(dict(id=sid, y=y, position=pos, engine_room=room[2] if room else None, propeller=pid,
+                           p0=(xs, y, zs), p1=(xp, y, z_p)))
+        props.append(dict(id=pid, x=xp, y=y, z=z_p, diameter=dp, shaft=sid, position=pos))
+    return dict(screws=n, planing=planing, ib=ib, shafts=shafts, propellers=props, rudders=rudders,
+                rated_mw_per_shaft=mw)
+
+
+def build(lay, design, res, form, gr=None):
+    """The propulsion train: dict(shafts, propellers, rudders, alleys), each a list of dicts with heights above the
+    keel (hitbox.export_hitboxes turns them into components). gr: gear(), when the hull form was built round it."""
+    gr = gr or gear(lay, design, res)
+    mach = lay.geo.get("machinery")
+    shafts, alleys = [], []
+    for k, sh in enumerate(gr["shafts"]):
+        (xs, y, zs), (xp, _, z_p) = sh["p0"], sh["p1"]
+        z_at = lambda x: zs + (z_p - zs) * (xs - x) / (xs - xp) if xs != xp else zs
         # where the shaft leaves the hull: aft from the engine, the first point the hull no longer holds it
         exit_x = xp + 0.3
         steps = max(2, int((xs - xp) / 0.5))
@@ -118,13 +133,12 @@ def build(lay, design, res, form):
             if abs(y) + SHAFT_R + 0.2 > form.half_width(x, z_at(x)):
                 exit_x = x
                 break
-        shafts.append(dict(id=sid, y=y, position=pos, engine_room=room[2] if room else None, propeller=pid,
-                           p0=(xs, y, zs), p1=(xp, y, z_p), exit_x=exit_x))
-        props.append(dict(id=pid, x=xp, y=y, z=z_p, diameter=dp, shaft=sid, position=pos))
+        shafts.append({**sh, "exit_x": exit_x})
         a0 = mach[0] if mach else xs
         if exit_x < a0 - 0.5:
             zt = [z_at(a0), z_at(exit_x)]
-            alleys.append(dict(id=f"Shaft alley {k + 1}", shaft=sid, x0=exit_x, x1=a0, y=y,
-                               base=max(ib, min(zt) - ALLEY_H / 2), top=max(zt) + ALLEY_H / 2))
+            alleys.append(dict(id=f"Shaft alley {k + 1}", shaft=sh["id"], x0=exit_x, x1=a0, y=y,
+                               base=max(gr["ib"], min(zt) - ALLEY_H / 2), top=max(zt) + ALLEY_H / 2))
             shafts[-1]["alley"] = alleys[-1]["id"]
-    return dict(shafts=shafts, propellers=props, rudders=rudders, alleys=alleys, rated_mw_per_shaft=mw)
+    return dict(shafts=shafts, propellers=gr["propellers"], rudders=gr["rudders"], alleys=alleys,
+                rated_mw_per_shaft=gr["rated_mw_per_shaft"])
