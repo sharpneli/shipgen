@@ -251,15 +251,18 @@ class HullForm:
                   counter or transom (COUNTER x T unless the propellers want it higher). A planing hull keeps a
                   straight keel to its transom and rises in a long rocker forward
       area        the sectional area curve, A(x) over the midship section's (cm B T): a parallel midbody of
-                  PMB_K (Cp - PMB_CP) L (none under Cp 0.62, a third of the length at a tanker's 0.77) round the
-                  centre of buoyancy, then e + (1 - e)(1 - r ** n) out to each end (r 0 at the shoulder, 1 at the
-                  end; e the immersed transom's area, nil at the bow and over a counter). n is solved so the
+                  PMB_K (Cp - PMB_CP) L (next to none on a destroyer's Cp 0.53, an eighth of the length on a
+                  battleship's 0.61, two fifths on a tanker's 0.77) round the centre of buoyancy, then
+                  e + (1 - e)(1 - r ** 2) ** (1 / n) out to each end (r 0 at the shoulder, 1 at the end; e the
+                  immersed transom's area, nil at the bow and over a counter): rounded at the shoulder however
+                  fine, where 1 - r ** n came to a point and drew a diamond of flat bottom. n is solved so the
                   underwater body holds cb L B T, and the split between entrance and run (n e ** +-d) so its
                   centre sits at the ship's lcb (navarch: the layout trims the weights to it)
       waterplane  each station meets its area with its waterline and its section's fullness together: of the
                   share rho of the midship's breadth x fullness it needs, the waterline takes rho ** lambda and
                   the section the rest (lambda solved so the waterplane fills navarch.cwp, more on the
-                  waterline under U ends, less under V), the waterline never past the deck edge and the fullness
+                  waterline under U ends, less under V), the waterline never past the deck edge nor wider than
+                  the station nearer amidships (else a shallow run over a cut-up widens it again), the fullness
                   from C_MIN up to cm at the shoulders, C_END at the ends (a section fuller than amidships turns
                   into a box). Departure: lambda stays in LAM_MIN..LAM_MAX so the section always takes part of
                   the fining. navarch.cwp (0.18 + 0.86 cb) is lean for warships: reaching it took lambda ~1, a fine
@@ -293,7 +296,7 @@ class HullForm:
     FORE_FN, FORE_FN_W = 0.225, 0.04
     AFT_K = 0.8         # aft character: U with one screw, V (flat floored) with several
     CHAR_RUN = 0.3      # the character grows from nil amidships to full this far from it, x L
-    PMB_K, PMB_CP, PMB_MAX = 2.2, 0.62, 0.5     # the parallel midbody, x L, from the prismatic coefficient
+    PMB_K, PMB_CP, PMB_MAX = 1.8, 0.54, 0.5     # the parallel midbody, x L, from the prismatic coefficient
     LAMBDA, LAMBDA_K = 0.5, 0.2     # the waterline's share of an end's fining, and how far character moves it
     LAM_MIN, LAM_MAX = 0.35, 0.75   # the share's range: the section always takes part of the fining
     ROUNDS = 3          # area curve and waterline share, solved in turn
@@ -388,7 +391,7 @@ class HullForm:
         if xa is None:
             xa, xf = self._mid
         n_f, n_r = n * math.exp(d), n * math.exp(-d)
-        us, cs, area = [], [], []
+        rows = []           # (s, w, dk, c_hi, raw waterline) per station, stern to bow
         for x, w, dk in zip(self.xs, self._ws, self._ds):
             if x > xf:
                 r, nn, e, k = (x - xf) / (L / 2 - xf), n_f, self._ends[1], self.k_fore
@@ -396,19 +399,31 @@ class HullForm:
                 r, nn, e, k = (xa - x) / (xa + L / 2), n_r, self._ends[0], self.k_aft
             else:
                 r, nn, e, k = 0.0, 1.0, 1.0, 0.0
-            s = e + (1 - e) * (1 - min(1.0, r) ** nn)
-            if dk <= 0 or w <= 0:       # over a counter, or past the deck's tip
+            r = min(1.0, r)
+            s = e + (1 - e) * (1 - r * r) ** (1 / nn)
+            c_hi = min(self.C_MAX, cm - max(0.0, cm - self.C_END) * r)
+            rho = s / dk if dk > 0 else 0.0
+            u = min(w, rho ** max(0.05, lam0 + self.LAMBDA_K * k)) if rho > 0 else 0.0
+            rows.append([s, w, dk, c_hi, u])
+        # the waterline only narrows from the shoulders out to the ends (a shallow run over a cut-up would
+        # otherwise widen it again toward the transom): the sections take up the rest
+        fore = [i for i in range(self.N) if self.xs[i] > xf]
+        aft = [i for i in reversed(range(self.N)) if self.xs[i] < xa]
+        for end in (fore, aft):
+            u_min = 1.0
+            for i in end:
+                if rows[i][2] > 0:
+                    u_min = rows[i][4] = min(u_min, rows[i][4])
+        us, cs, area = [], [], []
+        for s, w, dk, c_hi, u in rows:
+            if dk <= 0 or w <= 0:           # over a counter, or past the deck's tip
                 us.append(w); cs.append(cm); area.append(0.0)
                 continue
-            rho = s / dk
-            lam = max(0.05, lam0 + self.LAMBDA_K * k)
-            u = min(w, rho ** lam) if rho > 0 else 0.0
             c = cm * s / (u * dk) if u > 0 else self.C_MIN
-            c_hi = min(self.C_MAX, cm - max(0.0, cm - self.C_END) * min(1.0, r))
             if c > c_hi:
-                c, u = c_hi, min(w, cm * s / (dk * c_hi))
+                c, u = c_hi, min(u, cm * s / (dk * c_hi))
             elif c < self.C_MIN:
-                c, u = self.C_MIN, min(w, cm * s / (dk * self.C_MIN))
+                c, u = self.C_MIN, min(u, cm * s / (dk * self.C_MIN))
             us.append(u); cs.append(c); area.append(u * dk * c)
         return us, cs, area
 
