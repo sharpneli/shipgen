@@ -36,7 +36,10 @@ KIND = {   # fill RGB, alpha
     "hold": ((200, 170, 110), 200), "cargo_tank": ((150, 120, 70), 200), "fuel_tank": ((90, 80, 60), 220),
     "hangar_bay": ((200, 200, 210), 120), "stores": ((150, 150, 120), 55), "double_bottom": ((80, 95, 110), 40),
     "tds": ((90, 140, 160), 45), "armoured_bulkhead": ((60, 70, 90), 255),
+    "shaft": ((225, 225, 120), 255), "shaft_alley": ((200, 190, 120), 150), "propeller": ((215, 160, 60), 255),
+    "rudder": ((240, 110, 190), 255),
 }
+PROPULSION = ("shaft", "shaft_alley", "propeller", "rudder")
 OPAQUE = 200      # kinds above this alpha are solid: they hide what is behind them
 FILLER = ("accommodation", "stores", "double_bottom", "tds")   # fill the hull: drawn faint, so the rooms show through
 LIGHT = (-0.35, -0.45, 0.82)      # from forward, port and above
@@ -72,7 +75,7 @@ def prisms(hb, what):
             out.append(("hull", form_outline(hb, (z0 + z1) / 2), z0, z1))
     for c in hb["components"]:
         kind = c["kind"]
-        if what == "internal" and kind not in ("barbette", "uptake", "casing"):
+        if what == "internal" and kind not in ("barbette", "uptake", "casing") + PROPULSION:
             continue
         if "local" in c:
             polys = [c["local"]["body"]] + c["local"]["parts"]
@@ -81,6 +84,13 @@ def prisms(hb, what):
             mid = c["base"] + 0.55 * (c["top"] - c["base"])
             for p in c["local"]["barrels"]:
                 out.append((kind, rotate_translate(p, c["rest_deg"], c["x"], c["y"]), mid - 0.25, mid + 0.25))
+        elif c.get("shape") == "segment":       # a shaft: short boxes along it
+            (x0, y, z0), (x1, _, z1), r = c["p0"], c["p1"], c["r"]
+            n = max(1, int(abs(x1 - x0) / 3.0))
+            for k in range(n):
+                a, b = x0 + (x1 - x0) * k / n, x0 + (x1 - x0) * (k + 1) / n
+                zm = z0 + (z1 - z0) * (k + 0.5) / n
+                out.append((kind, [(a, y - r), (b, y - r), (b, y + r), (a, y + r)], zm - r, zm + r))
         elif c.get("shape") == "circle":
             out.append((kind, _circle(c["x"], c["y"], c["r"]), c["base"], c["top"]))
         elif "points" in c:

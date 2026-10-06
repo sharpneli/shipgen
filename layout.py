@@ -749,7 +749,7 @@ def hull_spec(design):
     return dict(length=h["length"], beam=h["beam"], **planform(h["block_coefficient"], h["length"] * h["beam"]))
 
 
-STEERING = (0.03, 0.08, 0.25)   # the steering gear: from 0.03 to 0.08 L forward of the stern, 0.25 B each side
+from navarch import STEERING     # the steering gear: from 0.03 to 0.08 L forward of the stern, 0.25 B each side
 
 
 def set_citadel(lay, x0, x1):
@@ -767,6 +767,8 @@ def add_steering(lay, x0=None, x1=None, half_width=None, name="Steering gear"):
     room = dict(id=name, kind="steering", x0=x0, x1=x1, base=base, top=top,
                 half_width=STEERING[2] * B if half_width is None else half_width)
     lay.compartments.append(room)
+    lay.geo["steering"] = (x0, x1)      # for the armour (navarch.steering_span) and the propulsion train
+    lay.geo["steering_beam"] = 2 * sum(lay.hull.half_width(x0 + (x1 - x0) * (k + 0.5) / 8) for k in range(8)) / 8
     return room
 
 

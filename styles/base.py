@@ -28,6 +28,9 @@ COMMON_LIMITS = {
     ("armour", "upper_belt", "mm"): (0, 2000),
     ("armour", "end_belts", "fore", "mm"): (0, 2000), ("armour", "end_belts", "fore", "tip_mm"): (0, 2000),
     ("armour", "end_belts", "aft", "mm"): (0, 2000), ("armour", "end_belts", "aft", "tip_mm"): (0, 2000),
+    **{("armour", "end_belts", e, k): lim for e in ("fore", "aft")
+       for k, lim in (("reach", (0, 1)), ("bulkhead_mm", (0, 2000)))},
+    **{("armour", "steering_box", k): (0, 2000) for k in ("mm", "deck_mm", "bulkhead_mm")},
     ("superstructure", "t_per_m2"): (0, 5), ("superstructure", "tower_levels"): (1, 30),
     ("superstructure", "deckhouse_levels"): (1, 30),
     **{("fire_control", b, k): lim for b in ("main", "secondary", "aa") for k, lim in (
@@ -192,6 +195,9 @@ def armour_errors(design) -> list[str]:
     owns += [("armour.upper_belt", a["upper_belt"])] if isinstance(a.get("upper_belt"), dict) else []
     owns += [(f"armour.end_belts.{e}", v) for e, v in (a.get("end_belts") or {}).items() if isinstance(v, dict)] \
         if isinstance(a.get("end_belts"), dict) else []
+    owns += [("armour.steering_box", a["steering_box"])] if isinstance(a.get("steering_box"), dict) else []
+    owns += [("armour.steering_box.deck", {"material": a["steering_box"]["deck_material"]})] \
+        if isinstance(a.get("steering_box"), dict) and "deck_material" in a["steering_box"] else []
     sec = design.get("secondary") or []
     owns += [(f"secondary[{k}]", b) for k, b in enumerate(sec if isinstance(sec, list) else [sec]) if isinstance(b, dict)]
     errs += [f"{where}.material: name the material as a string" for where, d in owns
@@ -199,10 +205,15 @@ def armour_errors(design) -> list[str]:
     eb = a.get("end_belts")
     if eb is not None:
         if not isinstance(eb, dict) or set(eb) - {"fore", "aft"}:
-            errs.append("armour.end_belts: use {\"fore\": {\"mm\", \"tip_mm\"}, \"aft\": {...}}")
+            errs.append("armour.end_belts: use {\"fore\": {\"mm\", \"tip_mm\", \"reach\", \"bulkhead_mm\"}, "
+                        "\"aft\": {...}}")
         else:
-            errs += [f"armour.end_belts.{end}: use {{\"mm\", \"tip_mm\"}}" for end, e in eb.items()
-                     if not isinstance(e, dict)]
+            errs += [f"armour.end_belts.{end}: use {{\"mm\", \"tip_mm\", \"reach\", \"bulkhead_mm\"}}"
+                     for end, e in eb.items() if not isinstance(e, dict)]
+    sb = a.get("steering_box")
+    if sb is not None and (not isinstance(sb, dict) or set(sb) - {"mm", "deck_mm", "bulkhead_mm", "material",
+                                                                  "deck_material"}):
+        errs.append("armour.steering_box: use {\"mm\", \"deck_mm\", \"bulkhead_mm\"} (0 for none)")
     return errs
 
 

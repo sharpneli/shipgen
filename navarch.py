@@ -436,6 +436,12 @@ DECK_NAMES = ["Main deck", "Second deck", "Third deck", "Fourth deck", "Fifth de
               "Eighth deck", "Ninth deck", "Tenth deck"]
 ARMOUR_EXTENTS = ("citadel", "full", "fore", "aft", "ends")
 BELT_ENDS = ("fore", "aft")
+STEERING = (0.03, 0.08, 0.25)   # the steering gear: from 0.03 to 0.08 L forward of the stern, 0.25 B each side
+
+
+def steering_span(L, geo=None):
+    """The steering gear's stretch (x0, x1): the layout's (geo["steering"]) or the rule's (STEERING)."""
+    return (geo or {}).get("steering") or (-L / 2 + STEERING[0] * L, -L / 2 + STEERING[1] * L)
 
 
 def deck_name(n):
@@ -535,14 +541,23 @@ def armour_geometry(design, L, T, D, geo):
                 keel and main deck; TUNING belt_h, half below and half above, when the design gives none)
       strakes   the rest of the side armour, each dict(id, kind, extent, mm, tip_mm, x0, x1, bottom, top,
                 material):
-                  end    armour.end_belts: the waterline belt carried on from the citadel to the stem ("fore")
-                         or stern ("aft"), at the main belt's depth, up to the thickest armour deck over that end
-                         when that is higher; mm at the citadel tapering to tip_mm at the hull's end
+                  end    armour.end_belts: the waterline belt carried on from the citadel toward the stem ("fore")
+                         or stern ("aft"), reach of the way there (1: all the way), at the main belt's depth, up
+                         to the thickest armour deck over that end when that is higher; mm at the citadel
+                         tapering to tip_mm at its far end
                   upper  armour.upper_belt: from the top of the belt below it up to armour.upper_belt.to_deck,
                          over its extent (one strake per stretch: the citadel, fore and aft)
+                  box    armour.steering_box: the sides of a separate box round the steering gear (steering_span),
+                         from the inner bottom (the gear stands low) up to its roof, the deck over the gear
       bulkheads the citadel's transverse bulkheads (armour.bulkhead_mm, 0.6 of the belt if not given) close the
                 belts' ends, from the top of the main or upper belt over the citadel down to 0.4 belt heights
                 below the belt.
+      end_bulkheads  the other armoured transverse bulkheads, each dict(id, x, mm, bottom, top, material): one
+                closing an end belt that stops short of the hull's end (its bulkhead_mm), from the citadel
+                bulkheads' lower edge up to the belt's top, and the steering box's two ends
+                (steering_box.bulkhead_mm), as tall as its sides. The box's roof is a deck plate (extent
+                "steering") on the deck over the steering gear (ordnance.span, as layout.add_steering stands it). The
+                box's roof and bulkheads span the hull's width there (geo["steering_beam"]; the beam without one).
       materials armour.materials, by part (armour_material): belt_material, bulkhead_material, roof_material,
                 and material on each deck plate and strake. Strings only, for the game's ballistics."""
     a = design.get("armour") or {}
@@ -579,7 +594,8 @@ def armour_geometry(design, L, T, D, geo):
     band = min(D, max(bot, T + above))
     top = min(D, max(band, main["z"] if main else 0.0))
 
-    strakes = []
+    strakes, end_bhs = [], []
+    bh_bot = max(0.0, bot - 0.4 * h)
     tops = {"citadel": top if belt > 0 else band}         # where an upper belt starts over each stretch
     for end in BELT_ENDS:
         e = (a.get("end_belts") or {}).get(end) or {}
@@ -587,6 +603,11 @@ def armour_geometry(design, L, T, D, geo):
         if e.get("mm", 0) <= 0:
             continue
         _, s0, s1 = extent_spans(end, L, x0, x1)[0]
+        reach = min(1.0, max(0.0, e.get("reach", 1.0)))
+        if end == "fore":       # reach of the way from the citadel to the stem (stern)
+            s1 = s0 + (s1 - s0) * reach
+        else:
+            s0 = s1 - (s1 - s0) * reach
         cover = [d for d in decks if d["x0"] <= (s0 + s1) / 2 <= d["x1"] and d["extent"] in (end, "full")]
         dk = max(cover, key=lambda d: (d["mm"], d["z"]), default=None)
         et = min(D, max(band, dk["z"] if dk else 0.0))
@@ -595,6 +616,34 @@ def armour_geometry(design, L, T, D, geo):
             strakes.append(dict(id=f"{end.capitalize()} end belt", kind="end", extent=end, mm=e["mm"],
                                 tip_mm=e.get("tip_mm", e["mm"]), x0=s0, x1=s1, bottom=bot, top=et,
                                 material=armour_material(design, "end_belts", e)))
+            if reach < 1.0 and e.get("bulkhead_mm", 0) > 0:     # closing the belt where it stops short
+                end_bhs.append(dict(id=f"{end.capitalize()} end belt bulkhead", x=s1 if end == "fore" else s0,
+                                    mm=e["bulkhead_mm"], bottom=bh_bot, top=et,
+                                    material=armour_material(design, "bulkheads")))
+    sb = a.get("steering_box") or {}
+    if max(sb.get("mm", 0), sb.get("deck_mm", 0), sb.get("bulkhead_mm", 0)) > 0:
+        # a compact box round the steering gear, which stands low (layout.add_steering: ordnance.span over the inner
+        # bottom): sides from the inner bottom to the deck over the gear, a roof on that deck, bulkheads at both ends
+        import ordnance
+        b0, b1 = steering_span(L, geo)
+        stack = deck_stack(design, D)
+        wbox = geo.get("steering_beam")
+        rz_ = ordnance.span(dict(decks=[z for _, z in stack], inner_bottom=powerplant.double_bottom(D),
+                                 top=roof["z"] if roof else D))[1] + D
+        n = min(stack, key=lambda v: abs(v[1] - rz_))[0]
+        if sb.get("deck_mm", 0) > 0:
+            decks.append(dict(deck=n, mm=sb["deck_mm"], extent="steering", z=rz_, asked=n, x0=b0, x1=b1, w=wbox,
+                              material=armour_material(design, "decks", sb.get("deck_material") and
+                                                       {"material": sb["deck_material"]})))
+        floor = min(powerplant.double_bottom(D), rz_)
+        if sb.get("mm", 0) > 0:
+            strakes.append(dict(id="Steering gear box", kind="box", extent="aft", mm=sb["mm"], tip_mm=sb["mm"],
+                                x0=b0, x1=b1, bottom=floor, top=rz_,
+                                material=armour_material(design, "end_belts", sb)))
+        if sb.get("bulkhead_mm", 0) > 0:
+            end_bhs += [dict(id=f"Steering gear box {w} bulkhead", x=x, mm=sb["bulkhead_mm"], bottom=floor,
+                             top=rz_, w=wbox, material=armour_material(design, "bulkheads"))
+                        for w, x in (("forward", b1), ("aft", b0))]
     ub = a.get("upper_belt") or {}
     if ub.get("mm", 0) > 0:
         stack = deck_stack(design, D)
@@ -620,8 +669,8 @@ def armour_geometry(design, L, T, D, geo):
                 roof_mm=roof["mm"] if roof else 0, roof_material=roof["material"] if roof else None,
                 belt_material=armour_material(design, "belt"), bulkhead_material=armour_material(design, "bulkheads"),
                 armoured=belt > 0 or bool(over),
-                bulkhead_mm=a.get("bulkhead_mm", 0.6 * belt), bulkhead_bottom=max(0.0, bot - 0.4 * h),
-                bulkhead_top=bh_top)
+                bulkhead_mm=a.get("bulkhead_mm", 0.6 * belt), bulkhead_bottom=bh_bot,
+                bulkhead_top=bh_top, end_bulkheads=end_bhs)
 
 
 def armour_weights(design, L, B, D, g):
@@ -643,6 +692,10 @@ def armour_weights(design, L, B, D, g):
         hb = g["bulkhead_top"] - g["bulkhead_bottom"]
         out.append(Weight("Bulkheads", "armour", 2 * B * hb * g["bulkhead_mm"] / 1000 * STEEL, x=xc,
                           z_rel=zf(g["bulkhead_top"], g["bulkhead_bottom"])))
+    for b in g["end_bulkheads"]:      # across the hull there (an end belt's: the beam, a little heavy at the ends)
+        out.append(Weight(b["id"], "armour", (b.get("w") or B) * (b["top"] - b["bottom"]) * b["mm"] / 1000 * STEEL,
+                          x=b["x"],
+                          z_rel=zf(b["top"], b["bottom"])))
     for s in g["strakes"]:
         a, b = (s["mm"], s["tip_mm"]) if s["extent"] != "aft" else (s["tip_mm"], s["mm"])   # thickness at x0, x1
         f = (a + 2 * b) / (3 * (a + b)) if a + b > 0 else 0.5                             # trapezoid centroid
@@ -657,9 +710,9 @@ def armour_weights(design, L, B, D, g):
                           z_rel=zf(top, floor)))
     cb = design["hull"]["block_coefficient"]
     for d in g["decks"]:
-        area = (L * cwp(cb) if d["extent"] == "full" else d["x1"] - d["x0"]) * B * 0.9
-        name = f"Deck armour ({deck_name(d['deck']).lower()}" + (f", {d['extent']})" if d["extent"] in BELT_ENDS
-                                                                 else ")")
+        area = (L * cwp(cb) if d["extent"] == "full" else d["x1"] - d["x0"]) * (d.get("w") or B) * 0.9
+        name = f"Deck armour ({deck_name(d['deck']).lower()}" + (
+            f", {d['extent']})" if d["extent"] in BELT_ENDS + ("steering",) else ")")
         out.append(Weight(name, "armour", area * d["mm"] / 1000 * STEEL,
                           x=0.0 if d["extent"] == "full" else (d["x0"] + d["x1"]) / 2, z_rel=("deck", d["z"] - D)))
     return out

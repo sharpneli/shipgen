@@ -55,13 +55,14 @@ design.py      the command line: validate, shipdesign.build, write report.json a
   "hull": {"block_coefficient": 0.59},
   "speed_kn": 33, "range_nm": 15000,
   "armour": {"belt_mm": 307, "belt_depth_m": 3.0, "belt_height_m": 3.0, "belt_bottom_mm": 307, "bulkhead_mm": 287, "upper_belt": {"mm": 0, "to_deck": 0, "extent": "citadel"},
-             "end_belts": {"fore": {"mm": 0, "tip_mm": 0}, "aft": {"mm": 0, "tip_mm": 0}},
+             "end_belts": {"fore": {"mm": 0, "tip_mm": 0, "reach": 1.0, "bulkhead_mm": 0}, "aft": {"mm": 0, "tip_mm": 0, "reach": 1.0, "bulkhead_mm": 0}},
+             "steering_box": {"mm": 343, "deck_mm": 157, "bulkhead_mm": 287},
              "turret_mm": 432, "decks": [{"deck": 1, "mm": 152, "extent": "citadel"}]},
   "main": {"calibre_mm": 406, "calibre_length": 50, "barrels": 3, "fore": 2, "aft": 1},
   "secondary": {"calibre_mm": 127, "calibre_length": 38, "barrels": 2, "per_side": 5, "stands_on": "deckhouse"},
   "torpedoes": {"mounts": 0, "tubes": 5},
   "aa": {"heavy": 20, "light": 30},
-  "machinery": {"stress": 0.4, "shafts": 4, "tech": {...}},
+  "machinery": {"stress": 0.4, "shafts": 4, "rudders": 2, "tech": {...}},
   "crew": {"standard": {...}, "endurance_days": 45, "distiller": true},
   "superstructure": {"t_per_m2": 0.32, "material": "steel", "tower_levels": 7},
   "fire_control": {"main": {"directors": 2, "rangefinder_m": 7.9, "armour_mm": 38, "radar_t": 2.0, "computer_t": 8.0},
@@ -86,9 +87,14 @@ The side armour is the main belt and up to three secondary pieces. Every design 
 - `belt_depth_m` and `belt_height_m`: the belt's band, in metres below and above the full-load waterline. The main belt reaches up to the main armour deck when that's higher, so belt and deck close the box. The end belts share the band. The designs carry 0.15 × draught + 1.2 m each way, the old built-in rule. A belt under 1 m deep warns, because rolling or flooding uncovers the side under it, and the game settles a flooded ship deeper.
 - `bulkhead_mm`: the citadel's transverse ends, closing the belts from 0.4 belt heights under the belt up to the top of the main or upper belt.
 - `upper_belt`: `{"mm", "to_deck", "extent"}`, a strake from the top of the belt below it up to deck `to_deck` (0 the main deck; −1, −2, … a raised deck, which it reaches over the raised stretches, and the main deck elsewhere). Over the citadel it starts at the main belt's top; beyond it, at the end belt's top (or the main belt's waterline band if there's none). It has no height, and warns, when the belt already reaches that deck. `extent` takes the deck extents, and `full` is one strake over the citadel and one beyond each end.
-- `end_belts`: `{"fore": {"mm", "tip_mm"}, "aft": {...}}`, the waterline belt carried on from the citadel to the stem and the stern. It's as deep as the main belt and reaches up to the thickest armour deck over that end when that's higher. It is `mm` thick at the citadel and tapers linearly to `tip_mm` at the hull's end.
+- `end_belts`: `{"fore": {"mm", "tip_mm", "reach", "bulkhead_mm"}, "aft": {...}}`, the waterline belt carried on from the citadel toward the stem and the stern. It's as deep as the main belt and reaches up to the thickest armour deck over that end when that's higher. It is `mm` thick at the citadel and tapers linearly to `tip_mm` at its far end.
+  - `reach` is how far it goes: 1 all the way to the stem (stern), 0.5 half way, 0 not at all. Real practice varied widely, from belts closed short of the ends by a bulkhead (many pre-dreadnoughts aft) to full-length belts, so this is a number and not a choice.
+  - `bulkhead_mm` closes a belt that stops short (`reach` under 1) with an armoured transverse bulkhead at its far end, from the citadel bulkheads' lower edge up to the belt's top. 0 leaves it open.
+- `steering_box`: `{"mm", "deck_mm", "bulkhead_mm"}`, a separate armoured box round the steering gear, as on all-or-nothing ships (Iowa, Yamato). All zeros means none. It can be combined with any end belts.
+  - Its sides (`mm`) run along the hull side over the steering gear's length (0.03–0.08 L forward of the stern), from the inner bottom up to the deck over the gear. That's where `layout.add_steering` stands it, 2 deck spaces up. `deck_mm` is the roof on that deck, and `bulkhead_mm` the two ends. The roof and bulkheads span the hull's width at the box.
+  - The hull between the citadel and the box stays unarmoured: that gap is the all-or-nothing trade. A box on a heavily armoured ship costs more than its own tonnes, because the weight aft lengthens the ship and the citadel with it (Yamato's 1.3k t box adds 5.4k t standard).
 - How the schemes come out:
-  - **All or nothing** (Nevada onward): a thick belt and deck over the citadel, heavy bulkheads, and nothing else (`battleship.json`, `all_forward.json`).
+  - **All or nothing** (Nevada onward): a thick belt and deck over the citadel, heavy bulkheads, and nothing else (`all_forward.json`). The later ones add an armoured box over the steering gear (`battleship.json`, `yamato.json`).
   - **Incremental, dreadnought era**: a main belt, an upper belt to the main deck, and end belts, often thicker forward than aft, with deck plates over the ends (`dreadnought.json`, `nassau.json`, `kongo.json`). `invincible.json` has a fore end belt only, and a deck over the steering gear aft.
   - **Pre-dreadnought** (`mikasa.json`, `connecticut.json`): a waterline belt from stem to stern, tapering toward the ends, an upper belt between the barbettes, and the protective deck at the ends (`ends` deck plates).
   - **Full-length upper belt** (Gangut, the early French): `upper_belt.extent` `full`.
@@ -161,7 +167,7 @@ The crew lives wherever the ship has empty volume (`crew.crew_space`):
 - **Weight:** a mount above the main deck also weighs its tub, platform and splinter shield (`armament.AA_TUB_T`: quad 3 t, single 0.3 t), and a platform's pedestal weighs as superstructure. All of it counts at its height, so a ship crowded with AA pays in topweight.
 - Collision tests are height-aware (`Layout.free_at`): a tub may stand on a roof but not inside a taller block.
 
-`machinery` is the propulsion plant (`powerplant.py`, from `research/powerplant-model.md`). There is no year input: `tech` holds the researched technology as numbers, so a navy can have a tech earlier or later than history did. `plant-templates.md` has blocks to copy for every period from 1880 to 1970, and `python plant_templates.py` regenerates them. A design without `tech` gets a 1940 high-pressure turbine plant (merchants: a 1940 oil-fired triple expansion; planing craft: 1940 petrol engines). The other keys are design choices: `stress`, `shafts`, `units_per_shaft`, `transmission`, `arrangement` (`grouped` or alternating `unit`), `centreline_bulkhead`, `bunkers` (`wing` or `ends`) and `wing_bunker_m`. The template's table explains each one. What the plant decides:
+`machinery` is the propulsion plant (`powerplant.py`, from `research/powerplant-model.md`). There is no year input: `tech` holds the researched technology as numbers, so a navy can have a tech earlier or later than history did. `plant-templates.md` has blocks to copy for every period from 1880 to 1970, and `python plant_templates.py` regenerates them. A design without `tech` gets a 1940 high-pressure turbine plant (merchants: a 1940 oil-fired triple expansion; planing craft: 1940 petrol engines). The other keys are design choices: `stress`, `shafts`, `units_per_shaft`, `transmission`, `arrangement` (`grouped` or alternating `unit`), `centreline_bulkhead`, `bunkers` (`wing` or `ends`), `wing_bunker_m` and `rudders` (1 on the centreline, 2 or more spread behind the inner propellers; `propulsion.py`). The template's table explains each one. What the plant decides:
 - **Weight, fuel and engineering crew:** from the tech and the stress. Range is computed at cruise speed through the tech's part-load curve.
 - **Machinery length:** the plant's volume, fitted into the room the hull gives it. Across, that's the beam inside the frames, less torpedo protection (`armour.tds_m` per side) and wing bunkers, with units standing in rows. Up, it's the inner bottom to the lowest armour deck over the citadel (the main deck without deck armour).
   - The volume splits between boiler and engine rooms by `boiler_fraction`.
@@ -342,8 +348,9 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
   - `armour`: present only for the armour the ship has (`navarch.armour_geometry`, the same geometry its weights come from). Every armour piece carries `material`, the design's `armour.materials` string, when the design names one. The same goes for armoured components (turrets, barbettes, the conning tower, armoured casings, an armoured flight deck with its `armour_mm`) and for deck `plates`. Armoured transverse bulkheads carry `armour_material`; cells carry `belt_material` and `armour_above_material` (parallel to `armour_above_mm`).
     - `belt`: `thickness_mm`, `x0`/`x1` (the citadel), `bottom`/`top`. A tapered belt adds `bottom_mm` (at `bottom`) and `taper_from` (the waterline, where the taper starts). From below the waterline up to the main armour deck, or centred on the waterline if that deck is lower.
     - `decks`: the armour decks, top down: `deck` (its id, such as `Second deck`), `thickness_mm`, `extent`, `x0`/`x1`, `z`, and the flags `main` (the main armour deck) and `roof` (the lowest, over the vital spaces).
-    - `strakes`: the side armour other than the main belt (`armour.upper_belt` and `armour.end_belts`), each with `id`, `kind` (`upper` | `end`), `extent` (`citadel` | `fore` | `aft`), `thickness_mm` (at the citadel end), `tip_mm` (at the hull's end, only when it tapers), `x0`/`x1` and `bottom`/`top`.
-    - `bulkheads`: the citadel's forward and aft ends: `x`, `thickness_mm`, `bottom`/`top`.
+    - `strakes`: the side armour other than the main belt (`armour.upper_belt`, `armour.end_belts` and `armour.steering_box`), each with `id`, `kind` (`upper` | `end` | `box`), `extent` (`citadel` | `fore` | `aft`), `thickness_mm` (at the citadel end), `tip_mm` (at its far end, only when it tapers), `x0`/`x1` and `bottom`/`top`.
+    - `bulkheads`: the armoured transverse bulkheads: `id`, `x`, `thickness_mm`, `bottom`/`top`. These are the citadel's forward and aft ends, an end belt's closing bulkhead (`Fore end belt bulkhead`), and the steering box's two ends.
+    - The steering box's roof is a deck plate with `extent` `steering`.
   - `components`:
     - Turrets: `local` body/parts/barrels polygons (rotate them by the turret angle, then add x, y), `broadphase_r`, `arcs_deg`, `traverse_deg`, `rest_deg`, base/top heights.
       - `armour_mm` is the face. `armour` splits it into `face`/`side`/`rear`/`roof` (`hitbox.TURRET_*` ratios).
@@ -352,6 +359,12 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
     - Funnels: polygons with heights. `boiler_rooms` lists the rooms each one serves. An `uptake` component runs from the top of the boilers up to the funnel's base, with the same footprint and links.
     - `casing`: over machinery taller than its space, from the bounding deck up, with `armour_mm`.
     - `conning_tower`: a circle inside the bridge's front on warships with a belt, armoured like the belt. It isn't drawn.
+    - **The propulsion train** (`propulsion.py`). Nothing in it is weighed: the plant's weight includes its shafting, and the hull's includes the rudders. All of it is underwater, so the sprite doesn't show it.
+      - `shaft` (`shape` `segment`): a straight line from `p0` (its engine room, just over the inner bottom) to `p1` (its propeller), each `[x, y, z]`, with radius `r`. `points` is its plan, for a broad phase. It carries `position` (`centre` | `wing` | `inner` | `outer`), `engine_room`, `propeller`, `alley` (when it has one) and `leaves_hull_x`, where it leaves the hull (`hull_form`). Abaft that x a wing shaft runs in the open on its brackets. The outer shafts come from the forward engine rooms, the inner ones and the centre shaft from the aft ones. Shafts sit at 0.28 B × k / pairs either side.
+      - `shaft_alley`: the watertight tunnel round a shaft, from the machinery's aft end to where the shaft leaves the hull, with its `shaft`. A shaft that leaves inside the machinery (engines aft) has none.
+      - `propeller` (`shape` `disc`): centre `x`, `y`, `z` and `diameter_m`, about the x axis; `points`/`base`/`top` bound it. Each sits just ahead of the rudders, each pair further out 0.05 L further forward. The diameter grows with the power per shaft (1.2 × MW^0.4 m) and is capped at 0.75 × draught. Planing craft hang smaller ones under the hull bottom.
+      - `rudder`: a thin blade under the steering gear, with its `steering` room, `x`/`y` (the stock) and `area_m2` (1.7% of L × T in all). `machinery.rudders` sets the count.
+      - Links back: an engine room lists its `shafts` and the steering gear room its `rudders`. A cell a shaft or alley passes through lists them in `through`.
     - Decks: `flight_deck`, and `deck` for raised forecastles, bridge decks and poops. `sponson`: gun and AA platforms, and deck-edge elevators. All are polygons with heights.
     - AA: circles.
   - Hangars are `hangar_bay` components: boxes above the hangar deck, outside the subdivision.
@@ -376,6 +389,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
       - Armour and protection: `citadel`, `armour_above_mm` (the armour decks above the cell, top down, as a list of thicknesses), `belt_mm` (an outer cell level with side armour: the thickest belt or strake beside it, at the cell's middle along a tapered end belt and at the top of its overlap down a tapered main belt) and `tds_m` (a wing cell inside the citadel: the depth from the shell to the torpedo bulkhead at the cell's middle height. It is `armour.tds_m` at the waterline, where the bulkhead is set, and less toward the bilge as the hull narrows, down to 0).
       - `crew`: the complement spread over the quarters by volume.
       - `neighbours`: `[cell id, boundary]` pairs. The boundary is the bulkhead or deck id between them, or `"open"` inside one room.
+      - `through`: the shafts and shaft alleys that pass through the cell (when any).
     - `rooms`: `id`, `kind`, `cells`, `volume_m3` and their extent (`x0`/`x1`, `base`/`top`), plus what the layout gives them:
       - `fuel` and `tonnes` for bunkers; `mount` or `mounts` for magazines; `crew` for quarters.
       - `shared: true` marks a room that only shares a cell.

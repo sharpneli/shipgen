@@ -31,7 +31,9 @@ type or style: the trade-offs come from the plant.
       "arrangement": "grouped",           grouped (boilers, then engines) | unit (alternating; x1.1 length)
       "centreline_bulkhead": false,       splits the rooms port and starboard (rows count per side)
       "bunkers": "wing",                  coal: wing (beside the machinery) | ends (fore and aft of it)
-      "wing_bunker_m": 2.0                width of each wing bunker
+      "wing_bunker_m": 2.0,               width of each wing bunker
+      "rudders": 1                        rudders over the steering gear (propulsion.py): 1 on the centreline,
+                                          2+ spread behind the inner propellers
     }
 
 Units: shaft power in kW inside this module (the rest of shipgen uses shp), weights in tonnes, metres.
@@ -79,7 +81,7 @@ DEFAULT_TECH = {
     "draught": {"system": "forced", "velocity_m_s": 14.0, "reach_m": 27.0, "gas_temp_k": 450, "air_fuel_ratio": 15},
 }
 CHOICES = dict(stress=0.0, shafts=None, units_per_shaft=1, transmission="mechanical", arrangement="grouped",
-               centreline_bulkhead=False, bunkers=None, wing_bunker_m=2.0)
+               centreline_bulkhead=False, bunkers=None, wing_bunker_m=2.0, rudders=1)
 
 
 def spec(design, default_tech=None):
@@ -133,6 +135,8 @@ def validate(design, default_tech=None):
         errs.append(f"machinery.bunkers = {p['bunkers']!r}: use wing or ends")
     if p["shafts"] is not None and not (isinstance(p["shafts"], int) and 1 <= p["shafts"] <= 8):
         errs.append("machinery.shafts must be 1..8")
+    if not (isinstance(p["rudders"], int) and 1 <= p["rudders"] <= 8):
+        errs.append("machinery.rudders must be 1..8")
     return errs
 
 

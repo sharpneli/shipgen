@@ -168,8 +168,8 @@ doesn't: the decisions behind the current design, how to work safely here, and w
     - Planing craft have no inner bottom.
     - Crew is quartered in unclaimed cells above the waterline. `crew._accommodation` is gone.
     - Still to do:
-      - shafts, propellers and rudders
-      - per-cell lists of what passes through (barbettes, uptakes)
+      - shafts, propellers and rudders (done 2026-10-06, `propulsion.py`)
+      - per-cell lists of what passes through (barbettes, uptakes; shafts and alleys done, `through`)
       - double-bottom contents (oil, water)
       - TDS layers in detail
   - Step 3: links and flags, best done alongside the material inputs: engine room to shaft (uptakes to boiler rooms are done), generators to fore and aft power networks, grouped or alternating machinery, fuel type, centreline bulkhead, torpedo protection depth along the length. Carrier extras: flight-deck segments, lifts, hangar bays, avgas fore and aft.
@@ -216,7 +216,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
     - AoN ships got heavier bulkheads (battleship 287 mm, Nelson-like 305 mm): +0.7–1.1k t, +0.5–1 m.
   - Belt band (same day): `belt_depth_m` and `belt_height_m` replaced the hidden `TUNING belt_h` rule (kept only as the fallback). The designs got the rule's value for their draught, rounded to 0.1 m: ±0.1k t and up to 1 m of length. `belt_bottom_mm` (same day) tapers the main belt below the waterline to its lower edge. Mikasa, Connecticut, Dreadnought and the Nassaus have historical tapers (0.2–0.45k t lighter); the rest are uniform. The AoN battleships stay uniform: Iowa's real taper (307 → 41 mm) belongs to a much deeper lower belt than the 3 m band here.
   - Armour materials (same day): `armour.materials` maps each part to a string, with per-deck, per-strake and per-battery `material` overrides. Every armour piece in `hitboxes.json` carries the string unchanged, for the game's ballistic simulator. The user wants only a string reference here, with no yield strengths or other properties in this pipeline. The designer never reads it: mass is the same for every material. The designs use the names of their time (Krupp cemented, Harvey nickel steel, Vickers cemented, British cemented/non-cemented, US Class A/B and STS, mild steel). The flight deck component now also reports its `armour_mm`.
-  - Not done: a separate armoured box over the steering gear (side armour aft that stops short of the stern). An `aft` deck plate and an aft end belt stand in for it.
+  - The separate armoured box over the steering gear came later (`armour.steering_box`, 2026-10-06).
 - **Unifying the styles (started 2026-10-03).** The user wants complex systems shared by every style. Only placement (where guns, superstructure and funnels go, hull forms, deck plans) stays per style. Small length changes are fine. Each step is committed and pushed separately, so it can be rolled back.
   1. **Ordnance (done).**
      - `ordnance.py` turns every style's ammunition into magazines. Every mount is booked through `armament.add_mount`, the warship's included, so its four hand-written copies are gone.
@@ -338,13 +338,18 @@ doesn't: the decisions behind the current design, how to work safely here, and w
    - **Departure:** straight-sided, transom-sterned decks (destroyers, victory_1944, merchants, planing craft) are far fuller than `navarch.cwp`. Fining them to cwp left only the midbody, so p stops at 2 and their waterplane comes out fuller than navarch assumes (destroyer 0.75 against 0.61); the underwater volume still matches. A cwp that knows about transoms would close the gap.
    - Uses: cell y extents (per tier, at the tier's top), cell volumes (slices; underwater still normalised to the displacement), the torpedo bulkhead (set tds deep at the waterline), per-cell `tds_m` (the real depth at the cell's height), `verify.py`'s point test, and the 3D views (the hull in slices, frames drawn in the internal view, cells clipped at their middle height, belts following the flare).
    - Sizing is unchanged on purpose: the machinery width, magazine zones and merchant hold capacity still use the deck outline (outputs other than the hitboxes are byte-identical). Machinery low in a fine hull would lose some width if that ever matters.
-2. **Propulsion train.** Add shafts from each engine room through shaft alleys to the propellers, and rudders over the steering gear, as components that run through cells. This completes damage step 2 and gives the game its weak spots aft: a jammed rudder, wrecked shaft glands, a flooded shaft alley.
+2. **Propulsion train (done 2026-10-06; `propulsion.py`, README "Outputs").** Shafts (segments from the engine rooms to the propellers), shaft alleys (machinery to where the shaft leaves the hull), propellers and rudders are hitbox components, linked to the engine rooms (`shafts`) and the steering gear (`rudders`), and cells list what passes through them (`through`). Nothing is weighed: the plant includes its shafting, the hull its rudders.
+   - New input `machinery.rudders` (written in every design): 2 for the Iowa-likes, Bismarck and Yamato; 3 on the PT boat and 2 on the MTB (one per shaft); 1 elsewhere.
+   - Rules are mine and simple (`propulsion.SHAFT_Y`, `STAGGER`, `DP_K`, `RUDDER_K`): outer shafts from the forward engine rooms, the stock under the steering gear's aft fifth. The keel is flat to the stern (no cut-up or skeg), so a centreline propeller and rudder sit inside the hull's thin vee: an aperture, in effect. Wing propellers clear the hull.
+   - **Steering protection (user, 2026-10-06: "make it slightly more general; select thickness and extent of extended belt; think pre-dreadnoughts; AoN is a tradeoff").** `end_belts.{fore,aft}` gained `reach` (0–1 of the way from the citadel to the tip; a number because practice varied widely) and `bulkhead_mm` (closes a belt that stops short). New `armour.steering_box` `{mm, deck_mm, bulkhead_mm}`: a compact box round the low steering gear, its roof on the deck over the gear, with roof and bulkheads as wide as the hull there (`geo["steering_beam"]`). Both are written in every design. The battleship, battleship_layered (Iowa: 343/157/287 mm) and Yamato (350/200/328 mm, approximate) carry boxes. Lengths +3 m, standard +1.3k t (battleship) and +5.4k t (Yamato: the 1.3k t box lengthens its heavy citadel).
+     - A first try ran the box's sides and full-beam bulkheads from the inner bottom to the main armour deck: +5k t on the battleship. Compact is closer to the real boxes.
+     - Not done: an upper belt beyond the citadel still starts from the end belt's top along the whole end, even past a short end belt's `reach`.
 3. **What sits in and passes through each cell:**
    - Each cell lists the barbettes, uptakes and casings that pass through it: the flash path from a turret to its magazine, and the leak path through the uptakes.
    - Double-bottom contents: oil or water, by tonnage.
    - Clean up the remaining shared cells.
 4. **Armour (mostly done 2026-10-03; see "Secondary armour" above).** Done: several armour decks, upper and end belts, belt band and taper, explicit bulkheads, and materials. Left:
-   - An armoured box over the steering gear: side armour aft that stops short of the stern, with its own bulkhead. I offered it; the user hasn't answered yet.
+   - The armoured box over the steering gear is done (`armour.steering_box`, see step 2).
    - Turtleback or sloped decks: the user has shelved them; several flat decks stand in for now.
    - Cells carry one `belt_mm` (the thickest beside them). If the ballistics wants the exact strake hit, it should use `armour.belt` and `armour.strakes` geometry, not the cell summary.
 5. **Links and flags (damage step 3), best done alongside the material inputs:**

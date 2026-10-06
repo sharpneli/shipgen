@@ -68,6 +68,7 @@
       "centreline_bulkhead": false,
       "bunkers": "ends",
       "wing_bunker_m": 2.0,
+      "rudders": 1,
       "tech": {
         "name": "Geared turbines, oil-fired small-tube boilers (1930)",
         "fuel": "oil",
@@ -109,12 +110,21 @@
       "end_belts": {
         "fore": {
           "mm": 0,
-          "tip_mm": 0
+          "tip_mm": 0,
+          "reach": 1.0,
+          "bulkhead_mm": 0
         },
         "aft": {
           "mm": 0,
-          "tip_mm": 0
+          "tip_mm": 0,
+          "reach": 1.0,
+          "bulkhead_mm": 0
         }
+      },
+      "steering_box": {
+        "mm": 0,
+        "deck_mm": 0,
+        "bulkhead_mm": 0
       },
       "decks": [
         {

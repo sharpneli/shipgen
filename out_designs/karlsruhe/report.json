@@ -71,6 +71,7 @@
       "centreline_bulkhead": false,
       "bunkers": "wing",
       "wing_bunker_m": 2.0,
+      "rudders": 1,
       "tech": {
         "name": "Direct-drive turbines, water-tube boilers (1910)",
         "fuel": "coal",
@@ -111,12 +112,21 @@
       "end_belts": {
         "fore": {
           "mm": 57,
-          "tip_mm": 38
+          "tip_mm": 38,
+          "reach": 1.0,
+          "bulkhead_mm": 0
         },
         "aft": {
           "mm": 51,
-          "tip_mm": 51
+          "tip_mm": 51,
+          "reach": 1.0,
+          "bulkhead_mm": 0
         }
+      },
+      "steering_box": {
+        "mm": 0,
+        "deck_mm": 0,
+        "bulkhead_mm": 0
       },
       "decks": [
         {

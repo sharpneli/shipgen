@@ -65,6 +65,7 @@
       "centreline_bulkhead": false,
       "bunkers": "wing",
       "wing_bunker_m": 2.0,
+      "rudders": 1,
       "tech": {
         "name": "Triple expansion, large-tube water-tube boilers (1905)",
         "fuel": "coal",
@@ -105,12 +106,21 @@
       "end_belts": {
         "fore": {
           "mm": 140,
-          "tip_mm": 100
+          "tip_mm": 100,
+          "reach": 1.0,
+          "bulkhead_mm": 0
         },
         "aft": {
           "mm": 100,
-          "tip_mm": 80
+          "tip_mm": 80,
+          "reach": 1.0,
+          "bulkhead_mm": 0
         }
+      },
+      "steering_box": {
+        "mm": 0,
+        "deck_mm": 0,
+        "bulkhead_mm": 0
       },
       "decks": [
         {

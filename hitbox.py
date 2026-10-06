@@ -29,6 +29,7 @@ import re
 from geometry import rrect_polygon, block_outline, turret_shapes, turret_reach, _wrap180, angle_allowed, nearest_allowed  # noqa: F401
 from geometry import AA_CFG, HullForm
 import powerplant
+import propulsion
 import subdivision
 
 ARC_END = 135.0
@@ -175,6 +176,66 @@ def block_role(bid):
     return BLOCK_ROLES.get(re.sub(r"\s*\d+[SP]?$", "", bid), "deckhouse")
 
 
+def propulsion_components(lay, design, res, form, sub):
+    """The propulsion train (propulsion.build) as components: shafts (segments from the engine room to the
+    propeller), shaft alleys, propellers and rudders, linked both ways to the engine rooms and the steering gear.
+    The cells they pass through list them in "through"."""
+    D = res.depth
+    tr = propulsion.build(lay, design, res, form)
+    z = lambda v: round(v - D, 2)
+    rect = lambda x0, x1, y, hw: [[round(x0, 3), round(y - hw, 3)], [round(x1, 3), round(y - hw, 3)],
+                                  [round(x1, 3), round(y + hw, 3)], [round(x0, 3), round(y + hw, 3)]]
+    out = []
+    steering = next((c["id"] for c in lay.compartments if c["kind"] == "steering"), None)
+    for sh in tr["shafts"]:
+        (x0, y, z0), (x1, _, z1) = sh["p0"], sh["p1"]
+        out.append(dict(id=sh["id"], kind="shaft", shape="segment", position=sh["position"],
+                        p0=[round(x0, 3), round(y, 3), z(z0)], p1=[round(x1, 3), round(y, 3), z(z1)], r=propulsion.SHAFT_R,
+                        points=rect(x1, x0, y, propulsion.SHAFT_R),      # its plan, for a broad phase
+                        base=z(min(z0, z1) - propulsion.SHAFT_R), top=z(max(z0, z1) + propulsion.SHAFT_R),
+                        leaves_hull_x=round(sh["exit_x"], 3), propeller=sh["propeller"],
+                        **({"engine_room": sh["engine_room"]} if sh["engine_room"] else {}),
+                        **({"alley": sh["alley"]} if sh.get("alley") else {})))
+    for a in tr["alleys"]:
+        out.append(dict(id=a["id"], kind="shaft_alley", shape="polygon", shaft=a["shaft"],
+                        points=rect(a["x0"], a["x1"], a["y"], propulsion.ALLEY_W / 2), base=z(a["base"]),
+                        top=z(a["top"])))
+    for p in tr["propellers"]:
+        r = p["diameter"] / 2
+        out.append(dict(id=p["id"], kind="propeller", shape="disc", x=round(p["x"], 3), y=round(p["y"], 3),
+                        z=z(p["z"]), diameter_m=round(p["diameter"], 2), position=p["position"], shaft=p["shaft"],
+                        points=rect(p["x"] - 0.25 * r, p["x"] + 0.25 * r, p["y"], r), base=z(p["z"] - r),
+                        top=z(p["z"] + r)))
+    for rd in tr["rudders"]:
+        out.append(dict(id=rd["id"], kind="rudder", shape="polygon", x=round(rd["x"], 3), y=round(rd["y"], 3),
+                        area_m2=round(rd["area_m2"], 1), points=rect(rd["x0"], rd["x1"], rd["y"], rd["thick"] / 2),
+                        base=z(rd["base"]), top=z(rd["top"]), **({"steering": steering} if steering else {})))
+    # the links back, and the cells each shaft and alley passes through
+    rooms = {r["id"]: r for r in sub["rooms"]}
+    for sh in tr["shafts"]:
+        if sh["engine_room"] in rooms:
+            rooms[sh["engine_room"]].setdefault("shafts", []).append(sh["id"])
+    if steering in rooms:
+        rooms[steering]["rudders"] = [rd["id"] for rd in tr["rudders"]]
+    for c in sub["cells"]:
+        inside = lambda x, y, zz: (c["x0"] <= x < c["x1"] and c["y0"] <= y < c["y1"] and c["base"] <= zz < c["top"])
+        for sh in tr["shafts"]:
+            (x0, y, z0), (x1, _, z1) = sh["p0"], sh["p1"]
+            if not (c["y0"] <= y < c["y1"] and c["x0"] < x0 and c["x1"] > sh["exit_x"]):
+                continue
+            n = max(2, int((x0 - sh["exit_x"]) / 0.5))
+            if any(inside(x, y, z0 + (z1 - z0) * (x0 - x) / (x0 - x1) - D)
+                   for x in (x0 - (x0 - sh["exit_x"]) * k / n for k in range(n + 1))):
+                c.setdefault("through", []).append(sh["id"])
+        for a in tr["alleys"]:
+            hw = propulsion.ALLEY_W / 2
+            if (min(c["x1"], a["x1"]) - max(c["x0"], a["x0"]) > 0.05 and
+                    min(c["y1"], a["y"] + hw) - max(c["y0"], a["y"] - hw) > 0.05 and
+                    min(c["top"], a["top"] - D) - max(c["base"], a["base"] - D) > 0.05):
+                c.setdefault("through", []).append(a["id"])
+    return out
+
+
 def export_hitboxes(lay, design, res):
     """hitboxes.json. Heights are metres above the main deck; res (navarch.Result) places the keel, the
     waterline and the armour."""
@@ -300,6 +361,7 @@ def export_hitboxes(lay, design, res):
     cb = design["hull"]["block_coefficient"]
     form = HullForm(lay.hull, cb, cwp(cb), T, D)
     sub = subdivision.build(lay, design, res, ag, armoured, form)
+    comps += propulsion_components(lay, design, res, form, sub)
     arm_out = {}
     if ag["belt_mm"] > 0:
         arm_out["belt"] = with_material(dict(thickness_mm=ag["belt_mm"], x0=round(ag["x0"], 3), x1=round(ag["x1"], 3),
@@ -316,6 +378,10 @@ def export_hitboxes(lay, design, res):
                                                    bottom=rz(ag["bulkhead_bottom"]), top=rz(ag["bulkhead_top"])),
                                               ag["bulkhead_material"])
                                 for end, x in (("Forward", ag["x1"]), ("Aft", ag["x0"]))]
+    if ag["end_bulkheads"]:      # an end belt's closing bulkhead, the steering box's ends
+        arm_out.setdefault("bulkheads", []).extend(
+            with_material(dict(id=b["id"], x=round(b["x"], 3), thickness_mm=round(b["mm"]), bottom=rz(b["bottom"]),
+                               top=rz(b["top"])), b["material"]) for b in ag["end_bulkheads"])
     if ag["decks"]:
         arm_out["decks"] = [with_material(dict(deck=deck_name(d["deck"]), thickness_mm=d["mm"], extent=d["extent"],
                                                x0=round(d["x0"], 3), x1=round(d["x1"], 3), z=rz(d["z"]),

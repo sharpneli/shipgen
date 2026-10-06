@@ -124,10 +124,12 @@ def tier_name(floor):
 BREAK_PRIORITY = 8      # a raised stretch's end (the break) as a station: it bounds the cells above the main deck
 
 
-def stations(L, rooms, cit, min_gap, max_gap, breaks=()):
+def stations(L, rooms, cit, min_gap, max_gap, breaks=(), armoured=()):
     """Transverse bulkhead positions, bow to stern: [dict(x, kind)], with the hull's ends. breaks: the ends of
-    raised stretches, so the sections above the main deck end where they do."""
+    raised stretches, so the sections above the main deck end where they do; armoured: the x of armoured
+    bulkheads beyond the citadel (an end belt's, the steering box's)."""
     cands = [(L / 2 - COLLISION * L, 9, "collision")] + [(x, BREAK_PRIORITY, "main") for x in breaks]
+    cands += [(x, 10, "armoured") for x in armoured]
     if cit:
         cands += [(cit[0], 10, cit[2]), (cit[1], 10, cit[2])]
     for r in rooms:
@@ -209,7 +211,11 @@ def build(lay, design, res, ag, armoured, form):
     elif lay.geo.get("citadel") and design.get("style", "warship") in ("warship", "carrier"):
         cit = (*lay.geo["citadel"], "citadel")
     st = stations(L, rooms, cit, min(MIN_SECTION_MAX_M, max(MIN_SECTION_M, MIN_SECTION * L)), max(MAX_SECTION_M, MAX_SECTION * L),
-                  [x for s in lay.raised for x in (s["x0"], s["x1"])])
+                  [x for s in lay.raised for x in (s["x0"], s["x1"])], [b["x"] for b in ag["end_bulkheads"]])
+    # each armoured station's armour: the nearest citadel end or other armoured bulkhead
+    arm_bh = ([dict(x=x, mm=ag["bulkhead_mm"], bottom=ag["bulkhead_bottom"], top=ag["bulkhead_top"],
+                    material=ag["bulkhead_material"]) for x in (ag["x0"], ag["x1"])] if cit and cit[2] == "armoured"
+              else []) + ag["end_bulkheads"]
     sections = []
     for i, (a, b) in enumerate(zip(st, st[1:])):
         sections.append(dict(id=str(i + 1), x0=b["x"], x1=a["x"]))
@@ -223,10 +229,11 @@ def build(lay, design, res, ag, armoured, form):
         d = dict(id=f"Bulkhead {k + 1}", kind=s["kind"] if s["kind"] in ("collision", "armoured") else "main",
                  x=round(s["x"], 3), base=round(-D, 2), top=round(top, 2) if top else 0.0)
         if s["kind"] == "armoured":
-            d.update(armour_mm=round(ag["bulkhead_mm"]), armour_bottom=round(rz(ag["bulkhead_bottom"]), 2),
-                     armour_top=round(rz(ag["bulkhead_top"]), 2))
-            if ag["bulkhead_material"]:
-                d["armour_material"] = ag["bulkhead_material"]
+            a = min(arm_bh, key=lambda b: abs(b["x"] - s["x"]))
+            d.update(armour_mm=round(a["mm"]), armour_bottom=round(rz(a["bottom"]), 2),
+                     armour_top=round(rz(a["top"]), 2))
+            if a["material"]:
+                d["armour_material"] = a["material"]
         tb.append(d)
     assert len(tb) == nbh
 
