@@ -244,34 +244,41 @@ def section_exponents(c, k):
 class HullForm:
     """The hull's cross-sections: its half-breadth at x and height z (metres above the keel). The planform (Hull)
     is the main deck, deliberately fuller than the waterplane (it carries the flare). Here:
-      waterplane  the deck outline fined toward the ends, B / 2 x w(x) ** p with w the deck's share of the beam,
-                  p in 1..P_MAX solved so it fills cwp of its L x B box (the midbody keeps the full beam). A
-                  straight-sided deck with a wide transom (destroyers, planing craft) is far fuller than
-                  navarch.cwp, a fit for cruiser sterns; fining it that far would leave only the midbody, so p
-                  stops at P_MAX and that waterplane comes out fuller than cwp (the volume still matches)
       keel        the keel's height over the baseline, keel(x). Forward a rounded forefoot over FOREFOOT of the
                   length, cut away more on fast ships. Aft by the stern gear (propulsion.gear): one screw keeps the
                   keel to the sternpost at the rudder, with the counter above the water abaft it; several screws
                   get a cut-up, the bottom rising so it clears the propellers' tips and running on up to the
                   counter or transom (COUNTER x T unless the propellers want it higher). A planing hull keeps a
                   straight keel to its transom and rises in a long rocker forward
+      area        the sectional area curve, A(x) over the midship section's (cm B T): a parallel midbody of
+                  PMB_K (Cp - PMB_CP) L (none under Cp 0.62, a third of the length at a tanker's 0.77) round the
+                  centre of buoyancy, then e + (1 - e)(1 - r ** n) out to each end (r 0 at the shoulder, 1 at the
+                  end; e the immersed transom's area, nil at the bow and over a counter). n is solved so the
+                  underwater body holds cb L B T, and the split between entrance and run (n e ** +-d) so its
+                  centre sits at the ship's lcb (navarch: the layout trims the weights to it)
+      waterplane  each station meets its area with its waterline and its section's fullness together: of the
+                  share rho of the midship's breadth x fullness it needs, the waterline takes rho ** lambda and
+                  the section the rest (lambda solved so the waterplane fills navarch.cwp, more on the
+                  waterline under U ends, less under V), the waterline never past the deck edge and the fullness
+                  from C_MIN up to cm at the shoulders, C_END at the ends (a section fuller than amidships turns
+                  into a box). Departure: lambda stays in LAM_MIN..LAM_MAX so the section always takes part of
+                  the fining. navarch.cwp (0.18 + 0.86 cb) is lean for warships: reaching it took lambda ~1, a fine
+                  waterline over box-full sections, where a battleship's lines give ~0.6. So warships' waterplanes
+                  come out ~0.70-0.73 (Schneekluth & Bertram's regressions give about that), fuller than cwp
       sections    below the waterline each section is a superellipse (y / b) ** p + s ** q = 1 over its own depth
                   (s: the depth below the waterline over the keel's): flat at the keel wherever it is fuller than
-                  a vee, and hollow under c 0.5 at the fine ends. Its fullness c(x) = cm u(x) ** a (u: the
-                  waterline's share of the beam) with a in 0..A_MAX solved so the underwater body holds cb L B T;
-                  a long full-width midbody that still holds too much gets a leaner cm. Its character
-                  (section_exponents) grows from nil amidships: forward a U near Fn 0.225 and a V either side
-                  (Schneekluth & Bertram's tests: U best around Fn 0.23, V under 0.18 and over 0.25), aft a U on
-                  a single screw (an even wake into it) and a flat-floored V run on several; it fades out as the
-                  section thins toward a vee. Planing hulls take a hard chine instead: a straight deadrise from
-                  the keel to a chine, an upright side above it
+                  a vee, and hollow under c 0.5 at the fine ends. Its character (section_exponents) grows from
+                  nil amidships: forward a U near Fn 0.225 and a V either side (Schneekluth & Bertram's tests: U
+                  best around Fn 0.23, V under 0.18 and over 0.25), aft a U on a single screw (an even wake into
+                  it) and a flat-floored V run on several; it fades out as the section thins toward a vee.
+                  Planing hulls take a hard chine instead: a straight deadrise from the keel to a chine, an
+                  upright side above it
       above it    the side flares straight up from the waterline to the deck edge; raised decks keep the deck's
                   outline
     Standard library only: the design side builds it for the hitboxes, the render side reads its table."""
     N = 400
-    P_MAX = 2.0
-    A_MAX = 4.0
     C_MIN = 0.35        # the finest section, a little hollower than a vee (c 0.5)
+    C_MAX = 0.995
     KAPPA = 1.2         # how far a full U or V character pulls the section's exponents apart
     FOREFOOT = 0.03     # the forefoot's run, x L, up to Fn FOREFOOT_FN; then FOREFOOT_K more per unit Fn
     FOREFOOT_FN = 0.2
@@ -286,26 +293,35 @@ class HullForm:
     FORE_FN, FORE_FN_W = 0.225, 0.04
     AFT_K = 0.8         # aft character: U with one screw, V (flat floored) with several
     CHAR_RUN = 0.3      # the character grows from nil amidships to full this far from it, x L
+    PMB_K, PMB_CP, PMB_MAX = 2.2, 0.62, 0.5     # the parallel midbody, x L, from the prismatic coefficient
+    LAMBDA, LAMBDA_K = 0.5, 0.2     # the waterline's share of an end's fining, and how far character moves it
+    LAM_MIN, LAM_MAX = 0.35, 0.75   # the share's range: the section always takes part of the fining
+    ROUNDS = 3          # area curve and waterline share, solved in turn
+    TRANSOM_C = 0.75    # an immersed transom's fullness
+    C_END = 0.75        # the fullest a section gets at the ends: from cm at the shoulders down to this
 
     @staticmethod
     def _solve(f, lo, hi, target):
-        """x in lo..hi where the decreasing f(x) meets target (an end when it doesn't)."""
-        if f(lo) <= target:
+        """x in lo..hi where the increasing f(x) meets target (an end when it doesn't)."""
+        if f(lo) >= target:
             return lo
-        if f(hi) >= target:
+        if f(hi) <= target:
             return hi
-        for _ in range(50):
+        for _ in range(40):
             mid = (lo + hi) / 2
-            lo, hi = (mid, hi) if f(mid) > target else (lo, mid)
+            lo, hi = (mid, hi) if f(mid) < target else (lo, mid)
         return (lo + hi) / 2
 
-    def __init__(self, hull, cb, cwp, T, D, fn=0.0, gear=None):
-        """fn: the Froude number at the design speed; gear: propulsion.gear (None: a flat keel aft)."""
-        self.hull, self.cb, self.T, self.D, self.fn = hull, cb, T, D, fn
-        L = hull.L
+    def __init__(self, hull, cb, cwp, T, D, fn=0.0, gear=None, lcb=0.0):
+        """cwp: the waterplane coefficient to aim for (navarch.cwp); fn: the Froude number at the design speed;
+        gear: propulsion.gear (None: a flat keel aft); lcb: the centre of buoyancy's x (navarch.Result.lcb)."""
+        self.hull, self.cb, self.T, self.D, self.fn, self.cwp_target = hull, cb, T, D, fn, cwp
+        L, B = hull.L, hull.B
         gear = gear or {}
         self.planing = bool(gear.get("planing"))
         self.screws = gear.get("screws", 0)
+        self.k_fore = self.FORE_V + (self.FORE_U - self.FORE_V) * math.exp(-((fn - self.FORE_FN) / self.FORE_FN_W) ** 2)
+        self.k_aft = self.AFT_K if self.screws == 1 else -self.AFT_K if self.screws else 0.0
         self.forefoot = L * (self.ROCKER if self.planing else
                              min(self.FOREFOOT_MAX, self.FOREFOOT + self.FOREFOOT_K * max(0.0, fn - self.FOREFOOT_FN)))
         self.post = self.cut = None
@@ -316,19 +332,92 @@ class HullForm:
             rise = min(0.95 * T, max(p["z"] + p["diameter"] * (0.5 + self.CUT_CLEAR) for p in props))
             x_c = max(p["x"] + 0.5 * p["diameter"] for p in props)
             self.cut = (x_c, x_c + self.CUT_RUN * rise, rise, max(rise, self.COUNTER * T))
+
         self.xs = [-L / 2 + L * (k + 0.5) / self.N for k in range(self.N)]
-        ws = [min(1.0, hull.half_width(x) / (hull.B / 2)) for x in self.xs]
-        self.p = self._solve(lambda p: sum(w ** p for w in ws) / len(ws), 1.0, self.P_MAX, cwp)
-        us = [w ** self.p for w in ws]
-        depths = [max(0.0, T - self.keel(x)) / T for x in self.xs]
-        self.cwp = sum(u for u, d in zip(us, depths) if d > 0) / len(us)
-        fill = lambda cm, a: sum(u * d * max(self.C_MIN, min(0.995, cm * u ** a))
-                                 for u, d in zip(us, depths)) / len(us)      # underwater, of LBT
+        self._ws = [min(1.0, hull.half_width(x) / (B / 2)) for x in self.xs]
+        self._ds = [max(0.0, T - self.keel(x)) / T for x in self.xs]
         self.cm = self.PLANING_CM if self.planing else midship_coefficient(cb)
-        self.a = self._solve(lambda a: fill(self.cm, a), 0.0, self.A_MAX, cb)
-        # the ends alone can't make it: a leaner (or fuller) midship section takes up the rest
-        if abs(fill(self.cm, self.a) - cb) > 1e-4:      # fill rises with cm: solve on 1 - cm
-            self.cm = 1.0 - self._solve(lambda k: fill(1.0 - k, self.a), 0.005, 1.0 - self.C_MIN, cb)
+        self.lcb = max(-0.2 * L, min(0.2 * L, lcb))
+        lo_end = min(0.99, self._ws[0] * self._ds[0] * self.TRANSOM_C / self.cm)    # the transom's share
+        self._ends = (lo_end, 0.0)
+        self.lam = self.LAMBDA
+        for _ in range(self.ROUNDS):            # the area curve, then the waterline's share for the waterplane
+            self._fit()
+            self.lam = self._solve(lambda lam: -self._waterplane(lam), self.LAM_MIN, self.LAM_MAX, -cwp)
+        self._fit()
+        if abs(self.volume - cb) > 1e-4:        # the curve alone can't: a leaner (or fuller) midship section
+            self.cm = self._solve(lambda cm: self._fit(cm) or self.volume, self.C_MIN, self.C_MAX, cb)
+            self._fit(self.cm)
+        self.cwp = self._waterplane(self.lam)
+
+    def _waterplane(self, lam):
+        """The waterplane coefficient with the waterline's share lam and the area curve as fitted."""
+        us = self._stations(self.n, self.split, lam)[0]
+        return sum(u for u, d in zip(us, self._ds) if d > 0) / self.N
+
+    def _fit(self, cm=None):
+        """Solve the area curve for the current cm: n for the volume inside a bisection on the entrance/run split
+        for the lcb. Sets the stations' waterlines (_us) and fullness (_cs), the volume and lcb it reached."""
+        cm = self.cm if cm is None else cm
+        L = self.hull.L
+        self.pmb = max(0.0, min(self.PMB_MAX, self.PMB_K * (self.cb / cm - self.PMB_CP))) * L
+        xa, xf = self.lcb - self.pmb / 2, self.lcb + self.pmb / 2
+        xa, xf = max(xa, -0.45 * L), min(xf, 0.45 * L)
+        self._mid = (xa, xf)
+
+        stations = lambda n, d: self._stations(n, d, self.lam, cm, xa, xf)
+
+        def volume(n, d):
+            return sum(stations(n, d)[2]) / self.N
+
+        def centre(d):
+            n = self._solve(lambda n: volume(n, d), 0.3, 20.0, self.cb)
+            a = stations(n, d)[2]
+            tot = sum(a)
+            return (sum(x * v for x, v in zip(self.xs, a)) / tot if tot > 0 else 0.0), n
+        self.split = self._solve(lambda d: centre(d)[0], -2.0, 2.0, self.lcb)
+        self.reached_lcb, self.n = centre(self.split)
+        self._us, self._cs, area = stations(self.n, self.split)
+        self.volume = sum(area) / self.N
+
+    def _stations(self, n, d, lam0, cm=None, xa=None, xf=None):
+        """The stations' waterlines, fullness and areas (of B T) for the area curve's n and split d, and the
+        waterline's share lam0."""
+        L = self.hull.L
+        cm = self.cm if cm is None else cm
+        if xa is None:
+            xa, xf = self._mid
+        n_f, n_r = n * math.exp(d), n * math.exp(-d)
+        us, cs, area = [], [], []
+        for x, w, dk in zip(self.xs, self._ws, self._ds):
+            if x > xf:
+                r, nn, e, k = (x - xf) / (L / 2 - xf), n_f, self._ends[1], self.k_fore
+            elif x < xa:
+                r, nn, e, k = (xa - x) / (xa + L / 2), n_r, self._ends[0], self.k_aft
+            else:
+                r, nn, e, k = 0.0, 1.0, 1.0, 0.0
+            s = e + (1 - e) * (1 - min(1.0, r) ** nn)
+            if dk <= 0 or w <= 0:       # over a counter, or past the deck's tip
+                us.append(w); cs.append(cm); area.append(0.0)
+                continue
+            rho = s / dk
+            lam = max(0.05, lam0 + self.LAMBDA_K * k)
+            u = min(w, rho ** lam) if rho > 0 else 0.0
+            c = cm * s / (u * dk) if u > 0 else self.C_MIN
+            c_hi = min(self.C_MAX, cm - max(0.0, cm - self.C_END) * min(1.0, r))
+            if c > c_hi:
+                c, u = c_hi, min(w, cm * s / (dk * c_hi))
+            elif c < self.C_MIN:
+                c, u = self.C_MIN, min(w, cm * s / (dk * self.C_MIN))
+            us.append(u); cs.append(c); area.append(u * dk * c)
+        return us, cs, area
+
+    def _at(self, vals, x):
+        """A station table's value at x, linear between the stations' centres."""
+        f = (x + self.hull.L / 2) / self.hull.L * self.N - 0.5
+        i = max(0, min(self.N - 2, int(math.floor(f))))
+        t = max(0.0, min(1.0, f - i))
+        return vals[i] + (vals[i + 1] - vals[i]) * t
 
     def keel(self, x):
         """The keel's height over the baseline at x."""
@@ -349,20 +438,15 @@ class HullForm:
 
     def waterline(self, x):
         """The waterplane's half-breadth at x."""
-        w = min(1.0, self.hull.half_width(x) / (self.hull.B / 2))
-        return self.hull.B / 2 * w ** self.p
+        return min(self.hull.half_width(x), self.hull.B / 2 * self._at(self._us, x))
 
     def fullness(self, x):
         """The section's fullness below the waterline at x: its area over its box's (2 hw_wl x its depth)."""
-        u = self.waterline(x) / (self.hull.B / 2)
-        return max(self.C_MIN, min(0.995, self.cm * u ** self.a))
+        return max(self.C_MIN, min(self.C_MAX, self._at(self._cs, x)))
 
     def character(self, x, c):
         """The section's character, -1 (V) .. 1 (U), at x for its fullness c."""
-        if x > 0:
-            k = self.FORE_V + (self.FORE_U - self.FORE_V) * math.exp(-((self.fn - self.FORE_FN) / self.FORE_FN_W) ** 2)
-        else:
-            k = self.AFT_K if self.screws == 1 else -self.AFT_K if self.screws else 0.0
+        k = self.k_fore if x > 0 else self.k_aft
         return k * min(1.0, abs(x) / (self.CHAR_RUN * self.hull.L)) * max(0.0, min(1.0, (c - 0.5) / 0.15))
 
     def half_width(self, x, z):

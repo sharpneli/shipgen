@@ -360,7 +360,7 @@ def export_hitboxes(lay, design, res):
                               top=round(c["top"], 2)))
     cb = design["hull"]["block_coefficient"]
     gear = propulsion.gear(lay, design, res)        # the stern's lines make room for it
-    form = HullForm(lay.hull, cb, cwp(cb), T, D, froude(design["speed_kn"], lay.hull.L), gear)
+    form = HullForm(lay.hull, cb, cwp(cb), T, D, froude(design["speed_kn"], lay.hull.L), gear, res.lcb)
     sub = subdivision.build(lay, design, res, ag, armoured, form)
     comps += propulsion_components(lay, design, res, form, sub, gear)
     arm_out = {}
