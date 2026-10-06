@@ -92,6 +92,38 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
   The game's shader and shipgen's previews have the same gap. If the sweep looks right, the same fix belongs in
   shipgen's `shadow.py` docs and `render.py`.
 
+## Sinking clips (sinkvid.py, 2026-10-06)
+The user asked for stern- and bow-first sinkings of Bismarck in vidgen's look, with the wake's lace foam, as a
+visual demo of `sinking_foam.md` (research by another session; `sinking_foam_ref.py` is its scipy prototype)
+before a realtime version. `sinkvid.py bismarck [--end stern|bow|both] [--still T ...]` writes
+`out/<id>_sink_<end>.mp4`. It reuses vidgen's water, lace, particles and HUD, and shipgen's `sinking.py`
+(flooding model) and `render.composite` (one more tie to cut when vidgen moves).
+- **Pose:** zero until the hit at 1 s, then `sinking.Flood`'s history squeezed into 16 s (game time and flooded
+  weight share the clip, like `sinking.simulate`'s frames), then a scripted plunge (`PLUNGE`: pitch to 48° in 27
+  s, with the extra sinkage that brings the rising end's tip to the surface), then 8 m/s down. Monotone cubic
+  through all keys. Rotation is about the lcf, as in `sinking.Points.frame`. Bismarck: by the stern at T+81 min,
+  by the bow at T+117.
+- **Ship:** `sinking.Points`' recipe plus normals, at twice the frame's resolution: about 0.9 M points. The ship
+  is z-buffered there, lit by its rotated normals (a flat deck at rest stays as drawn), shadowed by a sun shadow
+  map (casters above water at their ground projection), faded with depth under water, then downsampled. The
+  bottom is a coarser set that only feeds the waterline cut and the crossing foam.
+- **Surface:** the doc's layers on a fixed world canvas (the ship is stopped, the camera fixed): crossing foam,
+  the collar (`W` = columns with hull above and below), boils from the **hitbox cells** (not the reference's
+  uniform compartments), the slam and ring, oil and debris. Crossing and collar foam are drawn as the wake's
+  `fresh` lace, the residual as `resid`, the boils as `wash` lace over the churn tint.
+- **Departures from the doc, my picks by eye:**
+  - A cell's vent is the main deck over it, or its top if that's higher. Air from a hold goes up its trunks;
+    venting at the cell's own top made every flooded hold boil at once.
+  - The flooding model's fill counts as air already gone.
+  - Oil is well under the reference: leak 0.06 m³/s, 0.4 % of the fuel at the end in 8 staggered puddles, true
+    colour at 45 %, rainbow at 15 %. At its numbers the slick buried the foam in black discs.
+  - Funnel smoke runs until the funnel top goes under, then a steam burst (the doc's "not modelled" cue), drawn
+    unlit.
+- **Speed:** about 0.6 s a frame at 720p (step 0.05 s), so a 74 s clip takes about 25 minutes. The foam source
+  is worked out in a window round the ship.
+- **Open:** capsize and break-in-two aren't drawn (the timeline refuses a capsize). There are no side, bottom or
+  cut-face sprites (doc 2.7): a plunge only shows walls from the height-map steps.
+
 ## Known oddities
 - Masts cast long, thin, solid shadows on the sea. That's correct for a 23 m mast at 45°, but it can look heavy.
 - Coal smoke shades the deck dark around the funnels. That's intended.
