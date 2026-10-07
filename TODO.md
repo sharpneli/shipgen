@@ -5,11 +5,23 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 ## Generator bugs
 - [ ] `superfire: {"fore": 1}` with 3 fore turrets: B's sweep hits C (Nelson works around it)
 - [ ] Main director 2 placed inside X's barrel sweep (Colorado uses 1 director)
-- [ ] Ships under 130 m silently get no aft control (hidden size threshold)
 - [ ] Wing turrets with `amidships_stands_on: "deck"` may overlap the bridge's level-1 core
 - [ ] Batteries with different `stands_on` on one ship aren't kept apart
 - [ ] Upper belt beyond the citadel ignores a short end belt's `reach`
 - [ ] Nassau verify noise at the 0.85 threshold (use 0.845 or a finer raster)
+
+## Hidden thresholds (user: no arbitrary cutoffs; details in HANDOFF)
+- [ ] Aft control only from 130 m (`layout.py` `la`); the mainmast goes with it, silently
+- [ ] Bridge tower's levels over the bridge: 1, or 2 from 180 m (`layout.py` `over`)
+- [ ] Mounts under 150 mm weigh 4 t more than at 150 mm (`navarch.mount_weights` `mech`)
+- [ ] Rounds per gun step at 150 and 200 mm (`navarch.rounds_per_gun`)
+- [ ] Officer share 0.15 under 30 crew, 0.08 from 30: 29 crew get 4 officers, 30 get 2 (`crew.py`)
+- [ ] Sickbay only from 15 crew and over 3 days' endurance; +40 m² over 1000 crew (`crew.needs`)
+- [ ] Carrier island default tower: 3 levels, 4 from 200 m (only without `tower_levels`)
+- [ ] Merchants: 2 boats, 4 from 110 m (`styles/merchant.py`)
+- [ ] Slender-hull warning at a hard-coded L/B 12 (the beamy one is `lb_warn` in tuning)
+- [ ] Drawing: deck drawn as wood from 150 m regardless of `deck_wood_mm`; undocumented `"deck"` key
+- [ ] Drawing: tripod foremast and breakwater from 150 m, depth-charge racks under 140 m, boat deck on roofs of 60 m² or more
 
 ## Speed
 - [ ] Extreme designs take 25–90 s: cache footprint bboxes and bucket by x in `Layout.free_at`
