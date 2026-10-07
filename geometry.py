@@ -246,12 +246,14 @@ class HullForm:
     """The hull's cross-sections: its half-breadth at x and height z (metres above the keel). The planform (Hull)
     is the main deck, deliberately fuller than the waterplane (it carries the flare). Here:
       keel        the keel's height over the baseline, keel(x). Forward a rounded forefoot over FOREFOOT of the
-                  length, cut away more on fast ships. Aft by the stern gear (propulsion.gear): one screw keeps the
-                  keel to the sternpost at the rudder, with the counter above the water abaft it; several screws
-                  get a cut-up, the bottom rising so it clears the propellers' tips and running on up, smoothly
-                  to the stern, to TRANSOM_DEEP x T x the stern's share of the beam under the waterline (a long
-                  flat counter just under the water had drawn a sliver of hull in every slice above it). A
-                  planing hull keeps a
+                  length, cut away more on fast ships. Departure: real forefeet run 3-6% of the length; at that a
+                  low waterline ran on to within a few metres of the stem and its sections there were thin blades,
+                  so the forefoot is cut away further and the bottom tiers end where the hull still has room.
+                  Aft by the stern gear (propulsion.gear): one screw keeps the keel to the sternpost at the
+                  rudder, with the counter above the water abaft it; several screws get a cut-up, the bottom
+                  rising so it clears the propellers' tips and running on up, smoothly to the stern, to
+                  TRANSOM_DEEP x T x the stern's share of the beam under the waterline (a long flat counter just
+                  under the water had drawn a sliver of hull in every slice above it). A planing hull keeps a
                   straight keel to its transom and rises in a long rocker forward
       area        the sectional area curve, A(x) over the midship section's (cm B T): a parallel midbody of
                   PMB_K (Cp - PMB_CP) L (next to none on a destroyer's Cp 0.53, an eighth of the length on a
@@ -268,8 +270,10 @@ class HullForm:
                   than the station nearer the end (a shallow run over a cut-up wants it wider toward the
                   transom: the stations ahead are filled out to it, then smoothed), the fullness
                   from C_MIN up to cm at the shoulders, C_END at the ends (a section fuller than amidships turns
-                  into a box). Departure: lambda stays in LAM_MIN..LAM_MAX so the section always takes part of
-                  the fining. navarch.cwp (0.18 + 0.86 cb) is lean for warships: reaching it took lambda ~1, a fine
+                  into a box), falling off as r ** C_END_POW: flat at the shoulder, where a linear fall had put a
+                  corner in the flat of bottom and run it out to the stem in straight sides, a needle nose.
+                  Departure: lambda stays in LAM_MIN..LAM_MAX so the section always takes part of the fining.
+                  navarch.cwp (0.18 + 0.86 cb) is lean for warships: reaching it took lambda ~1, a fine
                   waterline over box-full sections, where a battleship's lines give ~0.6. So warships' waterplanes
                   come out ~0.70-0.73 (Schneekluth & Bertram's regressions give about that), fuller than cwp
       sections    below the waterline each section is a superellipse (y / b) ** p + s ** q = 1 over its own depth
@@ -278,6 +282,11 @@ class HullForm:
                   nil amidships: forward a U near Fn 0.225 and a V either side (Schneekluth & Bertram's tests: U
                   best around Fn 0.23, V under 0.18 and over 0.25), aft a U on a single screw (an even wake into
                   it) and a flat-floored V run on several; it fades out as the section thins toward a vee.
+                  Every section stands on a flat keel of KEEL_K B (half-breadth; the keel plate and the flat of
+                  the floor beside it), the curve above re-solved so the section keeps its area, and never more
+                  than KEEL_SHARE of that area: the low waterlines end blunt where the forefoot cuts them off,
+                  where a curve from a point at the keel had drawn a needle. Departure: real keel plates are
+                  narrower (1.5-2.5 m on a battleship); this is wider for a roomier, sturdier-looking bottom.
                   Planing hulls take a hard chine instead: a straight deadrise from the keel to a chine, an
                   upright side above it
       above it    the side flares straight up from the waterline to the deck edge; raised decks keep the deck's
@@ -287,10 +296,10 @@ class HullForm:
     C_MIN = 0.35        # the finest section, a little hollower than a vee (c 0.5)
     C_MAX = 0.995
     KAPPA = 1.2         # how far a full U or V character pulls the section's exponents apart
-    FOREFOOT = 0.03     # the forefoot's run, x L, up to Fn FOREFOOT_FN; then FOREFOOT_K more per unit Fn
+    FOREFOOT = 0.10     # the forefoot's run, x L, up to Fn FOREFOOT_FN; then FOREFOOT_K more per unit Fn
     FOREFOOT_FN = 0.2
     FOREFOOT_K = 0.25
-    FOREFOOT_MAX = 0.1
+    FOREFOOT_MAX = 0.16
     ROCKER = 0.45       # a planing keel's rocker, x L from the stem
     PLANING_CM = 0.6    # a planing midship section's fullness to start from (a chine at 0.8 of the draught)
     CUT_CLEAR = 0.1     # the cut-up's bottom over the propellers' tips, x their diameter
@@ -308,6 +317,9 @@ class HullForm:
     TRANSOM_C = 0.75    # an immersed transom's fullness
     SMOOTH = 6          # the end waterlines' smoothing, stations either side (of N)
     C_END = 0.75        # the fullest a section gets at the ends: from cm at the shoulders down to this
+    C_END_POW = 2.0     # how that cap falls off toward the ends (of r): 1 had cornered the bottom at the shoulders
+    KEEL_K = 0.06       # the flat keel's half-breadth, x B
+    KEEL_SHARE = 0.5    # the most of a section's area the flat keel may take (fine ends keep a curve)
 
     @staticmethod
     def _solve(f, lo, hi, target):
@@ -408,7 +420,7 @@ class HullForm:
                 r, nn, e, k = 0.0, 1.0, 1.0, 0.0
             r = min(1.0, r)
             s = e + (1 - e) * (1 - r * r) ** (1 / nn)
-            c_hi = min(self.C_MAX, cm - max(0.0, cm - self.C_END) * r)
+            c_hi = min(self.C_MAX, cm - max(0.0, cm - self.C_END) * r ** self.C_END_POW)
             rho = s / dk if dk > 0 else 0.0
             u = min(w, rho ** max(0.05, lam0 + self.LAMBDA_K * k)) if rho > 0 else 0.0
             rows.append([s, w, dk, c_hi, u])
@@ -495,8 +507,12 @@ class HullForm:
         if self.planing and c >= 0.5:      # hard chine: a straight deadrise to the chine, upright above it
             chine = 2.0 * d * (1.0 - c)
             return min(deck, wl * min(1.0, (z - zk) / chine) if chine > 1e-9 else wl)
-        p, q = section_exponents(round(c, 3), round(0.0 if self.planing else self.character(x, c), 3))
-        return min(deck, wl * max(0.0, 1.0 - ((self.T - z) / d) ** q) ** (1.0 / p))
+        kw = 0.0 if self.planing else min(self.KEEL_K * self.hull.B, self.KEEL_SHARE * wl * c)
+        if wl - kw < 1e-6:
+            return min(deck, wl)
+        c_curve = max(0.2, min(self.C_MAX, (wl * c - kw) / (wl - kw)))     # the curve's share beside the keel
+        p, q = section_exponents(round(c_curve, 3), round(0.0 if self.planing else self.character(x, c), 3))
+        return min(deck, kw + (wl - kw) * max(0.0, 1.0 - ((self.T - z) / d) ** q) ** (1.0 / p))
 
     def waterplane(self, n=400):
         """The design waterplane: (area m², its centre's x (lcf), its second moments about the lcf
