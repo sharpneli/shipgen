@@ -29,6 +29,10 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
 ## Choices (mine, tuned by eye; nothing feeds back into the design)
 - **Training rates:** 30°/s for main guns, 40°/s for secondaries and 30°/s for torpedoes (`TRAIN_RATE`). That's
   about 5–10× real, to keep clips short (about 14 s with aft turrets).
+- **Target bearing (user, 2026-10-07):** no separate beam clips. By default `auto_target` picks the starboard
+  bearing the most main mounts reach, then the most mounts of any kind, then the one nearest 55°. Arc ends are
+  candidates, so a cross-deck arc that only just reaches counts at its edge: Babel, Seydlitz, Invincible, Duilio,
+  Inflexible and Doom get 60°, every other design 55°. `--target` still overrides it.
 - **Bearing logic:** every mount whose arcs hold the target bearing trains and fires; the rest stay at rest. A
   mount moves from rest to aim inside `traverse_deg` (`unwrap`). This shows the turret logic the game is
   meant to have.

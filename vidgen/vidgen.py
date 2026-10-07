@@ -7,7 +7,8 @@ height.png, turrets/*.png). The camera looks straight down and follows the ship 
 water at its design speed, with funnel smoke drifting on the wind. The wake (bow-wave sheet, the crest peeling off
 the shoulder, divergent waves and the propulsor wash) is baked once per clip by wake.py and only its foam texture
 animates, anchored to the water.
-The weapons start at rest and then train on a target bearing. Each mount turns only inside its traverse_deg, as
+The weapons start at rest and then train on a target bearing: by default the starboard bearing the most main mounts
+reach (then the most mounts of any kind, then nearest 55 degrees), so cross-deck and end turrets join in. Each mount turns only inside its traverse_deg, as
 the game must, and only mounts whose arcs hold the bearing train. Then they fire: muzzle flash, gun smoke, a
 blast ring on the water for big guns and tracers; torpedo mounts launch fish.
 
@@ -102,6 +103,17 @@ def unit(deg):
 
 def in_arc(a, arc):
     return (a - arc[0]) % 360.0 <= arc[1] - arc[0] + 1e-6
+
+
+def auto_target(mounts, prefer=55.0):
+    """The starboard bearing most guns can reach: most main mounts, then most mounts of any kind, then nearest
+    `prefer`. Arc ends are candidates too, so a cross-deck arc that just reaches past the beam counts at its edge."""
+    cands = {float(b) for b in range(1, 180)}
+    cands |= {e % 360.0 for m in mounts for a in m["arcs_deg"] for e in a if 0 < e % 360.0 < 180}
+    def score(b):
+        hit = [m for m in mounts if any(in_arc(b, a) for a in m["arcs_deg"])]
+        return (sum(m["kind"] == "main" for m in hit), len(hit), -abs(b - prefer))
+    return max(sorted(cands), key=score)
 
 
 def unwrap(a, trav):
@@ -367,6 +379,8 @@ class Scene:
         self.report = json.loads((src / "report.json").read_text())
         res = self.report["results"]
         self.heading = heading
+        if target is None:
+            target = auto_target(self.sprite["mounts"])
         self.target_bearing = target % 360.0
         self.speed = float(self.report["inputs"].get("speed_kn", 20)) * KN
         self.vel = unit(heading) * self.speed
@@ -382,7 +396,7 @@ class Scene:
         self.C = np.array([W / 2, H / 2]) + unit(heading) * (0.07 * W)
 
         self._static_layers(S0)
-        self._mounts(S0, target)
+        self._mounts(S0, self.target_bearing)
         self._funnels()
         self.duration = seconds or (self.t_fire + FIRE_S if self.has_guns else 10.0)
 
@@ -920,8 +934,9 @@ def main():
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--seconds", type=float, default=None, help="clip length (default: fits the timeline)")
     ap.add_argument("--heading", type=float, default=-12.0, help="ship heading on screen, deg clockwise from right")
-    ap.add_argument("--target", type=float, default=55.0,
-                    help="target bearing relative to the bow, deg clockwise (90 = starboard beam)")
+    ap.add_argument("--target", type=float, default=None,
+                    help="target bearing relative to the bow, deg clockwise (90 = starboard beam); default: the "
+                         "starboard bearing the most main guns reach, nearest 55")
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--crf", type=int, default=20, help="x264 quality (lower = better, bigger)")
     ap.add_argument("--still", type=float, default=None, help="write one PNG at this time instead of a video")
