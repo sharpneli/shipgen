@@ -20,7 +20,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] `M_req` undercounts the middle's length need (deferred by user)
 - [ ] User-facing sizing parameters: hull form, beam preference, `Style.SIZE` rules, engine efficiency
 - [ ] Cruise and fuel-range tuning (early turbine ships run 15–20 % long)
-- [ ] Calibration: carriers' full load light, PT boat heavy, T2 tanker underpowered, Duilio +70 % heavy (long armoured middle)
+- [ ] Calibration: carriers' full load light, PT boat heavy, T2 tanker underpowered, Duilio and Inflexible +70 % heavy (long armoured middle)
 - [ ] Unexplained weight gaps: Mikasa −19 %, Forrestal −27 %, Casablanca −22 %
 - [ ] Research a real planing power model (`navarch.planing_power`)
 - [ ] navarch GM uses its own cwp, not the hull form's; cwp doesn't know about transoms
@@ -31,6 +31,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 
 ## Powerplant and crew
 - [ ] Generator rooms for electric transmission
+- [ ] Carrier island crowds out directors when a split boiler plant adds funnels
 - [ ] Cruising-turbine choice in the cruise model
 - [ ] Funnel gas area not re-planned for raised (taller) funnels
 - [ ] Hotel electrical load and distiller energy
