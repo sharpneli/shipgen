@@ -179,7 +179,7 @@ def place(lay, design, blocks):
                     for px, py in pts:
                         put(px, py, z0, pair, unit)
         if len(mine) < n:
-            lay.fail(None, f"Only {len(mine)} of {n} {'AA' if bat == 'aa' else bat} directors find a roof to stand on "
+            lay.fail("beam", f"Only {len(mine)} of {n} {'AA' if bat == 'aa' else bat} directors find a roof to stand on "
                            f"({w:.1f} m across with the rangefinder).")
     main = design.get("main") or {}
     if (main.get("fore", 0) + main.get("aft", 0) + main.get("mid", 0) + main.get("wing", 0)) and \
