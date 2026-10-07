@@ -16,7 +16,7 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
   - bow is +x, bearings run clockwise from ahead
   - `traverse_deg` is one interval that never wraps
   - a mount's `top_m` and the height map are metres above the waterline; hitbox heights are above the main deck
-- **Code:** `wake.py`, `muzzle.py` and `magazine.py` are vidgen's own (numpy only). `wake.md` and `wake_bake_ref.py` are the
+- **Code:** `wake.py`, `muzzle.py`, `magazine.py` and `ocean.py` are vidgen's own (numpy only). `ocean-surface-research.md` and `sea_state_lab.html` (WebGL2) are the sea's research and prototype. `wake.md` and `wake_bake_ref.py` are the
   wake's research notes and the scipy prototype (v2.2) it was ported from. `magazine.py` is the port of `magazine_explosion_ref.py` (research `magazine_explosion.md`). `muzzle_flash_research.md`,
   `muzzle_flash_ref.py` and `figs_muzzle_flash.py` are the same for the guns (the figure script needs scipy and
   matplotlib; the research's `claude/...` paths are where another session wrote it). `from shadow import HEIGHT_STEP_M, shadow_mask, sun_offset_px`. It reaches shipgen's root through
@@ -81,10 +81,33 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
   - **Normals:** the wake's slopes at 1x, not wake.md's 2–3x (the swell already carries the light), capped at 0.3.
 - **Particles:** funnel smoke (with the gun smoke, see "Guns"), spray and blast foam are splatted into half-resolution density buffers in blur
   buckets (`Density`). Buckets with a big radius are splatted into coarser grids, which halved the frame time.
-- **Water:** 14 low-steepness components with no dominant pair, because two strong crossing swells read as a
-  lattice. The swell is summed at half resolution, with ripples at full resolution. The ripple tile grows when
-  zoomed far out (Gangut, 904 m), where it would alias.
-- **Speed:** about 0.35 s a frame at 720p, so 2–3 minutes a clip (unchanged by the baked wake). The foam lace makes
+- **Water (2026-10-07, `ocean.py`, from `ocean-surface-research.md` and its prototype `sea_state_lab.html`):** the
+  user asked for lightweight spectral waves for reasonable sea states, without the research's foam, to make the
+  videos look better; the realtime version comes later. It replaced 14 hand-picked sine components and a scrolling
+  ripple tile (in git history), which read as a scratchy lattice when zoomed out (Gangut).
+  - **Sea:** the lab's JONSWAP wind sea (fetch 150 km) plus a narrow swell, in its three cascades plus the ripple
+    cascade, with its Cox–Munk roughness top-up and choppy displacement (lambda 1). The waves' wind is the smoke's
+    `WIND`, 6 m/s from the south (about Beaufort 3, Hs 0.8 m). `--beaufort` sets the waves' wind speed only; the
+    smoke keeps its own. The default swell is 1 m, 10 s, from 240° (screen north is up), 60° across the wind
+    (research 2.1: the cross-sea is much of what reads as ocean). `--swell HS,TP,FROM` overrides it.
+  - **Linear sum:** the wake's baked slopes, sinkvid's boil and ring slopes and the blasts' roughness are added to
+    the sea's slopes before shading, as research 5.3 says (superposition holds in linear theory). The wake's wash
+    and sinkvid's oil slick damp the short waves (cascade 2, the ripples and the unresolved roughness); a blast's
+    frost roughens them.
+  - **Departures** (listed in `ocean.py`'s docstring): no FFT tile or textures, the spectrum is summed straight at
+    the pixels as a separable DFT (two matmuls per cascade, exact at any zoom; waves under 3 px go into the glint's
+    roughness). The wavenumber grid is jittered, so nothing tiles and hex bombing isn't needed. The Jacobian is
+    summed over cascades 0–1. A sun aureole in the sky (my pick: the lab's plain gradient left everything outside
+    the glitter path flat from straight above). The water body is set so the sea's mean colour matches the old
+    palette (0.110, 0.218, 0.278), keeping the flash, smoke and deck calibration.
+  - **Look notes:** the glitter path sits upper left, toward the sun, from the lab's virtual perspective eye (40°
+    FOV above the frame centre). Wake divergent waves now show mostly through the glint. Without foam, Beaufort 5+
+    looks too clean; keep to 2–4, or add whitecaps from research 3.3.
+  - **Cost:** about 65 ms a frame at 720p (was about 30), single-threaded. vidgen now sets the BLAS thread count to
+    1 like sinkvid: the matmuls are small, threaded OpenBLAS was 3x slower on them, and clips render in parallel.
+  - **Rng:** `Water` still draws the old swell and ripple numbers from the scene's rng, so everything else in a clip
+    (smoke, spray, firing phases) is unchanged and before/after clips differ only in the water.
+- **Speed:** about 0.35 s a frame at 720p before the spectral sea (which adds about 35 ms), so 2–3 minutes a clip. The foam lace makes
   the MP4s 3–4× bigger (Bismarck 13.6 MB, was 3.5 MB); raise `--crf` if that matters.
 
 - **Turret shadows depart from shipgen's README "Shadows"** (user, 2026-10-05: "barbettes don't have shadows

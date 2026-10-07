@@ -3,8 +3,9 @@
 vidgen: a short top-down gameplay-style video of one exported ship, to judge how the sprites look in motion.
 
 It reads only what the game would: out_designs/<id>/ (sprite.json, hitboxes.json, report.json, hull.png,
-height.png, turrets/*.png). The camera looks straight down and follows the ship as it steams through procedural
-water at its design speed, with funnel smoke drifting on the wind. The wake (bow-wave sheet, the crest peeling off
+height.png, turrets/*.png). The camera looks straight down and follows the ship as it steams at its design speed
+through a spectral sea (ocean.py, ocean-surface-research.md: wind sea and swell for --beaufort, shaded with sky
+reflection and sun glint), with funnel smoke drifting on the wind. The wake (bow-wave sheet, the crest peeling off
 the shoulder, divergent waves and the propulsor wash) is baked once per clip by wake.py and only its foam texture
 animates, anchored to the water.
 The weapons start at rest and then train on a target bearing: by default the starboard bearing the most main mounts
@@ -35,15 +36,19 @@ Everything is drawing; nothing here feeds back into the design. Particle and wav
     ~/.venv/bin/python vidgen/vidgen.py kongo --target 300 --still 9.5   # one PNG frame instead of a video
     ~/.venv/bin/python vidgen/vidgen.py bismarck --explode Y             # -> vidgen/out/bismarck_explode_Y.mp4
     ~/.venv/bin/python vidgen/vidgen.py bismarck --explode B --tier column
+    ~/.venv/bin/python vidgen/vidgen.py bismarck --beaufort 5 --swell 2,12,270   # rougher sea, westerly swell
 
 Needs numpy, pillow and imageio-ffmpeg (pip install imageio-ffmpeg; it bundles an ffmpeg binary).
 """
 from __future__ import annotations
 
+import os
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):   # one thread each: the sea's matmuls are
+    os.environ.setdefault(_v, "1")                                           # small, and clips render in parallel
+
 import argparse
 import json
 import math
-import os
 import re
 import sys
 import time
@@ -58,6 +63,7 @@ from shadow import HEIGHT_STEP_M, shadow_mask, sun_offset_px  # noqa: E402
 
 import magazine  # noqa: E402  (vidgen/magazine.py)
 import muzzle  # noqa: E402  (vidgen/muzzle.py)
+import ocean  # noqa: E402  (vidgen/ocean.py)
 import wake  # noqa: E402  (vidgen/wake.py)
 
 KN = 0.514444             # m/s per knot
@@ -376,104 +382,58 @@ def upscale(a, W, H):
 
 
 # ---------------------------------------------------------------- water
-class Water:
-    """Directional sine swell plus a scrolling ripple normal map, shaded for a viewer straight above."""
+def compass(deg):
+    """Unit vector in screen-world axes toward a compass bearing (north is screen up)."""
+    r = math.radians(deg)
+    return np.array([math.sin(r), -math.cos(r)])
 
-    def __init__(self, rng, W, H, s, C):
+
+SEA_WIND = float(np.hypot(*WIND))   # m/s: the waves' wind by default is the smoke's (about Beaufort 3)
+SWELL = (1.0, 10.0, 240.0)          # Hs m, Tp s, from (compass, north = screen up): a moderate swell across the wind
+WATER_BODY = (0.0005, 0.0056, 0.0102)  # ocean.py's water body, set so the sea's mean matches the old palette's
+
+
+class Water:
+    """The open sea (ocean.py: a spectral wind sea and swell, shaded with sky, body and sun glint), with the baked
+    wake's and the blasts' slopes added: it's a linear surface, so they just sum."""
+
+    def __init__(self, rng, W, H, s, C, beaufort=None, swell=SWELL):
         self.W, self.H, self.s = W, H, s
         u, v = np.meshgrid(np.arange(W, dtype=np.float32), np.arange(H, dtype=np.float32))
         self.mx, self.my = (u - C[0]) / s, (v - C[1]) / s       # metres from the ship's centre
-        wind_dir = math.degrees(math.atan2(WIND[1], WIND[0]))
-        self.waves = []
-        # many short-crested components, no dominant pair (two strong crossing swells read as a lattice)
+        # the old swell and ripple tile's draws, kept so the rest of the scene's random stream is unchanged
         for lam in np.geomspace(110, 6, 14):
-            if lam * s < 10:      # finer than 10 px would only alias
-                continue
-            steep = rng.uniform(0.03, 0.06)
-            k = 2 * math.pi / lam
-            d = unit(wind_dir + rng.uniform(-75, 75))
-            self.waves.append((k * d[0], k * d[1], steep, math.sqrt(G * k), rng.uniform(0, 2 * math.pi)))
-        # ripple normal map: tileable filtered noise, 256 px over RIPPLE_M metres
-        n = 256
-        f = np.fft.fftfreq(n)
-        kk = np.hypot(*np.meshgrid(f, f))
-        spec = np.fft.fft2(rng.standard_normal((n, n))) * np.exp(-(kk / 0.06) ** 2) * (kk > 0.004)
-        hgt = np.real(np.fft.ifft2(spec))
-        hgt /= hgt.std()
-        self.rx, self.ry = np.gradient(hgt)[1].astype(np.float32), np.gradient(hgt)[0].astype(np.float32)
-        self.ripple_m = max(36.0, 200.0 / s)   # zoomed far out, a 36 m tile would alias
-        L = np.array([math.cos(math.radians(SUN_EL)) * unit(SUN_AZ)[0],
-                      math.cos(math.radians(SUN_EL)) * unit(SUN_AZ)[1], math.sin(math.radians(SUN_EL))])
-        self.L = L
-        Hh = L + np.array([0, 0, 1.0])
-        self.Hh = Hh / np.linalg.norm(Hh)
+            if lam * s >= 10:
+                rng.uniform(size=3)
+        rng.standard_normal((256, 256))
+        U = SEA_WIND if beaufort is None else ocean.beaufort_u(beaufort)
+        wdir = WIND / np.hypot(*WIND)
+        hs, tp, frm = swell
+        sea = ocean.Sea(wdir * U, (hs, tp, -compass(frm)))
+        L = (math.cos(math.radians(SUN_EL)) * unit(SUN_AZ)[0], math.cos(math.radians(SUN_EL)) * unit(SUN_AZ)[1],
+             math.sin(math.radians(SUN_EL)))
+        self.sea = ocean.Ocean(W, H, s, C, sea, L, body=WATER_BODY)
         noise = rng.standard_normal((H // 8 + 2, W // 8 + 2)).astype(np.float32)
         self.foam_noise = np.clip(0.75 + 0.35 * upscale(box_blur(noise, 1), W, H), 0.3, 1.2)
-        # each swell component's phase over the half-res grid is fixed relative to the frame; the camera and time
-        # only add a constant, so cos(a + b) = cos a cos b - sin a sin b with cos a, sin a computed once
-        Xh, Yh = self.mx[::2, ::2].astype(np.float64), self.my[::2, ::2].astype(np.float64)
-        self.swell = []
-        for kx, ky, steep, w, ph in self.waves:
-            a = kx * Xh + ky * Yh
-            k = math.hypot(kx, ky)
-            self.swell.append((np.cos(a).astype(np.float32), np.sin(a).astype(np.float32),
-                               steep * kx / k, steep * ky / k, kx, ky, w, ph))
-
-    def ripple(self, X, Y, scale, ox, oy):
-        """X: the frame's columns, Y: its rows (1-D: the frame is axis-aligned and the camera only shifts it), so
-        the lookup is a gather of tile rows, then of columns."""
-        n = self.rx.shape[0]
-        k = n / (self.ripple_m * scale)
-        ix = ((X + ox) * k).astype(np.int32) % n
-        iy = ((Y + oy) * k).astype(np.int32) % n
-        return self.rx.take(iy, axis=0).take(ix, axis=1), self.ry.take(iy, axis=0).take(ix, axis=1)
 
     def shade(self, cam, t, wake=None, half=None, rough=None):
         """wake: (hx, hy, calm) full-frame: the baked wake's slopes, added, and how much its slick flattens the
-        ripples (0..1). half: (hx, hy) more slopes on the half-res swell grid (smooth ones; cheaper to add there).
-        rough: (ripples, sheen) full-frame, from the gun blasts: a multiplier on the ripples, and a signed sheen
-        (+ the frost's silvery sky, - the leading edge's dark)."""
-        # the swell is smooth, so it's summed at half resolution and upsampled; ripples stay full resolution
-        hx = np.zeros(self.swell[0][0].shape, np.float32) if self.swell else np.zeros(self.mx[::2, ::2].shape, np.float32)
-        hy = np.zeros_like(hx)
-        for ca, sa, ax, ay, kx, ky, w, ph in self.swell:
-            b = kx * cam[0] + ky * cam[1] - w * t + ph
-            c = ca * np.float32(math.cos(b))
-            c -= sa * np.float32(math.sin(b))
-            hx += c * np.float32(ax)
-            hy += c * np.float32(ay)
+        short waves (0..1). half: (hx, hy) more slopes on the half-res grid (smooth ones), added. rough: (ripples,
+        sheen) full-frame, from the gun blasts: a multiplier on the short waves, and a signed sheen (+ the frost's
+        silvery sky, - the leading edge's dark)."""
+        calm = None
+        if wake is not None and np.ndim(wake[2]):
+            calm = 1 - wake[2]
+        if rough is not None:
+            calm = rough[0] if calm is None else calm * rough[0]
+        hx, hy, h, vx, vy = self.sea.slopes(t, cam, calm)
         if half is not None:
-            hx += half[0]
-            hy += half[1]
-        hx, hy = upscale(hx, self.W, self.H), upscale(hy, self.W, self.H)
-        calm = 1.0
+            hx += upscale(half[0], self.W, self.H)
+            hy += upscale(half[1], self.W, self.H)
         if wake is not None:
             hx += wake[0]
             hy += wake[1]
-            calm = 1 - wake[2]
-        if rough is not None:
-            calm = calm * rough[0]
-        X, Y = self.mx[0] + np.float32(cam[0]), self.my[:, 0] + np.float32(cam[1])
-        for scale, vel, amp in ((1.0, (1.1, 1.6), 0.10), (0.45, (-0.7, 1.2), 0.07)):
-            if self.ripple_m * scale * self.s < 40:
-                continue
-            rx, ry = self.ripple(X, Y, scale, np.float32(-vel[0] * t), np.float32(-vel[1] * t))
-            a = amp * calm
-            hx += rx * a
-            hy += ry * a
-        inv = 1 / np.sqrt(hx * hx + hy * hy + 1)
-        L, Hh = self.L.astype(np.float32), self.Hh.astype(np.float32)
-        # n = (-hx, -hy, 1) * inv
-        diff = np.clip((L[2] - hx * L[0] - hy * L[1]) * inv, 0, 1)
-        sky = np.clip((1 - inv) * 6, 0, 0.35)       # tilted facets reflect more sky
-        spec = np.clip((Hh[2] - hx * Hh[0] - hy * Hh[1]) * inv, 0, 1) ** 400 * np.float32(0.9)
-        d = np.clip((diff - 0.6) / 0.4, 0, 1)
-        col = np.empty((self.H, self.W, 3), np.float32)
-        for c in range(3):
-            v = WATER_DEEP[c] + (WATER_LIT[c] - WATER_DEEP[c]) * d
-            v += (WATER_SKY[c] - v) * sky
-            v += spec
-            col[..., c] = v
+        col = self.sea.display(self.sea.radiance(hx, hy, h, vx, vy))
         if rough is not None:
             sh = rough[1]
             up = np.maximum(sh, 0)[..., None]
@@ -522,7 +482,7 @@ class Pose:
 
 class Scene:
     def __init__(self, src: Path, W, H, fps, heading, target, seed, seconds=None, propellant=None, explode=None,
-                 tier="blast", explode_at=None):
+                 tier="blast", explode_at=None, sea=None):
         self.src, self.W, self.H, self.fps = src, W, H, fps
         self.rng = np.random.default_rng(seed)
         self.sprite = json.loads((src / "sprite.json").read_text())
@@ -558,7 +518,7 @@ class Scene:
         if explode:
             self._explode(explode, tier, explode_at, seed, seconds)
 
-        self.water = Water(self.rng, W, H, s, self.C)
+        self.water = Water(self.rng, W, H, s, self.C, **(sea or {}))
         self.dens = Density(W, H)
         self._wake()
         self.foam = Particles((0, 0), 2.5)       # water at rest; the push from the hull dies away
@@ -1785,7 +1745,7 @@ def make(src: Path, out: Path, args, still=None, frames=None):
     rendered in parallel: the scene is rebuilt from the seed and stepped to frame a, and drawing never touches the
     sim, so every chunk sees the same scene)."""
     sc = Scene(src, args.w, args.h, args.fps, args.heading, args.target, args.seed, args.seconds, args.propellant,
-               args.explode, args.tier, args.explode_at)
+               args.explode, args.tier, args.explode_at, sea_args(args))
     if not args.quiet:
         i = sc.wake_info
         print(f"  {src.name} wake: Fr_L {i['FrL']:.2f}, Zb {i['Zb']:.1f} m, solve {i['solve'][0]}x{i['solve'][1]}, "
@@ -1834,7 +1794,7 @@ def make_chunked(src: Path, out: Path, args, chunks):
     import subprocess
     import imageio_ffmpeg
     sc = Scene(src, args.w, args.h, args.fps, args.heading, args.target, args.seed, args.seconds, args.propellant,
-               args.explode, args.tier, args.explode_at)
+               args.explode, args.tier, args.explode_at, sea_args(args))
     n = int(round(sc.duration * args.fps))
     for b in sc.blasts:
         sp = b.s
@@ -1860,6 +1820,13 @@ def make_chunked(src: Path, out: Path, args, chunks):
     shutil.rmtree(tmp)
     print(f"  {out.name}: {n / args.fps:.1f} s, {n} frames in {chunks} parts, {time.perf_counter() - t0:.0f} s")
     return out
+
+
+def sea_args(args):
+    sea = {"beaufort": args.beaufort}
+    if args.swell:
+        sea["swell"] = tuple(float(v) for v in args.swell.split(","))
+    return sea
 
 
 def main():
@@ -1891,6 +1858,12 @@ def main():
                          "flame column, the ship fights on (tier 1)")
     ap.add_argument("--explode-at", type=float, default=None,
                     help=f"time of the hit, s (default: {EXPLODE_AFTER:g} s after the first salvo)")
+    ap.add_argument("--beaufort", type=float, default=None,
+                    help=f"sea state for the waves (default: the smoke's {SEA_WIND:g} m/s wind, about 3); the smoke "
+                         "keeps its own wind")
+    ap.add_argument("--swell", default=None,
+                    help="swell as HS,TP,FROM: height m, period s, compass bearing it comes from (north is screen "
+                         f"up; default {','.join(f'{v:g}' for v in SWELL)}; 0,10,0 for none)")
     args = ap.parse_args()
     args.w, args.h = (int(v) for v in args.size.lower().split("x"))
     if args.w % 2 or args.h % 2:

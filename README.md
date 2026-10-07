@@ -483,8 +483,9 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
 `out_designs/<id>/`, as the game would, and changes nothing there. Needs `pip install imageio-ffmpeg` (it bundles
 an ffmpeg binary) besides numpy and pillow.
 - The camera looks straight down and follows the ship at its design speed (`inputs.speed_kn`). The ship is scaled
-  to fit the frame (never above the sprites' own 10 px/m). Procedural water, a bow wave that spreads into Kelvin
-  arms, stern wash, and funnel smoke on the wind (darker on coal).
+  to fit the frame (never above the sprites' own 10 px/m). A spectral sea (`vidgen/ocean.py`, from
+  `vidgen/ocean-surface-research.md`: wind sea and swell, sky reflection and sun glint; `--beaufort`, `--swell`), a
+  bow wave that spreads into Kelvin arms, stern wash, and funnel smoke on the wind (darker on coal).
 - Timeline: weapons at rest, then every mount whose arcs hold the target bearing (`--target`, relative to the
   bow) trains on it, moving only inside its `traverse_deg`. Then they fire: main guns in salvos, secondaries on their
   own beat, torpedo mounts once. Muzzle points come from the barrel polygons in `hitboxes.json`. Mounts that can't

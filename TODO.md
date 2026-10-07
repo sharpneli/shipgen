@@ -108,6 +108,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Mechanics resolver for magazine explosions (M, P(t), opening fail times; `magazine.F_FAST` is a stand-in)
 - [ ] Gun blast extras not done: hull reflection of the blast, sun-shadow line, polar scour-foam texture, night flash lighting and exposure adaptation
 - [ ] Explosion extras not done: fire reflection, heat haze, smoke self-shadow sweep, underwater/capsized blasts, debris hitting other ships
+- [ ] Sea (ocean.py) not done: whitecap foam for Beaufort 5+, gust patches, wave groups, ship heave/pitch/roll from the swell (research 5.2), wake foam riding the swell's displacement
 
 ## Shelved by the user
 - Turtleback (sloped) armour decks
