@@ -9,8 +9,11 @@ the shoulder, divergent waves and the propulsor wash) is baked once per clip by 
 animates, anchored to the water.
 The weapons start at rest and then train on a target bearing: by default the starboard bearing the most main mounts
 reach (then the most mounts of any kind, then nearest 55 degrees), so cross-deck and end turrets join in. Each mount turns only inside its traverse_deg, as
-the game must, and only mounts whose arcs hold the bearing train. Then they fire: muzzle flash, gun smoke, a
-blast ring on the water for big guns and tracers; torpedo mounts launch fish.
+the game must, and only mounts whose arcs hold the bearing train. Then they fire; torpedo mounts launch fish. Each
+gun shot is a muzzle.Shot (muzzle_flash_research.md): a three-part flash in physical units, splatted with analytic
+normalisation and averaged over the frame, then a smoke puff whose optical depth is both its opacity and its
+shadow, a blast ring on the water that fades as the muzzle stands higher than the blast's length, and the shell on
+its ballistic arc (on a slowed clock) with its shadow on the sea.
 
 Shadows follow README "Shadows": the height map is marched toward the sun (shadow.shadow_mask, the reference
 implementation), and turret shadows are the turret sprites in black, offset by (top_m - deck_m) / tan(elevation)
@@ -42,6 +45,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from shadow import HEIGHT_STEP_M, shadow_mask, sun_offset_px  # noqa: E402
 
+import muzzle  # noqa: E402  (vidgen/muzzle.py)
 import wake  # noqa: E402  (vidgen/wake.py)
 
 KN = 0.514444             # m/s per knot
@@ -81,8 +85,23 @@ def lace(d, noise, kind):
 
 CHURN = np.array([0.26, 0.45, 0.49], np.float32)
 FOAM = np.array([0.93, 0.96, 0.97], np.float32)
-FLASH = np.array([1.0, 0.72, 0.30], np.float32)
-FLASH_CORE = np.array([1.0, 0.97, 0.85], np.float32)
+
+# guns (muzzle.py, from muzzle_flash_research.md). The flash is drawn in physical units: luminance over the sunlit
+# sea's (L_BG, research 4.1) times EXPOSE puts the sea at about the water's own value here.
+L_BG = 1500.0             # cd/m^2, sunlit open sea
+EXPOSE = 0.18
+RH = 0.7                  # relative humidity: hygroscopic smoke and water fog
+TARGET_RANGE_M = 12000.0  # sets each gun's elevation (vacuum ballistics; out of reach -> 45 degrees)
+# propellant by navy until shipgen exports the ammunition: cordite and RPC/12 are double-base, the rest
+# single-base (research 3.1); --propellant overrides it (black_powder for the 1870s ships)
+NAVY_PROPELLANT = {"portsmouth": "double_base", "kiel": "double_base"}
+SMOKE_NEUTRAL = np.array([0.90, 0.89, 0.86], np.float32)
+SMOKE_GAIN = 0.85         # sunlit white smoke against this scene's water and decks
+SHELL = np.array([0.25, 0.24, 0.22], np.float32)   # dark painted steel
+# shells fly their real path on a slowed clock: at 800-900 m/s they leave the frame in two or three frames, hidden
+# by their own flash. Like TRAIN_RATE, readability over fidelity
+SHELL_TIME = 0.12
+SHELL_SMEAR = 0.5         # the speed smear behind a shell, in frames of its (slowed) motion
 
 BUCKETS = [1, 2, 4, 8, 16, 32]   # blur radii (half-res px) the particle splats are sorted into
 PAD = 3 * BUCKETS[-1]            # density buffers extend this far past the frame so off-screen blobs bleed in
@@ -167,6 +186,51 @@ def stamp_max(buf, alpha, x0, y0, heights=None, below=None):
     if heights is not None:
         a = a * (heights[fy0:fy1, fx0:fx1] < below)
     np.maximum(buf[fy0:fy1, fx0:fx1], a, out=buf[fy0:fy1, fx0:fx1])
+
+
+def overlaps(x0, y0, w, h, W, H):
+    return x0 < W and y0 < H and x0 + w > 0 and y0 + h > 0
+
+
+def add_patch(buf, patch, x0, y0):
+    """buf += patch with the patch's top-left at (x0, y0), clipped to buf."""
+    h, w = patch.shape[:2]
+    H, W = buf.shape[:2]
+    fx0, fy0, fx1, fy1 = max(0, x0), max(0, y0), min(W, x0 + w), min(H, y0 + h)
+    if fx0 < fx1 and fy0 < fy1:
+        buf[fy0:fy1, fx0:fx1] += patch[fy0 - y0:fy1 - y0, fx0 - x0:fx1 - x0]
+
+
+def sample_tile(tile, u, v):
+    """Bilinear lookup of a square tile at u (columns, 1-D) and v (rows, 1-D), both in tile widths, wrapping."""
+    n = tile.shape[0]
+    fu, fv = u * n, v * n
+    iu, iv = np.floor(fu).astype(np.int32), np.floor(fv).astype(np.int32)
+    wu, wv = (fu - iu).astype(np.float32)[None, :], (fv - iv).astype(np.float32)[:, None]
+    iu0, iv0, iu1, iv1 = iu % n, iv % n, (iu + 1) % n, (iv + 1) % n
+    r0, r1 = tile[iv0], tile[iv1]
+    return ((r0[:, iu0] * (1 - wu) + r0[:, iu1] * wu) * (1 - wv) + (r1[:, iu0] * (1 - wu) + r1[:, iu1] * wu) * wv)
+
+
+def sample_points(tile, u, v):
+    """Bilinear lookup of a square tile at matching arrays u, v (in tile widths, wrapping)."""
+    n = tile.shape[0]
+    fu, fv = u * n, v * n
+    iu, iv = np.floor(fu).astype(np.int32), np.floor(fv).astype(np.int32)
+    wu, wv = (fu - iu).astype(np.float32), (fv - iv).astype(np.float32)
+    iu0, iv0, iu1, iv1 = iu % n, iv % n, (iu + 1) % n, (iv + 1) % n
+    return ((tile[iv0, iu0] * (1 - wu) + tile[iv0, iu1] * wu) * (1 - wv)
+            + (tile[iv1, iu0] * (1 - wu) + tile[iv1, iu1] * wu) * wv)
+
+
+def tonemap(x, knee=0.7):
+    """Display values below the knee pass unchanged; above it the luminance rolls off toward 1 and the colour
+    partly toward white (at most 75 %, reached 32x over the knee), so a flash never clips per channel to flat yellow (research 8.3)."""
+    Y = np.maximum(x @ muzzle.LUM.astype(np.float32), 1e-6)
+    Yt = np.where(Y > knee, knee + (1 - knee) * (1 - np.exp(-(Y - knee) / (1 - knee))), Y)
+    rgb = x * (Yt / Y)[..., None]
+    over = 0.75 * np.clip(np.log2(Y / knee) / 5, 0, 1)[..., None]
+    return rgb * (1 - over) + Yt[..., None] * over
 
 
 def font(size):
@@ -371,12 +435,14 @@ class Mount:
 
 
 class Scene:
-    def __init__(self, src: Path, W, H, fps, heading, target, seed, seconds=None):
+    def __init__(self, src: Path, W, H, fps, heading, target, seed, seconds=None, propellant=None):
         self.src, self.W, self.H, self.fps = src, W, H, fps
         self.rng = np.random.default_rng(seed)
         self.sprite = json.loads((src / "sprite.json").read_text())
         self.hit = json.loads((src / "hitboxes.json").read_text())
         self.report = json.loads((src / "report.json").read_text())
+        navy = self.report["inputs"].get("look", {}).get("navy")
+        self.propellant = propellant or NAVY_PROPELLANT.get(navy, "single_base")
         res = self.report["results"]
         self.heading = heading
         if target is None:
@@ -406,10 +472,9 @@ class Scene:
         self.foam = Particles((0, 0), 2.5)       # water at rest; the push from the hull dies away
         self.spray = Particles((0, 0), 0.6)      # thrown off the stem, falls back within a second
         self.smoke = Particles(WIND, 1.2)
-        self.gsmoke = Particles(WIND, 1.6)      # the blast carries it out before the wind turns it
-        self.glow = []                            # (x, y, r, intensity, t0, life, core)
-        self.tracers = []                         # [x, y, vx, vy, t0]
+        self.shots = []                           # muzzle.Shot: flash, smoke puff and shell, all analytic in time
         self.fish = []                            # torpedoes [x, y, vx, vy, t0]
+        self.puff_noise = self._noise_tile(128, 0.05)
         self.pos = np.zeros(2)
         self.t = -WARM_S
         self.hud = self._hud()
@@ -490,6 +555,11 @@ class Scene:
             # salvos. The type id names the gun and its barrels; batteries differing only in barrels share a beat
             gun = re.search(r"x([\d.]+)(?:L(\d+))?", mt.type)
             mt.gun = (gun.group(1), gun.group(2)) if gun else (mt.calibre, None)
+            # the flash, smoke and shell model of this gun (muzzle.py); the bore is a little under the roof
+            mt.fx = muzzle.Gun(mt.calibre / 1000, float(mt.gun[1] or 45), self.propellant)
+            mt.fxD = muzzle.derive(mt.fx, RH)
+            mt.el = muzzle.elevation(mt.fxD["v0"], TARGET_RANGE_M)
+            mt.muzzle_h = max(self.freeboard, mt.top_m - 1.5)
             loc = comps.get(mt.id, {}).get("local", {})
             mt.muzzles = []
             for b in loc.get("barrels", []):
@@ -696,30 +766,23 @@ class Scene:
         ang = self.heading + self.bearing(mt, self.t)
         d = unit(ang)
         muz = self.pos + rot(mt.pos_m, self.heading) + rot(mt.muzzles[i], ang)
-        c = mt.calibre
         if mt.kind == "torpedo":
             self.fish.append([muz[0], muz[1], *(self.vel + d * 22.0), self.t])
             self.foam.add(x=muz[0] + rng.normal(0, 1, 12), y=muz[1] + rng.normal(0, 1, 12),
                           vx=d[0] * 4, vy=d[1] * 4, life=2.0, r0=0.5, r1=2.5, a0=0.7)
             return
-        size = 1.0 + c / 30          # flash radius, m: 380 mm -> ~19 m, 40 mm -> ~3 m
-        self.glow.append((muz[0], muz[1], d[0], d[1], size, self.t))
-        n = int(3 + c / 40)
-        sp = rng.uniform(0.2, 1.0, n) * (10 + c / 12)
-        jit = rng.normal(0, 0.25, (n, 2))
-        vv = (d[None, :] + jit) * sp[:, None] + self.vel * 0.3
-        self.gsmoke.add(x=muz[0] + d[0] * size * 0.3, y=muz[1] + d[1] * size * 0.3, vx=vv[:, 0], vy=vv[:, 1],
-                        life=rng.uniform(2.0, 4.0, n), r0=size * 0.3, r1=size * rng.uniform(1.0, 1.8, n),
-                        a0=rng.uniform(0.12, 0.25, n), h=self.deck_m + 3)
-        if c >= 150:                  # blast flattens the sea under the muzzle
-            k = int(16 + c / 10)
+        D = mt.fxD
+        self.shots.append(muzzle.Shot(mt.fx, D, muz, mt.muzzle_h, math.radians(ang), mt.el, self.t, self.vel, WIND,
+                                      rng))
+        # the blast flattens the sea under the muzzle: a ring of churned water about 2 lam_b across, fading
+        # smoothly as the muzzle stands higher above the water than the blast's own length
+        lb = D["lam_b"]
+        k = int(rng.poisson(math.exp(-(mt.muzzle_h / lb) ** 2) * (16 + 2.5 * lb)))
+        if k:
             a = rng.uniform(0, 2 * math.pi, k)
-            rv = np.stack([np.cos(a), np.sin(a)], 1) * (c / 12) * rng.uniform(0.6, 1.0, (k, 1))
-            rv += d * c / 20
-            self.foam.add(x=muz[0] + d[0] * size * 0.5, y=muz[1] + d[1] * size * 0.5, vx=rv[:, 0], vy=rv[:, 1],
-                          life=rng.uniform(0.8, 1.6, k), r0=1.0, r1=c / 90 + 1, a0=0.55)
-        if c >= 75:
-            self.tracers.append([muz[0], muz[1], *(self.vel + d * 450.0), self.t])
+            rv = np.stack([np.cos(a), np.sin(a)], 1) * 2 * lb * rng.uniform(0.6, 1.0, (k, 1)) + d * 1.2 * lb
+            self.foam.add(x=muz[0] + d[0] * 0.4 * lb, y=muz[1] + d[1] * 0.4 * lb, vx=rv[:, 0], vy=rv[:, 1],
+                          life=rng.uniform(0.8, 1.6, k), r0=1.0, r1=lb / 4 + 1, a0=0.55)
 
     def step(self, dt):
         self.pos = self.pos + self.vel * dt
@@ -730,22 +793,40 @@ class Scene:
             _, mt, i = self.events[self.next_ev]
             self.fire(mt, i)
             self.next_ev += 1
-        for ps in (self.foam, self.spray, self.smoke, self.gsmoke):
+        for ps in (self.foam, self.spray, self.smoke):
             ps.step(dt)
         for f in self.fish:
             f[0] += f[2] * dt
             f[1] += f[3] * dt
             self.foam.add(x=f[0] + self.rng.normal(0, 0.3, 2), y=f[1] + self.rng.normal(0, 0.3, 2),
                           life=self.rng.uniform(2, 5, 2), r0=0.3, r1=1.0, a0=0.22)
-        for tr in self.tracers:
-            tr[0] += tr[2] * dt
-            tr[1] += tr[3] * dt
-        self.glow = [g for g in self.glow if self.t - g[5] < 0.25]
         far = 3 * max(self.W, self.H) / self.s
-        self.tracers = [tr for tr in self.tracers if self.t - tr[4] < 1.2]
+        self.shots = [sh for sh in self.shots if self._shot_alive(sh, far)]
         self.fish = [f for f in self.fish if np.hypot(f[0] - self.pos[0], f[1] - self.pos[1]) < far]
 
+    def _shot_alive(self, sh, far):
+        """A shot lives while its shell is in the air near the frame, or its smoke still shows (research 7.1: until
+        the puff's peak optical depth is under 0.01) and hasn't drifted far off."""
+        if self.t < sh.flash_end + 0.1:
+            return True
+        xy, z, _ = sh.shell(sh.t0 + (self.t - sh.t0) * SHELL_TIME)
+        if z > 0 and np.hypot(*(xy - self.pos)) < far:
+            return True
+        p = sh.puff(self.t)
+        return p["A"] / (2 * math.pi * p["sh"] ** 2) > 0.01 and np.hypot(*(p["xy"] - self.pos)) < far
+
     # ----- drawing
+    def _noise_tile(self, n, k):
+        """Tileable gaussian noise, unit variance, features about 1/k px wide (k in cycles per px)."""
+        f = np.fft.fftfreq(n)
+        kk = np.hypot(*np.meshgrid(f, f))
+        out = 0
+        for oct_, amp in ((1, 1.0), (2.3, 0.3)):
+            spec = np.fft.fft2(self.rng.standard_normal((n, n))) * np.exp(-(kk / (k * oct_)) ** 2)
+            fld = np.real(np.fft.ifft2(spec))
+            out = out + amp * fld / fld.std()
+        return (out / out.std()).astype(np.float32)
+
     def scr(self, wx, wy):
         return (wx - self.pos[0]) * self.s + self.C[0], (wy - self.pos[1]) * self.s + self.C[1]
 
@@ -797,52 +878,43 @@ class Scene:
         for arr, x0, y0 in rots:
             blend(frame, arr, x0, y0)
 
-        # smoke: shadows on the sea and ship, then the smoke itself, lit from the sun side
+        # smoke: shadows on the sea and ship, then the smoke itself, lit from the sun side. Gun smoke is one analytic
+        # puff per shot (muzzle.py); its optical depth sets both its opacity and its shadow
         sd = unit(SUN_AZ)
         smoke_d = np.zeros((self.dens.hh, self.dens.hw), np.float32)
-        gun_d = np.zeros_like(smoke_d)
         sh = np.zeros_like(smoke_d)
         if len(self.smoke):
             smoke_d = self.field(self.smoke)
             h = float(np.mean(self.smoke.d["h"]))
             o = sun_offset_px(s, SUN_AZ, SUN_EL, h + 4)
             sh += self.field(self.smoke, offset=o)
-        if len(self.gsmoke):
-            gun_d = self.field(self.gsmoke)
-            o = sun_offset_px(s, SUN_AZ, SUN_EL, self.deck_m + 4)
-            sh += self.field(self.gsmoke, offset=o)
-        if sh.any():
-            frame *= (1 - 0.35 * np.clip(1 - np.exp(-upscale(sh, W, H)), 0, 1))[..., None]
-        for dens, base in ((smoke_d, (0.16, 0.15, 0.15) if self.coal else (0.36, 0.36, 0.37)),
-                           (gun_d, (0.62, 0.59, 0.53))):
-            if not dens.any():
-                continue
-            gy, gx = np.gradient(dens)
+        gun_tau, gun_col, gun_sh = self._gun_smoke()
+        if sh.any() or gun_sh.any():
+            dark = 0.35 * (1 - np.exp(-sh)) + 0.45 * (1 - np.exp(-gun_sh))
+            frame *= (1 - np.clip(upscale(dark, W, H), 0, 0.6))[..., None]
+        self._shells(frame, shadow=True)
+        if smoke_d.any():
+            base = (0.16, 0.15, 0.15) if self.coal else (0.36, 0.36, 0.37)
+            gy, gx = np.gradient(smoke_d)
             light = np.clip(1.0 + 3.0 * (gx * sd[0] + gy * sd[1]) * -1, 0.55, 1.35)
             col = np.array(base, np.float32)[None, None, :] * upscale(light, W, H)[..., None]
-            al = np.clip(1 - np.exp(-1.4 * upscale(dens, W, H)), 0, 0.92)[..., None]
+            al = np.clip(1 - np.exp(-1.4 * upscale(smoke_d, W, H)), 0, 0.92)[..., None]
+            frame = frame * (1 - al) + col * al
+        if gun_tau.any():
+            al = np.clip(1 - np.exp(-gun_tau), 0, 0.97)
+            # lit as a surface whose height goes with log thickness: billows show inside the opaque core too
+            gy, gx = np.gradient(box_blur(np.log1p(gun_tau), 2))
+            light = np.clip(1.0 - 0.6 * (gx * sd[0] + gy * sd[1]), 0.6, 1.12)
+            col = gun_col / np.maximum(gun_tau, 1e-6)[..., None] * (SMOKE_GAIN * light)[..., None]
+            col = np.stack([upscale(col[..., c], W, H) for c in range(3)], -1)
+            al = upscale(al, W, H)[..., None]
             frame = frame * (1 - al) + col * al
 
-        # light: muzzle flashes and tracers, added
-        if self.glow or self.tracers:
-            xs, ys, rs, ws, core = [], [], [], [], []
-            for gx_, gy_, dx, dy, size, t0 in self.glow:
-                u = (self.t - t0) / 0.25
-                fade = (1 - u) ** 2
-                for j, (along, rr, ww) in enumerate(((0.0, 0.25, 1.0), (0.45, 0.32, 0.9), (0.9, 0.35, 0.7),
-                                                     (1.35, 0.3, 0.45), (1.8, 0.25, 0.25))):
-                    x, y = self.scr(gx_ + dx * size * along, gy_ + dy * size * along)
-                    xs.append(x), ys.append(y), rs.append(size * rr * (0.8 + 0.6 * u) * s), ws.append(ww * fade)
-            for tx, ty, vx, vy, t0 in self.tracers:
-                sp = math.hypot(vx, vy)
-                for j in range(6):
-                    k = j / 6 * 14 / sp
-                    x, y = self.scr(tx - vx * k, ty - vy * k)
-                    xs.append(x), ys.append(y), rs.append(max(1.0, 0.6 * s)), ws.append(0.5 * (1 - j / 6))
-            g = upscale(self.dens.render(np.array(xs), np.array(ys), np.array(rs), np.array(ws)), W, H)
-            a = (1 - np.exp(-1.5 * g))[..., None]           # saturates, so overlapping flashes don't blow out
-            frame += (FLASH - frame) * a * 0.9
-            frame += (FLASH_CORE - frame) * np.clip(1.5 * g - 1.2, 0, 1)[..., None] * 0.8
+        # the flashes over the smoke (research 7.6: the fireball is in front of its own smoke), and the shells over
+        # the flashes: on the slowed clock they're still inside the fireball they really outran, so they show as
+        # silhouettes against it, as in high-speed photographs of a shell leaving the muzzle
+        self._flashes(frame)
+        self._shells(frame)
 
         # target marker and captions
         frame = np.clip(frame, 0, 1)
@@ -851,6 +923,178 @@ class Scene:
         ha = hud[..., 3:4]
         out = (out * (1 - ha) + hud[..., :3] * 255 * ha).astype(np.uint8)
         return self._overlay(out)
+
+    def _gun_smoke(self):
+        """Every shot's smoke puff splatted at half resolution: optical depth tau (research 5.4's vertical form,
+        A / (2 pi sh^2) at the centre), the tau-weighted colour, and the same tau shifted along the sun by the
+        puff's height for its shadow. The puff is one gaussian; noise in the puff's own frame, scaled with it,
+        breaks it into billows that grow as it spreads (a mean-1 factor, so the puff keeps its A)."""
+        hh, hw = self.dens.hh, self.dens.hw
+        tau = np.zeros((hh, hw), np.float32)
+        col = np.zeros((hh, hw, 3), np.float32)
+        shd = np.zeros_like(tau)
+        s = self.s
+        for shot in self.shots:
+            p = shot.puff(self.t)
+            if p is None or p["A"] <= 0:
+                continue
+            cx, cy = self.scr(*p["xy"])
+            sig = max(p["sh"], 1.2 / s)                  # at least 0.6 half-res px
+            peak = p["A"] / (2 * math.pi * sig * sig)
+            # out to where even the billows' bright spots fall under tau 0.003, or the window's edge shows
+            r = sig * math.sqrt(2 * math.log(max(3 * peak / 0.003, 2.0))) * s / 2
+            hx, hy = (cx - 1) / 2, (cy - 1) / 2
+            x0, y0 = int(math.floor(hx - r)), int(math.floor(hy - r))
+            xs, ys = np.arange(x0, int(math.ceil(hx + r)) + 1), np.arange(y0, int(math.ceil(hy + r)) + 1)
+            off = sun_offset_px(s, SUN_AZ, SUN_EL, p["z"])
+            sx0, sy0 = x0 + int(round(off[0] / 2)), y0 + int(round(off[1] / 2))
+            if not (overlaps(x0, y0, len(xs), len(ys), hw, hh) or overlaps(sx0, sy0, len(xs), len(ys), hw, hh)):
+                continue
+            dx = ((xs * 2 + 1 - cx) / s).astype(np.float32)
+            dy = ((ys * 2 + 1 - cy) / s).astype(np.float32)
+            g = np.float32(peak) * np.exp(
+                -(dx[None, :] ** 2 + dy[:, None] ** 2) / np.float32(2 * sig * sig))
+            u, v = dx / sig * 0.2 + shot.noise_off[0], dy / sig * 0.2 + shot.noise_off[1]
+            g *= np.exp(0.9 * sample_tile(self.puff_noise, u, v) - 0.405)
+            # warm near the muzzle for NC powders, fading over about 5 s (research 7.4); water fog is pure white
+            tint = SMOKE_NEUTRAL + (shot.D["tint"] - SMOKE_NEUTRAL) * math.exp(-p["age"] / 5.0)
+            c = (tint * p["A_p"] + 0.97 * p["A_w"]) / p["A"]
+            add_patch(tau, g, x0, y0)
+            add_patch(col, g[..., None] * c.astype(np.float32), x0, y0)
+            add_patch(shd, g, sx0, sy0)
+        return tau, col, shd
+
+    def _shells(self, frame, shadow=False):
+        """Each shell in flight: an ogive body (4.5 calibres, the nose's first 40 % tapering) lit by the sun as a
+        cylinder, with a short speed smear behind it. Shells under about a pixel wide are drawn at a pixel and
+        fainter (opacity by the root of the true over the drawn area). shadow: the shell's shadow on the sea instead,
+        moved away from the sun by its height and fading as the sun's disc (0.53 degrees) blurs it past its width."""
+        s, H, W = self.s, frame.shape[0], frame.shape[1]
+        sd = unit(SUN_AZ)
+        cel, sel = math.cos(math.radians(SUN_EL)), math.sin(math.radians(SUN_EL))
+        for shot in self.shots:
+            tt = (self.t - shot.t0) * SHELL_TIME
+            if tt <= 0:
+                continue
+            xy, z, vel = shot.shell(shot.t0 + tt)
+            vel = vel * SHELL_TIME
+            if z <= 0:
+                continue
+            d = shot.gun.d
+            strength = 1.0
+            if shadow:
+                xy = xy + np.array(sun_offset_px(1.0, SUN_AZ, SUN_EL, z))
+                strength = 0.5 * d / (d + z * 0.0093)
+            cx, cy = self.scr(*xy)
+            sp = float(np.hypot(*vel))
+            dirv = vel / sp
+            R, L = d / 2 * s, 4.5 * d * s
+            R_ = max(R, 0.9)
+            L_ = max(L, 7 * R_)
+            op = math.sqrt(min(1.0, R * L / (R_ * L_))) * strength
+            smear = sp * s * min(SHELL_SMEAR / self.fps, self.t - shot.t0)
+            back = L_ + smear
+            pad = R_ + 2
+            tx, ty = cx - dirv[0] * back, cy - dirv[1] * back
+            x0, x1 = int(math.floor(min(cx, tx) - pad)), int(math.ceil(max(cx, tx) + pad))
+            y0, y1 = int(math.floor(min(cy, ty) - pad)), int(math.ceil(max(cy, ty) + pad))
+            x0, y0, x1, y1 = max(0, x0), max(0, y0), min(W, x1), min(H, y1)
+            if x0 >= x1 or y0 >= y1:
+                continue
+            X = np.arange(x0, x1, dtype=np.float32)[None, :] + 0.5 - np.float32(cx)
+            Y = np.arange(y0, y1, dtype=np.float32)[:, None] + 0.5 - np.float32(cy)
+            b0 = -(X * dirv[0] + Y * dirv[1])            # distance behind the nose
+            pe = -X * dirv[1] + Y * dirv[0]
+            K = min(12, 1 + int(math.ceil(smear / (0.5 * L_))))
+            cov = np.zeros_like(b0)
+            for k in range(K):
+                f = k / (K - 1) if K > 1 else 0.0
+                b = b0 - smear * f
+                uu = np.clip(b / L_, 0, 1)
+                rr = R_ * np.sqrt(np.clip(1 - np.clip((0.4 - uu) / 0.4, 0, 1) ** 2, 0, 1))
+                c = np.clip(rr - np.abs(pe) + 0.5, 0, 1) * np.clip(b + 0.5, 0, 1) * np.clip(L_ - b + 0.5, 0, 1)
+                np.maximum(cov, c * (1 - 0.85 * f), out=cov)
+            a = (cov * op)[..., None]
+            win = frame[y0:y1, x0:x1]
+            if shadow:
+                win *= 1 - a
+                continue
+            q = np.clip(pe / R_, -1, 1)
+            nl = q * (-dirv[1] * sd[0] + dirv[0] * sd[1]) * cel + np.sqrt(1 - q * q) * sel
+            lit = 0.35 + 0.9 * np.clip(nl, 0, 1) + 0.2 * np.clip(nl, 0, 1) ** 12
+            win *= 1 - a
+            win += (SHELL[None, None, :] * lit[..., None]) * a
+
+    def _flashes(self, frame):
+        """Muzzle flashes in physical units (research 7.2): each emitter's luminous intensity, averaged over the
+        frame interval (4 samples, so a flash shorter than a frame is dimmed, not missed), splatted as an oriented
+        gaussian with ANALYTIC normalisation (sigma at least 0.6 px), so the flash keeps its total light at any
+        zoom. Then bloom on a compressed copy and a luminance roll-off to white, applied only to what the flash adds."""
+        dt = 1.0 / self.fps
+        subs = [self.t - dt * (i + 0.5) / 4 for i in range(4)]
+        ems = []
+        for shot in self.shots:
+            if shot.t0 > self.t or shot.flash_end < self.t - dt:
+                continue
+            acc = {}
+            for ts in subs:                              # latest first: its geometry is the one drawn
+                for e in shot.emitters(ts):
+                    a = acc.setdefault(e["kind"], [0.0, e])
+                    a[0] += e["I"] / 4
+            ems += [(shot, I, e) for I, e in acc.values() if I > 0]
+        if not ems:
+            return
+        s, H, W = self.s, frame.shape[0], frame.shape[1]
+        wins = []
+        for shot, I, e in ems:
+            su = max(e["a"] * math.cos(shot.el) / 1.5, 0.6 / s)
+            sv = max(e["b"] / 1.5, 0.6 / s)
+            cx, cy = self.scr(e["c"][0], e["c"][1])
+            ext = 3.5 * 1.3 * max(su, sv) * s
+            wins.append((shot, I, e, su, sv, cx, cy, ext))
+        M = 60                                           # bloom reach (box blur r=17, 3 passes)
+        bx0 = max(0, int(min(w[5] - w[7] for w in wins)) - M)
+        by0 = max(0, int(min(w[6] - w[7] for w in wins)) - M)
+        bx1 = min(W, int(max(w[5] + w[7] for w in wins)) + M + 1)
+        by1 = min(H, int(max(w[6] + w[7] for w in wins)) + M + 1)
+        if bx0 >= bx1 or by0 >= by1:
+            return
+        F = np.zeros((by1 - by0, bx1 - bx0, 3), np.float32)
+        for shot, I, e, su, sv, cx, cy, ext in wins:
+            x0, x1 = max(bx0, int(cx - ext)), min(bx1, int(cx + ext) + 1)
+            y0, y1 = max(by0, int(cy - ext)), min(by1, int(cy + ext) + 1)
+            if x0 >= x1 or y0 >= y1:
+                continue
+            dx = (np.arange(x0, x1, dtype=np.float32)[None, :] + 0.5 - np.float32(cx)) / s
+            dy = (np.arange(y0, y1, dtype=np.float32)[:, None] + 0.5 - np.float32(cy)) / s
+            ca, sa = math.cos(shot.az), math.sin(shot.az)
+            u, v = dx * ca + dy * sa, -dx * sa + dy * ca
+            if e["kind"] == "secondary":
+                # the ragged fireball: the reference's lobes at per-shot phases, plus noise on the edge, and
+                # DEPARTURE: a flat-topped profile exp(-q^2 / 2), not a gaussian. Over the sunlit sea a gaussian's
+                # tail stays above the display's floor out to about twice the fireball's size, a glowing halo
+                ang = np.arctan2(v, u)
+                rm = 1 + 0.18 * np.sin(3 * ang + shot.lobes[0]) + 0.12 * np.sin(5 * ang + shot.lobes[1])
+                rm = rm * (1 + 0.15 * sample_points(self.puff_noise, u / e["a"] * 0.25 + shot.noise_off[0],
+                                                    v / e["b"] * 0.25 + shot.noise_off[1]))
+                ra = max(0.8 * e["a"] * math.cos(shot.el), 0.6 / s)
+                rb = max(0.8 * e["b"], 0.6 / s)
+                q = (u / (rm * ra)) ** 2 + (v / (rm * rb)) ** 2
+                w = np.exp(-0.5 * q * q)
+                area = 1.2533 * math.pi * ra * rb * 1.03   # integral of exp(-q^2/2) is sqrt(pi/2) pi ra rb
+            else:
+                w = np.exp(-0.5 * ((u / su) ** 2 + (v / sv) ** 2))
+                area = 2 * math.pi * su * sv
+            Lpx = w * np.float32(I / area / L_BG * EXPOSE)
+            rgb = e["rgb"] / max(float(e["rgb"] @ muzzle.LUM), 1e-3)
+            F[y0 - by0:y1 - by0, x0 - bx0:x1 - bx0] += Lpx[..., None] * rgb.astype(np.float32)
+        # bloom on a compressed source, or a big flash paints the whole frame (research 7.2 item 6)
+        src = F / (1 + F / 6)
+        for frac, r in ((0.20, 1), (0.10, 6), (0.05, 17)):
+            for c in range(3):
+                F[..., c] += frac * box_blur(src[..., c], r)
+        sub = frame[by0:by1, bx0:bx1]
+        sub += tonemap(sub + F) - tonemap(sub)
 
     def _overlay(self, out):
         im = Image.fromarray(out)
@@ -892,7 +1136,7 @@ class Scene:
 
 # ---------------------------------------------------------------- driver
 def make(src: Path, out: Path, args, still=None):
-    sc = Scene(src, args.w, args.h, args.fps, args.heading, args.target, args.seed, args.seconds)
+    sc = Scene(src, args.w, args.h, args.fps, args.heading, args.target, args.seed, args.seconds, args.propellant)
     if not args.quiet:
         i = sc.wake_info
         print(f"  {src.name} wake: Fr_L {i['FrL']:.2f}, Zb {i['Zb']:.1f} m, solve {i['solve'][0]}x{i['solve'][1]}, "
@@ -938,6 +1182,8 @@ def main():
                     help="target bearing relative to the bow, deg clockwise (90 = starboard beam); default: the "
                          "starboard bearing the most main guns reach, nearest 55")
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--propellant", choices=sorted(muzzle.PROPELLANTS), default=None,
+                    help="gun propellant family (default: double_base for portsmouth and kiel looks, else single_base)")
     ap.add_argument("--crf", type=int, default=20, help="x264 quality (lower = better, bigger)")
     ap.add_argument("--still", type=float, default=None, help="write one PNG at this time instead of a video")
     ap.add_argument("--jobs", type=int, default=0, help="ships rendered at once (default: one per core)")

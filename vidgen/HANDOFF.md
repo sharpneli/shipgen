@@ -16,8 +16,10 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
   - bow is +x, bearings run clockwise from ahead
   - `traverse_deg` is one interval that never wraps
   - a mount's `top_m` and the height map are metres above the waterline; hitbox heights are above the main deck
-- **Code:** `wake.py` is vidgen's own (numpy only); `wake.md` and `wake_bake_ref.py` are its research notes and
-  the scipy prototype (v2.2) it was ported from. `from shadow import HEIGHT_STEP_M, shadow_mask, sun_offset_px`. It reaches shipgen's root through
+- **Code:** `wake.py` and `muzzle.py` are vidgen's own (numpy only). `wake.md` and `wake_bake_ref.py` are the
+  wake's research notes and the scipy prototype (v2.2) it was ported from. `muzzle_flash_research.md`,
+  `muzzle_flash_ref.py` and `figs_muzzle_flash.py` are the same for the guns (the figure script needs scipy and
+  matplotlib; the research's `claude/...` paths are where another session wrote it). `from shadow import HEIGHT_STEP_M, shadow_mask, sun_offset_px`. It reaches shipgen's root through
   `sys.path`. `shadow.py` imports `shipgen.py`, which needs cairosvg. In a new repo, copy `shadow_mask` and
   `sun_offset_px` (about 40 lines of numpy) and set `HEIGHT_STEP_M = 0.25`. Point `--designs` at shipgen's
   `out_designs`; the default `ROOT / "out_designs"` assumes vidgen sits inside shipgen.
@@ -77,7 +79,7 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
     and they showed as fine straight streaks.
   - **Checked:** the bake's fields match `wake_bake_ref.py` run through a numpy stand-in for scipy.
   - **Normals:** the wake's slopes at 1x, not wake.md's 2–3x (the swell already carries the light), capped at 0.3.
-- **Particles:** smoke, spray, gun smoke and blast foam are splatted into half-resolution density buffers in blur
+- **Particles:** funnel smoke, spray and blast foam are splatted into half-resolution density buffers in blur
   buckets (`Density`). Buckets with a big radius are splatted into coarser grids, which halved the frame time.
 - **Water:** 14 low-steepness components with no dominant pair, because two strong crossing swells read as a
   lattice. The swell is summed at half resolution, with ripples at full resolution. The ripple tile grows when
@@ -99,6 +101,52 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
 
   The game's shader and shipgen's previews have the same gap. If the sweep looks right, the same fix belongs in
   shipgen's `shadow.py` docs and `render.py`.
+
+## Guns: flash, smoke and shells (muzzle.py, 2026-10-07)
+The user asked to replace the placeholder flashes (a chain of orange blobs sized `1 + calibre/30` m) with the
+research's system, and the tracers (glowing streaks, `calibre >= 75` only) with shells that look like shells.
+`muzzle.py` ports `muzzle_flash_ref.py`'s per-gun constants and per-shot emitters and puff. Each shot is a `Shot`
+that is analytic in time: the scene keeps a list and asks each for its emitters, puff and shell at the frame's
+time, and drops it when the shell has landed or left and the smoke is thin (peak tau < 0.01) or far away.
+- **Inputs:** the bore and calibre length from the turret type id; the charge from the research's fit
+  `4000 d^3 (L/50)`. The propellant comes from the look's navy (double-base for portsmouth and kiel, single-base
+  otherwise) or `--propellant`. shipgen doesn't export ammunition yet; when it does (propellant, flash-reducer salt,
+  bag or cased), read it from there. RH 0.7, wind as for the funnel smoke.
+- **Flash:** primary, intermediate and secondary emitters as the reference. Each emitter's intensity is averaged
+  over 4 samples in the frame interval, splatted with analytic normalisation (sigma >= 0.6 px), and converted to
+  display units as `L / 1500 cd/m^2 * 0.18` (the sunlit sea maps to about the water's own value). Then bloom on a
+  compressed copy (radii 1, 6, 17 px) and a luminance roll-off above 0.7 that turns at most 75 % white. The
+  roll-off is applied only to what the flash adds (`frame + T(frame + F) - T(frame)`), so the rest of the frame is
+  unchanged. Day only; there's no night mode, flash lighting on smoke or the water, or exposure adaptation.
+- **Smoke:** one gaussian puff per shot with the reference's extinction area, drift, rise and spread. Alpha is
+  `1 - e^-tau` (the gameplay contract), splatted at half resolution out to tau 0.003. Mean-1 lognormal noise in the
+  puff's own frame, scaled with sigma, breaks it into billows that grow as it spreads. It's lit as a surface whose
+  height is the blurred log thickness, so billows show inside the opaque core. The colour starts at the propellant's
+  tint and fades to neutral over 5 s; water fog is white. The shadow is the same tau offset by the puff's height.
+  Puffs aren't merged (research 5.5): vidgen's rates stay under ~100 live puffs.
+- **Blast ring:** foam particles as before, now sized by `lam_b` (ring speed `2 lam_b`/s, 1.2 lam_b/s forward).
+  The count is weighted by `exp(-(h_muzzle/lam_b)^2)` in place of the `calibre >= 150` switch: a 380 mm at 8 m gets
+  ~0.8, a 150 mm on a deckhouse almost none.
+- **Shells:** every gun. Mass `14000 d^3` kg, and muzzle velocity from 30 % of the charge's energy (380/52: 905
+  m/s, 105/65 about 900). Elevation is the vacuum angle for `TARGET_RANGE_M` = 12 km (Bismarck 4 degrees, Devastation
+  with black powder 31). The shell keeps the ship's velocity. It's drawn as a 4.5-calibre ogive lit as a cylinder,
+  at least 0.9 px in radius (fainter by the root of the true over the drawn area), with a fading smear of half a
+  frame's motion. Its shadow on the sea moves away from the sun by its height, and its strength falls as
+  `d / (d + 0.0093 z)`, the sun's disc blurring it.
+- **Departures, my picks by eye:**
+  - **Slowed shells:** `SHELL_TIME` = 0.12. At real speed a shell crosses the frame in 2–3 frames, inside its
+    own fireball. Its path is real; only its clock is slowed, like `TRAIN_RATE`.
+  - **Shells over the flash:** on the slowed clock a shell is still inside the fireball it really outran, so it's
+    drawn on top, a dark silhouette as in high-speed photographs.
+  - **Flash profile:** the secondary fireball is flat-topped (`exp(-q^2/2)`, normalised analytically) with noise
+    on its edge. A gaussian's tail stayed visible out to about twice the fireball's size.
+  - **Ship velocity:** the young smoke keeps it for the forward carry's time constant (the reference's gun is on
+    the ground).
+  - **Igniter share:** it rises smoothly from 0.3 % at 100 mm to 1 % at 200 mm. The reference gives cased guns
+    0.3 % and bag guns 1 %; vidgen doesn't know which a mount is.
+  - **No smoke attenuation of the flash** (research 7.6): the flash's own smoke ramps in during the fireball and
+    would put it out.
+- **Speed:** frames with a salvo's flashes take about 0.4 s at 720p, others about 0.25 s.
 
 ## Sinking clips (sinkvid.py, 2026-10-06)
 The user asked for stern- and bow-first sinkings of Bismarck in vidgen's look, with the wake's lace foam, as a

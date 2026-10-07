@@ -51,6 +51,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Default rounds per gun (designer UI default, `TUNING["rounds"]`): 8" gets as many as 18" (100); real treaty cruisers ~150
 - [ ] Report: per-battery rounds and magazine tonnes, so the designer UI can show the endurance-vs-weight trade
 - [ ] Abreast wing pairs keep full barrel swings apart: Lord Nelson and Danton run 30 % long
+- [ ] Export ammunition per battery (propellant family, flash-reducer salt, bag or cased): vidgen guesses it from the navy (vidgen HANDOFF "Guns")
 - [ ] Torpedo placement full check (Japanese-cruiser-size batteries, funnel spacing, swing room) (deferred by user)
 
 ## Superstructure
