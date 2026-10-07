@@ -11,8 +11,6 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Nassau verify noise at the 0.85 threshold (use 0.845 or a finer raster)
 
 ## Hidden thresholds (user: no arbitrary cutoffs; details in HANDOFF)
-- [ ] Mounts under 150 mm weigh 4 t more than at 150 mm (`navarch.mount_weights` `mech`)
-- [ ] Rounds per gun step at 150 and 200 mm (`navarch.rounds_per_gun`)
 - [ ] Officer share 0.15 under 30 crew, 0.08 from 30: 29 crew get 4 officers, 30 get 2 (`crew.py`)
 - [ ] Sickbay only from 15 crew and over 3 days' endurance; +40 m² over 1000 crew (`crew.needs`)
 - [ ] Carrier island default tower: 3 levels, 4 from 200 m (only without `tower_levels`)
@@ -50,6 +48,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Morale inputs in the report: per-rank sleep space and the officer/rating gap (`sleep_m2_per_man` is an all-hands average)
 
 ## Armament
+- [ ] Rounds per gun: 8" carries as many as 18" (100); real treaty cruisers ~150 (`TUNING["rounds"]`)
 - [ ] Abreast wing pairs keep full barrel swings apart: Lord Nelson and Danton run 30 % long
 - [ ] Torpedo placement full check (Japanese-cruiser-size batteries, funnel spacing, swing room) (deferred by user)
 

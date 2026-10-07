@@ -44,7 +44,10 @@ TUNING = dict(
                             # 45 mm torpedo bulkhead plus thinner ones, 5.5 m deep; Iowa four bulkheads, 5.2 m)
     shell_k=1.83e-5,        # shell kg = shell_k * cal_mm^3
     ammo_mult=1.6,          # shell + propellant + handling gear
-    rounds_heavy=100, rounds_medium=200, rounds_light=350,
+    rounds=((127, 350), (152, 200), (203, 100)),   # rounds per gun at these calibres (mm): one curve through them,
+                            # log-log between them and flat beyond (rounds_per_gun)
+    mount_fixed_t=4.0,      # a mount's fixed gear (training gear, shield, platform) at 76 mm and up, falling with
+                            # the cube below: light mounts weigh more than mount_k x their guns
     torp_mount_t=5.0, torp_tube_t=3.0, torp_t=1.6, torp_fixed_tube_t=1.0,
     aa_t={"quad40": 15.0, "twin40": 7.0, "single20": 1.0},
     belt_h_a=0.30, belt_h_b=2.4,   # belt height = a*T + b, half below the waterline (when the design gives none)
@@ -99,11 +102,15 @@ def gun_tube_t(cal_mm, cal_len):
 
 
 def rounds_per_gun(cal_mm):
-    if cal_mm >= 200:
-        return TUNING["rounds_heavy"]
-    if cal_mm >= 150:
-        return TUNING["rounds_medium"]
-    return TUNING["rounds_light"]
+    """Rounds carried per gun: TUNING["rounds"] joined in log-log (a power law between neighbouring points), flat
+    beyond the ends. One curve, so a gun 1 mm heavier carries about as many rounds (no calibre classes)."""
+    pts = TUNING["rounds"]
+    if cal_mm <= pts[0][0]:
+        return pts[0][1]
+    for (c0, r0), (c1, r1) in zip(pts, pts[1:]):
+        if cal_mm <= c1:
+            return r0 * (r1 / r0) ** (math.log(cal_mm / c0) / math.log(c1 / c0))
+    return pts[-1][1]
 
 
 def mount_weights(t: dict, armour_mm: float, depth: float, level: int, deck: float = 0.0):
@@ -111,7 +118,7 @@ def mount_weights(t: dict, armour_mm: float, depth: float, level: int, deck: flo
     weather deck it stands on above the main deck (a raised stretch: its barbette runs up through it)."""
     cal, cl, n, r = t["calibre_mm"], t["calibre_length"], t["barrels"], t["r"]
     guns = n * gun_tube_t(cal, cl)
-    mech = TUNING["mount_k"] * guns + (4.0 * min(1.0, (cal / 76.0) ** 3) if cal < 150 else 0.0)
+    mech = TUNING["mount_k"] * guns + TUNING["mount_fixed_t"] * min(1.0, (cal / 76.0) ** 3)
     th = 0.42 * r
     area = 2 * math.pi * 0.9 * r * th + 0.85 * math.pi * r * r
     t_avg = TUNING["turret_t_avg"] * armour_mm / 1000.0
