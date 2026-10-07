@@ -6,7 +6,7 @@
     "style": "merchant",
     "hull": {
         "block_coefficient": 0.34,
-        "construction": {"name": "High-tensile steel, all welded", "yield_mpa": 350, "join_factor": 1.0, "standard": 1.0},
+        "construction": {"name": "High-tensile steel, all welded", "yield_mpa": 350, "join_factor": 1.0, "standard": 1.0}, "plating": {"shell_mm": 0, "material": "steel"},
         "freeboard": 1.0
     },
     "armour": {"belt_mm": 0, "belt_depth_m": 2.4, "belt_height_m": 2.4, "belt_bottom_mm": 0, "bulkhead_mm": 0, "upper_belt": {"mm": 0, "to_deck": 0, "extent": "citadel"}, "end_belts": {"fore": {"mm": 0, "tip_mm": 0, "reach": 1.0, "bulkhead_mm": 0}, "aft": {"mm": 0, "tip_mm": 0, "reach": 1.0, "bulkhead_mm": 0}}, "steering_box": {"mm": 0, "deck_mm": 0, "bulkhead_mm": 0}, "decks": [], "materials": {"belt": "mild steel", "upper_belt": "mild steel", "end_belts": "mild steel", "bulkheads": "mild steel", "decks": "mild steel", "turrets": "mild steel", "barbettes": "mild steel", "conning_tower": "mild steel", "secondary": "mild steel"}},
@@ -29,6 +29,6 @@
         "count": 2,
         "where": "ends"
     },
-    "superstructure": {"t_per_m2": 0.32, "material": "steel"},
+    "superstructure": {"t_per_m2": 0.32, "material": "steel", "plating_mm": 0, "control_mm": 0},
     "fire_control": {"main": {"directors": 0, "rangefinder_m": 0.0, "armour_mm": 0, "radar_t": 0.0, "computer_t": 0.0}, "secondary": {"directors": 0, "rangefinder_m": 0.0, "armour_mm": 0, "radar_t": 0.0, "computer_t": 0.0}, "aa": {"directors": 0, "rangefinder_m": 0.0, "armour_mm": 0, "radar_t": 0.0, "computer_t": 0.0}, "search_radar_t": 0.0}
 }

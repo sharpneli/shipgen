@@ -3689,6 +3689,20 @@
    }
   ]
  },
+ "plating": {
+  "material": "steel",
+  "shell_mm": 11.1,
+  "shell_end_mm": 11.1,
+  "strength_deck_mm": 11.1,
+  "strength_deck_end_mm": 11.1,
+  "mid_x0": -88.7,
+  "mid_x1": 88.7,
+  "deck_mm": 6.7,
+  "bulkhead_mm": 7.8,
+  "inner_bottom_mm": 11.1,
+  "superstructure_mm": 8.9,
+  "control_mm": 8.9
+ },
  "components": [
   {
    "id": "A",
@@ -6678,7 +6692,8 @@
    ],
    "base": 0.0,
    "top": 2.6,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 8.9
   },
   {
    "id": "Bridge base 2",
@@ -6721,7 +6736,8 @@
    ],
    "base": 2.6,
    "top": 5.2,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 8.9
   },
   {
    "id": "Bridge base 3",
@@ -6764,7 +6780,8 @@
    ],
    "base": 5.2,
    "top": 7.8,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 8.9
   },
   {
    "id": "Bridge base 4",
@@ -6807,7 +6824,8 @@
    ],
    "base": 7.8,
    "top": 10.4,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 8.9
   },
   {
    "id": "Bridge",
@@ -6850,7 +6868,8 @@
    ],
    "base": 10.4,
    "top": 13.0,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 8.9
   },
   {
    "id": "Bridge upper",
@@ -6893,7 +6912,8 @@
    ],
    "base": 13.0,
    "top": 15.6,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 8.9
   },
   {
    "id": "Tower 7",
@@ -6936,7 +6956,8 @@
    ],
    "base": 15.6,
    "top": 18.2,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 8.9
   },
   {
    "id": "Aft control base 2",
@@ -6979,7 +7000,8 @@
    ],
    "base": 2.6,
    "top": 5.2,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 8.9
   },
   {
    "id": "Aft control base 3",
@@ -7022,7 +7044,8 @@
    ],
    "base": 5.2,
    "top": 7.8,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 8.9
   },
   {
    "id": "Aft control",
@@ -7065,7 +7088,8 @@
    ],
    "base": 7.8,
    "top": 10.4,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 8.9
   },
   {
    "id": "Aft control upper",
@@ -7108,7 +7132,8 @@
    ],
    "base": 10.4,
    "top": 13.0,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 8.9
   },
   {
    "id": "Deckhouse 2",
@@ -7151,7 +7176,8 @@
    ],
    "base": 2.6,
    "top": 5.2,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 8.9
   },
   {
    "id": "Deckhouse 3",
@@ -7194,7 +7220,8 @@
    ],
    "base": 5.2,
    "top": 7.8,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 8.9
   },
   {
    "id": "Main director",
@@ -9812,13 +9839,15 @@
   {
    "id": "Inner bottom",
    "kind": "inner_bottom",
-   "z": -15.047
+   "z": -15.047,
+   "plate_mm": 11.1
   },
   {
    "id": "Sixth deck",
    "kind": "deck",
    "deck": 5,
-   "z": -13.0
+   "z": -13.0,
+   "plate_mm": 6.7
   },
   {
    "id": "Fifth deck",
@@ -9828,19 +9857,22 @@
    "armour_mm": 157,
    "x0": -111.155,
    "x1": -99.33,
-   "material": "Class B"
+   "material": "Class B",
+   "plate_mm": 6.7
   },
   {
    "id": "Fourth deck",
    "kind": "deck",
    "deck": 3,
-   "z": -7.8
+   "z": -7.8,
+   "plate_mm": 6.7
   },
   {
    "id": "Third deck",
    "kind": "deck",
    "deck": 2,
-   "z": -5.2
+   "z": -5.2,
+   "plate_mm": 6.7
   },
   {
    "id": "Second deck",
@@ -9850,13 +9882,16 @@
    "armour_mm": 152,
    "x0": -68.27,
    "x1": 66.243,
-   "material": "Class B"
+   "material": "Class B",
+   "plate_mm": 6.7
   },
   {
    "id": "Main deck",
    "kind": "main",
    "deck": 0,
-   "z": 0.0
+   "z": 0.0,
+   "plate_mm": 11.1,
+   "plate_end_mm": 11.1
   }
  ],
  "tiers": [
@@ -10037,21 +10072,24 @@
    "kind": "collision",
    "x": 106.425,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 2",
    "kind": "main",
    "x": 93.031,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 3",
    "kind": "main",
    "x": 79.637,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 4",
@@ -10062,91 +10100,104 @@
    "armour_mm": 287,
    "armour_bottom": -11.16,
    "armour_top": -2.6,
-   "armour_material": "Class A"
+   "armour_material": "Class A",
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 5",
    "kind": "main",
    "x": 57.674,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 6",
    "kind": "main",
    "x": 49.105,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 7",
    "kind": "main",
    "x": 39.279,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 8",
    "kind": "main",
    "x": 29.453,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 9",
    "kind": "main",
    "x": 18.211,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 10",
    "kind": "main",
    "x": 7.017,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 11",
    "kind": "main",
    "x": -4.176,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 12",
    "kind": "main",
    "x": -16.576,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 13",
    "kind": "main",
    "x": -28.976,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 14",
    "kind": "main",
    "x": -41.376,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 15",
    "kind": "main",
    "x": -51.132,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 16",
    "kind": "main",
    "x": -59.701,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 17",
@@ -10157,14 +10208,16 @@
    "armour_mm": 287,
    "armour_bottom": -11.16,
    "armour_top": -2.6,
-   "armour_material": "Class A"
+   "armour_material": "Class A",
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 18",
    "kind": "main",
    "x": -83.8,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 19",
@@ -10175,14 +10228,16 @@
    "armour_mm": 287,
    "armour_bottom": -15.05,
    "armour_top": -10.4,
-   "armour_material": "Class A"
+   "armour_material": "Class A",
+   "plate_mm": 7.8
   },
   {
    "id": "Bulkhead 20",
    "kind": "main",
    "x": -108.79,
    "base": -16.18,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 7.8
   },
   {
    "id": "Torpedo bulkhead 5 S",
@@ -10193,7 +10248,8 @@
    "x0": 57.674,
    "x1": 66.243,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 5 P",
@@ -10204,7 +10260,8 @@
    "x0": 57.674,
    "x1": 66.243,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 6 S",
@@ -10215,7 +10272,8 @@
    "x0": 49.105,
    "x1": 57.674,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 6 P",
@@ -10226,7 +10284,8 @@
    "x0": 49.105,
    "x1": 57.674,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 7 S",
@@ -10237,7 +10296,8 @@
    "x0": 39.279,
    "x1": 49.105,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 7 P",
@@ -10248,7 +10308,8 @@
    "x0": 39.279,
    "x1": 49.105,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 8 S",
@@ -10259,7 +10320,8 @@
    "x0": 29.453,
    "x1": 39.279,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 8 P",
@@ -10270,7 +10332,8 @@
    "x0": 29.453,
    "x1": 39.279,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 9 S",
@@ -10281,7 +10344,8 @@
    "x0": 18.211,
    "x1": 29.453,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 9 P",
@@ -10292,7 +10356,8 @@
    "x0": 18.211,
    "x1": 29.453,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 10 S",
@@ -10303,7 +10368,8 @@
    "x0": 7.017,
    "x1": 18.211,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 10 P",
@@ -10314,7 +10380,8 @@
    "x0": 7.017,
    "x1": 18.211,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 11 S",
@@ -10325,7 +10392,8 @@
    "x0": -4.176,
    "x1": 7.017,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 11 P",
@@ -10336,7 +10404,8 @@
    "x0": -4.176,
    "x1": 7.017,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 12 S",
@@ -10347,7 +10416,8 @@
    "x0": -16.576,
    "x1": -4.176,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 12 P",
@@ -10358,7 +10428,8 @@
    "x0": -16.576,
    "x1": -4.176,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 13 S",
@@ -10369,7 +10440,8 @@
    "x0": -28.976,
    "x1": -16.576,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 13 P",
@@ -10380,7 +10452,8 @@
    "x0": -28.976,
    "x1": -16.576,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 14 S",
@@ -10391,7 +10464,8 @@
    "x0": -41.376,
    "x1": -28.976,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 14 P",
@@ -10402,7 +10476,8 @@
    "x0": -41.376,
    "x1": -28.976,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 15 S",
@@ -10413,7 +10488,8 @@
    "x0": -51.132,
    "x1": -41.376,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 15 P",
@@ -10424,7 +10500,8 @@
    "x0": -51.132,
    "x1": -41.376,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 16 S",
@@ -10435,7 +10512,8 @@
    "x0": -59.701,
    "x1": -51.132,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 16 P",
@@ -10446,7 +10524,8 @@
    "x0": -59.701,
    "x1": -51.132,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 17 S",
@@ -10457,7 +10536,8 @@
    "x0": -68.27,
    "x1": -59.701,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   },
   {
    "id": "Torpedo bulkhead 17 P",
@@ -10468,7 +10548,8 @@
    "x0": -68.27,
    "x1": -59.701,
    "base": -15.05,
-   "top": -2.6
+   "top": -2.6,
+   "plate_mm": 62.4
   }
  ],
  "cells": [

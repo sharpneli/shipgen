@@ -22,6 +22,10 @@
         "join_factor": 1.04,
         "standard": 1.0
       },
+      "plating": {
+        "shell_mm": 0,
+        "material": "steel"
+      },
       "freeboard": 1.0,
       "raised": [
         {
@@ -158,6 +162,8 @@
     "superstructure": {
       "t_per_m2": 0.32,
       "material": "steel",
+      "plating_mm": 0,
+      "control_mm": 0,
       "tower_levels": 7,
       "deckhouse_levels": 3
     },
@@ -289,6 +295,7 @@
     "strength_t": 0,
     "plate_min_mm": 10.6,
     "plate_strength_mm": 5.7,
+    "shell_plating_t": 0,
     "girder": {
       "allowable_stress_mpa": 166.7,
       "required_m4": 114.05,

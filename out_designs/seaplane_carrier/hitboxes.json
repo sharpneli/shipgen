@@ -3601,6 +3601,20 @@
   ]
  },
  "armour": {},
+ "plating": {
+  "material": "steel",
+  "shell_mm": 6.4,
+  "shell_end_mm": 6.4,
+  "strength_deck_mm": 6.4,
+  "strength_deck_end_mm": 6.4,
+  "mid_x0": -30.4,
+  "mid_x1": 30.4,
+  "deck_mm": 3.9,
+  "bulkhead_mm": 4.5,
+  "inner_bottom_mm": 6.4,
+  "superstructure_mm": 5.1,
+  "control_mm": 5.1
+ },
  "components": [
   {
    "id": "S1",
@@ -4191,7 +4205,8 @@
    },
    "base": 0.0,
    "top": 2.6,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 5.1
   },
   {
    "id": "Hangar roof",
@@ -4354,7 +4369,8 @@
    },
    "base": 2.6,
    "top": 5.2,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 5.1
   },
   {
    "id": "Bridge base",
@@ -4517,7 +4533,8 @@
    },
    "base": 0.0,
    "top": 2.6,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 5.1
   },
   {
    "id": "Bridge",
@@ -4680,7 +4697,8 @@
    },
    "base": 2.6,
    "top": 5.2,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 5.1
   },
   {
    "id": "Bridge upper",
@@ -4843,7 +4861,8 @@
    },
    "base": 5.2,
    "top": 7.8,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 5.1
   },
   {
    "id": "Funnel 1",
@@ -5437,19 +5456,23 @@
   {
    "id": "Inner bottom",
    "kind": "inner_bottom",
-   "z": -5.947
+   "z": -5.947,
+   "plate_mm": 6.4
   },
   {
    "id": "Second deck",
    "kind": "deck",
    "deck": 1,
-   "z": -2.6
+   "z": -2.6,
+   "plate_mm": 3.9
   },
   {
    "id": "Main deck",
    "kind": "main",
    "deck": 0,
-   "z": 0.0
+   "z": 0.0,
+   "plate_mm": 6.4,
+   "plate_end_mm": 6.4
   }
  ],
  "tiers": [
@@ -5584,126 +5607,144 @@
    "kind": "collision",
    "x": 36.45,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 2",
    "kind": "main",
    "x": 31.682,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 3",
    "kind": "main",
    "x": 26.913,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 4",
    "kind": "main",
    "x": 22.145,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 5",
    "kind": "main",
    "x": 17.377,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 6",
    "kind": "main",
    "x": 14.431,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 7",
    "kind": "main",
    "x": 10.897,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 8",
    "kind": "main",
    "x": 7.382,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 9",
    "kind": "main",
    "x": 3.867,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 10",
    "kind": "main",
    "x": 0.288,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 11",
    "kind": "main",
    "x": -3.292,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 12",
    "kind": "main",
    "x": -8.152,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 13",
    "kind": "main",
    "x": -13.326,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 14",
    "kind": "main",
    "x": -18.499,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 15",
    "kind": "main",
    "x": -23.673,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 16",
    "kind": "main",
    "x": -28.846,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 17",
    "kind": "main",
    "x": -34.02,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   },
   {
    "id": "Bulkhead 18",
    "kind": "main",
    "x": -38.07,
    "base": -6.95,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.5
   }
  ],
  "cells": [

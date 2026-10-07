@@ -90,10 +90,16 @@ def _overlap(a, b, margin=0.0):
 
 
 class Layout:
-    def __init__(self, design=None, sup_t=None):
+    def __init__(self, design=None, sup_t=None, own_plate_mm=None):
+        import hullweight
         sup = (design or {}).get("superstructure") or {}
         # superstructure structure weight per m2 of each level's footprint (steel about 0.32, aluminium about 0.2)
         self.sup_t = sup.get("t_per_m2", TUNING["superstructure_t_per_m2"] if sup_t is None else sup_t)
+        # wall plating (superstructure.plating_mm, and control_mm on the bridge and aft control): 0 is the
+        # structure's own gauge, hullweight.SUP_PLATE_K x the hull's (own_plate_mm: a box-model hull's own gauge)
+        self.sup_plate = (sup.get("plating_mm", 0.0), sup.get("control_mm", 0.0))
+        self.construction = hullweight.construction(design or {})
+        self.own_plate_mm = own_plate_mm
         self.directors = []     # fire-control directors (firecontrol.place)
         self.components = []    # exact geometry + heights (hitboxes)
         self.footprints = []    # (fp, base, top, owner_id) for collision tests
@@ -253,9 +259,34 @@ def add_block(lay, blocks, bid, x0, x1, w, level, rf, rb, y=0.0, z0=0.0, layer=N
     blocks.append(b)
     lay.occupy(_fp_poly(points) if points else _fp_rect(x0, y - w / 2, x1, y + w / 2), block_base(b), block_top(b), bid)
     t_per_m2 = lay.sup_t if t_per_m2 is None else t_per_m2
-    lay.weights.append(Weight(bid, "superstructure", area * t_per_m2,
-                              x=xc, z_rel=("deck", (block_base(b) + block_top(b)) / 2)))
+    w = area * t_per_m2
+    if kind == "superstructure":    # its walls' plating (directors have their own hoods)
+        w += block_plating(lay, b)
+    lay.weights.append(Weight(bid, "superstructure", w, x=xc, z_rel=("deck", (block_base(b) + block_top(b)) / 2)))
     return b
+
+
+def own_plate_mm(lay):
+    """The hull's own gauge, mm: a box-model hull's planking, else the plate model's minimum gauge."""
+    import hullweight
+    return lay.own_plate_mm if lay.own_plate_mm is not None else hullweight.t_min_mm(lay.hull.L, lay.construction)
+
+
+def block_plating(lay, b):
+    """A superstructure block's wall plating: records b["_plate_mm"] (for the hitboxes) and returns the weight of
+    plate beyond the structure's own gauge, t (the walls: perimeter x height, plain steel plate; the structure's own
+    is in t_per_m2). Thinner than the own gauge saves nothing: superstructure.t_per_m2 is the lighter structure."""
+    import hullweight
+    from hitbox import block_role
+    from geometry import block_outline
+    own = hullweight.SUP_PLATE_K * own_plate_mm(lay)
+    mm = max(own, lay.sup_plate[0])
+    if block_role(b["id"]) in ("bridge", "aft_control"):
+        mm = max(mm, lay.sup_plate[1])
+    b["_plate_mm"] = round(mm, 1)
+    pts = block_outline(b)
+    perim = sum(math.dist(pts[i - 1], pts[i]) for i in range(len(pts)))
+    return hullweight.extra_plate_t(perim * (block_top(b) - block_base(b)), mm, own)
 
 
 RAISED_INSET = 0.3     # a raised stretch's deck stands this far inside the hull's edge (the drawn step)
@@ -283,7 +314,7 @@ def add_raised(lay, design, rid, x0, x1, levels=1, breaks=None):
                  if -L / 2 + 0.5 < x < L / 2 - 0.5)
     side_m2 = 2 * (x1 - x0) * h
     c = hullweight.construction(design)
-    t = hullweight.raised_t(L, c, area, side_m2, end_m2)
+    t = hullweight.raised_t(L, c, area, side_m2, end_m2, hullweight.plating(design)["shell_mm"])
     lay.weights.append(Weight(rid, "hull", t, x=xc, z_rel=("deck", h * (area + 0.5 * (side_m2 + end_m2)) /
                                                            (area + side_m2 + end_m2))))
     return lay.raised[-1]

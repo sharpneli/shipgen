@@ -3577,6 +3577,20 @@
   ]
  },
  "armour": {},
+ "plating": {
+  "material": "wood",
+  "shell_mm": 25.0,
+  "shell_end_mm": 25.0,
+  "strength_deck_mm": 25.0,
+  "strength_deck_end_mm": 25.0,
+  "mid_x0": -12.6,
+  "mid_x1": 12.6,
+  "deck_mm": 15.0,
+  "bulkhead_mm": 17.5,
+  "inner_bottom_mm": 25.0,
+  "superstructure_mm": 20.0,
+  "control_mm": 20.0
+ },
  "components": [
   {
    "id": "T1S",
@@ -4564,6 +4578,7 @@
    "base": 0.0,
    "top": 2.6,
    "material": "wood",
+   "plate_mm": 20.0,
    "crew": 9
   },
   {
@@ -4905,7 +4920,9 @@
    "id": "Main deck",
    "kind": "main",
    "deck": 0,
-   "z": 0.0
+   "z": 0.0,
+   "plate_mm": 25.0,
+   "plate_end_mm": 25.0
   }
  ],
  "tiers": [
@@ -4972,56 +4989,64 @@
    "kind": "main",
    "x": 15.41,
    "base": -3.22,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 17.5
   },
   {
    "id": "Bulkhead 2",
    "kind": "main",
    "x": 14.07,
    "base": -3.22,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 17.5
   },
   {
    "id": "Bulkhead 3",
    "kind": "main",
    "x": 7.02,
    "base": -3.22,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 17.5
   },
   {
    "id": "Bulkhead 4",
    "kind": "main",
    "x": 5.122,
    "base": -3.22,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 17.5
   },
   {
    "id": "Bulkhead 5",
    "kind": "main",
    "x": 3.223,
    "base": -3.22,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 17.5
   },
   {
    "id": "Bulkhead 6",
    "kind": "main",
    "x": 1.325,
    "base": -3.22,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 17.5
   },
   {
    "id": "Bulkhead 7",
    "kind": "main",
    "x": -2.68,
    "base": -3.22,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 17.5
   },
   {
    "id": "Bulkhead 8",
    "kind": "main",
    "x": -14.07,
    "base": -3.22,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 17.5
   }
  ],
  "cells": [

@@ -298,6 +298,7 @@ def hull_report(design, r):
         construction=hullweight.construction(design).get("name"), structure_t=round(h["t"]),
         min_gauge_t=round(h["min_gauge_t"]), strength_t=round(h["strength_t"]),
         plate_min_mm=round(h["t_min_mm"], 1), plate_strength_mm=round(h["t_str_mm"], 1),
+        shell_plating_t=round(h["shell_t"]),
         girder=dict(allowable_stress_mpa=round(h["stress_mpa"], 1), required_m4=round(h["i_req_m4"], 2),
                     plating_m4=round(h["i_plating_m4"], 2), armour_decks_m4=round(h["i_armour_m4"], 2)))
 

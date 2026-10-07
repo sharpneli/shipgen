@@ -13,7 +13,7 @@ COMMON_LIMITS = {
     ("hull", "block_coefficient"): (0.42, 0.68),
     ("hull", "construction", "yield_mpa"): (100, 1500), ("hull", "construction", "join_factor"): (0.8, 1.5),
     ("hull", "construction", "standard"): (0.5, 2.0), ("hull", "freeboard"): (0.3, 2.0),
-    ("hull", "raised", "decks"): (1, 2),
+    ("hull", "raised", "decks"): (1, 2), ("hull", "plating", "shell_mm"): (0, 200),
     ("speed_kn",): (8, 42), ("range_nm",): (1000, 25000),
     ("main", "calibre_mm"): (1, 2000), ("main", "calibre_length"): (1, 200), ("main", "barrels"): (1, 20),
     ("main", "fore"): (0, 40), ("main", "aft"): (0, 40), ("main", "mid"): (0, 40),
@@ -32,7 +32,8 @@ COMMON_LIMITS = {
        for k, lim in (("reach", (0, 1)), ("bulkhead_mm", (0, 2000)))},
     **{("armour", "steering_box", k): (0, 2000) for k in ("mm", "deck_mm", "bulkhead_mm")},
     ("superstructure", "t_per_m2"): (0, 5), ("superstructure", "tower_levels"): (1, 30),
-    ("superstructure", "deckhouse_levels"): (1, 30),
+    ("superstructure", "deckhouse_levels"): (1, 30), ("superstructure", "plating_mm"): (0, 200),
+    ("superstructure", "control_mm"): (0, 500),
     **{("fire_control", b, k): lim for b in ("main", "secondary", "aa") for k, lim in (
         ("directors", (0, 100)), ("rangefinder_m", (0, 50)), ("armour_mm", (0, 2000)), ("radar_t", (0, 500)),
         ("computer_t", (0, 500)))},
@@ -82,7 +83,7 @@ def undefined_errors(design):
     return errs
 
 
-SUPERSTRUCTURE_KEYS = ("t_per_m2", "material", "tower_levels", "deckhouse_levels")
+SUPERSTRUCTURE_KEYS = ("t_per_m2", "material", "plating_mm", "control_mm", "tower_levels", "deckhouse_levels")
 RAISED_ENDS = ("bow", "stern")
 # what a raised stretch runs through from its end, bow to stern (layout.raised_breaks)
 RAISED_FEATURES = ("fore_group", "bridge", "funnels", "aft_control", "aft_group")
@@ -122,6 +123,9 @@ def superstructure_errors(design, style) -> list[str]:
             if k not in SUPERSTRUCTURE_KEYS]
     if "t_per_m2" in s and not (isinstance(s["t_per_m2"], (int, float)) and s["t_per_m2"] >= 0):
         errs.append("superstructure.t_per_m2 must be a number, 0 or more")
+    for k in ("plating_mm", "control_mm"):
+        if k in s and not (isinstance(s[k], (int, float)) and s[k] >= 0):
+            errs.append(f"superstructure.{k}: a number, 0 or more (0: the structure's own gauge)")
     if "material" in s and (not isinstance(s["material"], str) or not s["material"]):
         errs.append("superstructure.material: name the material as a string")
     if "deckhouse_levels" in s:

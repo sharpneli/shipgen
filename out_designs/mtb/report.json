@@ -17,6 +17,10 @@
     "style": "planing",
     "hull": {
       "block_coefficient": 0.45,
+      "plating": {
+        "shell_mm": 0,
+        "material": "wood"
+      },
       "freeboard": 1.0
     },
     "armour": {
@@ -144,7 +148,9 @@
     },
     "superstructure": {
       "t_per_m2": 0.1,
-      "material": "wood"
+      "material": "wood",
+      "plating_mm": 0,
+      "control_mm": 0
     },
     "fire_control": {
       "main": {

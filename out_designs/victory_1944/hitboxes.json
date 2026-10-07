@@ -3549,6 +3549,20 @@
    }
   ]
  },
+ "plating": {
+  "material": "steel",
+  "shell_mm": 6.0,
+  "shell_end_mm": 6.0,
+  "strength_deck_mm": 6.0,
+  "strength_deck_end_mm": 6.0,
+  "mid_x0": -24.4,
+  "mid_x1": 24.4,
+  "deck_mm": 3.6,
+  "bulkhead_mm": 4.2,
+  "inner_bottom_mm": 6.0,
+  "superstructure_mm": 4.8,
+  "control_mm": 4.8
+ },
  "components": [
   {
    "id": "S1S",
@@ -7662,6 +7676,7 @@
    "base": 0.0,
    "top": 2.6,
    "material": "steel",
+   "plate_mm": 4.8,
    "crew": 102
   },
   {
@@ -7706,6 +7721,7 @@
    "base": 2.6,
    "top": 5.2,
    "material": "steel",
+   "plate_mm": 4.8,
    "crew": 10
   },
   {
@@ -7750,6 +7766,7 @@
    "base": 5.2,
    "top": 7.8,
    "material": "steel",
+   "plate_mm": 4.8,
    "crew": 7
   },
   {
@@ -7913,7 +7930,8 @@
    },
    "base": 0.0,
    "top": 2.6,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 4.8
   },
   {
    "id": "Casemate housing 1P",
@@ -8076,7 +8094,8 @@
    },
    "base": 0.0,
    "top": 2.6,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 4.8
   },
   {
    "id": "Casemate housing 2S",
@@ -8239,7 +8258,8 @@
    },
    "base": 0.0,
    "top": 2.6,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 4.8
   },
   {
    "id": "Casemate housing 2P",
@@ -8402,7 +8422,8 @@
    },
    "base": 0.0,
    "top": 2.6,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 4.8
   },
   {
    "id": "Casemate housing 3S",
@@ -8565,7 +8586,8 @@
    },
    "base": 0.0,
    "top": 2.6,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 4.8
   },
   {
    "id": "Casemate housing 3P",
@@ -8728,7 +8750,8 @@
    },
    "base": 0.0,
    "top": 2.6,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 4.8
   },
   {
    "id": "Casemate housing 4S",
@@ -8891,7 +8914,8 @@
    },
    "base": 0.0,
    "top": 2.6,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 4.8
   },
   {
    "id": "Casemate housing 4P",
@@ -9054,7 +9078,8 @@
    },
    "base": 0.0,
    "top": 2.6,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 4.8
   },
   {
    "id": "Casemate housing 5S",
@@ -9217,7 +9242,8 @@
    },
    "base": 0.0,
    "top": 2.6,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 4.8
   },
   {
    "id": "Casemate housing 5P",
@@ -9380,7 +9406,8 @@
    },
    "base": 0.0,
    "top": 2.6,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 4.8
   },
   {
    "id": "Secondary director 1",
@@ -10086,7 +10113,8 @@
   {
    "id": "Inner bottom",
    "kind": "inner_bottom",
-   "z": -5.635
+   "z": -5.635,
+   "plate_mm": 6.0
   },
   {
    "id": "Second deck",
@@ -10096,13 +10124,16 @@
    "armour_mm": 25,
    "x0": -16.026,
    "x1": 14.665,
-   "material": "STS"
+   "material": "STS",
+   "plate_mm": 3.6
   },
   {
    "id": "Main deck",
    "kind": "main",
    "deck": 0,
-   "z": 0.0
+   "z": 0.0,
+   "plate_mm": 6.0,
+   "plate_end_mm": 6.0
   }
  ],
  "tiers": [
@@ -10232,28 +10263,32 @@
    "kind": "collision",
    "x": 29.25,
    "base": -6.63,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.2
   },
   {
    "id": "Bulkhead 2",
    "kind": "main",
    "x": 25.604,
    "base": -6.63,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.2
   },
   {
    "id": "Bulkhead 3",
    "kind": "main",
    "x": 21.958,
    "base": -6.63,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.2
   },
   {
    "id": "Bulkhead 4",
    "kind": "main",
    "x": 18.311,
    "base": -6.63,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.2
   },
   {
    "id": "Bulkhead 5",
@@ -10264,56 +10299,64 @@
    "armour_mm": 46,
    "armour_bottom": -5.73,
    "armour_top": -0.97,
-   "armour_material": "Class B"
+   "armour_material": "Class B",
+   "plate_mm": 4.2
   },
   {
    "id": "Bulkhead 6",
    "kind": "main",
    "x": 9.325,
    "base": -6.63,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.2
   },
   {
    "id": "Bulkhead 7",
    "kind": "main",
    "x": 4.727,
    "base": -6.63,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.2
   },
   {
    "id": "Bulkhead 8",
    "kind": "main",
    "x": 2.077,
    "base": -6.63,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.2
   },
   {
    "id": "Bulkhead 9",
    "kind": "main",
    "x": -0.573,
    "base": -6.63,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.2
   },
   {
    "id": "Bulkhead 10",
    "kind": "main",
    "x": -4.097,
    "base": -6.63,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.2
   },
   {
    "id": "Bulkhead 11",
    "kind": "main",
    "x": -7.62,
    "base": -6.63,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.2
   },
   {
    "id": "Bulkhead 12",
    "kind": "main",
    "x": -12.96,
    "base": -6.63,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.2
   },
   {
    "id": "Bulkhead 13",
@@ -10324,35 +10367,40 @@
    "armour_mm": 46,
    "armour_bottom": -5.73,
    "armour_top": -0.97,
-   "armour_material": "Class B"
+   "armour_material": "Class B",
+   "plate_mm": 4.2
   },
   {
    "id": "Bulkhead 14",
    "kind": "main",
    "x": -19.784,
    "base": -6.63,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.2
   },
   {
    "id": "Bulkhead 15",
    "kind": "main",
    "x": -23.542,
    "base": -6.63,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.2
   },
   {
    "id": "Bulkhead 16",
    "kind": "main",
    "x": -27.3,
    "base": -6.63,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.2
   },
   {
    "id": "Bulkhead 17",
    "kind": "main",
    "x": -29.9,
    "base": -6.63,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 4.2
   }
  ],
  "cells": [

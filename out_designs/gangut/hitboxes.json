@@ -3649,6 +3649,20 @@
    }
   ]
  },
+ "plating": {
+  "material": "steel",
+  "shell_mm": 22.4,
+  "shell_end_mm": 14.5,
+  "strength_deck_mm": 22.4,
+  "strength_deck_end_mm": 14.5,
+  "mid_x0": -339.0,
+  "mid_x1": 339.0,
+  "deck_mm": 8.7,
+  "bulkhead_mm": 10.1,
+  "inner_bottom_mm": 14.5,
+  "superstructure_mm": 11.6,
+  "control_mm": 11.6
+ },
  "components": [
   {
    "id": "A",
@@ -11849,7 +11863,8 @@
    ],
    "base": 0.0,
    "top": 2.6,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 11.6
   },
   {
    "id": "Bridge base 2",
@@ -11892,7 +11907,8 @@
    ],
    "base": 2.6,
    "top": 5.2,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 11.6
   },
   {
    "id": "Bridge",
@@ -11935,7 +11951,8 @@
    ],
    "base": 5.2,
    "top": 7.8,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 11.6
   },
   {
    "id": "Bridge upper",
@@ -11978,7 +11995,8 @@
    ],
    "base": 7.8,
    "top": 10.4,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 11.6
   },
   {
    "id": "Aft control base 2",
@@ -12021,7 +12039,8 @@
    ],
    "base": 2.6,
    "top": 5.2,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 11.6
   },
   {
    "id": "Aft control",
@@ -12065,6 +12084,7 @@
    "base": 5.2,
    "top": 7.8,
    "material": "steel",
+   "plate_mm": 11.6,
    "smoke": [
     "Funnel 19"
    ]
@@ -12110,7 +12130,8 @@
    ],
    "base": 7.8,
    "top": 10.4,
-   "material": "steel"
+   "material": "steel",
+   "plate_mm": 11.6
   },
   {
    "id": "Main director",
@@ -18644,7 +18665,8 @@
   {
    "id": "Inner bottom",
    "kind": "inner_bottom",
-   "z": -21.609
+   "z": -21.609,
+   "plate_mm": 14.5
   },
   {
    "id": "Eighth deck",
@@ -18654,49 +18676,58 @@
    "armour_mm": 76,
    "x0": -380.513,
    "x1": 346.373,
-   "material": "Krupp non-cemented"
+   "material": "Krupp non-cemented",
+   "plate_mm": 8.7
   },
   {
    "id": "Seventh deck",
    "kind": "deck",
    "deck": 6,
-   "z": -15.6
+   "z": -15.6,
+   "plate_mm": 8.7
   },
   {
    "id": "Sixth deck",
    "kind": "deck",
    "deck": 5,
-   "z": -13.0
+   "z": -13.0,
+   "plate_mm": 8.7
   },
   {
    "id": "Fifth deck",
    "kind": "deck",
    "deck": 4,
-   "z": -10.4
+   "z": -10.4,
+   "plate_mm": 8.7
   },
   {
    "id": "Fourth deck",
    "kind": "deck",
    "deck": 3,
-   "z": -7.8
+   "z": -7.8,
+   "plate_mm": 8.7
   },
   {
    "id": "Third deck",
    "kind": "deck",
    "deck": 2,
-   "z": -5.2
+   "z": -5.2,
+   "plate_mm": 8.7
   },
   {
    "id": "Second deck",
    "kind": "deck",
    "deck": 1,
-   "z": -2.6
+   "z": -2.6,
+   "plate_mm": 8.7
   },
   {
    "id": "Main deck",
    "kind": "main",
    "deck": 0,
-   "z": 0.0
+   "z": 0.0,
+   "plate_mm": 22.4,
+   "plate_end_mm": 14.5
   }
  ],
  "tiers": [
@@ -19040,7 +19071,8 @@
    "kind": "collision",
    "x": 406.8,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 2",
@@ -19051,322 +19083,368 @@
    "armour_mm": 135,
    "armour_bottom": -21.91,
    "armour_top": -15.47,
-   "armour_material": "Krupp cemented"
+   "armour_material": "Krupp cemented",
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 3",
    "kind": "main",
    "x": 332.561,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 4",
    "kind": "main",
    "x": 312.91,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 5",
    "kind": "main",
    "x": 300.647,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 6",
    "kind": "main",
    "x": 288.835,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 7",
    "kind": "main",
    "x": 269.358,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 8",
    "kind": "main",
    "x": 257.546,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 9",
    "kind": "main",
    "x": 238.069,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 10",
    "kind": "main",
    "x": 226.257,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 11",
    "kind": "main",
    "x": 206.779,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 12",
    "kind": "main",
    "x": 194.967,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 13",
    "kind": "main",
    "x": 175.49,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 14",
    "kind": "main",
    "x": 163.678,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 15",
    "kind": "main",
    "x": 144.201,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 16",
    "kind": "main",
    "x": 132.389,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 17",
    "kind": "main",
    "x": 112.912,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 18",
    "kind": "main",
    "x": 101.1,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 19",
    "kind": "main",
    "x": 81.622,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 20",
    "kind": "main",
    "x": 69.81,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 21",
    "kind": "main",
    "x": 50.333,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 22",
    "kind": "main",
    "x": 38.521,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 23",
    "kind": "main",
    "x": 19.044,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 24",
    "kind": "main",
    "x": 7.232,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 25",
    "kind": "main",
    "x": -12.245,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 26",
    "kind": "main",
    "x": -24.057,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 27",
    "kind": "main",
    "x": -43.534,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 28",
    "kind": "main",
    "x": -55.346,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 29",
    "kind": "main",
    "x": -74.824,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 30",
    "kind": "main",
    "x": -86.636,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 31",
    "kind": "main",
    "x": -106.113,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 32",
    "kind": "main",
    "x": -117.925,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 33",
    "kind": "main",
    "x": -137.402,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 34",
    "kind": "main",
    "x": -149.214,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 35",
    "kind": "main",
    "x": -168.691,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 36",
    "kind": "main",
    "x": -180.503,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 37",
    "kind": "main",
    "x": -199.98,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 38",
    "kind": "main",
    "x": -211.792,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 39",
    "kind": "main",
    "x": -231.27,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 40",
    "kind": "main",
    "x": -243.082,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 41",
    "kind": "main",
    "x": -262.559,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 42",
    "kind": "main",
    "x": -274.371,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 43",
    "kind": "main",
    "x": -293.848,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 44",
    "kind": "main",
    "x": -305.66,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 45",
    "kind": "main",
    "x": -322.37,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 46",
    "kind": "main",
    "x": -331.864,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 47",
    "kind": "main",
    "x": -366.701,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 48",
@@ -19377,14 +19455,16 @@
    "armour_mm": 135,
    "armour_bottom": -21.91,
    "armour_top": -15.47,
-   "armour_material": "Krupp cemented"
+   "armour_material": "Krupp cemented",
+   "plate_mm": 10.1
   },
   {
    "id": "Bulkhead 49",
    "kind": "main",
    "x": -424.88,
    "base": -23.24,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 12 S",
@@ -19395,7 +19475,8 @@
    "x0": 194.967,
    "x1": 206.779,
    "base": -5.2,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 12 P",
@@ -19406,7 +19487,8 @@
    "x0": 194.967,
    "x1": 206.779,
    "base": -5.2,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 13 S",
@@ -19417,7 +19499,8 @@
    "x0": 175.49,
    "x1": 194.967,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 13 P",
@@ -19428,7 +19511,8 @@
    "x0": 175.49,
    "x1": 194.967,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 14 S",
@@ -19439,7 +19523,8 @@
    "x0": 163.678,
    "x1": 175.49,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 14 P",
@@ -19450,7 +19535,8 @@
    "x0": 163.678,
    "x1": 175.49,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 15 S",
@@ -19461,7 +19547,8 @@
    "x0": 144.201,
    "x1": 163.678,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 15 P",
@@ -19472,7 +19559,8 @@
    "x0": 144.201,
    "x1": 163.678,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 16 S",
@@ -19483,7 +19571,8 @@
    "x0": 132.389,
    "x1": 144.201,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 16 P",
@@ -19494,7 +19583,8 @@
    "x0": 132.389,
    "x1": 144.201,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 17 S",
@@ -19505,7 +19595,8 @@
    "x0": 112.912,
    "x1": 132.389,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 17 P",
@@ -19516,7 +19607,8 @@
    "x0": 112.912,
    "x1": 132.389,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 18 S",
@@ -19527,7 +19619,8 @@
    "x0": 101.1,
    "x1": 112.912,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 18 P",
@@ -19538,7 +19631,8 @@
    "x0": 101.1,
    "x1": 112.912,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 19 S",
@@ -19549,7 +19643,8 @@
    "x0": 81.622,
    "x1": 101.1,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 19 P",
@@ -19560,7 +19655,8 @@
    "x0": 81.622,
    "x1": 101.1,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 20 S",
@@ -19571,7 +19667,8 @@
    "x0": 69.81,
    "x1": 81.622,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 20 P",
@@ -19582,7 +19679,8 @@
    "x0": 69.81,
    "x1": 81.622,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 21 S",
@@ -19593,7 +19691,8 @@
    "x0": 50.333,
    "x1": 69.81,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 21 P",
@@ -19604,7 +19703,8 @@
    "x0": 50.333,
    "x1": 69.81,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 22 S",
@@ -19615,7 +19715,8 @@
    "x0": 38.521,
    "x1": 50.333,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 22 P",
@@ -19626,7 +19727,8 @@
    "x0": 38.521,
    "x1": 50.333,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 23 S",
@@ -19637,7 +19739,8 @@
    "x0": 19.044,
    "x1": 38.521,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 23 P",
@@ -19648,7 +19751,8 @@
    "x0": 19.044,
    "x1": 38.521,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 24 S",
@@ -19659,7 +19763,8 @@
    "x0": 7.232,
    "x1": 19.044,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 24 P",
@@ -19670,7 +19775,8 @@
    "x0": 7.232,
    "x1": 19.044,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 25 S",
@@ -19681,7 +19787,8 @@
    "x0": -12.245,
    "x1": 7.232,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 25 P",
@@ -19692,7 +19799,8 @@
    "x0": -12.245,
    "x1": 7.232,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 26 S",
@@ -19703,7 +19811,8 @@
    "x0": -24.057,
    "x1": -12.245,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 26 P",
@@ -19714,7 +19823,8 @@
    "x0": -24.057,
    "x1": -12.245,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 27 S",
@@ -19725,7 +19835,8 @@
    "x0": -43.534,
    "x1": -24.057,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 27 P",
@@ -19736,7 +19847,8 @@
    "x0": -43.534,
    "x1": -24.057,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 28 S",
@@ -19747,7 +19859,8 @@
    "x0": -55.346,
    "x1": -43.534,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 28 P",
@@ -19758,7 +19871,8 @@
    "x0": -55.346,
    "x1": -43.534,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 29 S",
@@ -19769,7 +19883,8 @@
    "x0": -74.824,
    "x1": -55.346,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 29 P",
@@ -19780,7 +19895,8 @@
    "x0": -74.824,
    "x1": -55.346,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 30 S",
@@ -19791,7 +19907,8 @@
    "x0": -86.636,
    "x1": -74.824,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 30 P",
@@ -19802,7 +19919,8 @@
    "x0": -86.636,
    "x1": -74.824,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 31 S",
@@ -19813,7 +19931,8 @@
    "x0": -106.113,
    "x1": -86.636,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 31 P",
@@ -19824,7 +19943,8 @@
    "x0": -106.113,
    "x1": -86.636,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 32 S",
@@ -19835,7 +19955,8 @@
    "x0": -117.925,
    "x1": -106.113,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 32 P",
@@ -19846,7 +19967,8 @@
    "x0": -117.925,
    "x1": -106.113,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 33 S",
@@ -19857,7 +19979,8 @@
    "x0": -137.402,
    "x1": -117.925,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 33 P",
@@ -19868,7 +19991,8 @@
    "x0": -137.402,
    "x1": -117.925,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 34 S",
@@ -19879,7 +20003,8 @@
    "x0": -149.214,
    "x1": -137.402,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 34 P",
@@ -19890,7 +20015,8 @@
    "x0": -149.214,
    "x1": -137.402,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 35 S",
@@ -19901,7 +20027,8 @@
    "x0": -168.691,
    "x1": -149.214,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 35 P",
@@ -19912,7 +20039,8 @@
    "x0": -168.691,
    "x1": -149.214,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 36 S",
@@ -19923,7 +20051,8 @@
    "x0": -180.503,
    "x1": -168.691,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 36 P",
@@ -19934,7 +20063,8 @@
    "x0": -180.503,
    "x1": -168.691,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 37 S",
@@ -19945,7 +20075,8 @@
    "x0": -199.98,
    "x1": -180.503,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 37 P",
@@ -19956,7 +20087,8 @@
    "x0": -199.98,
    "x1": -180.503,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 38 S",
@@ -19967,7 +20099,8 @@
    "x0": -211.792,
    "x1": -199.98,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 38 P",
@@ -19978,7 +20111,8 @@
    "x0": -211.792,
    "x1": -199.98,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 39 S",
@@ -19989,7 +20123,8 @@
    "x0": -231.27,
    "x1": -211.792,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 39 P",
@@ -20000,7 +20135,8 @@
    "x0": -231.27,
    "x1": -211.792,
    "base": -21.61,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 40 S",
@@ -20011,7 +20147,8 @@
    "x0": -243.082,
    "x1": -231.27,
    "base": -10.4,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 40 P",
@@ -20022,7 +20159,8 @@
    "x0": -243.082,
    "x1": -231.27,
    "base": -10.4,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 41 S",
@@ -20033,7 +20171,8 @@
    "x0": -262.559,
    "x1": -243.082,
    "base": -7.8,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   },
   {
    "id": "Wing bulkhead 41 P",
@@ -20044,7 +20183,8 @@
    "x0": -262.559,
    "x1": -243.082,
    "base": -7.8,
-   "top": 0.0
+   "top": 0.0,
+   "plate_mm": 10.1
   }
  ],
  "cells": [

@@ -25,6 +25,7 @@ from styles.base import Style
 from styles.carrier import _vdc
 
 WOOD_T_PER_M2 = 0.10    # charthouse weight per m^2 of footprint
+PLANK_MM = 25.0       # the hull's own planking (two skins of about 1 inch): its plating for the damage model
 
 
 def planing_hull_spec(design):
@@ -48,8 +49,8 @@ class Planing(Style):
               ("speed_kn",): (15, 60), ("range_nm",): (100, 3000)}
 
     def tuning(self, design):
-        return dict(super().tuning(design), power_model="planing", hull_model="box", hull_k=0.06, freeboard_a=0.04,
-                    freeboard_b=0.8, misc_frac=0.07, cruise_kn=25.0, lcb_frac=-0.11, gm_stiff_frac=0.5,
+        return dict(super().tuning(design), power_model="planing", hull_model="box", hull_k=0.06,
+                    plate_own_mm=PLANK_MM, freeboard_a=0.04, freeboard_b=0.8, misc_frac=0.07, cruise_kn=25.0, lcb_frac=-0.11, gm_stiff_frac=0.5,
                     fn_warn=99.0, lb_warn=2.8, trim_tol_frac=0.025, trim_warn_frac=0.01)
 
     def build_layout(self, design, res, shift=0.0, spread=0.0):
@@ -75,7 +76,7 @@ class Planing(Style):
 
 def _layout(design, res, shift):
     shp, depth = res.power_shp, res.depth
-    lay = Layout(design, WOOD_T_PER_M2)
+    lay = Layout(design, WOOD_T_PER_M2, own_plate_mm=PLANK_MM)
     hs = planing_hull_spec(design)
     hull = Hull(hs)
     lay.hull = hull

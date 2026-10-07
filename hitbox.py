@@ -255,6 +255,38 @@ def hydrostatics(form, res):
                 mct_tm=round(disp * gm_l / (100 * L), 1))
 
 
+def hull_plating(lay, design, res):
+    """The unarmoured plating (hullweight.plates): the hull's from its structure, the superstructure's from the
+    design (superstructure.plating_mm, control_mm) over the structure's own gauge."""
+    import hullweight
+    from layout import own_plate_mm
+    sup = design.get("superstructure") or {}
+    hp = hullweight.plating(design)
+    h = res.hull if "t_min_mm" in res.hull else {**res.hull, "plate_own_mm": own_plate_mm(lay)}
+    return hullweight.plates(h, lay.hull.L, hp["shell_mm"], hp["material"], sup.get("plating_mm", 0.0),
+                             sup.get("control_mm", 0.0))
+
+
+def deck_plates(sub, plating, design):
+    """plate_mm on the subdivision's decks and unarmoured bulkheads: the main deck is the strength deck (thicker over
+    the middle: plate_end_mm toward the ends), the inner bottom and raised decks at the hull's own gauge, the other
+    decks and the watertight bulkheads lighter. A torpedo bulkhead gives the protection's plating, all its bulkheads together."""
+    from navarch import TUNING
+    tds = (design.get("armour") or {}).get("tds_m", 0.0) or 0.0
+    for d in sub["decks"]:
+        if d["kind"] == "inner_bottom":
+            d["plate_mm"] = plating["inner_bottom_mm"]
+        elif d["kind"] == "main":
+            d["plate_mm"], d["plate_end_mm"] = plating["strength_deck_mm"], plating["strength_deck_end_mm"]
+        elif d["kind"] == "raised":     # a raised stretch's weather deck, at the hull's own gauge
+            d["plate_mm"] = plating["strength_deck_end_mm"]
+        else:
+            d["plate_mm"] = plating["deck_mm"]
+    for b in sub["bulkheads"]:
+        b["plate_mm"] = (round(TUNING["tds_mm_per_m"] * tds, 1) if b.get("kind") == "tds"
+                         else plating["bulkhead_mm"])
+
+
 def export_hitboxes(lay, design, res):
     """hitboxes.json. Heights are metres above the main deck; res (navarch.Result) places the keel, the
     waterline and the armour."""
@@ -331,6 +363,8 @@ def export_hitboxes(lay, design, res):
                              radar=d["radar_t"] > 0)
         else:
             with_material(comps[-1], sup_material)
+        if "_plate_mm" in b:        # its walls' plating (layout.block_plating)
+            comps[-1]["plate_mm"] = b["_plate_mm"]
         if quarters.get(b["id"]):     # off-watch men quartered here (crew.apply): a hit here can kill them
             comps[-1]["crew"] = quarters[b["id"]]
         if smoke:
@@ -381,6 +415,8 @@ def export_hitboxes(lay, design, res):
     gear = propulsion.gear(lay, design, res)        # the stern's lines make room for it
     form = HullForm(lay.hull, cb, cwp(cb), T, D, froude(design["speed_kn"], lay.hull.L), gear, res.lcb)
     sub = subdivision.build(lay, design, res, ag, armoured, form)
+    plating = hull_plating(lay, design, res)
+    deck_plates(sub, plating, design)
     hydro = hydrostatics(form, res)
     comps += propulsion_components(lay, design, res, form, sub, gear)
     arm_out = {}
@@ -428,6 +464,7 @@ def export_hitboxes(lay, design, res):
                        stations=[dict(x=round(s["x"], 3), z=[round(z - D, 2) for z in s["z"]],
                                       y=[round(y, 3) for y in s["y"]]) for s in form.table()]),
         armour=arm_out,
+        plating=plating,
         components=comps,
         **sub,
     )

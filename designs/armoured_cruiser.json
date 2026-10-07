@@ -1,5 +1,5 @@
 {"id": "armoured_cruiser", "name": "Armoured cruiser (Scharnhorst-like, 1906)", "look": {"navy": "kiel", "era": "great_war"}, "type": "CA",
- "hull": {"block_coefficient": 0.55, "construction": {"name": "Mild steel hull, high-tensile strength deck, riveted", "yield_mpa": 290, "join_factor": 1.1, "standard": 1.0}, "freeboard": 1.0, "raised": [{"from": "bow", "to": "aft_control", "decks": 1}]},
+ "hull": {"block_coefficient": 0.55, "construction": {"name": "Mild steel hull, high-tensile strength deck, riveted", "yield_mpa": 290, "join_factor": 1.1, "standard": 1.0}, "plating": {"shell_mm": 0, "material": "steel"}, "freeboard": 1.0, "raised": [{"from": "bow", "to": "aft_control", "decks": 1}]},
  "speed_kn": 22.5,
  "range_nm": 5100,
  "crew": {"standard": {"name": "Hammocks over mess tables", "sleep_rating_m2": 1.1, "sleep_cpo_m2": 1.8, "sleep_officer_m2": 5.0, "mess_seats_per_man": 0.0, "galley_k": 0.3, "galley_min_m2": 4.0, "sanitary_m2": 0.1, "sickbay_beds_per_man": 0.01, "welfare_m2": 0.0, "services_k": 0.03, "passage_factor": 1.15, "deck_height_m": 2.3, "provisions_m3_per_day": 0.007, "water_l_per_day": 15, "hotel_fraction": 0.05, "cpo_fraction": 0.08, "tolerance_days": 30}, "endurance_days": 20, "distiller": true, "buffer_days": 5, "water_l_per_day": 15, "berth_ratio": 1.0, "officer_fraction": 0.08},
@@ -8,6 +8,6 @@
  "main": {"calibre_mm": 210, "calibre_length": 40, "barrels": 2, "fore": 1, "wing": 2, "aft": 1, "amidships_stands_on": "deck"},
  "secondary": [{"calibre_mm": 150, "calibre_length": 40, "barrels": 1, "per_side": 3, "mount": "casemate", "armour_mm": 150}, {"calibre_mm": 88, "calibre_length": 45, "barrels": 1, "per_side": 4, "stands_on": "deck"}],
  "funnels": 4,
- "superstructure": {"t_per_m2": 0.32, "material": "steel", "tower_levels": 4, "deckhouse_levels": 1},
+ "superstructure": {"t_per_m2": 0.32, "material": "steel", "plating_mm": 0, "control_mm": 0, "tower_levels": 4, "deckhouse_levels": 1},
  "fire_control": {"main": {"directors": 1, "rangefinder_m": 2.0, "armour_mm": 0, "radar_t": 0, "computer_t": 0.5}, "secondary": {"directors": 0, "rangefinder_m": 0.0, "armour_mm": 0, "radar_t": 0.0, "computer_t": 0.0}, "aa": {"directors": 0, "rangefinder_m": 0.0, "armour_mm": 0, "radar_t": 0.0, "computer_t": 0.0}, "search_radar_t": 0.0}
 }

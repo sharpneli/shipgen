@@ -39,6 +39,8 @@ DB_AREA = 0.80 * 1.60  # inner bottom over 0.8 L, floors and girders x 1.6, at t
 GIRDER_TAPER = 0.75    # strength plating thins toward the ends: 0.75 of the shell and deck carry t_str - t_min
 NEUTRAL_AXIS = 0.45    # x D above the keel
 ARM_DECK_WIDTH = 0.85  # x B: the part of an armour deck that works in the girder
+SUP_PLATE_K = 0.8      # a superstructure's own wall plating, x the hull's own (minimum) gauge: about 6 mm on a
+                       # destroyer and 10 mm on a battleship (research/08_gunfire_effects.md: superstructure about 10 mm)
 
 # The research's presets, for hull-templates.md and tests (the design gives the numbers, never a preset name)
 PRESETS = {
@@ -61,6 +63,38 @@ def construction(design):
     return {**DEFAULT, **((design.get("hull") or {}).get("construction") or {})}
 
 
+def plating(design):
+    """hull.plating with its defaults filled in: shell_mm, the side shell's least thickness (0: the structure's own
+    gauge), and material, a plain string passed to the hitboxes for the game."""
+    return {"shell_mm": 0.0, "material": None, **((design.get("hull") or {}).get("plating") or {})}
+
+
+def t_min_mm(L, c):
+    """The minimum gauge, mm: the thinnest plate the hull is built of."""
+    return (T_MIN[0] + T_MIN[1] * min(L, LONG)) * c["standard"]
+
+
+def extra_plate_t(area_m2, mm, own_mm):
+    """Plate thicker than the structure's own (a splinter strake, splinter plating on a bridge), t: plain steel
+    plate over the area. The frames stay as they are, so no framing allowance."""
+    return RHO * area_m2 * max(0.0, mm - own_mm)
+
+
+def plates(h, L, shell_mm, material, sup_mm, control_mm):
+    """The plating the game's damage model sees (fuze arming, hole size, splinters), from the structure h
+    (hullweight.weight, or a box-model hull with plate_own_mm): mm of each kind of plate, unarmoured. Strength
+    plating (t_str) thickens the shell and strength deck over the middle GIRDER_TAPER of the length."""
+    t_min = h.get("t_min_mm", h.get("plate_own_mm", 0.0))
+    t_str = h.get("t_str_mm", 0.0)
+    r = lambda v: round(v, 1)
+    own_sup = SUP_PLATE_K * t_min
+    return dict(material=material, shell_mm=r(max(t_min, t_str, shell_mm)), shell_end_mm=r(max(t_min, shell_mm)),
+                strength_deck_mm=r(max(t_min, t_str)), strength_deck_end_mm=r(t_min),
+                mid_x0=r(-GIRDER_TAPER * L / 2), mid_x1=r(GIRDER_TAPER * L / 2),
+                deck_mm=r(INT_DECK_T * t_min), bulkhead_mm=r(BHD_T * t_min), inner_bottom_mm=r(t_min),
+                superstructure_mm=r(max(own_sup, sup_mm)), control_mm=r(max(own_sup, sup_mm, control_mm)))
+
+
 def allowable_stress(c):
     return min(c["yield_mpa"] / SF, SIG_CAP)
 
@@ -75,15 +109,18 @@ def deck_t_per_m2(L, c):
     return RHO * K_S * (T_MIN[0] + T_MIN[1] * min(L, LONG)) * c["standard"] * (1 + F_FIT) * c["join_factor"]
 
 
-def raised_t(L, c, deck_m2, side_m2, end_m2):
+def raised_t(L, c, deck_m2, side_m2, end_m2, shell_mm=0.0):
     """A raised stretch of hull (forecastle, poop) at minimum gauge: its deck, its two sides and the breaks at its
-    open ends, framed as the rest of the hull (deck_t_per_m2), with the breaks at bulkhead gauge."""
-    return deck_t_per_m2(L, c) * (deck_m2 + SHELL_SIDE * side_m2 + BHD_T * end_m2)
+    open ends, framed as the rest of the hull (deck_t_per_m2), with the breaks at bulkhead gauge. Its sides take
+    hull.plating.shell_mm like the rest of the shell."""
+    return (deck_t_per_m2(L, c) * (deck_m2 + SHELL_SIDE * side_m2 + BHD_T * end_m2)
+            + extra_plate_t(SHELL_SIDE * side_m2, shell_mm, t_min_mm(L, c)) * c["join_factor"])
 
 
-def weight(L, B, D, cb, full, c, n_int, double_bottom, armour_decks=(), bulkhead_depth=None, girder_depth=None):
-    """The hull structure: dict(t, min_gauge_t, strength_t, t_min_mm, t_str_mm, stress_mpa, i_req_m4, i_armour_m4,
-    i_plating_m4). The girder's moment of inertia amidships is i_plating_m4 + i_armour_m4, at least i_req_m4: the
+def weight(L, B, D, cb, full, c, n_int, double_bottom, armour_decks=(), bulkhead_depth=None, girder_depth=None,
+           shell_mm=0.0, armoured_side_m2=0.0):
+    """The hull structure: dict(t, min_gauge_t, strength_t, shell_t, t_min_mm, t_str_mm, stress_mpa, i_req_m4,
+    i_armour_m4, i_plating_m4). The girder's moment of inertia amidships is i_plating_m4 + i_armour_m4, at least i_req_m4: the
     plating is never thinner than t_min, so small hulls have a margin to spare.
     c            construction: yield_mpa (the girder steel mix), join_factor (riveting > 1, all welded 1.0),
                  standard (scales t_min: 0.85 light, 1.0 naval, 1.25 robust)
@@ -93,13 +130,16 @@ def weight(L, B, D, cb, full, c, n_int, double_bottom, armour_decks=(), bulkhead
     bulkhead_depth how high the transverse bulkheads reach, if not to the strength deck (a closed hangar).
     girder_depth the girder's depth amidships, if deeper than D: raised stretches of hull over the midbody (a long
                  forecastle) work in the girder. Their plating is weighed with them (raised_t); only the girder's
-                 section deepens, so it needs less strength plating."""
+                 section deepens, so it needs less strength plating.
+    shell_mm     hull.plating.shell_mm: the side shell's least thickness. Plate beyond what the structure has there
+                 (t_min at the ends, the strength plating amidships) is weighed as plain plate (shell_t), except
+                 behind side armour (armoured_side_m2, both sides). Departure: it isn't credited in the girder."""
     a_shell = 2 * SHELL_SIDE * D * L + SHELL_BOTTOM * B * L * math.sqrt(cb)
     a_deck = deck_area(L, B, cb)
     a_int = n_int * INT_DECK * a_deck
     a_bhd = BULKHEADS * BHD_AREA * B * (D if bulkhead_depth is None else bulkhead_depth)
     a_db = double_bottom * B * L * cb * DB_AREA
-    t_min = (T_MIN[0] + T_MIN[1] * min(L, LONG)) * c["standard"]
+    t_min = t_min_mm(L, c)
     sig = allowable_stress(c)
     m = full * 9.81 * L / C_M * min(1.0, LONG / L) ** 2
     G = D if girder_depth is None else girder_depth
@@ -110,7 +150,11 @@ def weight(L, B, D, cb, full, c, n_int, double_bottom, armour_decks=(), bulkhead
     w_min = RHO * K_S * t_min * (a_shell + a_deck + a_int * INT_DECK_T + a_bhd * BHD_T + a_db)
     w_str = RHO * GIRDER_TAPER * (a_shell + a_deck) * max(0.0, t_str - t_min)
     k = (1 + F_FIT) * c["join_factor"]
-    return dict(t=(w_min + w_str) * k, min_gauge_t=w_min * k, strength_t=w_str * k, t_min_mm=t_min,
+    a_side = max(0.0, 2 * SHELL_SIDE * D * L - armoured_side_m2)
+    w_shell = (extra_plate_t((1 - GIRDER_TAPER) * a_side, shell_mm, t_min)
+               + extra_plate_t(GIRDER_TAPER * a_side, shell_mm, max(t_min, t_str))) * c["join_factor"]
+    return dict(t=(w_min + w_str) * k + w_shell, min_gauge_t=w_min * k, strength_t=w_str * k, shell_t=w_shell,
+                t_min_mm=t_min,
                 t_str_mm=t_str, stress_mpa=sig, i_req_m4=i_req, i_armour_m4=i_arm,
                 i_plating_m4=max(t_str, t_min) * z_per_mm * G / 2)
 
@@ -119,7 +163,22 @@ def validate(design):
     f = (design.get("hull") or {}).get("freeboard", 1.0)
     ok = isinstance(f, (int, float)) and f > 0
     errs = [] if ok else ["hull.freeboard: a factor above 0 on the style's standard freeboard (1.0)"]
-    return errs + _construction_errors(design)
+    return errs + _construction_errors(design) + _plating_errors(design)
+
+
+def _plating_errors(design):
+    p = (design.get("hull") or {}).get("plating")
+    if p is None:
+        return []
+    if not isinstance(p, dict):
+        return ["hull.plating: use {\"shell_mm\", \"material\"}"]
+    errs = [f"hull.plating.{k}: not a plating setting (shell_mm, material)" for k in p
+            if k not in ("shell_mm", "material")]
+    if "shell_mm" in p and not (isinstance(p["shell_mm"], (int, float)) and p["shell_mm"] >= 0):
+        errs.append("hull.plating.shell_mm: a number, 0 or more (0: the structure's own gauge)")
+    if "material" in p and (not isinstance(p["material"], str) or not p["material"]):
+        errs.append("hull.plating.material: name the material as a string")
+    return errs
 
 
 def _construction_errors(design):

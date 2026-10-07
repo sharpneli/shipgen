@@ -21,6 +21,10 @@
         "join_factor": 1.0,
         "standard": 1.0
       },
+      "plating": {
+        "shell_mm": 0,
+        "material": "steel"
+      },
       "freeboard": 1.0
     },
     "armour": {
@@ -150,6 +154,8 @@
     "superstructure": {
       "t_per_m2": 0.32,
       "material": "steel",
+      "plating_mm": 0,
+      "control_mm": 0,
       "tower_levels": 3
     },
     "fire_control": {
@@ -269,6 +275,7 @@
     "strength_t": 0,
     "plate_min_mm": 7.2,
     "plate_strength_mm": 4.2,
+    "shell_plating_t": 0,
     "girder": {
       "allowable_stress_mpa": 166.7,
       "required_m4": 4.03,

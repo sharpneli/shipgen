@@ -5,7 +5,7 @@
     "type": "BB",
     "hull": {
         "block_coefficient": 0.6,
-        "construction": {"name": "Mild steel hull, high-tensile strength deck, riveted", "yield_mpa": 290, "join_factor": 1.1, "standard": 1.0},
+        "construction": {"name": "Mild steel hull, high-tensile strength deck, riveted", "yield_mpa": 290, "join_factor": 1.1, "standard": 1.0}, "plating": {"shell_mm": 0, "material": "steel"},
         "freeboard": 1.0,
         "raised": []
     },
@@ -43,6 +43,6 @@
         "stands_on": "deckhouse"
     },
     "funnels": 2,
-    "superstructure": {"t_per_m2": 0.32, "material": "steel", "tower_levels": 4, "deckhouse_levels": 1},
+    "superstructure": {"t_per_m2": 0.32, "material": "steel", "plating_mm": 0, "control_mm": 0, "tower_levels": 4, "deckhouse_levels": 1},
     "fire_control": {"main": {"directors": 1, "rangefinder_m": 2.7, "armour_mm": 0, "radar_t": 0, "computer_t": 2.0}, "secondary": {"directors": 0, "rangefinder_m": 0.0, "armour_mm": 0, "radar_t": 0.0, "computer_t": 0.0}, "aa": {"directors": 0, "rangefinder_m": 0.0, "armour_mm": 0, "radar_t": 0.0, "computer_t": 0.0}, "search_radar_t": 0.0}
 }

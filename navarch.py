@@ -207,7 +207,12 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         items: list[Weight] = []
         arm = armour_geometry(design, L, T, D, geo)
         if tun.get("hull_model") == "box":
-            hull = dict(t=tun["hull_k"] * (L * B * D) ** tun["hull_exp"])
+            # a box-model hull (planing craft) has no plate model: its own gauge is the style's (plate_own_mm)
+            plank = tun.get("plate_own_mm", 0.0)
+            shell_t = hullweight.extra_plate_t(2 * hullweight.SHELL_SIDE * D * L,
+                                               hullweight.plating(design)["shell_mm"], plank)
+            hull = dict(t=tun["hull_k"] * (L * B * D) ** tun["hull_exp"] + shell_t, shell_t=shell_t,
+                        plate_own_mm=plank)
         else:
             hull = hull_structure(design, L, B, cb, D, disp, arm, style.strength_deck(design, D),
                                   geo.get("raised", ()))
@@ -425,8 +430,13 @@ def hull_structure(design, L, B, cb, D, full, arm, above=None, raised=()):
     if above:
         depth, n_int, plates = D + above["h"], n_int + above["decks"], plates + above["plates"]
     rh = raised_girder_h(raised, L) if raised else 0.0
+    # side armour stands in for the shell's extra plating (hull.plating.shell_mm) where it covers the side
+    side_arm = sum((s["x1"] - s["x0"]) * (s["top"] - s["bottom"]) for s in arm["strakes"] if s["kind"] != "box")
+    if arm["belt_mm"] > 0:
+        side_arm += (arm["x1"] - arm["x0"]) * (arm["belt_top"] - arm["belt_bottom"])
     out = hullweight.weight(L, B, depth, cb, full, hullweight.construction(design), n_int, inner, plates,
-                            bulkhead_depth=D, girder_depth=depth + rh if rh else None)
+                            bulkhead_depth=D, girder_depth=depth + rh if rh else None,
+                            shell_mm=hullweight.plating(design)["shell_mm"], armoured_side_m2=2 * max(0.0, side_arm))
     return {**out, "depth_m": depth}
 
 
