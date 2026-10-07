@@ -12,6 +12,7 @@ from styles.base import Style
 
 class Warship(Style):
     name = "warship"
+    MAIN_LIST = True         # several main batteries, sharing the turret groups (layout.py)
     MIDSHIPS_TURRETS = True
     WING_TURRETS = True
     SECONDARY_LIST = True    # several secondary batteries, each on deck or in casemates (layout.py)

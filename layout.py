@@ -30,7 +30,7 @@ from geometry import (make_turret_type, make_torpedo_type, rrect_polygon, rrect_
                       DECK_PITCH)
 import ordnance
 import powerplant
-from navarch import Weight, main_batteries, mount_weights, torpedo_weight, TUNING
+from navarch import Weight, battery_turrets, main_batteries, mount_weights, torpedo_weight, TUNING
 from hitbox import ARC_BEAM, ARC_CROSS
 from geometry import Hull, AA_CFG
 
@@ -529,16 +529,14 @@ def battery_of(mid):
     return pre + num if pre == "W" else pre
 
 
-def magazine_plan(design, tm):
+def magazine_plan(design, wings=()):
     """The magazines grouped fore and aft of the machinery (warships): the secondaries' (deck and casemate) and
     the abreast wing turrets'. Each battery sends the forward half of its pairs (rounded up) to the fore group;
-    wing pair k goes to the end of the middle it stands at (even k forward). Returns {"fore"|"aft": [(battery,
-    mounts, magazine m3 per mount)]}."""
+    each abreast wing pair goes to the end of the middle it stands at: wings = [(pair id, "fore" | "aft", _Gun)].
+    Returns {"fore"|"aft": [(battery, mounts, magazine m3 per mount)]}."""
     out = {"fore": [], "aft": []}
-    main = (main_batteries(design) or [{}])[0]
-    if tm and not main.get("echelon"):
-        for k in range(main.get("wing", 0)):
-            out["fore" if k % 2 == 0 else "aft"].append((f"W{k + 1}", 2, ordnance.ammo_m3(tm)))
+    for wid, grp, g in wings:
+        out[grp].append((wid, 2, ordnance.ammo_m3(g.t)))
     secs = design.get("secondary") or []
     for k, s in enumerate(secs if isinstance(secs, list) else [secs]):
         n = s.get("per_side", s.get("count", 0) // 2)
@@ -1165,6 +1163,59 @@ def stepped_counts(main):
     return sf.get("fore", nf), sf.get("aft", na)
 
 
+class _Gun:
+    """One main battery's turret, with the sizes the warship layout keeps clear for it. k: its index in "main"."""
+
+    def __init__(self, spec, k=0):
+        self.spec, self.k = spec, k
+        self.tid, self.t = make_turret_type(spec["calibre_mm"], spec["calibre_length"], spec["barrels"])
+        self.cal = f"{spec['calibre_mm']:g} mm"
+        self.r = self.t["r"]
+        self.reach = max(self.r, turret_reach({**self.t, "barrel_len": 0}))     # body and ears, not barrels
+        self.th = turret_height(self.t)
+        self.R = turret_reach(self.t) + 0.5     # muzzle reach: what a stowed turret's barrels cover
+        self.gap = 2.0 + 0.5 * self.r           # an end group's stepped inner turret to what stands inboard of it
+        self.arm = dict(armour_mm=spec.get("armour_mm", 0), **({"material": spec["material"]}
+                                                                if spec.get("material") else {}))
+        # wing and midships turrets on the deckhouse (amidships_stands_on)
+        self.raised = stands_on(spec, "amidships_stands_on") == "deckhouse"
+        self.echelon = bool(spec.get("echelon", False))
+        self.cross = self.echelon and bool(spec.get("cross_deck", False))   # echelon pairs that fire across too
+
+
+def end_group(guns, key):
+    """An end group (key "fore" or "aft"): every battery's turrets there in list order, outermost first, and how many
+    of them step up (superfire). A battery's "superfire" (stepped_counts) says how many of its own turrets step; the
+    group's outermost always stands on the deck, and the first flush turret ends the stepping, so every turret
+    behind it is flush too (one battery: stepped_counts' count)."""
+    out, run = [], 0
+    for g in guns:
+        n = g.spec.get(key, 0)
+        sf = g.spec.get("superfire", True)
+        k = n if sf is True else 0 if sf is False else sf.get(key, n)
+        for i in range(n):
+            if run == len(out) and (not out or i < k):
+                run += 1
+            out.append(g)
+    return out, run
+
+
+def tier_steps(gs, level):
+    """How far an end group's tier `level` stands above the outermost turret: a superfire step over each turret
+    below it (geometry.superfire_step of the turret it fires over)."""
+    return sum(superfire_step(gs[j].th) for j in range(level))
+
+
+def group_offsets(gs):
+    """Each turret's distance inboard of its end group's outermost: bodies 1.1 r apart and 3 m between."""
+    out, o = [], 0.0
+    for i, g in enumerate(gs):
+        if i:
+            o += 1.1 * (gs[i - 1].r + g.r) + 3.0
+        out.append(o)
+    return out
+
+
 def stands_on(spec, key="stands_on"):
     """What a battery stands on (a deck secondary battery's "stands_on", the main battery's "amidships_stands_on" for
     its wing and midships turrets): "deck", the main deck (the default), or "deckhouse", the roof of level 1, a level
@@ -1636,24 +1687,28 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     deck = design.get("deck", "wood" if L >= 150 else "steel")
 
     # ---------------- main battery groups ----------------
-    main = (main_batteries(design) or [{}])[0]
-    t_arm = dict(armour_mm=main.get("armour_mm", 0), **({"material": main["material"]} if main.get("material") else {}))
-    nf, na, nm = main.get("fore", 0), main.get("aft", 0), main.get("mid", 0)
-    nw, echelon = main.get("wing", 0), bool(main.get("echelon", False))   # wing turret pairs
-    cross = echelon and bool(main.get("cross_deck", False))   # echelon pairs that also fire across the deck
-    if nw and main.get("cross_deck") and not echelon:
-        lay.warnings.append("main.cross_deck needs \"echelon\": true (an abreast pair blocks each other's beam); "
-                            "the wing turrets fire on their own side only.")
-    tm_id, tm = (make_turret_type(main["calibre_mm"], main["calibre_length"], main["barrels"])
-                 if (nf + na + nm + nw) else (None, None))
-    r = tm["r"] if tm else 0.0
-    reach = max(r, turret_reach({**tm, "barrel_len": 0}) if tm else 0.0)  # body+ears, not barrels
-    th = turret_height(tm) if tm else 0.0
-    s_main = 2.2 * r + 3.0
-    gap = 2.0 + 0.5 * r
-    R_main = turret_reach(tm) + 0.5 if tm else 0.0        # muzzle reach: what a stowed turret's barrels cover
-    n_step_f, n_step_a = stepped_counts(main)
+    # Several batteries share the groups (main is a list): each group takes the batteries' turrets in list order, the
+    # end groups outermost first (A, B, C over every battery, Y, X, W the same), the midships turrets and the echelon
+    # wing pairs forward to aft among the machinery, the abreast wing pairs to the ends of the middle. Every rule below
+    # sizes a turret by its own battery's gun (a _Gun).
+    bats = [_Gun(b, k) for k, b in enumerate(main_batteries(design)) if battery_turrets(b)]
+    for g in bats:
+        if g.spec.get("wing", 0) and g.spec.get("cross_deck") and not g.echelon:
+            lay.warnings.append(f"main[{g.k}].cross_deck needs \"echelon\": true (an abreast pair blocks each other's "
+                                "beam); the wing turrets fire on their own side only.")
+    F, n_step_f = end_group(bats, "fore")      # the forward group, outermost first, and how many step up
+    A, n_step_a = end_group(bats, "aft")
+    M = [g for g in bats for _ in range(g.spec.get("mid", 0))]                       # midships turrets
+    WA = [g for g in bats if not g.echelon for _ in range(g.spec.get("wing", 0))]    # abreast wing pairs
+    WE = [g for g in bats if g.echelon for _ in range(g.spec.get("wing", 0))]        # echelon wing pairs
+    nf, na, nm, nw = len(F), len(A), len(M), len(WA) + len(WE)
     flush_f, flush_a = nf > max(n_step_f, 1), na > max(n_step_a, 1)   # a flush turret ends the group
+    # the wing turrets' outer edges stand in one line along each side: y is the first wing battery's centre line
+    # (wy: another's), and a wing item reaches out y + its reach (half_of)
+    g_ref = (WA + WE)[0] if nw else None
+
+    def wy(g, y):
+        return y if g.reach == g_ref.reach else y + g_ref.reach - g.reach
 
     plan_machinery(lay, design, res, hull)
     plant = lay.geo["plant"]
@@ -1668,12 +1723,12 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     raised_in = (design.get("hull") or {}).get("raised") or []
     fwd_deck = LEVEL_H * max([q["decks"] for q in raised_in if raised_covers(q, "fore_group")], default=0)
     aft_deck = LEVEL_H * max([q["decks"] for q in raised_in if raised_covers(q, "aft_group")], default=0)
-    fwd_tier = min(nf, max(n_step_f, 1)) - 1 if (tm and nf) else None    # the forward group's top tier
-    fwd_roof = fwd_deck + 1.2 + fwd_tier * superfire_step(th) + th if fwd_tier is not None else None
+    fwd_tier = min(nf, max(n_step_f, 1)) - 1 if nf else None    # the forward group's top tier
+    fwd_roof = fwd_deck + 1.2 + tier_steps(F, fwd_tier) + F[fwd_tier].th if fwd_tier is not None else None
     nb_need = bridge_level(fwd_roof)
     # the aft control looks aft over the aft group the same way: its level by the same rule, an upper level over it
-    aft_tier = min(na, max(n_step_a, 1)) - 1 if (tm and na) else None
-    na_lvl = bridge_level(aft_deck + 1.2 + aft_tier * superfire_step(th) + th if aft_tier is not None else None)
+    aft_tier = min(na, max(n_step_a, 1)) - 1 if na else None
+    na_lvl = bridge_level(aft_deck + 1.2 + tier_steps(A, aft_tier) + A[aft_tier].th if aft_tier is not None else None)
     # superstructure.tower_levels is the tower's height, a slider: the bridge stands as high in it as leaves the levels
     # over it (Bridge upper, Tower n: the compass platform and director tower, 1 level, 2 from 180 m), and never below
     # nb_need. A tall tower makes a tall tower bridge over its base levels (Nelson: about level 8 of 10); a tower too
@@ -1689,7 +1744,6 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     lay.geo["bridge"] = dict(level=nb, floor=LEVEL_H * (nb - 1), need=nb_need, tower=n_tower,
                              turret_roof=fwd_roof)
     hood = firecontrol.HOOD_H if firecontrol.spec(design)["main"]["directors"] else 0.0
-    mid_raised = stands_on(main, "amidships_stands_on") == "deckhouse"   # wing and midships turrets on the deckhouse
     secs = design.get("secondary") or []
     secs = [{**b, "prefix": battery_prefix(k)} for k, b in enumerate(secs if isinstance(secs, list) else [secs])]
     # torpedo mounts stand in pairs at the deck edges where the hull leaves room for their swing beside the edge,
@@ -1706,7 +1760,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     # magazines: more of them than gaps splits the longest boiler group, which then needs its own funnels.
     segs = [list(s) for s in plant["segments"]]
     seg_group = list(range(len(segs)))      # the arrangement's group each segment comes from (splits share it)
-    n_gaps = nm + (nw if echelon else 0)
+    n_gaps = nm + len(WE)
     main_kind = "boiler" if any(k == "boiler" for k, _ in segs) else "engine"
 
     def candidates():
@@ -1747,17 +1801,27 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     else:
         rest = [c for c in cands if c not in pref]
         gaps = sorted(pref + spread_over(rest, n_gaps - len(pref)))
-    gap_kind = {}
+    gap_kind, gap_gun = {}, {}
     t_gaps = [gaps[round((k + 0.5) * len(gaps) / nm - 0.5)] for k in range(nm)] if nm else []
+    t_left, w_left = list(M), list(WE)      # the midships turrets and echelon pairs, forward to aft
     for g in gaps:
         gap_kind[g] = "T" if g in t_gaps else "W"
+        gap_gun[g] = (t_left if g in t_gaps else w_left).pop(0)
+    # the abreast wing pairs go to the ends of the plan, the first forward, the second aft, then outward (the plan's
+    # inserts below): numbered forward to aft with the echelon pairs between, each with its magazine grouped at the
+    # end of the middle it stands at
+    wa_front = [WA[k] for k in range(0, len(WA), 2)][::-1]
+    wa_back = [WA[k] for k in range(1, len(WA), 2)]
+    grouped_wings = [(f"W{k + 1}", "fore", g) for k, g in enumerate(wa_front)] + \
+        [(f"W{len(wa_front) + len(WE) + k + 1}", "aft", g) for k, g in enumerate(wa_back)]
     # the grouped magazines (magazine_plan) stand at the ends of the machinery block, as wide as its space
-    mag_plan = magazine_plan(design, tm)
+    mag_plan = magazine_plan(design, grouped_wings)
     mag_l = {g: ordnance.zone_length(sum(n * v_ for _, n, v_ in v), plant["width"], plant) if v else 0.0
              for g, v in mag_plan.items()}
     if mag_l["fore"] > 0:
         segs.insert(0, ["magazine", mag_l["fore"]])
         gap_kind = {g + 1: k for g, k in gap_kind.items()}
+        gap_gun = {g + 1: k for g, k in gap_gun.items()}
     if mag_l["aft"] > 0:
         segs.append(["magazine", mag_l["aft"]])
     # funnels: enough for the gas, each within reach of its boilers (powerplant.funnel_plan). Natural and boost
@@ -1773,19 +1837,19 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     # a midships turret's slot among the funnels: barrels stowed along the centreline one way, and on the other
     # side enough room that its neighbour stays out of the beam arcs
     beam_tan = math.tan(math.radians(90.0 - ARC_BEAM))
-    s_mid = max(reach + 1.0, 0.55 * fw / beam_tan + 0.5) + R_main + 1.5
     f_min = fl + (9.6 if (ntp and not t_edges) else 2.0)
 
     # the plan, forward to aft: funnels (F, over a boiler group), open machinery (E: engine rooms, bunkers),
     # midships turrets (T) and wing turret pairs (W). Abreast pairs go to the ends of the middle (Dreadnought,
     # Nassau), echelon pairs into gaps among the machinery (Invincible)
-    seq, seg_of, widths0 = [], [], []
+    seq, seg_of, widths0, seq_gun = [], [], [], []      # seq_gun: a T or W item's _Gun
     g_i = 0
     for si, (kind, seg_l) in enumerate(segs):
         if si in gap_kind:
             seq.append(gap_kind[si])
             seg_of.append(None)
             widths0.append(None)
+            seq_gun.append(gap_gun[si])
         if kind == "boiler":
             n_g = fplan["counts"][g_i]
             g_i += 1
@@ -1793,16 +1857,19 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
                 seq.append("F")
                 seg_of.append(si)
                 widths0.append(max(seg_l / n_g, f_min))
+                seq_gun.append(None)
         else:
             seq.append("E")
             seg_of.append(si)
             widths0.append(seg_l)
+            seq_gun.append(None)
     if not groups and nfun:        # engines only: the exhaust funnel(s) stand over the engine rooms
         e_items = [i for i, it in enumerate(seq) if it == "E" and segs[seg_of[i]][0] == "engine"] or [0]
         for _ in range(nfun):
             seq.insert(e_items[0], "F")
             seg_of.insert(e_items[0], None)
             widths0.insert(e_items[0], f_min)
+            seq_gun.insert(e_items[0], None)
     # engine rooms and bunkers at the ends of the block have nothing on deck: they leave the deck plan and run on
     # under whatever stands above them (bridge, wing turrets, aft control). An engines-only plant keeps its engine
     # rooms in the plan, under its exhaust funnels.
@@ -1812,17 +1879,19 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
             lead.append(seg_of.pop(0))
             seq.pop(0)
             widths0.pop(0)
+            seq_gun.pop(0)
         while seq and seq[-1] == "E":
             trail.insert(0, seg_of.pop())
             seq.pop()
             widths0.pop()
-    if not echelon:
-        for k in range(nw):
-            at = 0 if k % 2 == 0 else len(seq)
-            seq.insert(at, "W")
-            seg_of.insert(at, None)
-            widths0.insert(at, None)
-    core = [i for i, it in enumerate(seq) if not (it == "W" and not echelon)]   # the plan over the machinery
+            seq_gun.pop()
+    for k, g in enumerate(WA):
+        at = 0 if k % 2 == 0 else len(seq)
+        seq.insert(at, "W")
+        seg_of.insert(at, None)
+        widths0.insert(at, None)
+        seq_gun.insert(at, g)
+    core = [i for i, it in enumerate(seq) if not (it == "W" and not seq_gun[i].echelon)]   # the plan over the machinery
     # the forward boiler group may run on under the bridge: most of it, as its funnels must still come up through
     # open deck aft of the bridge, each with its room (f_min)
     under_bridge, ub_seg = 0.0, None
@@ -1842,22 +1911,27 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         """Half-width of what stands on the centreline at seq[j] (a W counts as its turrets' outer edge)."""
         if j in ends:
             return ends[j]
-        return fw / 2 if seq[j] == "F" else (y + reach if seq[j] == "W" else 0.0)
+        if seq[j] == "W":
+            g = seq_gun[j]
+            return wy(g, y) + g.reach
+        return fw / 2 if seq[j] == "F" else 0.0
 
-    def wing_gap(y, half):
-        """Fore-and-aft room from a wing turret at y to the edge of its neighbour's slot: clear of the body,
+    def wing_gap(g, y, half):
+        """Fore-and-aft room from a wing turret (g, at y) to the edge of its neighbour's slot: clear of the body,
         or of the barrels' reach if the neighbour stands as far out as the turret's sweep."""
+        y = wy(g, y)
         if half >= y - 0.2:
-            return R_main + 0.5
-        return max(0.5, math.sqrt(max(0.0, (reach + 0.5) ** 2 - (y - half) ** 2)))
+            return g.R + 0.5
+        return max(0.5, math.sqrt(max(0.0, (g.reach + 0.5) ** 2 - (y - half) ** 2)))
 
-    def wing_stagger(y):
+    def wing_stagger(g, y):
         """Fore-and-aft offset between an echelon pair: bodies clear, and if the partner reaches across a
         turret's barrel line, clear of its barrels too."""
+        reach, y = g.reach, wy(g, y)
         if reach - y > y - 0.3:
-            return R_main + reach + 0.5
+            return g.R + reach + 0.5
         s = max(2 * reach + 1.0, math.sqrt(max(0.0, (2 * reach + 0.5) ** 2 - 4 * y * y)))
-        if cross:   # the partner's body (+0.5 m) clear of the cross-deck arc's edge, ARC_CROSS off the beam
+        if g.cross:   # the partner's body (+0.5 m) clear of the cross-deck arc's edge, ARC_CROSS off the beam
             c = math.radians(ARC_CROSS)
             s = max(s, (reach + 0.5 + 2 * y * math.sin(c)) / math.cos(c))
         return s
@@ -1866,20 +1940,23 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         """Room from the wing pair at seq[i] toward one end (step -1 forward, +1 aft): clear of the neighbour, and
         of the next bridge, turret or aft control beyond any funnels, which may stand wider than the funnels and
         reach into the barrels' sweep."""
+        w = seq_gun[i]
         j = i + step
-        g = wing_gap(y, half_of(j, y))
+        g = wing_gap(w, y, half_of(j, y))
         while 0 <= j < len(seq) and seq[j] in ("F", "E"):
             j += step
-        g = max(g, wing_gap(y, half_of(j, y)))
+        g = max(g, wing_gap(w, y, half_of(j, y)))
         # past the bridge (or aft control) stands the end group's inner turret, whose body may cross the
         # barrels' line when they point ahead (or astern): keep the muzzles short of it
         if (step < 0 and nf) or (step > 0 and na):
+            e = F[-1] if step < 0 else A[-1]
             flush = flush_f if step < 0 else flush_a
-            beyond = (R_main + 1.0 if flush else r + gap) + (lb + 1.5 if step < 0 else (la + 1.5 if la else 1.0))
-            need = R_main + reach + 0.5 if reach > y - 0.3 or cross else \
-                math.sqrt(max(0.0, (2 * reach + 0.5) ** 2 - y * y))
+            beyond = (e.R + 1.0 if flush else e.r + e.gap) + (lb + 1.5 if step < 0 else (la + 1.5 if la else 1.0))
+            yw = wy(w, y)
+            need = w.R + e.reach + 0.5 if e.reach > yw - 0.3 or w.cross else \
+                math.sqrt(max(0.0, (w.reach + e.reach + 0.5) ** 2 - yw * yw))
             g = max(g, need - beyond)
-        if cross:
+        if w.cross:
             # a cross-deck turret trains across through this end (the forward turret of a pair through ahead, the
             # aft one through astern), its barrels sweeping over the centreline: the next item of the plan standing
             # there, past any open machinery, must be clear of the muzzles (a midships turret's body too). The
@@ -1889,7 +1966,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
                 open_l += widths0[j]
                 j += step
             if 0 <= j < len(seq) and (half_of(j, y) > 0 or seq[j] == "T"):
-                g = max(g, R_main + 0.5 + (reach if seq[j] == "T" else 0.0) - open_l)
+                g = max(g, w.R + 0.5 + (seq_gun[j].reach if seq[j] == "T" else 0.0) - open_l)
         return g
 
     def cross_ends(y):
@@ -1899,15 +1976,17 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         out = []
         for step, order in ((-1, range(len(seq))), (1, range(len(seq) - 1, -1, -1))):
             k = next((k for k in order if seq[k] != "E"), None)
-            if not cross or k is None or seq[k] != "W" or half_of(-1 if step < 0 else len(seq), y) <= 0:
+            if k is None or seq[k] != "W" or not seq_gun[k].cross or \
+                    half_of(-1 if step < 0 else len(seq), y) <= 0:
                 out.append(0.0)
                 continue
             open_l = sum(widths0[e] for e in (range(k) if step < 0 else range(k + 1, len(seq))))
-            out.append(max(0.0, R_main + 0.5 - wing_side(k, step, y) - open_l))
+            out.append(max(0.0, seq_gun[k].R + 0.5 - wing_side(k, step, y) - open_l))
         return tuple(out)
 
     def wing_widths(y):
-        return {i: wing_side(i, -1, y) + wing_side(i, 1, y) + (wing_stagger(y) if echelon else 0.0)
+        return {i: wing_side(i, -1, y) + wing_side(i, 1, y) + (wing_stagger(seq_gun[i], y) if seq_gun[i].echelon
+                                                                else 0.0)
                 for i, it in enumerate(seq) if it == "W"}
 
     def plan_widths(y):
@@ -1920,8 +1999,8 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
             elif it == "T":
                 stow = 0 if (i + 1 < len(seq) and seq[i + 1] == "T") else 180
                 j = i - 1 if stow == 180 else i + 1                  # the neighbour on the open side
-                margin = max(reach + 1.0, half_of(j, y) / beam_tan + 0.5)
-                out.append(margin + R_main + 1.5)
+                margin = max(seq_gun[i].reach + 1.0, half_of(j, y) / beam_tan + 0.5)
+                out.append(margin + seq_gun[i].R + 1.5)
             else:
                 out.append(widths0[i])
         return out
@@ -1940,45 +2019,50 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         return max(lb + 1.5 + ef + sum(ws) + ea + aft_l, lead_l + c_l + trail_l + 2.0,
                    lb + 1.5 + ef + before + c_l + trail_l + 1.0, lead_l + 1.0 + sum(ws) - before + ea + aft_l)
 
-    y_0 = B / 2 - reach - 0.6
+    y_0 = B / 2 - g_ref.reach - 0.6 if nw else 0.0
     M_req = middle_needs(plan_widths(y_0), cross_ends(y_0))
 
-    need_hw = reach + 0.6
-    if tm and need_hw > B / 2:
-        lay.fail("beam", f"Main turrets are {2 * reach:.1f} m across; the {B:g} m beam cannot carry them "
-                         f"(needs about {2 * need_hw:.1f} m). Use fewer or smaller guns.")
+    big = max(bats, key=lambda g: g.reach) if bats else None
+    if big and big.reach + 0.6 > B / 2:
+        lay.fail("beam", f"Main turrets{'' if len(bats) == 1 else f' of {big.cal}'} are {2 * big.reach:.1f} m "
+                         f"across; the {B:g} m beam cannot carry them (needs about {2 * (big.reach + 0.6):.1f} m). "
+                         "Use fewer or smaller guns.")
 
-    def fits(x):
-        if need_hw > B / 2:      # cannot fit anywhere: already reported, don't push the guns inward
+    def fits(x, g):
+        if g.reach + 0.6 > B / 2:      # cannot fit anywhere: already reported, don't push the guns inward
             return True
-        return hull.half_width(x) >= need_hw
+        return hull.half_width(x) >= g.reach + 0.6
 
     # preferred / minimum clearances from the hull ends to the outer edge of each group
     if nf:
-        bow_pref, bow_min = 0.09 * L + 2.5 * r, 0.06 * L + 1.5 * r
+        bow_pref, bow_min = 0.09 * L + 2.5 * F[0].r, 0.06 * L + 1.5 * F[0].r
     else:
         bow_pref, bow_min = 0.14 * L, 0.06 * L
     if na:
-        st_pref, st_min = 0.08 * L + 2.0 * r, 0.05 * L + 1.0 * r
+        st_pref, st_min = 0.08 * L + 2.0 * A[0].r, 0.05 * L + 1.0 * A[0].r
     else:
         st_pref, st_min = 0.12 * L, 0.05 * L
 
+    off_f, off_a = group_offsets(F), group_offsets(A)    # each turret's distance from its group's outermost
+
     def arrangement(bow_c, st_c, sh):
         """Positions for the given clearances and shift."""
-        fore = [L / 2 - bow_c - r + sh - i * s_main for i in range(nf)]
-        aft = [-L / 2 + st_c + r + sh + i * s_main for i in range(na)]
+        fore = [L / 2 - bow_c - F[0].r + sh - o for o in off_f] if nf else []
+        aft = [-L / 2 + st_c + A[0].r + sh + o for o in off_a] if na else []
         # push groups inward until the hull is wide enough for the outermost turret
         guard = 0
-        while fore and not fits(fore[0]) and fore[0] > 0 and guard < 4000:
+        while fore and not fits(fore[0], F[0]) and fore[0] > 0 and guard < 4000:
             fore = [x - 0.25 for x in fore]
             guard += 1
         guard = 0
-        while aft and not fits(aft[0]) and aft[0] < 0 and guard < 4000:
+        while aft and not fits(aft[0], A[0]) and aft[0] < 0 and guard < 4000:
             aft = [x + 0.25 for x in aft]
             guard += 1
         # a flush turret at the inner end of a group stows its barrels toward the middle: keep them clear
-        mid_fwd = (fore[-1] - R_main - 1.0 if flush_f else fore[-1] - r - gap) if fore else L / 2 - bow_c + sh
-        mid_aft = (aft[-1] + R_main + 1.0 if flush_a else aft[-1] + r + gap) if aft else -L / 2 + st_c + sh
+        mid_fwd = (fore[-1] - F[-1].R - 1.0 if flush_f else fore[-1] - F[-1].r - F[-1].gap) if fore \
+            else L / 2 - bow_c + sh
+        mid_aft = (aft[-1] + A[-1].R + 1.0 if flush_a else aft[-1] + A[-1].r + A[-1].gap) if aft \
+            else -L / 2 + st_c + sh
         return fore, aft, mid_fwd, mid_aft
 
     fore, aft, mid_fwd, mid_aft = arrangement(bow_pref, st_pref, 0.0)
@@ -2009,12 +2093,12 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     # how far the whole arrangement may shift for balance
     def shift_ok(sh):
         f_, a_, mf, ma = arrangement(bow_c, st_c, sh)
-        if f_ and (f_[0] != L / 2 - bow_c - r + sh):   # had to be pushed in: hull too narrow there
+        if f_ and (f_[0] != L / 2 - bow_c - F[0].r + sh):   # had to be pushed in: hull too narrow there
             return False
-        if a_ and (a_[0] != -L / 2 + st_c + r + sh):
+        if a_ and (a_[0] != -L / 2 + st_c + A[0].r + sh):
             return False
-        front_edge = (f_[0] + r) if f_ else mf
-        back_edge = (a_[0] - r) if a_ else ma
+        front_edge = (f_[0] + F[0].r) if f_ else mf
+        back_edge = (a_[0] - A[0].r) if a_ else ma
         return L / 2 - front_edge >= bow_min - 1e-6 and back_edge + L / 2 >= st_min - 1e-6
 
     lo = hi = 0.0
@@ -2036,7 +2120,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     fz1 = bx0 - 1.5
     # wing turrets stand as far outboard as the narrowest hull section of the middle allows, then as far as the
     # hull allows where they end up: a hull narrowing to its ends is wider where the pairs stand
-    y_w = min(hull.half_width(fz0 + (fz1 - fz0) * k / 20) for k in range(21)) - reach - 0.6
+    y_w = min(hull.half_width(fz0 + (fz1 - fz0) * k / 20) for k in range(21)) - g_ref.reach - 0.6 if nw else 0.0
 
     def plan_front(widths, y):
         """Where the plan's front stands for these item lengths, with the wing pairs at y: (lo_x, hi_x, x)."""
@@ -2050,28 +2134,36 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     def wing_room(y):
         """How far out the wing turrets could stand where a plan with them at y puts them."""
         widths = plan_widths(y)
-        xx, room = plan_front(widths, y)[2], B
+        xx, room = plan_front(widths, y)[2], B - g_ref.reach - 0.6
         for i, (it, w_) in enumerate(zip(seq, widths)):
             if it == "W":
+                g = seq_gun[i]
                 x = xx - wing_side(i, -1, y)
-                for xw in ((x, x - wing_stagger(y)) if echelon else (x,)):
-                    room = min(room, *(hull.half_width(xw + d) for d in (-reach, 0.0, reach)))
+                hw = B
+                for xw in ((x, x - wing_stagger(g, y)) if g.echelon else (x,)):
+                    hw = min(hw, *(hull.half_width(xw + d) for d in (-g.reach, 0.0, g.reach)))
+                lim = hw - g.reach - 0.6          # how far out its centre may stand, as the first wing battery's
+                room = min(room, lim if g.reach == g_ref.reach else lim + g.reach - g_ref.reach)
             xx -= w_
-        return room - reach - 0.6
+        return room
     if nw:
-        lo_y, hi_y = y_w, min(wing_room(y_w), B / 2 - reach - 0.6)
+        lo_y, hi_y = y_w, min(wing_room(y_w), B / 2 - g_ref.reach - 0.6)
         for _ in range(8):     # the farthest out that still fits where it puts them
             if hi_y - lo_y < 0.05:
                 break
             mid_y = (lo_y + hi_y) / 2
             lo_y, hi_y = (mid_y, hi_y) if wing_room(mid_y) >= mid_y else (lo_y, mid_y)
         y_w = lo_y
-    if nw and not echelon and y_w < reach + 0.25:
-        lay.fail("beam", f"Wing turrets are {2 * reach:.1f} m across: a pair cannot stand abreast on this beam "
-                         f"(needs about {4 * reach + 1.7:.1f} m). Set \"echelon\": true or use smaller guns.")
-    elif nw and y_w <= 0.5:
-        lay.fail("beam", f"Hull too narrow for wing turrets even in echelon: they need about "
-                         f"{2 * reach + 2.2:.1f} m of beam amidships.")
+    for g in dict.fromkeys(WA + WE):      # each wing battery once
+        if not g.echelon and wy(g, y_w) < g.reach + 0.25:
+            lay.fail("beam", f"Wing turrets{'' if len(bats) == 1 else f' of {g.cal}'} are {2 * g.reach:.1f} m "
+                             f"across: a pair cannot stand abreast on this beam (needs about "
+                             f"{4 * g.reach + 1.7:.1f} m). Set \"echelon\": true or use smaller guns.")
+            break
+        elif wy(g, y_w) <= 0.5:
+            lay.fail("beam", f"Hull too narrow for wing turrets{'' if len(bats) == 1 else f' of {g.cal}'} even in "
+                             f"echelon: they need about {2 * g.reach + 2.2:.1f} m of beam amidships.")
+            break
     widths = plan_widths(y_w)
     # where the plan's front may stand: the deck plan between the bridge and the aft control, and the machinery
     # (core plus end segments) between the end turret groups
@@ -2090,15 +2182,16 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
             f_seg.append(seg_of[i])
         elif it == "W":
             # abreast: both at one x; echelon: port forward, starboard aft
+            g = seq_gun[i]
             x = xx - wing_side(i, -1, y_w)
-            wings.append([(x, -1), (x - wing_stagger(y_w), 1)] if echelon else [(x, -1), (x, 1)])
+            wings.append((g, wy(g, y_w), [(x, -1), (x - wing_stagger(g, y_w), 1)] if g.echelon else [(x, -1), (x, 1)]))
         elif it == "T":
             # flush, firing to the sides. Each stows aft unless another turret is aft of it; its slot holds the
             # stowed barrels on one side and, on the other, keeps the neighbour out of its beam arcs
             stow = 0 if (i + 1 < len(seq) and seq[i + 1] == "T") else 180
             j = i - 1 if stow == 180 else i + 1
-            margin = max(reach + 1.0, half_of(j, y_w) / beam_tan + 0.5)
-            mids.append((xx - margin if stow == 180 else xx - w_ + margin, stow))
+            margin = max(seq_gun[i].reach + 1.0, half_of(j, y_w) / beam_tan + 0.5)
+            mids.append((seq_gun[i], xx - margin if stow == 180 else xx - w_ + margin, stow))
         if seg_of[i] is not None:
             seg_span.setdefault(seg_of[i], [xx, xx - w_])[1] = xx - w_
         xx -= w_
@@ -2130,11 +2223,11 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     # An absent end group or aft control stands where it would: at the middle's end, no length (so "fore_group" to
     # "aft_group" is the whole middle on a ship without end groups); only absent funnels fall back
     breaks_at = {        # feature: (aft edge, forward edge), the break x of a stretch ending there
-        "fore_group": (mid_fwd, fore[0] + r + 1.0 if fore else mid_fwd),
+        "fore_group": (mid_fwd, fore[0] + F[0].r + 1.0 if fore else mid_fwd),
         "bridge": (bx0 - 0.75, mid_fwd),
         "funnels": (f_aft - 0.75 if fxs else None, f_fwd + 0.75 if fxs else None),
         "aft_control": (mid_aft, mid_aft + la + 0.75 if la else mid_aft),
-        "aft_group": (aft[0] - r - 1.0 if aft else mid_aft, mid_aft),
+        "aft_group": (aft[0] - A[0].r - 1.0 if aft else mid_aft, mid_aft),
     }
     edges = {"bow": (None, L / 2), **breaks_at, "stern": (-L / 2, None)}
     spans = []
@@ -2161,36 +2254,37 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     # ---------------- main turrets ----------------
     turret_types = {}
     mounts = []
-    if tm:
-        turret_types[tm_id] = tm
-        groups = [("A", fore, 0), ("Y", aft, 180)]
+    for g in bats:
+        turret_types[g.tid] = g.t
+    if nf or na:
+        groups = [("A", fore, F, 0), ("Y", aft, A, 180)]
         names = {"A": "ABC", "Y": "YXW"}
         stepped = dict(zip("AY", (n_step_f, n_step_a)))
-        for gname, xs, rest in groups:
-            deck0 = lay.deck_z(xs[0], reach) if xs else 0.0      # the outermost turret's deck
+        for gname, xs, gs, rest in groups:
+            deck0 = lay.deck_z(xs[0], gs[0].reach) if xs else 0.0      # the outermost turret's deck
             prev = None
-            for i, x in enumerate(xs):
+            for i, (x, g) in enumerate(zip(xs, gs)):
                 # each further turret superfires over the one outboard of it, up to the stepped count;
                 # the rest stand flush behind and fire to the sides only
                 flush = i >= max(stepped[gname], 1)
                 level = 0 if flush else i
-                dz = lay.deck_z(x, reach)
+                dz = lay.deck_z(x, g.reach)
                 # a flush turret stows pointing away from the stepped turret ahead of it
                 rest_ = (180 if gname == "A" else 0) if flush else rest
                 # a step over the turret it fires over (which a raised deck may have lifted), on its own deck at
                 # least, and its guns clear of any higher raised deck they sweep over
-                base = (dz if flush else deck0) + 1.2 + level * superfire_step(th)
-                if not flush and prev is not None and prev > deck0 + 1.2 + (level - 1) * superfire_step(th) + 1e-9:
-                    base = max(base, prev + superfire_step(th))
+                base = (dz if flush else deck0) + 1.2 + tier_steps(gs, level)
+                if not flush and prev is not None and prev > deck0 + 1.2 + tier_steps(gs, level - 1) + 1e-9:
+                    base = max(base, prev + superfire_step(gs[i - 1].th))
                 base = max(base, dz + 1.2)
-                base += raised_lift(lay, dict(kind="main", t=tm, x=x, y=0.0, rest=rest_, base=base, top=base + th,
+                base += raised_lift(lay, dict(kind="main", t=g.t, x=x, y=0.0, rest=rest_, base=base, top=base + g.th,
                                               **({"arc_role": "beam"} if flush else {})))
                 prev = base
                 mid = turret_name(names[gname], i)
-                m = armament.add_mount(lay, mounts, "main", tm_id, tm, mid, x, 0.0, base, rest_, level=level,
-                                       **t_arm, depth=depth, footprint_r=reach,
+                m = armament.add_mount(lay, mounts, "main", g.tid, g.t, mid, x, 0.0, base, rest_, level=level,
+                                       **g.arm, depth=depth, footprint_r=g.reach,
                                        label="Turret",
-                                       deck=base - 1.2 - level * superfire_step(th) if lay.raised else dz)
+                                       deck=base - 1.2 - tier_steps(gs, level) if lay.raised else dz)
                 if flush:
                     m["arc_role"] = "beam"
                 lay.reserve_sweep(m)
@@ -2199,29 +2293,30 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     # standing on its roof (stands_on "deckhouse") and the upper casemates' housings
     riders = []
     if nm or nw:
-        def main_mount(mid, x, y, rest, **kw):
+        def main_mount(g, mid, x, y, rest, **kw):
             # on the deck, or at level 1's roof on the deckhouse (a raised stretch may already reach it); its guns
             # clear of any higher raised deck they sweep over
+            reach = g.reach
             dz = lay.deck_z(x, reach)
-            base = max(dz, LEVEL_H if mid_raised else 0.0) + 1.2
-            base += raised_lift(lay, dict(kind="main", t=tm, x=x, y=y, rest=rest, base=base, top=base + th, **kw))
+            base = max(dz, LEVEL_H if g.raised else 0.0) + 1.2
+            base += raised_lift(lay, dict(kind="main", t=g.t, x=x, y=y, rest=rest, base=base, top=base + g.th, **kw))
             lay.reserve_sweep(armament.add_mount(
-                lay, mounts, "main", tm_id, tm, mid, x, y, base, rest, **t_arm,
+                lay, mounts, "main", g.tid, g.t, mid, x, y, base, rest, **g.arm,
                 depth=depth, footprint_r=reach, label="Turret",
-                deck=max(0.0, base - 1.2 - (LEVEL_H if mid_raised else 0.0)) if lay.raised else dz, **kw))
-            if mid_raised and dz < LEVEL_H:
+                deck=max(0.0, base - 1.2 - (LEVEL_H if g.raised else 0.0)) if lay.raised else dz, **kw))
+            if g.raised and dz < LEVEL_H:
                 riders.append((x - reach - DH_INSET, x + reach + DH_INSET, abs(y) + reach + DH_INSET))
 
-        for k, (x, stow) in enumerate(mids):
-            main_mount(turret_name("QPRS", k), x, 0.0, stow, arc_role="beam", midships=True)
+        for k, (g, x, stow) in enumerate(mids):
+            main_mount(g, turret_name("QPRS", k), x, 0.0, stow, arc_role="beam", midships=True)
         # wing turrets fire bow to stern on their own side, and stow fore-and-aft (the edge of that arc) toward
         # the nearer end: an echelon pair's forward turret forward and its aft one aft. Cross-deck turrets also
         # fire across the deck, training over through that end (hitbox.cross_turn)
-        for k, pair in enumerate(wings):
+        for k, (g, y_g, pair) in enumerate(wings):
             for x, side in pair:
-                fwd = (x == pair[0][0]) if echelon else x >= mach_c
-                main_mount(f"W{k + 1}{'S' if side > 0 else 'P'}", x, side * y_w, 0 if fwd else 180, wing=True,
-                           **({"echelon": True} if echelon else {}), **({"cross_deck": True} if cross else {}))
+                fwd = (x == pair[0][0]) if g.echelon else x >= mach_c
+                main_mount(g, f"W{k + 1}{'S' if side > 0 else 'P'}", x, side * y_g, 0 if fwd else 180, wing=True,
+                           **({"echelon": True} if g.echelon else {}), **({"cross_deck": True} if g.cross else {}))
 
     # ---------------- superstructure, kept out of the guns' sweeps ----------------
     # every level keeps clear of the end groups' turrets (level_outline): all but wing and midships turrets
@@ -2366,7 +2461,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         def sec_base(x):   # on the weather deck, or at level 1's roof (a raised stretch may already reach it)
             return max(lay.deck_z(x, rs_reach), LEVEL_H) if raised else lay.deck_z(x, rs_reach)
         x_lo, x_hi = mid_aft + rs_reach + 0.5, mid_fwd - rs_reach - 0.5
-        inner = max([b["w"] / 2 for b in blocks if b["level"] >= 2] + [fw / 2] + ([reach] if nm else [])) \
+        inner = max([b["w"] / 2 for b in blocks if b["level"] >= 2] + [fw / 2] + [g.reach for g in M]) \
             + rs_reach + 0.4
 
         def outer_at(x):   # how far out a mount at x may stand: inside the deck edge over its whole footprint
@@ -2679,7 +2774,8 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     main_x = [m["x"] for m in mounts if m["kind"] == "main"]
     block = (min(p_[1] for p_ in mach_placed), max(p_[2] for p_ in mach_placed))
     if main_x:
-        cit = (min(min(main_x) - r - 2.0, block[0]), max(max(main_x) + r + 2.0, block[1]))
+        cit = (min(min(m["x"] - m["t"]["r"] for m in mounts if m["kind"] == "main") - 2.0, block[0]),
+               max(max(m["x"] + m["t"]["r"] for m in mounts if m["kind"] == "main") + 2.0, block[1]))
     else:
         cit = block
     set_citadel(lay, *cit)
@@ -2699,7 +2795,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     add_steering(lay)
 
     # ---------------- renderer spec ----------------
-    front_edge = (fore[0] + r) if fore else mid_fwd
+    front_edge = (fore[0] + F[0].r) if fore else mid_fwd
     extra = dict(boats=boats, bollards=[L / 2 - 0.05 * L, -L / 2 + 0.06 * L])
     if L / 2 - front_edge > 0.08 * L + 6:
         extra.update(chain_x=front_edge + 0.35 * (L / 2 - front_edge), hawse_back=0.03 * L + 1.0)
