@@ -14,6 +14,7 @@ Standard library only (design side). Units: m, m^2, mm of plate, MPa, kN m, t.
 import math
 
 RHO = 7.85e-3          # t per m^2 per mm of steel plate
+RHO_WOOD = 0.7e-3      # t per m^2 per mm of deck planking (teak, fastenings and caulking)
 
 # Fitted constants (the research's calibration; nothing else is free)
 K_S = 2.5              # framing, stiffeners and minor structure, on the minimum-gauge plate
@@ -65,8 +66,10 @@ def construction(design):
 
 def plating(design):
     """hull.plating with its defaults filled in: shell_mm, the side shell's least thickness (0: the structure's own
-    gauge), and material, a plain string passed to the hitboxes for the game."""
-    return {"shell_mm": 0.0, "material": None, **((design.get("hull") or {}).get("plating") or {})}
+    gauge), material, a plain string passed to the hitboxes for the game, and deck_wood_mm, planking laid on the
+    weather deck (0: bare steel)."""
+    return {"shell_mm": 0.0, "material": None, "deck_wood_mm": 0.0,
+            **((design.get("hull") or {}).get("plating") or {})}
 
 
 def t_min_mm(L, c):
@@ -80,7 +83,7 @@ def extra_plate_t(area_m2, mm, own_mm):
     return RHO * area_m2 * max(0.0, mm - own_mm)
 
 
-def plates(h, L, shell_mm, material, sup_mm, control_mm):
+def plates(h, L, shell_mm, material, sup_mm, control_mm, deck_wood_mm=0.0):
     """The plating the game's damage model sees (fuze arming, hole size, splinters), from the structure h
     (hullweight.weight, or a box-model hull with plate_own_mm): mm of each kind of plate, unarmoured. Strength
     plating (t_str) thickens the shell and strength deck over the middle GIRDER_TAPER of the length."""
@@ -92,7 +95,8 @@ def plates(h, L, shell_mm, material, sup_mm, control_mm):
                 strength_deck_mm=r(max(t_min, t_str)), strength_deck_end_mm=r(t_min),
                 mid_x0=r(-GIRDER_TAPER * L / 2), mid_x1=r(GIRDER_TAPER * L / 2),
                 deck_mm=r(INT_DECK_T * t_min), bulkhead_mm=r(BHD_T * t_min), inner_bottom_mm=r(t_min),
-                superstructure_mm=r(max(own_sup, sup_mm)), control_mm=r(max(own_sup, sup_mm, control_mm)))
+                superstructure_mm=r(max(own_sup, sup_mm)), control_mm=r(max(own_sup, sup_mm, control_mm)),
+                deck_wood_mm=r(deck_wood_mm))
 
 
 def allowable_stress(c):
@@ -171,11 +175,13 @@ def _plating_errors(design):
     if p is None:
         return []
     if not isinstance(p, dict):
-        return ["hull.plating: use {\"shell_mm\", \"material\"}"]
-    errs = [f"hull.plating.{k}: not a plating setting (shell_mm, material)" for k in p
-            if k not in ("shell_mm", "material")]
+        return ["hull.plating: use {\"shell_mm\", \"material\", \"deck_wood_mm\"}"]
+    errs = [f"hull.plating.{k}: not a plating setting (shell_mm, material, deck_wood_mm)" for k in p
+            if k not in ("shell_mm", "material", "deck_wood_mm")]
     if "shell_mm" in p and not (isinstance(p["shell_mm"], (int, float)) and p["shell_mm"] >= 0):
         errs.append("hull.plating.shell_mm: a number, 0 or more (0: the structure's own gauge)")
+    if "deck_wood_mm" in p and not (isinstance(p["deck_wood_mm"], (int, float)) and p["deck_wood_mm"] >= 0):
+        errs.append("hull.plating.deck_wood_mm: a number, 0 or more (0: a bare steel deck)")
     if "material" in p and (not isinstance(p["material"], str) or not p["material"]):
         errs.append("hull.plating.material: name the material as a string")
     return errs

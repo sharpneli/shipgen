@@ -224,6 +224,13 @@ class Carrier(Style):
         L = design["hull"]["length"]
         return [Weight("Island", "superstructure", 0.006 * L ** 2, z_rel=("deck", deck_plan(design)["fd_h"] + 4))]
 
+    def weather_deck(self, design, L, B):
+        """A carrier's weather deck is its flight deck (Essex and the escort carriers: wooden ones)."""
+        dp = deck_plan(design)
+        if dp["kind"] == "none":
+            return super().weather_deck(design, L, B)
+        return dp["fd_area"], (dp["x0"] + dp["x1"]) / 2, dp["fd_h"]
+
     def structure_weights(self, design, L, B, T, D, geo, tun):
         dp, av = deck_plan(design), aviation(design)
         m = av["aircraft_t"]

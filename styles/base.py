@@ -14,6 +14,7 @@ COMMON_LIMITS = {
     ("hull", "construction", "yield_mpa"): (100, 1500), ("hull", "construction", "join_factor"): (0.8, 1.5),
     ("hull", "construction", "standard"): (0.5, 2.0), ("hull", "freeboard"): (0.3, 2.0),
     ("hull", "raised", "decks"): (1, 2), ("hull", "plating", "shell_mm"): (0, 200),
+    ("hull", "plating", "deck_wood_mm"): (0, 300),
     ("speed_kn",): (8, 42), ("range_nm",): (1000, 25000),
     ("main", "calibre_mm"): (1, 2000), ("main", "calibre_length"): (1, 200), ("main", "barrels"): (1, 20),
     ("main", "fore"): (0, 40), ("main", "aft"): (0, 40), ("main", "mid"): (0, 40),
@@ -316,6 +317,12 @@ class Style:
     def structure_weights(self, design, L, B, T, D, geo, tun) -> list:
         """Style structure that depends on the hull (counted in standard displacement, before outfit)."""
         return []
+
+    def weather_deck(self, design, L, B):
+        """The weather deck the planking (hull.plating.deck_wood_mm) is laid on: (area m2, x, height above the main
+        deck). The main deck by default; raised stretches stand over it, so the area holds."""
+        import hullweight
+        return hullweight.deck_area(L, B, design["hull"]["block_coefficient"]), 0.0, 0.0
 
     def payload_weights(self, design, L, D, geo, tun, ctx) -> tuple[list, list]:
         """(standard-load items, full-load-only items): e.g. aircraft, and cargo or aviation fuel.

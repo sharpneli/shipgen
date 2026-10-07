@@ -19,6 +19,13 @@ T_PER_M3 = 0.6     # tonnes of ammunition per m3 of magazine (shell and powder r
                    # rooms and passages are in the deck space above)
 TIERS = 2          # deck spaces a magazine planned before its contents are known is given (a shell and powder room)
 MIN_ROOM = 1.5     # m: the shortest magazine
+# At action stations (research/08 section 3.9: fragments reaching ready-use ammunition start a fire about half the
+# time). Fitted (E) to about 4 rounds a gun in a 16-inch gunhouse (trays and hoists), 20 at a 5-inch mount's ready
+# racks, 100 a barrel at a 40 mm tub and 260 at a 20 mm: one smooth curve, no calibre classes. It's drawn from the
+# magazines, so it isn't weighed again.
+READY_K, READY_P = 17000.0, 1.4      # ready rounds per barrel = READY_K x calibre_mm^-READY_P
+WARHEAD_K = 2.0e-6                   # torpedo warhead kg = WARHEAD_K x diameter_mm^3 (533 mm: 300 kg; 610: 450) (E)
+TORPEDO_MM = 533                     # every torpedo tube is 533 mm (geometry.make_torpedo_type)
 
 
 def span(plan, need_h=None, tiers=TIERS):
@@ -43,6 +50,18 @@ def height(plan, tiers=TIERS):
 def ammo_t(t):
     """Tonnes of ammunition for one mount of turret type t."""
     return mount_weights(t, 0.0, 0.0, 0)[2]
+
+
+def ready_use(calibre_mm, barrels):
+    """Ready-use ammunition at a gun mount at action stations: (rounds, tonnes). A round weighs what the magazines
+    book (navarch: shell_k x calibre^3 x ammo_mult, shell and propellant)."""
+    from navarch import TUNING
+    n = barrels * max(1, round(READY_K * calibre_mm ** -READY_P))
+    return n, n * TUNING["shell_k"] * calibre_mm ** 3 / 1000.0 * TUNING["ammo_mult"]
+
+
+def warhead_kg(diameter_mm=TORPEDO_MM):
+    return WARHEAD_K * diameter_mm ** 3
 
 
 def ammo_m3(t):

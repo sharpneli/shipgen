@@ -228,6 +228,11 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         # armour that depends on draught / depth
         items += armour_weights(design, L, B, D, arm)
         items += style.structure_weights(design, L, B, T, D, geo, tun)
+        wood = hullweight.plating(design)["deck_wood_mm"]
+        if wood:    # planking on the weather deck: a fire load, and weight high up
+            area, wx, wz = style.weather_deck(design, L, B)
+            items.append(Weight("Deck planking", "hull", area * wood * hullweight.RHO_WOOD, x=wx,
+                                z_rel=("deck", wz)))
         std_wo_misc = sum(w.w for w in items)
         std = std_wo_misc / (1 - tun["misc_frac"])
         items.append(Weight("Equipment, outfit, crew & stores", "misc", std - std_wo_misc, x=0.0,

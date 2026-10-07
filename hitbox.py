@@ -29,6 +29,7 @@ import re
 from geometry import rrect_polygon, block_outline, turret_shapes, turret_reach, _wrap180, angle_allowed, nearest_allowed  # noqa: F401
 from geometry import AA_CFG, HullForm
 import powerplant
+import ordnance
 import propulsion
 import subdivision
 
@@ -264,13 +265,15 @@ def hull_plating(lay, design, res):
     hp = hullweight.plating(design)
     h = res.hull if "t_min_mm" in res.hull else {**res.hull, "plate_own_mm": own_plate_mm(lay)}
     return hullweight.plates(h, lay.hull.L, hp["shell_mm"], hp["material"], sup.get("plating_mm", 0.0),
-                             sup.get("control_mm", 0.0))
+                             sup.get("control_mm", 0.0), hp["deck_wood_mm"])
 
 
-def deck_plates(sub, plating, design):
+def deck_plates(sub, plating, design, comps):
     """plate_mm on the subdivision's decks and unarmoured bulkheads: the main deck is the strength deck (thicker over
     the middle: plate_end_mm toward the ends), the inner bottom and raised decks at the hull's own gauge, the other
-    decks and the watertight bulkheads lighter. A torpedo bulkhead gives the protection's plating, all its bulkheads together."""
+    decks and the watertight bulkheads lighter. A torpedo bulkhead gives the protection's plating, all its
+    bulkheads together. Deck planking (wood_mm) lies on the weather deck: the flight deck when there is one, else
+    the main and raised decks."""
     from navarch import TUNING
     tds = (design.get("armour") or {}).get("tds_m", 0.0) or 0.0
     for d in sub["decks"]:
@@ -282,6 +285,12 @@ def deck_plates(sub, plating, design):
             d["plate_mm"] = plating["strength_deck_end_mm"]
         else:
             d["plate_mm"] = plating["deck_mm"]
+    wood = plating["deck_wood_mm"]
+    if wood:
+        weather = [c for c in comps if c["kind"] == "flight_deck"] or [
+            d for d in sub["decks"] if d["kind"] in ("main", "raised")]
+        for d in weather:
+            d["wood_mm"] = wood
     for b in sub["bulkheads"]:
         b["plate_mm"] = (round(TUNING["tds_mm_per_m"] * tds, 1) if b.get("kind") == "tds"
                          else plating["bulkhead_mm"])
@@ -350,6 +359,11 @@ def export_hitboxes(lay, design, res):
             comps[-1]["armour"] = dict(face=arm, side=round(TURRET_SIDE * arm), rear=round(TURRET_REAR * arm),
                                        roof=round(TURRET_ROOF * arm))
             with_material(comps[-1], mat)
+        if m["kind"] == "torpedo":      # the torpedoes in the tubes, with their warheads
+            comps[-1].update(torpedoes=t["barrels"], warhead_kg=round(ordnance.warhead_kg()))
+        else:                           # ready-use ammunition at the mount (ordnance.ready_use)
+            n, w = ordnance.ready_use(t["calibre_mm"], t["barrels"])
+            comps[-1].update(ready_rounds=n, ready_t=round(w, 2))
         if m.get("magazine"):
             comps[-1]["magazine"] = m["magazine"]
         if m.get("casemate"):   # in the hull side, below the main deck
@@ -424,8 +438,10 @@ def export_hitboxes(lay, design, res):
             comps[-1]["armour_mm"] = fd_mm
             with_material(comps[-1], armour_material(design, "flight_deck"))
     for a in lay.aa:
+        n, w = ordnance.ready_use(40.0 if "40" in a["type"] else 20.0, AA_CFG[a["type"]][1])
         comps.append(dict(id=a["id"], kind="aa", type=a["type"], shape="circle", x=round(a["x"], 3),
-                          y=round(a["y"], 3), r=AA_CFG[a["type"]][0], base=a["base"], top=a["base"] + 2.0))
+                          y=round(a["y"], 3), r=AA_CFG[a["type"]][0], base=a["base"], top=a["base"] + 2.0,
+                          ready_rounds=n, ready_t=round(w, 2)))
     for c in lay.compartments:     # a carrier's hangar stands above the hangar deck, outside the subdivision
         if c["kind"] == "hangar":
             pts = rrect_polygon(c["x0"], -c["half_width"], c["x1"], c["half_width"], 0.0, 0.0)
@@ -437,7 +453,7 @@ def export_hitboxes(lay, design, res):
     form = HullForm(lay.hull, cb, cwp(cb), T, D, froude(design["speed_kn"], lay.hull.L), gear, res.lcb)
     sub = subdivision.build(lay, design, res, ag, armoured, form)
     plating = hull_plating(lay, design, res)
-    deck_plates(sub, plating, design)
+    deck_plates(sub, plating, design, comps)
     hydro = hydrostatics(form, res)
     comps += propulsion_components(lay, design, res, form, sub, gear)
     battle_crew(lay, sub, comps)
