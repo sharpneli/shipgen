@@ -2075,15 +2075,17 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     lay.geo["machinery_x"] = mach_c
     # ---------------- raised stretches of hull (hull.raised) ----------------
     # Each rises its decks between two anchors, bow to stern: the bow, the features, the stern. It covers both anchors
-    # and all between, its breaks just beyond them (a feature the ship lacks: the next one toward the other anchor; a
-    # stretch with nothing left is dropped). Together they make one stepped profile (raised_profile).
+    # and all between, its breaks just beyond them (no funnels: the next feature toward the other anchor; a stretch
+    # with nothing left is dropped). Together they make one stepped profile (raised_profile).
     f_aft, f_fwd = (min(fxs) - fl / 2, max(fxs) + fl / 2) if fxs else (None, None)
+    # An absent end group or aft control stands where it would: at the middle's end, no length (so "fore_group" to
+    # "aft_group" is the whole middle on a ship without end groups); only absent funnels fall back
     breaks_at = {        # feature: (aft edge, forward edge), the break x of a stretch ending there
-        "fore_group": (mid_fwd, fore[0] + r + 1.0 if fore else None),
+        "fore_group": (mid_fwd, fore[0] + r + 1.0 if fore else mid_fwd),
         "bridge": (bx0 - 0.75, mid_fwd),
         "funnels": (f_aft - 0.75 if fxs else None, f_fwd + 0.75 if fxs else None),
-        "aft_control": (mid_aft if la else None, mid_aft + la + 0.75 if la else None),
-        "aft_group": (aft[0] - r - 1.0 if aft else None, mid_aft),
+        "aft_control": (mid_aft, mid_aft + la + 0.75 if la else mid_aft),
+        "aft_group": (aft[0] - r - 1.0 if aft else mid_aft, mid_aft),
     }
     edges = {"bow": (None, L / 2), **breaks_at, "stern": (-L / 2, None)}
     spans = []

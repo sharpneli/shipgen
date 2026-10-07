@@ -1,0 +1,198 @@
+{
+ "id": "duilio",
+ "name": "Duilio-like citadel ship (1880)",
+ "look": {
+  "navy": "la_spezia",
+  "era": "victorian"
+ },
+ "type": "BB",
+ "hull": {
+  "block_coefficient": 0.6,
+  "construction": {
+   "name": "Wrought iron, riveted",
+   "yield_mpa": 190,
+   "join_factor": 1.12,
+   "standard": 1.0
+  },
+  "plating": {
+   "shell_mm": 0,
+   "material": "wrought iron",
+   "deck_wood_mm": 100
+  },
+  "freeboard": 0.6,
+  "raised": [
+   {
+    "from": "bridge",
+    "to": "aft_control",
+    "decks": 1
+   }
+  ]
+ },
+ "speed_kn": 15,
+ "range_nm": 3800,
+ "crew": {
+  "standard": {
+   "name": "Hammocks over mess tables",
+   "sleep_rating_m2": 1.1,
+   "sleep_cpo_m2": 1.8,
+   "sleep_officer_m2": 5.0,
+   "mess_seats_per_man": 0.0,
+   "galley_k": 0.3,
+   "galley_min_m2": 4.0,
+   "sanitary_m2": 0.1,
+   "sickbay_beds_per_man": 0.01,
+   "welfare_m2": 0.0,
+   "services_k": 0.03,
+   "passage_factor": 1.15,
+   "deck_height_m": 2.3,
+   "provisions_m3_per_day": 0.007,
+   "water_l_per_day": 15,
+   "hotel_fraction": 0.05,
+   "cpo_fraction": 0.08,
+   "tolerance_days": 30
+  },
+  "endurance_days": 18,
+  "distiller": true,
+  "buffer_days": 5,
+  "water_l_per_day": 15,
+  "berth_ratio": 1.0,
+  "officer_fraction": 0.08
+ },
+ "machinery": {
+  "stress": 0.1,
+  "shafts": 2,
+  "units_per_shaft": 1,
+  "transmission": "mechanical",
+  "arrangement": "grouped",
+  "centreline_bulkhead": false,
+  "bunkers": "wing",
+  "wing_bunker_m": 2.0,
+  "rudders": 1,
+  "tech": {
+   "name": "Compound engines, cylindrical (Scotch) boilers (1880)",
+   "fuel": "coal",
+   "weight_kg_per_kw": 203.8,
+   "stress_floor": 0.75,
+   "sfc_g_per_kwh": 1378,
+   "density_t_per_m3": 0.24,
+   "unit_max_mw": 4.8,
+   "unit": {
+    "mw": 3,
+    "height_m": 5.5,
+    "width_m": 4.5,
+    "length_m": 6
+   },
+   "boiler_fraction": 0.6,
+   "crew_k": 40,
+   "part_load": "REC",
+   "draught": {
+    "system": "forced_boost",
+    "velocity_m_s": 7.0,
+    "reach_m": 7.0,
+    "natural_fraction": 0.55,
+    "gas_temp_k": 600,
+    "air_fuel_ratio": 16
+   }
+  }
+ },
+ "armour": {
+  "belt_mm": 550,
+  "belt_depth_m": 1.8,
+  "belt_height_m": 1.6,
+  "belt_bottom_mm": 550,
+  "bulkhead_mm": 550,
+  "upper_belt": {
+   "mm": 432,
+   "to_deck": -1,
+   "extent": "citadel"
+  },
+  "end_belts": {
+   "fore": {
+    "mm": 0,
+    "tip_mm": 0,
+    "reach": 1.0,
+    "bulkhead_mm": 0
+   },
+   "aft": {
+    "mm": 0,
+    "tip_mm": 0,
+    "reach": 1.0,
+    "bulkhead_mm": 0
+   }
+  },
+  "steering_box": {
+   "mm": 0,
+   "deck_mm": 0,
+   "bulkhead_mm": 0
+  },
+  "decks": [
+   {
+    "deck": -1,
+    "mm": 51,
+    "extent": "citadel"
+   },
+   {
+    "deck": 1,
+    "mm": 76,
+    "extent": "ends"
+   }
+  ],
+  "turret_mm": 432,
+  "materials": {
+   "belt": "steel",
+   "upper_belt": "steel",
+   "end_belts": "steel",
+   "bulkheads": "steel",
+   "decks": "wrought iron",
+   "turrets": "steel",
+   "barbettes": "steel",
+   "conning_tower": "steel",
+   "secondary": "steel"
+  }
+ },
+ "main": {
+  "calibre_mm": 450,
+  "calibre_length": 20,
+  "barrels": 2,
+  "fore": 0,
+  "aft": 0,
+  "wing": 1,
+  "echelon": true,
+  "cross_deck": true,
+  "amidships_stands_on": "deck"
+ },
+ "secondary": [],
+ "funnels": 2,
+ "superstructure": {
+  "t_per_m2": 0.32,
+  "material": "wrought iron",
+  "plating_mm": 0,
+  "control_mm": 0,
+  "tower_levels": 3,
+  "deckhouse_levels": 1
+ },
+ "fire_control": {
+  "main": {
+   "directors": 0,
+   "rangefinder_m": 0.0,
+   "armour_mm": 0,
+   "radar_t": 0,
+   "computer_t": 0.0
+  },
+  "secondary": {
+   "directors": 0,
+   "rangefinder_m": 0.0,
+   "armour_mm": 0,
+   "radar_t": 0.0,
+   "computer_t": 0.0
+  },
+  "aa": {
+   "directors": 0,
+   "rangefinder_m": 0.0,
+   "armour_mm": 0,
+   "radar_t": 0.0,
+   "computer_t": 0.0
+  },
+  "search_radar_t": 0.0
+ }
+}
