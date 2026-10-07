@@ -106,6 +106,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Breaking in two: shipgen should export weight extents (`sinking.weight_curve` spreads point weights by guessed spans)
 - [ ] Breaking in two: shallow water (pieces grounding with ends out, Invincible-style)
 - [ ] Mechanics resolver for magazine explosions (M, P(t), opening fail times; `magazine.F_FAST` is a stand-in)
+- [ ] Gun blast extras not done: hull reflection of the blast, sun-shadow line, polar scour-foam texture, night flash lighting and exposure adaptation
 - [ ] Explosion extras not done: fire reflection, heat haze, smoke self-shadow sweep, underwater/capsized blasts, debris hitting other ships
 
 ## Shelved by the user

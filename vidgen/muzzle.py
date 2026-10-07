@@ -14,6 +14,12 @@ from dataclasses import dataclass
 import numpy as np
 
 P0, C0, G = 101325.0, 343.0, 9.81
+GAM = 1.4
+
+# smoke the gas jet moves (muzzle_blast_waves.md 5.2, 5.3)
+RING_P = 0.3              # share of shots that blow a smoke ring in light air
+RING_SHARE = 0.25         # of the shot's smoke the ring carries
+PUSH_EASE = 0.15          # s: a jet's shove on older smoke is eased in over this, not a one-frame jump
 
 # propellant families (research 3.1; values are the reference's, [INFERRED] there)
 PROPELLANTS = {
@@ -48,6 +54,24 @@ def bb_luminance(T):
 
 def bb_rgb(T):
     return np.array([np.interp(T, _RGB_T, _RGB[:, i]) for i in range(3)])
+
+
+def bb_luminance_v(T):
+    """bb_luminance over an array (the same table, log-log interpolated)."""
+    lnT = np.log(np.maximum(T, 1.0))
+    lo = _BB_L[0] - 40 * (_BB_T[0] - lnT)
+    return np.power(10.0, np.where(lnT < _BB_T[0], lo, np.interp(lnT, _BB_T, _BB_L))).astype(np.float32)
+
+
+def flash_rgb_v(T, na=0.55):
+    """Linear-sRGB chroma of flash gas at temperature T (array), normalised to unit luminance: the blackbody's,
+    with the sodium line mixed in by na where the gas is hot enough to excite it (research 2.6). DEPARTURE: the
+    reference mixes a fixed 55 %; here the share fades out over 1650-1250 K, so a fireball's cooler edges and
+    dying pockets go redder."""
+    share = na * np.clip((T - 1250.0) / 400.0, 0, 1)
+    rgb = np.stack([np.interp(T, _RGB_T, _RGB[:, i]) for i in range(3)], -1)
+    rgb = rgb * (1 - share)[..., None] + NA_D * share[..., None]
+    return (rgb / np.maximum(rgb @ LUM, 1e-4)[..., None]).astype(np.float32)
 
 
 @dataclass
@@ -98,6 +122,12 @@ def _smooth(x):
     return x * x * (3 - 2 * x)
 
 
+def ring_chance(wind):
+    """Share of shots that blow a smoke ring (muzzle_blast_waves.md 5.3, [INFERRED]): 0.3 in light air, falling
+    linearly to none at 10 m/s of wind. Naval guns have no muzzle brake."""
+    return RING_P * min(1.0, max(0.0, (10.0 - wind) / 5.0))
+
+
 def elevation(v0, range_m):
     """Vacuum elevation for range_m, clamped to 45 degrees when the gun can't reach. Drag is ignored: a visual
     stand-in, a few degrees flat for big guns at long range."""
@@ -121,6 +151,8 @@ class Shot:
         self.t_s = 5.0 * self.lam_f / C0
         self.hdir = np.array([math.cos(az), math.sin(az)])
         self.ax = np.array([math.cos(el) * self.hdir[0], math.cos(el) * self.hdir[1], math.sin(el)])
+        self.pushes = []
+        self.has_ring = rng.random() < ring_chance(float(np.hypot(*self.wind)))
 
     @property
     def flash_end(self):
@@ -158,7 +190,7 @@ class Shot:
         rgb = bb_rgb(T)
         if kind == "secondary":
             rgb = 0.45 * rgb + 0.55 * NA_D
-        return dict(kind=kind, c=c, a=a, b=b, L=L, I=L * math.pi * a * b, rgb=rgb)
+        return dict(kind=kind, c=c, a=a, b=b, L=L, I=L * math.pi * a * b, rgb=rgb, T=T, eps=eps, env=env)
 
     # ---- smoke (research 5.2, 5.3): one gaussian puff with extinction area A
     def puff(self, t):
@@ -176,8 +208,54 @@ class Shot:
         U = float(np.hypot(*self.wind))
         sh = math.sqrt((0.35 * lf) ** 2 + ((0.07 * U + 0.2) * tt) ** 2 + 0.5 * tt)
         ramp = 1 - math.exp(-tt / (0.5 * max(self.t_s, D["t_e"]) + 0.004))
+        # the ring, when one forms, carries off RING_SHARE of the smoke (research 5.3: line of sight stays honest)
+        ramp *= 1 - RING_SHARE if self.has_ring else 1.0
         A_p, A_w = ramp * D["A_p"], ramp * D["A_w"] * math.exp(-tt / D["tau_w"])
+        if self.pushes:
+            xy = xy + self._pushed(t)
+            sh *= self._grown(t)
         return dict(xy=xy, z=z, sh=sh, A=A_p + A_w, A_p=A_p, A_w=A_w, age=tt)
+
+    # ---- vortex ring (muzzle_blast_waves.md 5.3): the gas slug rolls up into a ring that carries smoke away
+    def ring(self, t):
+        """The smoke ring's centre (xy, z), radius R and extinction area A at t, or None (no ring, or broken up).
+        It forms on a share of shots (RING_P, decided at the shot), takes RING_SHARE of the puff's A, slows as
+        t^(1/4) and breaks up after ~8 lam of travel, fading over the last 30 %."""
+        if not self.has_ring:
+            return None
+        tt = t - self.t0
+        if tt <= 0:
+            return None
+        lam = self.D["lam_b"]
+        U0 = 25.0 * math.sqrt(lam / 5.0)
+        tau = 2.0 * lam / U0
+        x = 4 * U0 * tau * ((1 + tt / tau) ** 0.25 - 1)
+        if x >= 8 * lam:
+            return None
+        R = 0.25 * lam * (1 + 0.08 * x / lam)
+        p = self.puff(t)
+        fade = min(1.0, (8 * lam - x) / (2.4 * lam))
+        xy = self.pos + self.hdir * (self.D["x_M"] + x) * math.cos(self.el) + self.wind * tt + self._pushed(t)
+        z = self.h + (self.D["x_M"] + x) * math.sin(self.el)
+        return dict(xy=xy, z=z, R=R, A=RING_SHARE * p["A"] * fade / (1 - RING_SHARE), x=x)
+
+    # ---- the jet punch (muzzle_blast_waves.md 5.2): a later shot's gas jet shoves this puff along its bore
+    def push(self, t, d, grow=1.2):
+        self.pushes.append((t, np.asarray(d, float), grow))
+
+    def _pushed(self, t, ease=PUSH_EASE):
+        out = np.zeros(2)
+        for tp, d, _ in self.pushes:
+            if t > tp:
+                out += d * (1 - math.exp(-(t - tp) / ease))
+        return out
+
+    def _grown(self, t, ease=PUSH_EASE):
+        k = 1.0
+        for tp, _, g in self.pushes:
+            if t > tp:
+                k *= 1 + (g - 1) * (1 - math.exp(-(t - tp) / ease))
+        return k
 
     # ---- the shell (vidgen's own): vacuum ballistics from the muzzle, keeping the ship's velocity
     def shell(self, t):
@@ -188,3 +266,108 @@ class Shot:
         z = self.h + v * math.sin(self.el) * tt - 0.5 * G * tt * tt
         vel = self.hdir * vh + self.carry
         return xy, z, vel
+
+
+# ---------------------------------------------------------------- the blast on the water
+# A port of muzzle_blast_ref.py (research: muzzle_blast_water-vfx.md, extended by muzzle_blast_waves.md). The blast
+# front itself is transparent; what shows top-down is the sea's roughness: a dark leading edge where the gust lays
+# the ripples down, a frosted (rougher, silvery) disc behind it, and scour foam in the near field.
+P_VIS = 2000.0            # Pa: the visible edge (research 2.2: 2-2.5 kPa matches the Iowa photo; 1 kPa is too big)
+P_SAT = 5000.0            # Pa: full frost
+TAU_FROST = 2.0           # s: ripples regrow
+TAU_FOAM = 7.0            # s: scour foam decays like breaking-crest foam
+K_FOAM = 1.0              # foam reaches 1.3 K_FOAM lam' (scaled distance, research 3.3)
+MACH_STEM = 2 ** (1 / 3)  # research (waves) 0.7: over water a low-elevation blast acts as a doubled charge
+
+
+def beta(cos_th, mu=0.78):
+    """Fansler's directivity: lam' = lam beta, about 8x stronger straight ahead than straight behind."""
+    return mu * cos_th + np.sqrt(1 - mu * mu * (1 - cos_th * cos_th))
+
+
+def overpressure(r, lam_eff):
+    x = lam_eff / np.maximum(r, 1e-3)
+    return P0 * (0.11 * x + 0.0061 * x * x)
+
+
+def _arrival_lut(z_max=40.0, n=512):
+    """Arrival time of the front against scaled distance z = r/lam', in units of lam'/c0: one LUT for every gun."""
+    z = np.linspace(0.05, z_max, n)
+    us = np.sqrt(1 + (GAM + 1) / (2 * GAM) * overpressure(z, 1.0) / P0)
+    t = np.concatenate([[0], np.cumsum(0.5 * (1 / us[1:] + 1 / us[:-1]) * np.diff(z))])
+    return z, t
+
+
+Z_LUT, T_LUT = _arrival_lut()
+# the visible edge in scaled distance: 0.11 x + 0.0061 x^2 = P_VIS / P0
+_XV = (-0.11 + math.sqrt(0.11 ** 2 + 4 * 0.0061 * P_VIS / P0)) / (2 * 0.0061)
+
+
+class Blast:
+    """One mount's salvo as one blast event (research 3.1): the guns that fire together sum their energy, so
+    lam grows as N^(1/3). pos is the muzzles' mean (world xy), h their height above the water."""
+
+    def __init__(self, mount, pos, h, az, el, t0):
+        self.mount, self.pos, self.h, self.az, self.el, self.t0 = mount, np.asarray(pos, float), h, az, el, t0
+        self.E, self.n = 0.0, 0
+        self.bore = np.array([math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), math.sin(el)])
+
+    def add(self, E, pos):
+        self.pos = (self.pos * self.n + np.asarray(pos, float)) / (self.n + 1)
+        self.n += 1
+        self.E += E
+        # DEPARTURE (smooth in place of "low-elevation fire"): the Mach-stem doubling fades out by ~30 degrees
+        stem = 1 + (MACH_STEM - 1) * math.exp(-(self.el / math.radians(20)) ** 2)
+        self.lam = (self.E / P0) ** (1 / 3) * stem
+
+    @property
+    def r_vis(self):
+        """Furthest reach of the visible edge (straight ahead), m."""
+        return beta(1.0) * self.lam / _XV
+
+    @property
+    def life(self):
+        return max(4 * TAU_FROST, 3 * TAU_FOAM)
+
+    def radius(self, t):
+        """The front's furthest reach at t (straight ahead, where it's fastest), capped at the visible edge."""
+        tt = t - self.t0
+        if tt <= 0:
+            return 0.0
+        lf = beta(1.0) * self.lam
+        return min(self.r_vis, lf * float(np.interp(tt * C0 / lf, T_LUT, Z_LUT, right=Z_LUT[-1])))
+
+    def fields(self, X, Y, t, band_min=0.0):
+        """(rough, lead, foam) in 0..1 at world offsets X, Y (m, from self.pos; broadcastable) at time t.
+        rough: the frost behind the front; lead: the dark leading edge; foam: near-field scour plus, at low
+        elevation, the jet's lobe along the bore's ground track. band_min: the leading edge's least width (m),
+        so it's never thinner than about a pixel."""
+        tt = t - self.t0
+        dz = -self.h
+        r = np.sqrt(X * X + Y * Y + dz * dz)
+        b = self.bore
+        cos_th = (X * b[0] + Y * b[1] + dz * b[2]) / r
+        lam_e = self.lam * beta(cos_th)
+        z = r / lam_e
+        age = tt - np.interp(z, Z_LUT, T_LUT) * lam_e / C0
+        arrived = age >= 0
+        agep = np.maximum(age, 0)
+        dp = overpressure(r, lam_e)
+        s = np.clip(np.log(np.maximum(dp, 1e-3) / P_VIS) / math.log(P_SAT / P_VIS), 0, 1) * arrived
+        band = max(C0 * 0.0009 * self.lam, band_min)       # positive-phase length, c0 T+
+        q = agep * C0 / band
+        lead = s * np.exp(-q * q)
+        rough = s * np.exp(-agep / TAU_FROST) * (1 - np.exp(-0.25 * q * q))   # frost builds just behind the front
+        foam = np.clip(1.3 - z / K_FOAM, 0, 1) ** 1.5
+        # the jet lobe (research 3.3, [INFERRED] shape): an ellipse along the bore's ground track, ~4 lam cos(el)
+        # long, for low fire from a muzzle not far above the water (smooth weights, no elevation cutoff)
+        wj = math.exp(-(self.el / math.radians(10)) ** 2) * math.exp(-(self.h / (1.5 * self.lam)) ** 2)
+        if wj > 0.02:
+            ce = math.cos(self.el)
+            hx, hy = math.cos(self.az), math.sin(self.az)
+            u = X * hx + Y * hy - 2.0 * self.lam * ce
+            v = -X * hy + Y * hx
+            q2 = (u / (2.0 * self.lam * ce)) ** 2 + (v / (0.45 * self.lam)) ** 2
+            foam = np.maximum(foam, wj * np.clip(1 - q2, 0, 1) ** 1.5)
+        foam = foam * arrived * np.exp(-agep / TAU_FOAM)
+        return rough, lead, foam

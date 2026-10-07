@@ -117,7 +117,22 @@ time, and drops it when the shell has landed or left and the smoke is thin (peak
   display units as `L / 1500 cd/m^2 * 0.18` (the sunlit sea maps to about the water's own value). Then bloom on a
   compressed copy (radii 1, 6, 17 px) and a luminance roll-off above 0.7 that turns at most 75 % white. The
   roll-off is applied only to what the flash adds (`frame + T(frame + F) - T(frame)`), so the rest of the frame is
-  unchanged. Day only; there's no night mode, flash lighting on smoke or the water, or exposure adaptation.
+  unchanged. Day only; there's no night mode or exposure adaptation.
+- **Fireball (user, 2026-10-07: "it feels like it's just a sprite splatted in"):** the secondary flash is a
+  temperature field, `Scene._fireball`, not one flat ellipse at one temperature. Luminance and colour come per pixel
+  from the blackbody and sodium ramps (research 2.6: drive brightness through T). The core runs `FIREBALL_CORE` 5 %
+  over the emitter's T and the gas cools outward by `FIREBALL_FALL` 25 % at q = 1, so the edge burns down through
+  yellow and orange to a red fringe instead of being cut. Two noise octaves warp the radius into lobes and tongues
+  and stir T by ±8 %. Their coordinates grow with the ball, slide outward and churn over its life, so it billows.
+  Late in the envelope the cooler gas drops out first, leaving hot pockets inside the young smoke. The sodium share
+  fades out over 1650–1250 K (`flash_rgb_v`), so cooling gas goes redder. It's the procedural stand-in for research
+  7.2's flipbooks. A fireball under ~2 px across falls back to the analytic splat.
+- **Flash light (research 7.3):** each emitter is a point light on what's already drawn (deck, turrets, smoke,
+  foam), `E = I (h + 0.3 rho) / (d^2 + r0^2)^1.5` against the sun's `E_SUN` 70 klx, with h from the height map.
+  It raises each pixel's own colour, capped at `FLASH_LIGHT_MAX` 1x the sun (1.5x turned the whole ship orange in
+  a broadside). The sea takes almost none (it's blue: mostly mirrored sky; lit by its own colour it went green).
+  It's worked out on a quarter-res grid. A big salvo washes the ship warm for a few frames: that's most of the
+  "big gun" feel.
 - **Smoke (unified with the funnel smoke; user, 2026-10-07: the first version's opaque single discs looked like
   sprites beside the funnel smoke):** funnel particles and gun smoke go into one optical-depth field (`Density`
   blobs, a 64 px bucket added for big puffs) with a tau-weighted colour per blob. They share the lighting (a
@@ -130,9 +145,34 @@ time, and drops it when the shell has landed or left and the smoke is thin (peak
   unified smoke system should use the full value for visibility. The colour starts at the propellant's tint and
   fades to neutral over 5 s; water fog is white. Puffs aren't merged (research 5.5): vidgen's rates stay under
   ~100 live shots.
-- **Blast ring:** foam particles as before, now sized by `lam_b` (ring speed `2 lam_b`/s, 1.2 lam_b/s forward).
-  The count is weighted by `exp(-(h_muzzle/lam_b)^2)` in place of the `calibre >= 150` switch: a 380 mm at 8 m gets
-  ~0.8, a 150 mm on a deckhouse almost none.
+- **Blast on the water (2026-10-07, `muzzle.Blast`, from `muzzle_blast_water-vfx.md` and `muzzle_blast_ref.py`;
+  replaced the foam-particle "blast ring"):** one event per mount's salvo. Guns of a mount firing within 0.2 s sum
+  their energy, so lam grows as N^(1/3) (Bismarck's twin 380: 25 m, the visible edge 250 m ahead, ~90 m abeam). It
+  has Fansler's directivity, so the disc is offset outboard along the bore, and the arrival time comes from the
+  Rankine-Hugoniot LUT. The far field is the sea's roughness, not a height field: the ripple amplitude goes as
+  `1 + 0.8 frost - 0.7 lead`, plus a signed sheen (frost toward the sky's silver at `BLAST_SHEEN` 0.35, the leading
+  edge darkened by `BLAST_DARK` 0.22). Near field: scour foam `(1.3 - r/lam')^1.5` plus the jet's lobe along the
+  bore's ground track for low fire, drawn as the wake's fresh lace at `BLAST_FOAM` 0.6. Spray particles come by
+  lam^2, weighted by `exp(-(h/1.5 lam)^2)`. Worked out at quarter res in a window per event. Departures:
+  - **Mach stem:** lam x 2^(1/3) over water (`muzzle_blast_waves.md` 0.7), faded smoothly by elevation
+    (`exp(-(el/20 deg)^2)`), not switched on "low-elevation fire".
+  - **Jet lobe:** an ellipse 4 lam cos(el) long, 0.9 lam wide, weighted `exp(-(el/10 deg)^2) exp(-(h/1.5 lam)^2)`,
+    with no elevation cutoff.
+  - **Frost:** the research's `1 + 2.5 frost` glittered like whitecaps, because vidgen's ripples carry the sun
+    glint, so the ripples get 0.8 and the silver comes from the sheen. p_vis is 2 kPa (research: 2–2.5 matches the
+    Iowa photo).
+  - **Not done:** the hull's reflection (an image source), the sun-shadow line, the faint precursor ring, polar
+    foam texture, Wilson haze (research: it doesn't happen for real guns).
+- **Smoke the jet moves (`muzzle_blast_waves.md` 5):**
+  - **Jet punch:** a shot shoves older smoke in the cone ahead of its muzzle (3 lam_f, 20 degrees) by
+    `0.5 lam_f e^(-d/lam_f)` along the bore and spreads it 1.2x, eased over `PUSH_EASE` 0.15 s. Puffs under 0.3 s
+    old are left alone. Funnel particles get the same push as a velocity kick. A broadside fired through its own
+    smoke clears a tunnel.
+  - **Smoke rings:** 0.3 of shots in light air, falling linearly to none at 10 m/s of wind (0.24 here). A ring
+    takes 25 % of the shot's A and moves as `x ~ t^(1/4)` to 8 lam_b. It's drawn as 10 blobs around a ring whose
+    axis is the bore: a bar across the bore for flat guns, an ellipse for raised ones. DEPARTURE: drawn at
+    `RING_VIS` 0.3 of the puff's look; at the full share it drew as an opaque white pill.
+  - **Not done:** the shock's one-frame ripple through the smoke (under a pixel at 30 fps).
 - **Shells:** every gun. Mass `14000 d^3` kg, and muzzle velocity from 30 % of the charge's energy (380/52: 905
   m/s, 105/65 about 900). Elevation is the vacuum angle for `TARGET_RANGE_M` = 12 km (Bismarck 4 degrees, Devastation
   with black powder 31). The shell keeps the ship's velocity. It's drawn as a 4.5-calibre ogive lit as a cylinder,
@@ -144,16 +184,15 @@ time, and drops it when the shell has landed or left and the smoke is thin (peak
     own fireball. Its path is real; only its clock is slowed, like `TRAIN_RATE`.
   - **Shells over the flash:** on the slowed clock a shell is still inside the fireball it really outran, so it's
     drawn on top, a dark silhouette as in high-speed photographs.
-  - **Flash profile:** the secondary fireball is flat-topped (`exp(-q^2/2)`, normalised analytically) with noise
-    on its edge. A gaussian's tail stayed visible out to about twice the fireball's size.
   - **Ship velocity:** the young smoke keeps it for the forward carry's time constant (the reference's gun is on
     the ground).
   - **Igniter share:** it rises smoothly from 0.3 % at 100 mm to 1 % at 200 mm. The reference gives cased guns
     0.3 % and bag guns 1 %; vidgen doesn't know which a mount is.
   - **No smoke attenuation of the flash** (research 7.6): the flash's own smoke ramps in during the fireball and
     would put it out.
-- **Speed:** about 0.35–0.55 s a frame at 720p while firing (five `Density` passes for smoke: tau, three colour
-  channels, shadow).
+- **Speed:** about 0.35–0.8 s a frame at 720p while firing (five `Density` passes for smoke: tau, three colour
+  channels, shadow). Bismarck's second salvo with 26 live blasts: 0.80 s, against 0.62 before the blast, fireball
+  and light work (blast fields 0.05 s, flashes 0.14 s).
 
 ## Magazine explosions (magazine.py, 2026-10-07)
 The user asked for the research's effect (`magazine_explosion.md`, prototype `magazine_explosion_ref.py`), with the
