@@ -127,12 +127,12 @@ SHELL_SMEAR = 0.5         # the speed smear behind a shell, in frames of its (sl
 # the blast on the water (muzzle.Blast): ripple amplitude 1 + BLAST_FROST frost - BLAST_LEAD lead (research 3.2).
 # DEPARTURE: the research's 2.5 made the frost glitter like whitecaps here (vidgen's ripples carry the sun glint);
 # the silvery look comes mostly from the sheen instead
-BLAST_FROST = 0.8
+BLAST_FROST = 0.55
 BLAST_LEAD = 0.7
 TAU_FROST_VIS = muzzle.TAU_FROST
 BLAST_FOAM = 0.6          # scour foam's density drawn (DEPARTURE: at full, the jet's lobe was a field of confetti)
-BLAST_SHEEN = 0.35        # the frost's silvery sky sheen, at full frost
-BLAST_DARK = 0.22         # how much the leading edge darkens the sea
+BLAST_SHEEN = 0.25        # the frost's silvery sky sheen, at full frost
+BLAST_DARK = 0.15         # how much the leading edge darkens the sea
 # the secondary fireball as a temperature field (Scene._fireball; DEPARTURES there)
 FIREBALL_CORE = 0.05      # the core's temperature over the emitter's
 FIREBALL_FALL = 0.25      # temperature lost toward the edge (q = 1): luminance falls ~100x there

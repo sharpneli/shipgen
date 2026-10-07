@@ -150,8 +150,8 @@ time, and drops it when the shell has landed or left and the smoke is thin (peak
   their energy, so lam grows as N^(1/3) (Bismarck's twin 380: 25 m, the visible edge 250 m ahead, ~90 m abeam). It
   has Fansler's directivity, so the disc is offset outboard along the bore, and the arrival time comes from the
   Rankine-Hugoniot LUT. The far field is the sea's roughness, not a height field: the ripple amplitude goes as
-  `1 + 0.8 frost - 0.7 lead`, plus a signed sheen (frost toward the sky's silver at `BLAST_SHEEN` 0.35, the leading
-  edge darkened by `BLAST_DARK` 0.22). Near field: scour foam `(1.3 - r/lam')^1.5` plus the jet's lobe along the
+  `1 + 0.55 frost - 0.7 lead`, plus a signed sheen (frost toward the sky's silver at `BLAST_SHEEN` 0.25, the leading
+  edge darkened by `BLAST_DARK` 0.15; user, 2026-10-07: the first 0.8, 0.35, 0.22 were "a bit too much"). Near field: scour foam `(1.3 - r/lam')^1.5` plus the jet's lobe along the
   bore's ground track for low fire, drawn as the wake's fresh lace at `BLAST_FOAM` 0.6. Spray particles come by
   lam^2, weighted by `exp(-(h/1.5 lam)^2)`. Worked out at quarter res in a window per event. Departures:
   - **Mach stem:** lam x 2^(1/3) over water (`muzzle_blast_waves.md` 0.7), faded smoothly by elevation
@@ -159,7 +159,7 @@ time, and drops it when the shell has landed or left and the smoke is thin (peak
   - **Jet lobe:** an ellipse 4 lam cos(el) long, 0.9 lam wide, weighted `exp(-(el/10 deg)^2) exp(-(h/1.5 lam)^2)`,
     with no elevation cutoff.
   - **Frost:** the research's `1 + 2.5 frost` glittered like whitecaps, because vidgen's ripples carry the sun
-    glint, so the ripples get 0.8 and the silver comes from the sheen. p_vis is 2 kPa (research: 2–2.5 matches the
+    glint, so the ripples get 0.55 and the silver comes from the sheen. p_vis is 2 kPa (research: 2–2.5 matches the
     Iowa photo).
   - **Not done:** the hull's reflection (an image source), the sun-shadow line, the faint precursor ring, polar
     foam texture, Wilson haze (research: it doesn't happen for real guns).
