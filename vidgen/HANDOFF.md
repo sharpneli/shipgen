@@ -79,7 +79,7 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
     and they showed as fine straight streaks.
   - **Checked:** the bake's fields match `wake_bake_ref.py` run through a numpy stand-in for scipy.
   - **Normals:** the wake's slopes at 1x, not wake.md's 2–3x (the swell already carries the light), capped at 0.3.
-- **Particles:** funnel smoke, spray and blast foam are splatted into half-resolution density buffers in blur
+- **Particles:** funnel smoke (with the gun smoke, see "Guns"), spray and blast foam are splatted into half-resolution density buffers in blur
   buckets (`Density`). Buckets with a big radius are splatted into coarser grids, which halved the frame time.
 - **Water:** 14 low-steepness components with no dominant pair, because two strong crossing swells read as a
   lattice. The swell is summed at half resolution, with ripples at full resolution. The ripple tile grows when
@@ -118,12 +118,18 @@ time, and drops it when the shell has landed or left and the smoke is thin (peak
   compressed copy (radii 1, 6, 17 px) and a luminance roll-off above 0.7 that turns at most 75 % white. The
   roll-off is applied only to what the flash adds (`frame + T(frame + F) - T(frame)`), so the rest of the frame is
   unchanged. Day only; there's no night mode, flash lighting on smoke or the water, or exposure adaptation.
-- **Smoke:** one gaussian puff per shot with the reference's extinction area, drift, rise and spread. Alpha is
-  `1 - e^-tau` (the gameplay contract), splatted at half resolution out to tau 0.003. Mean-1 lognormal noise in the
-  puff's own frame, scaled with sigma, breaks it into billows that grow as it spreads. It's lit as a surface whose
-  height is the blurred log thickness, so billows show inside the opaque core. The colour starts at the propellant's
-  tint and fades to neutral over 5 s; water fog is white. The shadow is the same tau offset by the puff's height.
-  Puffs aren't merged (research 5.5): vidgen's rates stay under ~100 live puffs.
+- **Smoke (unified with the funnel smoke; user, 2026-10-07: the first version's opaque single discs looked like
+  sprites beside the funnel smoke):** funnel particles and gun smoke go into one optical-depth field (`Density`
+  blobs, a 64 px bucket added for big puffs) with a tau-weighted colour per blob. They share the lighting (a
+  surface whose height is the blurred log thickness), the opacity `1 - e^-tau` capped at `SMOKE_MAX` 0.9, and the
+  shadows (each blob's tau moved along the sun by its own height; funnel smoke used one mean height before). A
+  shot's puff keeps the reference's A, drift, rise and spread, but is drawn as `SUB_PUFFS` 14 clumps (each 0.45 of
+  its spread). They're strung along the jet from the wind-drifted muzzle to a little past the puff's centre, with
+  their own slow drift and Dirichlet shares of A. The drawn optical depth is `GUN_SMOKE_VIS` 0.07 of the research's.
+  That's a look: by the research a 380 mm puff stays opaque for tens of seconds, which buried the ship. The game's
+  unified smoke system should use the full value for visibility. The colour starts at the propellant's tint and
+  fades to neutral over 5 s; water fog is white. Puffs aren't merged (research 5.5): vidgen's rates stay under
+  ~100 live shots.
 - **Blast ring:** foam particles as before, now sized by `lam_b` (ring speed `2 lam_b`/s, 1.2 lam_b/s forward).
   The count is weighted by `exp(-(h_muzzle/lam_b)^2)` in place of the `calibre >= 150` switch: a 380 mm at 8 m gets
   ~0.8, a 150 mm on a deckhouse almost none.
@@ -146,7 +152,8 @@ time, and drops it when the shell has landed or left and the smoke is thin (peak
     0.3 % and bag guns 1 %; vidgen doesn't know which a mount is.
   - **No smoke attenuation of the flash** (research 7.6): the flash's own smoke ramps in during the fireball and
     would put it out.
-- **Speed:** frames with a salvo's flashes take about 0.4 s at 720p, others about 0.25 s.
+- **Speed:** about 0.35–0.55 s a frame at 720p while firing (five `Density` passes for smoke: tau, three colour
+  channels, shadow).
 
 ## Sinking clips (sinkvid.py, 2026-10-06)
 The user asked for stern- and bow-first sinkings of Bismarck in vidgen's look, with the wake's lace foam, as a

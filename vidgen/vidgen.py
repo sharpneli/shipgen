@@ -97,13 +97,19 @@ TARGET_RANGE_M = 12000.0  # sets each gun's elevation (vacuum ballistics; out of
 NAVY_PROPELLANT = {"portsmouth": "double_base", "kiel": "double_base"}
 SMOKE_NEUTRAL = np.array([0.90, 0.89, 0.86], np.float32)
 SMOKE_GAIN = 0.85         # sunlit white smoke against this scene's water and decks
+SMOKE_COAL = (0.16, 0.15, 0.15)
+SMOKE_OIL = (0.36, 0.36, 0.37)
+SMOKE_MAX = 0.9           # densest smoke still lets a little through, funnel and gun alike
+GUN_SMOKE_VIS = 0.07      # gun smoke's drawn optical depth against the research's (the look, not visibility)
+SUB_PUFFS = 14            # clumps a shot's smoke puff is drawn as
+SUB_SIGMA = 0.45          # each clump's spread against the puff's
 SHELL = np.array([0.25, 0.24, 0.22], np.float32)   # dark painted steel
 # shells fly their real path on a slowed clock: at 800-900 m/s they leave the frame in two or three frames, hidden
 # by their own flash. Like TRAIN_RATE, readability over fidelity
 SHELL_TIME = 0.12
 SHELL_SMEAR = 0.5         # the speed smear behind a shell, in frames of its (slowed) motion
 
-BUCKETS = [1, 2, 4, 8, 16, 32]   # blur radii (half-res px) the particle splats are sorted into
+BUCKETS = [1, 2, 4, 8, 16, 32, 64]   # blur radii (half-res px) the particle splats are sorted into
 PAD = 3 * BUCKETS[-1]            # density buffers extend this far past the frame so off-screen blobs bleed in
 
 
@@ -186,30 +192,6 @@ def stamp_max(buf, alpha, x0, y0, heights=None, below=None):
     if heights is not None:
         a = a * (heights[fy0:fy1, fx0:fx1] < below)
     np.maximum(buf[fy0:fy1, fx0:fx1], a, out=buf[fy0:fy1, fx0:fx1])
-
-
-def overlaps(x0, y0, w, h, W, H):
-    return x0 < W and y0 < H and x0 + w > 0 and y0 + h > 0
-
-
-def add_patch(buf, patch, x0, y0):
-    """buf += patch with the patch's top-left at (x0, y0), clipped to buf."""
-    h, w = patch.shape[:2]
-    H, W = buf.shape[:2]
-    fx0, fy0, fx1, fy1 = max(0, x0), max(0, y0), min(W, x0 + w), min(H, y0 + h)
-    if fx0 < fx1 and fy0 < fy1:
-        buf[fy0:fy1, fx0:fx1] += patch[fy0 - y0:fy1 - y0, fx0 - x0:fx1 - x0]
-
-
-def sample_tile(tile, u, v):
-    """Bilinear lookup of a square tile at u (columns, 1-D) and v (rows, 1-D), both in tile widths, wrapping."""
-    n = tile.shape[0]
-    fu, fv = u * n, v * n
-    iu, iv = np.floor(fu).astype(np.int32), np.floor(fv).astype(np.int32)
-    wu, wv = (fu - iu).astype(np.float32)[None, :], (fv - iv).astype(np.float32)[:, None]
-    iu0, iv0, iu1, iv1 = iu % n, iv % n, (iu + 1) % n, (iv + 1) % n
-    r0, r1 = tile[iv0], tile[iv1]
-    return ((r0[:, iu0] * (1 - wu) + r0[:, iu1] * wu) * (1 - wv) + (r1[:, iu0] * (1 - wu) + r1[:, iu1] * wu) * wv)
 
 
 def sample_points(tile, u, v):
@@ -474,7 +456,7 @@ class Scene:
         self.smoke = Particles(WIND, 1.2)
         self.shots = []                           # muzzle.Shot: flash, smoke puff and shell, all analytic in time
         self.fish = []                            # torpedoes [x, y, vx, vy, t0]
-        self.puff_noise = self._noise_tile(128, 0.05)
+        self.edge_noise = self._noise_tile(128, 0.05)
         self.pos = np.zeros(2)
         self.t = -WARM_S
         self.hud = self._hud()
@@ -772,8 +754,13 @@ class Scene:
                           vx=d[0] * 4, vy=d[1] * 4, life=2.0, r0=0.5, r1=2.5, a0=0.7)
             return
         D = mt.fxD
-        self.shots.append(muzzle.Shot(mt.fx, D, muz, mt.muzzle_h, math.radians(ang), mt.el, self.t, self.vel, WIND,
-                                      rng))
+        shot = muzzle.Shot(mt.fx, D, muz, mt.muzzle_h, math.radians(ang), mt.el, self.t, self.vel, WIND, rng)
+        # the clumps its smoke is drawn as: offsets in units of the puff's spread, a slow drift of their own
+        shot.sub_off = rng.normal(0, 0.7, (SUB_PUFFS, 2))
+        shot.sub_vel = rng.normal(0, 0.6, (SUB_PUFFS, 2))
+        shot.sub_f = rng.uniform(0.15, 1.2, SUB_PUFFS)
+        shot.sub_w = rng.dirichlet(np.full(SUB_PUFFS, 2.0))
+        self.shots.append(shot)
         # the blast flattens the sea under the muzzle: a ring of churned water about 2 lam_b across, fading
         # smoothly as the muzzle stands higher above the water than the blast's own length
         lb = D["lam_b"]
@@ -878,37 +865,20 @@ class Scene:
         for arr, x0, y0 in rots:
             blend(frame, arr, x0, y0)
 
-        # smoke: shadows on the sea and ship, then the smoke itself, lit from the sun side. Gun smoke is one analytic
-        # puff per shot (muzzle.py); its optical depth sets both its opacity and its shadow
-        sd = unit(SUN_AZ)
-        smoke_d = np.zeros((self.dens.hh, self.dens.hw), np.float32)
-        sh = np.zeros_like(smoke_d)
-        if len(self.smoke):
-            smoke_d = self.field(self.smoke)
-            h = float(np.mean(self.smoke.d["h"]))
-            o = sun_offset_px(s, SUN_AZ, SUN_EL, h + 4)
-            sh += self.field(self.smoke, offset=o)
-        gun_tau, gun_col, gun_sh = self._gun_smoke()
-        if sh.any() or gun_sh.any():
-            dark = 0.35 * (1 - np.exp(-sh)) + 0.45 * (1 - np.exp(-gun_sh))
-            frame *= (1 - np.clip(upscale(dark, W, H), 0, 0.6))[..., None]
+        # smoke, funnel and gun alike: one optical-depth field with a colour per puff, shadows cast from each puff's
+        # height, then lit from the sun side as a surface whose height goes with the (blurred) log thickness
+        tau, col, shd = self._smoke_fields()
+        if shd.any():
+            frame *= (1 - np.clip(0.4 * upscale(1 - np.exp(-shd), W, H), 0, 0.6))[..., None]
         self._shells(frame, shadow=True)
-        if smoke_d.any():
-            base = (0.16, 0.15, 0.15) if self.coal else (0.36, 0.36, 0.37)
-            gy, gx = np.gradient(smoke_d)
-            light = np.clip(1.0 + 3.0 * (gx * sd[0] + gy * sd[1]) * -1, 0.55, 1.35)
-            col = np.array(base, np.float32)[None, None, :] * upscale(light, W, H)[..., None]
-            al = np.clip(1 - np.exp(-1.4 * upscale(smoke_d, W, H)), 0, 0.92)[..., None]
-            frame = frame * (1 - al) + col * al
-        if gun_tau.any():
-            al = np.clip(1 - np.exp(-gun_tau), 0, 0.97)
-            # lit as a surface whose height goes with log thickness: billows show inside the opaque core too
-            gy, gx = np.gradient(box_blur(np.log1p(gun_tau), 2))
-            light = np.clip(1.0 - 0.6 * (gx * sd[0] + gy * sd[1]), 0.6, 1.12)
-            col = gun_col / np.maximum(gun_tau, 1e-6)[..., None] * (SMOKE_GAIN * light)[..., None]
-            col = np.stack([upscale(col[..., c], W, H) for c in range(3)], -1)
-            al = upscale(al, W, H)[..., None]
-            frame = frame * (1 - al) + col * al
+        if tau.any():
+            sd = unit(SUN_AZ)
+            gy, gx = np.gradient(box_blur(np.log1p(tau), 2))
+            light = np.clip(1.0 - 2.0 * (gx * sd[0] + gy * sd[1]), 0.6, 1.25)
+            c = col / np.maximum(tau, 1e-6)[..., None] * light[..., None]
+            c = np.stack([upscale(c[..., i], W, H) for i in range(3)], -1)
+            al = np.clip(upscale(1 - np.exp(-tau), W, H), 0, SMOKE_MAX)[..., None]
+            frame = frame * (1 - al) + c * al
 
         # the flashes over the smoke (research 7.6: the fireball is in front of its own smoke), and the shells over
         # the flashes: on the slowed clock they're still inside the fireball they really outran, so they show as
@@ -924,44 +894,45 @@ class Scene:
         out = (out * (1 - ha) + hud[..., :3] * 255 * ha).astype(np.uint8)
         return self._overlay(out)
 
-    def _gun_smoke(self):
-        """Every shot's smoke puff splatted at half resolution: optical depth tau (research 5.4's vertical form,
-        A / (2 pi sh^2) at the centre), the tau-weighted colour, and the same tau shifted along the sun by the
-        puff's height for its shadow. The puff is one gaussian; noise in the puff's own frame, scaled with it,
-        breaks it into billows that grow as it spreads (a mean-1 factor, so the puff keeps its A)."""
-        hh, hw = self.dens.hh, self.dens.hw
-        tau = np.zeros((hh, hw), np.float32)
-        col = np.zeros((hh, hw, 3), np.float32)
-        shd = np.zeros_like(tau)
-        s = self.s
+    def _smoke_fields(self):
+        """Funnel smoke particles and every shot's gun smoke as blobs for one Density pass each: optical depth, the
+        tau-weighted colour, and tau again moved along the sun by each blob's height for the shadows. A shot's puff
+        (muzzle.py: its A, centre and spread) is drawn as SUB_PUFFS clumps scattered about its centre with their
+        own slow drift, strung along the jet from the muzzle, sharing its A, so it breaks up like the funnel smoke rather than one disc. Its optical depth
+        is shown at GUN_SMOKE_VIS of the research's (a look; the game's visibility uses the full value)."""
+        sm = self.smoke
+        px, py, r, w, h, cols = [], [], [], [], [], []
+        if len(sm):
+            x, y = self.scr(sm.d["x"], sm.d["y"])
+            px.append(x), py.append(y), r.append(sm.radius() * self.s), w.append(1.4 * sm.opacity())
+            h.append(sm.d["h"] + 4)
+            cols.append(np.broadcast_to(np.array(SMOKE_COAL if self.coal else SMOKE_OIL, np.float32), (len(sm), 3)))
         for shot in self.shots:
             p = shot.puff(self.t)
             if p is None or p["A"] <= 0:
                 continue
-            cx, cy = self.scr(*p["xy"])
-            sig = max(p["sh"], 1.2 / s)                  # at least 0.6 half-res px
-            peak = p["A"] / (2 * math.pi * sig * sig)
-            # out to where even the billows' bright spots fall under tau 0.003, or the window's edge shows
-            r = sig * math.sqrt(2 * math.log(max(3 * peak / 0.003, 2.0))) * s / 2
-            hx, hy = (cx - 1) / 2, (cy - 1) / 2
-            x0, y0 = int(math.floor(hx - r)), int(math.floor(hy - r))
-            xs, ys = np.arange(x0, int(math.ceil(hx + r)) + 1), np.arange(y0, int(math.ceil(hy + r)) + 1)
-            off = sun_offset_px(s, SUN_AZ, SUN_EL, p["z"])
-            sx0, sy0 = x0 + int(round(off[0] / 2)), y0 + int(round(off[1] / 2))
-            if not (overlaps(x0, y0, len(xs), len(ys), hw, hh) or overlaps(sx0, sy0, len(xs), len(ys), hw, hh)):
-                continue
-            dx = ((xs * 2 + 1 - cx) / s).astype(np.float32)
-            dy = ((ys * 2 + 1 - cy) / s).astype(np.float32)
-            g = np.float32(peak) * np.exp(
-                -(dx[None, :] ** 2 + dy[:, None] ** 2) / np.float32(2 * sig * sig))
-            u, v = dx / sig * 0.2 + shot.noise_off[0], dy / sig * 0.2 + shot.noise_off[1]
-            g *= np.exp(0.9 * sample_tile(self.puff_noise, u, v) - 0.405)
-            # warm near the muzzle for NC powders, fading over about 5 s (research 7.4); water fog is pure white
+            k = len(shot.sub_w)
+            sig = p["sh"] * SUB_SIGMA
+            # strung along the jet from the muzzle (drifting with the wind) to the puff's centre and a little past
+            root = shot.pos + WIND * p["age"]
+            c = (root[None, :] + (p["xy"] - root)[None, :] * shot.sub_f[:, None] + shot.sub_off * p["sh"]
+                 + shot.sub_vel * p["age"])
+            x, y = self.scr(c[:, 0], c[:, 1])
+            px.append(x), py.append(y), r.append(np.full(k, max(sig * self.s, 1.0)))
+            w.append(GUN_SMOKE_VIS * p["A"] * shot.sub_w / (2 * math.pi * sig * sig))
+            h.append(np.full(k, p["z"]))
+            # warm near the muzzle for NC powders, fading over about 5 s (research 7.4); water fog is white
             tint = SMOKE_NEUTRAL + (shot.D["tint"] - SMOKE_NEUTRAL) * math.exp(-p["age"] / 5.0)
-            c = (tint * p["A_p"] + 0.97 * p["A_w"]) / p["A"]
-            add_patch(tau, g, x0, y0)
-            add_patch(col, g[..., None] * c.astype(np.float32), x0, y0)
-            add_patch(shd, g, sx0, sy0)
+            cc = (tint * p["A_p"] + 0.97 * p["A_w"]) / p["A"] * SMOKE_GAIN
+            cols.append(np.broadcast_to(cc.astype(np.float32), (k, 3)))
+        z = np.zeros((self.dens.hh, self.dens.hw), np.float32)
+        if not px:
+            return z, z[..., None], z
+        px, py, r, w, h, cols = (np.concatenate(a) for a in (px, py, r, w, h, cols))
+        tau = self.dens.render(px, py, r, w)
+        col = np.stack([self.dens.render(px, py, r, w * cols[:, i]) for i in range(3)], -1)
+        off = np.array(sun_offset_px(self.s, SUN_AZ, SUN_EL, 1.0))
+        shd = self.dens.render(px + off[0] * h, py + off[1] * h, r, w)
         return tau, col, shd
 
     def _shells(self, frame, shadow=False):
@@ -1075,7 +1046,7 @@ class Scene:
                 # tail stays above the display's floor out to about twice the fireball's size, a glowing halo
                 ang = np.arctan2(v, u)
                 rm = 1 + 0.18 * np.sin(3 * ang + shot.lobes[0]) + 0.12 * np.sin(5 * ang + shot.lobes[1])
-                rm = rm * (1 + 0.15 * sample_points(self.puff_noise, u / e["a"] * 0.25 + shot.noise_off[0],
+                rm = rm * (1 + 0.15 * sample_points(self.edge_noise, u / e["a"] * 0.25 + shot.noise_off[0],
                                                     v / e["b"] * 0.25 + shot.noise_off[1]))
                 ra = max(0.8 * e["a"] * math.cos(shot.el), 0.6 / s)
                 rb = max(0.8 * e["b"], 0.6 / s)
