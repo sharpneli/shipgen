@@ -611,6 +611,11 @@ def plan_machinery(lay, design, res, hull, x=0.0):
     cb = design["hull"]["block_coefficient"]
     wing_t, end = powerplant.bunkers(p, res.fuel, sp["length"], w, h, hull.L, hull.B, cb, D, T, tds)
     segs = powerplant.segments(p, sp, end)
+    lay.warnings += powerplant.groups(p)[1]
+    units = powerplant.rated(p, res.power_shp)["units"]
+    if sp["order"].count("engine") > units:
+        lay.warnings.append(f"machinery.arrangement has {sp['order'].count('engine')} engine groups for {units} "
+                            "engine unit(s): some engine rooms hold no engine.")
     if not sp["fits"]:
         lay.fail("beam", f"The plant's units are {sp['unit'][1]:.1f} m wide, but the machinery space is only "
                          f"{max(w, 0.0):.1f} m across. Use more shafts (smaller units) or less side protection.")
@@ -741,6 +746,22 @@ def boiler_seg(lay):
     segs = lay.geo["plant"]["segments"]
     best = max(range(len(segs)), key=lambda i: (segs[i][0] == "boiler", segs[i][0] == "engine", segs[i][1]))
     return best
+
+
+def funnel_seg(lay, i):
+    """The machinery segment funnel i serves where the funnels stand together (merchants, carriers): the boiler
+    groups in turn, forward first, as many funnels each as the funnel plan gives them (boiler_seg for an
+    engines-only plant)."""
+    segs = lay.geo["plant"]["segments"]
+    boilers = [k for k, (kind, _) in enumerate(segs) if kind == "boiler"]
+    counts = lay.geo["funnel_plan"]["counts"]
+    if not boilers or len(counts) != len(boilers):
+        return boiler_seg(lay)
+    for si, n in zip(boilers, counts):
+        if i < n:
+            return si
+        i -= n
+    return boilers[-1]
 
 
 def add_funnel_weights(lay, f, top, served_x, depth):
@@ -1683,6 +1704,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     # middle. Midships turrets (T) and echelon wing pairs (W) stand in gaps between its segments, over their
     # magazines: more of them than gaps splits the longest boiler group, which then needs its own funnels.
     segs = [list(s) for s in plant["segments"]]
+    seg_group = list(range(len(segs)))      # the arrangement's group each segment comes from (splits share it)
     n_gaps = nm + (nw if echelon else 0)
     main_kind = "boiler" if any(k == "boiler" for k, _ in segs) else "engine"
 
@@ -1691,16 +1713,39 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         boilers and the engine rooms or bunkers (Lion's and Kongo's Q turret)."""
         return [i for i in range(1, len(segs)) if main_kind in (segs[i - 1][0], segs[i][0])]
 
+    def between_groups(i):
+        """A gap between two of the arrangement's boiler groups (past any bunker between them): where the player
+        split the boilers to put turrets between their funnels (Duilio, Inflexible)."""
+        a, b = i - 1, i
+        while a >= 0 and segs[a][0] == "bunker":
+            a -= 1
+        while b < len(segs) and segs[b][0] == "bunker":
+            b += 1
+        return (a >= 0 and b < len(segs) and segs[a][0] == segs[b][0] == main_kind
+                and seg_group[a] != seg_group[b])
+
+    def spread_over(cands, n):
+        """n of the candidates, spread evenly along them."""
+        out = sorted({cands[min(len(cands) - 1, int((k + 0.5) * len(cands) / n))] for k in range(n)})
+        for c in cands:                # rounding collided: take the free candidates in order
+            if len(out) >= n:
+                break
+            if c not in out:
+                out = sorted(out + [c])
+        return out
+
     while len(candidates()) < n_gaps:
         i = max((i for i, (k, _) in enumerate(segs) if k == main_kind), key=lambda i: segs[i][1])
         segs[i:i + 1] = [[main_kind, segs[i][1] / 2], [main_kind, segs[i][1] / 2]]
+        seg_group[i:i + 1] = [seg_group[i]] * 2
     cands = candidates()
-    gaps = sorted({cands[min(len(cands) - 1, int((k + 0.5) * len(cands) / n_gaps))] for k in range(n_gaps)})
-    for c in cands:                # rounding collided: take the free candidates in order
-        if len(gaps) >= n_gaps:
-            break
-        if c not in gaps:
-            gaps = sorted(gaps + [c])
+    # gaps between the arrangement's boiler groups first, then the rest spread along the others
+    pref = [c for c in cands if between_groups(c)] if n_gaps else []
+    if len(pref) >= n_gaps:
+        gaps = spread_over(pref, n_gaps) if n_gaps else []
+    else:
+        rest = [c for c in cands if c not in pref]
+        gaps = sorted(pref + spread_over(rest, n_gaps - len(pref)))
     gap_kind = {}
     t_gaps = [gaps[round((k + 0.5) * len(gaps) / nm - 0.5)] for k in range(nm)] if nm else []
     for g in gaps:

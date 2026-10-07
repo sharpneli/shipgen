@@ -170,7 +170,7 @@ The crew lives wherever the ship has empty volume (`crew.crew_space`):
 - **Weight:** a mount above the main deck also weighs its tub, platform and splinter shield (`armament.AA_TUB_T`: quad 3 t, single 0.3 t), and a platform's pedestal weighs as superstructure. All of it counts at its height, so a ship crowded with AA pays in topweight.
 - Collision tests are height-aware (`Layout.free_at`): a tub may stand on a roof but not inside a taller block.
 
-`machinery` is the propulsion plant (`powerplant.py`, from `research/powerplant-model.md`). There is no year input: `tech` holds the researched technology as numbers, so a navy can have a tech earlier or later than history did. `plant-templates.md` has blocks to copy for every period from 1880 to 1970, and `python plant_templates.py` regenerates them. A design without `tech` gets a 1940 high-pressure turbine plant (merchants: a 1940 oil-fired triple expansion; planing craft: 1940 petrol engines). The other keys are design choices: `stress`, `shafts`, `units_per_shaft`, `transmission`, `arrangement` (`grouped` or alternating `unit`), `centreline_bulkhead`, `bunkers` (`wing` or `ends`), `wing_bunker_m` and `rudders` (1 on the centreline, 2 or more spread behind the inner propellers; `propulsion.py`). The template's table explains each one. What the plant decides:
+`machinery` is the propulsion plant (`powerplant.py`, from `research/powerplant-model.md`). There is no year input: `tech` holds the researched technology as numbers, so a navy can have a tech earlier or later than history did. `plant-templates.md` has blocks to copy for every period from 1880 to 1970, and `python plant_templates.py` regenerates them. A design without `tech` gets a 1940 high-pressure turbine plant (merchants: a 1940 oil-fired triple expansion; planing craft: 1940 petrol engines). The other keys are design choices: `stress`, `shafts`, `units_per_shaft`, `transmission`, `arrangement` (`grouped`, alternating `unit`, or the groups as a list forward to aft, such as `["boiler", "boiler", "engine"]`), `centreline_bulkhead`, `bunkers` (`wing` or `ends`), `wing_bunker_m` and `rudders` (1 on the centreline, 2 or more spread behind the inner propellers; `propulsion.py`). The template's table explains each one. What the plant decides:
 - **Weight, fuel and engineering crew:** from the tech and the stress. Range is computed at cruise speed through the tech's part-load curve.
 - **Machinery length:** the plant's volume, fitted into the room the hull gives it. Across, that's the beam inside the frames, less torpedo protection (`armour.tds_m` per side) and wing bunkers, with units standing in rows. Up, it's the inner bottom to the lowest armour deck over the citadel (the main deck without deck armour).
   - The volume splits between boiler and engine rooms by `boiler_fraction`.
@@ -178,13 +178,20 @@ The crew lives wherever the ship has empty volume (`crew.crew_space`):
   - Engine rooms use only the units' height plus 2.5 m of auxiliaries, so low turbines leave height unused.
   - A unit taller than that pokes through the deck under a casing, which is armoured if the deck is.
   - Coal fills wing bunkers, which run up to the main deck, then end bunkers. Oil fills the double bottom and the torpedo protection's liquid layers, then end tanks. End bunkers and tanks lengthen the machinery block.
-- **Machinery block:** bunkers, boiler rooms and engine rooms in line (`powerplant.segments`). Unit arrangement alternates boiler and engine rooms.
+- **Machinery block:** bunkers, boiler rooms and engine rooms in line (`powerplant.segments`), in the arrangement's order. `grouped` is `["boiler", "engine"]` and `unit` is `["boiler", "engine", "boiler", "engine"]`.
+  - A list places the groups freely, and the funnels follow the boiler groups. That's how a player moves the funnels: `["boiler", "boiler", "engine"]` gives Duilio and Inflexible their funnels ahead of and abaft the midships turrets.
+  - Each kind's volume is shared evenly by its groups. Every group beyond two makes the machinery 5% longer (bulkheads, duplicated auxiliaries), so `unit` keeps its ×1.1.
+  - No group is shorter than one engine unit plus a 2 m gangway (`powerplant.ROOM_GANGWAY`), so splitting a plant never gives 10 cm of engines. A lone boiler group keeps the length its volume gives.
+  - Half of any end bunkers stand at the block's middle boundary (a cross bunker when grouped).
+  - A list that doesn't fit the plant falls back with a warning: a steam plant without boilers gets them ahead of the first engines, a list without engines gets them aft, an engines-only plant drops its boiler groups, and more engine groups than engine units warns of empty engine rooms.
+  - Merchants and carriers keep their funnels together; the funnels share out over the boiler groups for their uptakes.
 - **Funnels** (`powerplant.funnel_plan`):
   - Count: enough of them to pass the gas, each within its uptakes' `reach_m` of the boilers it serves. `"funnels"` can add more, never fewer.
   - Natural and boost draught plants get funnels at least 25 m above their grates.
   - Old coal plants need many big funnels spread over long boiler rooms.
 - **Warship middle.** The deck plan and the machinery below it are laid out together. The deck plan is the bridge, the funnels over their boiler groups, the midships and wing turrets, and the aft control.
   - Midships turrets and echelon wing pairs stand only in gaps between machinery segments next to the boilers. There they stand over their magazines, like Lion's and Kongo's Q turret.
+  - Gaps between two of the arrangement's boiler groups (past a bunker between them) come first: the player split the boilers there to put turrets between their funnels.
   - More turrets than gaps splits a boiler group, which then needs its own funnel.
   - Engine rooms and bunkers at the ends of the block run on under the bridge, the abreast wing turrets and the aft control.
   - The forward boiler group may also run on under them, up to 0.85 of the bridge's length (`layout.BRIDGE_OVER_BOILERS`). Its funnels stay on open deck aft of the bridge.

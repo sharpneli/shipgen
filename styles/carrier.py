@@ -26,7 +26,7 @@ import hullweight
 import ordnance
 from geometry import polygon_area, polygon_y_span
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
-                    add_steering, boiler_seg, clamp, finish_layout, hull_spec, mast_weight, plan_funnels, plan_machinery, roof_spots,
+                    add_steering, clamp, finish_layout, funnel_seg, hull_spec, mast_weight, plan_funnels, plan_machinery, roof_spots,
                     set_citadel, stack_machinery, tower_levels)
 from navarch import STEEL, Weight
 from geometry import AA_CFG, Hull
@@ -416,7 +416,7 @@ def _flight_deck_layout(design, res, shift):
     for i in range(nfun):
         fx = ix0 + 1.0 + (i + 0.5) * (fl + 1.0)
         funnels.append(dict(id=f"Funnel {i + 1}", x=fx, y=yi, l=fl, w=fw, pipes=2 if fw > 4 else 1, z0=fd_h,
-                            seg=boiler_seg(lay)))
+                            seg=funnel_seg(lay, i)))
         lay.occupy(_fp_rect(fx - fl / 2, yi - fw / 2, fx + fl / 2, yi + fw / 2), fd_h, fun_top, f"Funnel {i + 1}")
         add_funnel_weights(lay, funnels[-1], fun_top, mc, res.depth)
     masts = [dict(x=fwd0 - 0.5, y=yi, yard=min(0.6 * wi, 6), tripod=False,
@@ -551,7 +551,7 @@ def _seaplane_layout(design, res, shift):
     for i in range(nfun):
         fx = hx1 + 1.0 + (i + 0.5) * room / nfun
         funnels.append(dict(id=f"Funnel {i + 1}", x=fx, y=0.0, l=fl, w=fw, pipes=2 if fw > 4 else 1,
-                            seg=boiler_seg(lay)))
+                            seg=funnel_seg(lay, i)))
         lay.occupy(_fp_rect(fx - fl / 2, -fw / 2, fx + fl / 2, fw / 2), 0, fun_top, f"Funnel {i + 1}")
         add_funnel_weights(lay, funnels[-1], fun_top, mc, res.depth)
     masts = [dict(x=bx0 - 1.0, yard=min(0.3 * B, 8), tripod=False)]

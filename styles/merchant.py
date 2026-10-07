@@ -20,7 +20,7 @@ import armament
 import firecontrol
 import ordnance
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
-                    add_raised, add_steering, boiler_seg, clamp, finish_layout, plan_funnels, plan_machinery,
+                    add_raised, add_steering, clamp, finish_layout, funnel_seg, plan_funnels, plan_machinery,
                     set_citadel, stack_machinery)
 from navarch import Weight
 from geometry import AA_CFG, Hull
@@ -224,7 +224,7 @@ def _layout(design, res, shift):
     fw = min(fw, 0.4 * B)
     for i in range(nfun):
         x = fx - i * (fl + 1.5) if aft_engines else fx + (i - (nfun - 1) / 2) * (fl + 1.5)
-        funnels.append(dict(id=f"Funnel {i + 1}", x=x, y=0.0, l=fl, w=fw, pipes=1, z0=RAISED_H, seg=boiler_seg(lay)))
+        funnels.append(dict(id=f"Funnel {i + 1}", x=x, y=0.0, l=fl, w=fw, pipes=1, z0=RAISED_H, seg=funnel_seg(lay, i)))
         lay.occupy(_fp_rect(x - fl / 2, -fw / 2, x + fl / 2, fw / 2), RAISED_H, fun_top, f"Funnel {i + 1}")
         add_funnel_weights(lay, funnels[-1], fun_top, mx, depth)
     bl_ = clamp(0.045 * L, 5, 9)

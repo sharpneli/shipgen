@@ -24,7 +24,7 @@ The tech block is what the navy has researched. The rest are design choices, mad
 | `shafts` | 1..8 | the fewest the units allow, 1..4 | More shafts mean smaller units, so lower ones that fit narrower hulls. |
 | `units_per_shaft` | 1.. | 1 | Raised automatically if a unit would exceed `unit_max_mw`. |
 | `transmission` | `mechanical`, `electric` | mechanical | Electric (turbo-/diesel-electric, 1912+): weight ×1.3, fuel ×1.06. |
-| `arrangement` | `grouped`, `unit` | grouped | Unit: boiler and engine rooms alternate, so one hit can't stop the ship. Machinery ×1.1 longer. |
+| `arrangement` | `grouped`, `unit`, or a list of `"boiler"` and `"engine"` groups forward to aft | grouped | Grouped is `["boiler", "engine"]`. Unit is `["boiler", "engine", "boiler", "engine"]`: boiler and engine rooms alternate, so one hit can't stop the ship. A list places the groups freely, and the funnels follow the boilers: `["boiler", "boiler", "engine"]` puts midships turrets between two boiler groups, with a funnel ahead of them and one abaft (Duilio, Inflexible). Each kind's volume is shared evenly by its groups; every group beyond two makes the machinery 5% longer, and a split group is never shorter than one engine unit plus a 2 m gangway. |
 | `centreline_bulkhead` | true/false | false | Splits the rooms port and starboard. Each side fits its own rows of units, so the machinery may get longer. |
 | `bunkers` | `wing`, `ends` | wing for coal | Wing bunkers stand beside the machinery (narrowing it, but shielding it); end bunkers add length. Liquid fuel goes in the double bottom first. |
 | `wing_bunker_m` | metres | 2.0 | Width of each wing bunker. |

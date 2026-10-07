@@ -28,7 +28,10 @@ type or style: the trade-offs come from the plant.
       "shafts": 2,                        default: as few as the units allow (1..4)
       "units_per_shaft": 1,               raised automatically if a unit would exceed unit_max_mw
       "transmission": "mechanical",       mechanical | electric (turbo-/diesel-electric: x1.3 weight)
-      "arrangement": "grouped",           grouped (boilers, then engines) | unit (alternating; x1.1 length)
+      "arrangement": "grouped",           the rooms forward to aft: grouped (boilers, then engines), unit (boilers,
+                                          engines, boilers, engines), or a list of "boiler" and "engine" groups,
+                                          e.g. ["boiler", "boiler", "engine"] (boilers fore and aft of the
+                                          midships turrets, like Duilio): funnels follow the boiler groups
       "centreline_bulkhead": false,       splits the rooms port and starboard (rows count per side)
       "bunkers": "wing",                  coal: wing (beside the machinery) | ends (fore and aft of it)
       "wing_bunker_m": 2.0,               width of each wing bunker
@@ -45,6 +48,10 @@ import math
 KW_PER_SHP = 0.7457
 CASING = 3.0               # a funnel casing's plan area over its gas area (air casing, several uptakes)
 MAX_FUNNELS = 60           # a plan never gets more (a silly test gets 19): beyond it, the gas runs faster instead
+ARRANGEMENTS = {"grouped": ["boiler", "engine"], "unit": ["boiler", "engine", "boiler", "engine"]}
+MAX_GROUPS = 8
+GROUP_K = 0.05      # machinery length per group beyond two (bulkheads, duplicated auxiliaries): unit's 4 groups x1.1
+ROOM_GANGWAY = 2.0  # a group is at least one unit long plus this: no 10 cm engine rooms from a split plant
 STEEL_FRAME = 0.92          # usable width of the hull at the machinery, as a fraction of the beam (frames, sides)
 DOUBLE_BOTTOM_FRAC = 0.07   # double bottom height, fraction of the hull depth (at least DOUBLE_BOTTOM_MIN)
 DOUBLE_BOTTOM_MIN = 1.0
@@ -129,8 +136,13 @@ def validate(design, default_tech=None):
         errs.append("machinery.stress must be 0..1")
     if p["transmission"] not in ("mechanical", "electric"):
         errs.append(f"machinery.transmission = {p['transmission']!r}: use mechanical or electric")
-    if p["arrangement"] not in ("grouped", "unit"):
-        errs.append(f"machinery.arrangement = {p['arrangement']!r}: use grouped or unit")
+    a = p["arrangement"]
+    if isinstance(a, list):
+        if not 1 <= len(a) <= MAX_GROUPS or any(k not in ("boiler", "engine") for k in a):
+            errs.append(f"machinery.arrangement = {a!r}: a list of 1..{MAX_GROUPS} \"boiler\" and \"engine\" groups, "
+                        "forward to aft")
+    elif a not in ARRANGEMENTS:
+        errs.append(f"machinery.arrangement = {a!r}: use {', '.join(ARRANGEMENTS)} or a list of rooms")
     if p["bunkers"] not in ("wing", "ends"):
         errs.append(f"machinery.bunkers = {p['bunkers']!r}: use wing or ends")
     if p["shafts"] is not None and not (isinstance(p["shafts"], int) and 1 <= p["shafts"] <= 8):
@@ -214,12 +226,20 @@ def space(p, shp, w_avail, h_avail):
     volume = r["weight_t"] / r["density"]
     bf = t["boiler_fraction"]
     h_boil = max(1.0, h_avail, h_u)    # boilers stand at least as tall as the units, in a casing if they must
-    unit_k = 1.10 if p["arrangement"] == "unit" else 1.0
-    boilers = bf * volume / max(w_eff, 0.5) / h_boil * unit_k
-    engines = max((1 - bf) * volume / max(w_eff, 0.5) / h_eff * unit_k, l_u + 2.0)
-    return dict(length=boilers + engines, boilers=boilers, engines=engines, rows=rows, unit=(l_u, w_u, h_u),
-                protrusion=max(0.0, h_u - h_avail), volume=volume, w_eff=w_eff, h_eff=h_eff, h_boilers=h_boil,
-                fits=rows > 0)
+    order = groups(p)[0]
+    n_b, n_e = order.count("boiler"), order.count("engine")
+    group_k = 1 + GROUP_K * max(0, len(order) - 2)
+    room_min = l_u + ROOM_GANGWAY
+    boilers = bf * volume / max(w_eff, 0.5) / h_boil * group_k
+    engines = max((1 - bf) * volume / max(w_eff, 0.5) / h_eff * group_k, room_min)
+    # each group gets its kind's volume shared evenly, and never less than a unit and a gangway (a lone boiler group
+    # keeps its length: the volume decides it)
+    b_each = max(boilers / n_b, room_min if n_b > 1 else 0.0) if n_b else 0.0
+    e_each = max(engines / n_e, room_min)
+    lengths = [b_each if k == "boiler" else e_each for k in order]
+    return dict(length=sum(lengths), boilers=b_each * n_b, engines=e_each * n_e, order=order, lengths=lengths,
+                rows=rows, unit=(l_u, w_u, h_u), protrusion=max(0.0, h_u - h_avail), volume=volume, w_eff=w_eff,
+                h_eff=h_eff, h_boilers=h_boil, fits=rows > 0)
 
 
 def bunkers(p, fuel_t, length, w_avail, h_avail, ship_l, ship_b, cb, depth, draught=0.0, tds=0.0):
@@ -244,30 +264,45 @@ def bunkers(p, fuel_t, length, w_avail, h_avail, ship_l, ship_b, cb, depth, drau
     return wing, end
 
 
+def groups(p):
+    """The machinery's groups forward to aft (arrangement: a preset or a list of "boiler" and "engine"), and
+    warnings for a list that doesn't fit the plant: a steam plant needs boilers (they go ahead of the first engine
+    group), and every plant engines (aft of the rest); an engines-only plant drops its boiler groups."""
+    a = p["arrangement"]
+    order = list(ARRANGEMENTS[a] if isinstance(a, str) else a)
+    warns = []
+    if not is_steam(p) and "boiler" in order:
+        order = [k for k in order if k != "boiler"]
+        if not isinstance(a, str):     # a preset just means its engine groups here
+            warns.append("machinery.arrangement lists boiler groups, but the plant has no boilers; they are left out.")
+    if "engine" not in order:
+        order.append("engine")
+        warns.append("machinery.arrangement has no engine group; the engines go aft of the boilers.")
+    if is_steam(p) and "boiler" not in order:
+        order.insert(order.index("engine"), "boiler")
+        warns.append("machinery.arrangement has no boiler group; the boilers go ahead of the engines.")
+    return order, warns
+
+
 def segments(p, sp, end_len):
-    """The machinery block, forward to aft: [(kind, length)], kind boiler, engine or bunker. Grouped: boilers,
-    then engines; unit: two boiler-engine pairs. End bunkers go half ahead of the boilers and half between
-    boilers and engines (a cross bunker)."""
-    b, e = sp["boilers"], sp["engines"]
+    """The machinery block, forward to aft: [(kind, length)], kind boiler, engine or bunker: the groups in the
+    arrangement's order (space). End bunkers go half ahead of the block and half at its middle boundary (between
+    boilers and engines when grouped: a cross bunker). An engines-only plant puts the second half aft of it."""
     half = end_len / 2
+    groups_ = list(zip(sp["order"], sp["lengths"]))
     out = []
     if half > 0.05:
         out.append(("bunker", half))
-    if b <= 0.05:                    # engines only (diesel, petrol)
-        out.append(("engine", e))
+    if sp["boilers"] <= 0.05:        # engines only (diesel, petrol)
+        out += [g for g in groups_ if g[0] == "engine"]
         if half > 0.05:
             out.append(("bunker", half))
         return out
-    if p["arrangement"] == "unit":
-        out += [("boiler", b / 2), ("engine", e / 2)]
-        if half > 0.05:
-            out.append(("bunker", half))
-        out += [("boiler", b / 2), ("engine", e / 2)]
-    else:
-        out.append(("boiler", b))
-        if half > 0.05:
-            out.append(("bunker", half))
-        out.append(("engine", e))
+    mid = len(groups_) // 2
+    out += groups_[:mid]
+    if half > 0.05:
+        out.append(("bunker", half))
+    out += groups_[mid:]
     return out
 
 
