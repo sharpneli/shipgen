@@ -22,7 +22,8 @@ size search never runs it.
             point inside the hull below the main deck is in exactly one cell.
   rooms     the layout's compartments, snapped to whole cells: a room owns a cell when it overlaps the cell by at
             least half the shorter of the two along every axis; conflicts go by ROOM_PRIORITY, then overlap. A
-            room too small for any cell of its own shares the cell it overlaps most ("also"). Cells no room
+            room too small for any cell of its own shares the cell it overlaps most ("also"). A room along the side (wing
+            bunkers: per_section) is cut into one room per section, its tonnes shared by volume. Cells no room
             claims become a section's double bottom, stores (at least half under water), quarters (above) or
             torpedo protection (a wing cell inside the citadel). Every cell has exactly one owning room.
 
@@ -361,9 +362,27 @@ def build(lay, design, res, ag, armoured, form):
                 room_out[r["id"]][k] = v
     for cid, rid in owner.items():
         room_out[rid]["cells"].append(cid)
+    for r in rooms:     # a room along the side (wing bunkers) is cut at every transverse bulkhead it crosses
+        fmt = r["src"].get("per_section")
+        out = room_out[r["id"]]
+        secs = sorted({by_id[cid]["si"] for cid in out["cells"]})
+        if not fmt or len(secs) < 2:
+            out.pop("per_section", None)
+            continue
+        del room_out[r["id"]]
+        vol = sum(by_id[cid]["volume_m3"] for cid in out["cells"]) or 1.0
+        for si in secs:
+            own = [cid for cid in out["cells"] if by_id[cid]["si"] == si]
+            part = {k: v for k, v in out.items() if k != "per_section"}
+            part.update(id=fmt.format(sections[si]["id"]), cells=own)
+            if "tonnes" in out:
+                part["tonnes"] = round(out["tonnes"] * sum(by_id[cid]["volume_m3"] for cid in own) / vol, 1)
+            room_out[part["id"]] = part
+            for cid in own:
+                owner[cid] = part["id"]
     also = {}
     for r in rooms:     # a room with no cell of its own shares the one it overlaps most (or the nearest)
-        if room_out[r["id"]]["cells"]:
+        if r["id"] not in room_out or room_out[r["id"]]["cells"]:
             continue
         rc = ((r["x0"] + r["x1"]) / 2, (r["y0"] + r["y1"]) / 2, (r["base"] + r["top"]) / 2)
         cand = sorted(cells, key=lambda c: (-_box_overlap(r, c), math.dist(

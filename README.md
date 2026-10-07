@@ -398,6 +398,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
       - `through`: the shafts and shaft alleys that pass through the cell (when any).
     - `rooms`: `id`, `kind`, `cells`, `volume_m3` and their extent (`x0`/`x1`, `base`/`top`), plus what the layout gives them:
       - `fuel` and `tonnes` for bunkers; `mount` or `mounts` for magazines; `crew` for quarters.
+      - Wing bunkers are cut at every transverse bulkhead (`"Wing bunker 7 S"`), each with its share of the tonnes by volume, so a hole floods one section's bunker, not the whole side.
       - `shared: true` marks a room that only shares a cell.
       - Rooms snap to whole cells: a room owns a cell when it overlaps the cell by at least half the shorter of the two along every axis. Contested cells go by `subdivision.ROOM_PRIORITY` (magazines first, then machinery), then by overlap.
       - Kinds:

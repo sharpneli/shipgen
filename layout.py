@@ -572,7 +572,9 @@ def add_machinery_rooms(lay, placed, inner_hw, depth):
     if plan["wing_m"] > 0:
         y = plan["width"] / 2 + plan["wing_m"] / 2
         for side in (1, -1):
-            lay.compartments.append(dict(id=f"Wing bunker {'S' if side > 0 else 'P'}", kind="bunker", fuel=fuel,
+            sd = 'S' if side > 0 else 'P'
+            lay.compartments.append(dict(id=f"Wing bunker {sd}", kind="bunker", fuel=fuel,
+                                         per_section=f"Wing bunker {{}} {sd}",     # (subdivision: one per section)
                                          x0=x0, x1=x1, y=side * y, half_width=plan["wing_m"] / 2,
                                          base=plan["inner_bottom"] - depth, top=0.0,     # up to the main deck
                                          tonnes=round(plan["wing_t"] / 2, 1)))
