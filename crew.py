@@ -295,3 +295,109 @@ def apply(lay, design, res, style):
                     sleep_standard_m2=s["sleep_rating_m2"], headroom_m=round(nd["headroom_m"], 2),
                     deck_height_m=s["deck_height_m"], sickbay_beds=nd["sickbay_beds"],
                     tolerance_days=s["tolerance_days"])
+
+
+# ---------------------------------------------------------------------------
+# battle stations (research/08_gunfire_effects.md: casualties are the men within a burst's reach)
+# ---------------------------------------------------------------------------
+HANDLING = 0.4           # of a turret's crew, below in its barbette (working chamber, hoists, handling room) (E)
+COMMAND_K = (4, 0.2)     # the command party: 4 + 0.2 x deck_and_command, on the bridge (E)
+AFT_CONTROL = 0.25       # of the command party, at the aft control when there is one (E)
+DIRECTOR_K = 2           # a director's crew: 2 + its rangefinder's base in metres (E; a Mk 51 tub has 2)
+STEERING_PARTY = 2       # men in the steering gear room
+
+
+def battle_stations(lay, sub, comps):
+    """Where the complement stands at battle stations, for the game's casualty model (the quarters are empty then;
+    crew weights stay lumped). Every man is placed once, so the counts add up to the complement:
+      weapons     over the mounts (AA and torpedoes too) by their crews (gun_crew, torpedo_crew); a turret in the
+                  hull keeps HANDLING of its crew in its barbette
+      engineering over the boiler and engine rooms by volume
+      the rest    (deck and command, hotel, an air group) in this order: the command party on the bridge blocks
+                  (AFT_CONTROL of it aft), each director's crew, a steering party; an air group in the hangar (or on
+                  the flight deck); whoever is left are the repair, first-aid and ammunition parties, in the hull's
+                  free rooms (quarters and stores) by volume
+    A place a ship lacks passes its men on to the next (to the repair parties last; with no free rooms, to the
+    superstructure). Returns dict(components={(kind, id): men}, rooms={id: men}, summary={station: men}); components
+    are keyed by kind too, since ids may repeat across kinds (a carrier's Hangar block and hangar bay)."""
+    from geometry import AA_CFG, block_outline, polygon_centroid
+    from hitbox import block_role
+    from layout import block_base, block_top
+    c = getattr(lay, "crew", None) or {}
+    deps = dict(c.get("departments") or {})
+    if not deps:
+        return dict(components={}, rooms={}, summary={})
+    keys = {(x["kind"], x["id"]) for x in comps}
+    on_comp, on_room, summary = {}, {}, {}
+
+    def put(where, men, station):
+        for k, m in men.items():
+            if m:
+                where[k] = where.get(k, 0) + m
+                summary[station] = summary.get(station, 0) + m
+
+    def take(n, cap):
+        return min(n, max(0, cap))
+
+    # weapons
+    need = {}
+    for m in lay.mounts:
+        t = m["t"]
+        need[(m["kind"], m["id"])] = (torpedo_crew(t) if m["kind"] == "torpedo"
+                                      else gun_crew(t["calibre_mm"], t["barrels"]))
+    for a in lay.aa:
+        need[("aa", a["id"])] = gun_crew(40.0 if "40" in a["type"] else 20.0, AA_CFG[a["type"]][1])
+    for (kind, k), men in spread(deps.get("weapons", 0), need).items():
+        below = round(HANDLING * men) if ("barbette", f"{k} barbette") in keys else 0
+        put(on_comp, {(kind, k): men - below}, "aa" if kind == "aa" else "torpedoes" if kind == "torpedo" else "guns")
+        put(on_comp, {("barbette", f"{k} barbette"): below}, "handling")
+    rest = sum(n for d, n in deps.items() if d not in ("weapons", "engineering"))
+    # engineering
+    mach = {r["id"]: r["volume_m3"] for r in sub["rooms"] if r["kind"] in ("boiler_room", "engine_room")
+            and not r.get("shared")}
+    if mach:
+        put(on_room, spread(deps.get("engineering", 0), mach), "machinery")
+    else:
+        rest += deps.get("engineering", 0)
+    # command, directors, steering
+    vol = {}
+    for b in lay.blocks:
+        area = abs(polygon_centroid(block_outline(b))[0])
+        vol[("superstructure", b["id"])] = area * (block_top(b) - block_base(b))
+    role = lambda k: block_role(k[1])
+    bridge = {k: v for k, v in vol.items() if role(k) in ("bridge", "island")}
+    aft = {k: v for k, v in vol.items() if role(k) == "aft_control"}
+    if not bridge:
+        bridge = {k: v for k, v in vol.items() if role(k) != "director"}
+    if bridge:
+        n = take(round(COMMAND_K[0] + COMMAND_K[1] * deps.get("deck_and_command", 0)), rest)
+        n_aft = round(AFT_CONTROL * n) if aft else 0
+        put(on_comp, spread(n - n_aft, bridge), "command")
+        put(on_comp, spread(n_aft, aft), "command")
+        rest -= n
+    for d in lay.directors:
+        n = take(DIRECTOR_K + round(d["rangefinder_m"]), rest)
+        put(on_comp, {("superstructure", d["id"]): n}, "directors")
+        rest -= n
+    steer = [r["id"] for r in sub["rooms"] if r["kind"] == "steering" and not r.get("shared")]
+    if steer:
+        n = take(STEERING_PARTY, rest)
+        put(on_room, {steer[0]: n}, "steering")
+        rest -= n
+    # an air group: in the hangar, else on the flight deck
+    air = take(deps.get("air_group", 0), rest)
+    if air:
+        bays = ({k: 1.0 for k in keys if k[0] == "hangar_bay"}
+                or {k: 1.0 for k in keys if k[0] == "flight_deck"})
+        if bays:
+            put(on_comp, spread(air, bays), "air")
+            rest -= air
+    # repair, first-aid and ammunition parties
+    free = {r["id"]: r["volume_m3"] for r in sub["rooms"] if r["kind"] in ("accommodation", "stores")
+            and not r.get("shared")}
+    if free:
+        put(on_room, spread(rest, free), "repair")
+    elif vol:
+        put(on_comp, spread(rest, {k: v for k, v in vol.items() if role(k) != "director"} or vol),
+            "repair")
+    return dict(components=on_comp, rooms=on_room, summary=summary)

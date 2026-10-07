@@ -287,6 +287,27 @@ def deck_plates(sub, plating, design):
                          else plating["bulkhead_mm"])
 
 
+def battle_crew(lay, sub, comps):
+    """battle_crew on the components, rooms and cells where the complement stands at battle stations
+    (crew.battle_stations; a room's men are spread over the cells it owns by volume), and its summary in the
+    report's crew (battle_stations)."""
+    import crew
+    st = crew.battle_stations(lay, sub, comps)
+    for x in comps:
+        if st["components"].get((x["kind"], x["id"])):
+            x["battle_crew"] = st["components"][(x["kind"], x["id"])]
+    cells = {c["id"]: c for c in sub["cells"]}
+    for r in sub["rooms"]:
+        men = st["rooms"].get(r["id"])
+        if men:
+            r["battle_crew"] = men
+            own = {cid: cells[cid]["volume_m3"] for cid in r["cells"] if cells[cid]["room"] == r["id"]}
+            for cid, m in crew.spread(men, own).items():
+                cells[cid]["battle_crew"] = m
+    if getattr(lay, "crew", None) is not None and st["summary"]:
+        lay.crew["battle_stations"] = st["summary"]
+
+
 def export_hitboxes(lay, design, res):
     """hitboxes.json. Heights are metres above the main deck; res (navarch.Result) places the keel, the
     waterline and the armour."""
@@ -419,6 +440,7 @@ def export_hitboxes(lay, design, res):
     deck_plates(sub, plating, design)
     hydro = hydrostatics(form, res)
     comps += propulsion_components(lay, design, res, form, sub, gear)
+    battle_crew(lay, sub, comps)
     arm_out = {}
     if ag["belt_mm"] > 0:
         arm_out["belt"] = with_material(dict(thickness_mm=ag["belt_mm"], x0=round(ag["x0"], 3), x1=round(ag["x1"], 3),
