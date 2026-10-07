@@ -113,6 +113,12 @@ def rounds_per_gun(cal_mm):
     return pts[-1][1]
 
 
+def gun_rounds(t):
+    """Rounds per gun in the magazines for turret type t: the battery's rounds_per_gun input (geometry.battery_type),
+    else the curve (rounds_per_gun). The player's trade of combat endurance against magazine weight and volume."""
+    return t["rounds_per_gun"] if "rounds_per_gun" in t else rounds_per_gun(t["calibre_mm"])
+
+
 def mount_weights(t: dict, armour_mm: float, depth: float, level: int, deck: float = 0.0):
     """(turret incl. guns+armour, barbette armour, magazine/ammo) for one mount of type t. deck: the height of the
     weather deck it stands on above the main deck (a raised stretch: its barbette runs up through it)."""
@@ -126,7 +132,7 @@ def mount_weights(t: dict, armour_mm: float, depth: float, level: int, deck: flo
     # barbette: from the armour deck up to the turret base (superfiring turrets are taller)
     bh = 0.45 * depth + deck + level * superfire_step(th)
     barbette = 2 * math.pi * 0.95 * r * bh * (0.8 * armour_mm / 1000.0) * STEEL if t.get("barbette", True) else 0.0
-    ammo = n * rounds_per_gun(cal) * TUNING["shell_k"] * cal ** 3 / 1000.0 * TUNING["ammo_mult"]
+    ammo = n * gun_rounds(t) * TUNING["shell_k"] * cal ** 3 / 1000.0 * TUNING["ammo_mult"]
     return turret, barbette, ammo
 
 
@@ -756,10 +762,10 @@ def battery_turrets(b):
 
 def rough_payload(design, D):
     """First-pass armament estimate before the layout exists (all at x=0)."""
-    from geometry import make_turret_type, make_torpedo_type
+    from geometry import battery_type, make_torpedo_type
     out = []
     for k, m in enumerate(main_batteries(design)):
-        _, t = make_turret_type(m["calibre_mm"], m["calibre_length"], m["barrels"])
+        _, t = battery_type(m)
         n = battery_turrets(m)
         tw, bw, aw = mount_weights(t, m.get("armour_mm", 0), D, 0)
         sfx = f" {k + 1}" if k else ""
@@ -771,7 +777,7 @@ def rough_payload(design, D):
         n = s.get("count", 2 * s.get("per_side", 0))
         if not n:
             continue
-        _, t = make_turret_type(s["calibre_mm"], s["calibre_length"], s["barrels"])
+        _, t = battery_type(s)
         tw, bw, aw = mount_weights(t, s.get("armour_mm", 25), D, 0)
         out.append(Weight("Secondary battery", "armament", n * (tw + aw), z_rel=("deck", 2)))
     tp = design.get("torpedoes")

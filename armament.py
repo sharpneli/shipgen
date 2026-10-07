@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import math
 
-from geometry import make_torpedo_type, make_turret_type, rotate_translate, superfire_step, turret_height, turret_reach
+from geometry import battery_type, make_torpedo_type, rotate_translate, superfire_step, turret_height, turret_reach
 from geometry import turret_shapes
 from layout import _fp_circle, _fp_rect, _overlap, stepped_counts, turret_name
 from navarch import TUNING, Weight, mount_weights, torpedo_weight
@@ -45,7 +45,7 @@ def barrel_band(base, top, t):
 
 
 def gun_type(gun):
-    return make_turret_type(gun["calibre_mm"], gun["calibre_length"], gun["barrels"])
+    return battery_type(gun)
 
 
 def tube_footprint(t, x, y, bearing):

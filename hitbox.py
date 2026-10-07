@@ -30,6 +30,7 @@ from geometry import rrect_polygon, block_outline, turret_shapes, turret_reach, 
 from geometry import AA_CFG, HullForm
 import powerplant
 import ordnance
+from navarch import gun_rounds
 import propulsion
 import subdivision
 
@@ -360,9 +361,11 @@ def export_hitboxes(lay, design, res):
             with_material(comps[-1], mat)
         if m["kind"] == "torpedo":      # the torpedoes in the tubes, with their warheads
             comps[-1].update(torpedoes=t["barrels"], warhead_kg=round(ordnance.warhead_kg()))
-        else:                           # ready-use ammunition at the mount (ordnance.ready_use)
-            n, w = ordnance.ready_use(t["calibre_mm"], t["barrels"])
-            comps[-1].update(ready_rounds=n, ready_t=round(w, 2))
+        else:   # the rounds stowed for the mount (its battery's rounds_per_gun x barrels, in its magazine) and the
+                # ready-use ammunition at the mount (ordnance.ready_use), drawn from them: never more than they hold
+            rounds = round(gun_rounds(t) * t["barrels"])
+            n, w = ordnance.ready_use(t["calibre_mm"], t["barrels"], cap=rounds)
+            comps[-1].update(rounds=rounds, ready_rounds=n, ready_t=round(w, 2))
         if m.get("magazine"):
             comps[-1]["magazine"] = m["magazine"]
         if m.get("casemate"):   # in the hull side, below the main deck

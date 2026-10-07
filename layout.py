@@ -24,7 +24,7 @@ import functools
 import math
 import re
 
-from geometry import (make_turret_type, make_torpedo_type, rrect_polygon, rrect_clamped, circle_polygon,
+from geometry import (battery_type, make_torpedo_type, rrect_polygon, rrect_clamped, circle_polygon,
                       turret_shapes, turret_height, turret_reach, point_in_polygon, polygons_intersect,
                       sector_polygon, superfire_step, polygon_centroid, polygon_y_span, clip_convex, simplify_polygon,
                       DECK_PITCH)
@@ -544,7 +544,7 @@ def magazine_plan(design, wings=()):
         if not n:
             continue
         kind = "casemate" if s.get("mount") == "casemate" else "auto"
-        t = make_turret_type(s["calibre_mm"], s["calibre_length"], s["barrels"], kind=kind)[1]
+        t = battery_type(s, kind=kind)[1]
         for grp, pairs in (("fore", (n + 1) // 2), ("aft", n // 2)):
             if pairs:
                 out[grp].append((battery_prefix(k), 2 * pairs, ordnance.ammo_m3(t)))
@@ -1001,7 +1001,7 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
     for sec in secs:
         n = sec.get("per_side", sec.get("count", 0) // 2)
         if sec.get("mount") == "casemate" and n:
-            t_id, t = make_turret_type(sec["calibre_mm"], sec["calibre_length"], sec["barrels"], kind="casemate")
+            t_id, t = battery_type(sec, kind="casemate")
             turret_types[t_id] = t
             bats.append((sec, n, t_id, t, sec.get("tier", "lower") == "upper"))
     if not bats:
@@ -1169,7 +1169,7 @@ class _Gun:
 
     def __init__(self, spec, k=0):
         self.spec, self.k = spec, k
-        self.tid, self.t = make_turret_type(spec["calibre_mm"], spec["calibre_length"], spec["barrels"])
+        self.tid, self.t = battery_type(spec)
         self.cal = f"{spec['calibre_mm']:g} mm"
         self.r = self.t["r"]
         self.reach = max(self.r, turret_reach({**self.t, "barrel_len": 0}))     # body and ears, not barrels
@@ -2465,7 +2465,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
             continue
         pre, cal = sec["prefix"], f"{sec['calibre_mm']:g} mm"
         raised = stands_on(sec) == "deckhouse"
-        ts_id, ts = make_turret_type(sec["calibre_mm"], sec["calibre_length"], sec["barrels"])
+        ts_id, ts = battery_type(sec)
         turret_types[ts_id] = ts
         rs = ts["r"]
         rs_reach = max(rs, turret_reach({**ts, "barrel_len": 0}))

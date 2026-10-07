@@ -52,11 +52,12 @@ def ammo_t(t):
     return mount_weights(t, 0.0, 0.0, 0)[2]
 
 
-def ready_use(calibre_mm, barrels):
+def ready_use(calibre_mm, barrels, cap=None):
     """Ready-use ammunition at a gun mount at action stations: (rounds, tonnes). A round weighs what the magazines
     book (navarch: shell_k x calibre^3 x ammo_mult, shell and propellant)."""
     from navarch import TUNING
     n = barrels * max(1, round(READY_K * calibre_mm ** -READY_P))
+    n = n if cap is None else min(n, cap)      # cap: the rounds the mount has in all
     return n, n * TUNING["shell_k"] * calibre_mm ** 3 / 1000.0 * TUNING["ammo_mult"]
 
 

@@ -21,6 +21,7 @@ COMMON_LIMITS = {
     ("main", "wing"): (0, 20), ("main", "armour_mm"): (0, 2000),
     ("secondary", "calibre_mm"): (1, 2000), ("secondary", "calibre_length"): (1, 200),
     ("secondary", "barrels"): (1, 20), ("secondary", "per_side"): (0, 100), ("secondary", "count"): (0, 200),
+    ("main", "rounds_per_gun"): (0, 1000), ("secondary", "rounds_per_gun"): (0, 1000),
     ("torpedoes", "mounts"): (0, 40), ("torpedoes", "tubes"): (1, 20),
     ("aa", "heavy"): (0, 500), ("aa", "light"): (0, 500),
     ("armour", "belt_mm"): (0, 2000),
@@ -50,6 +51,7 @@ DEFINED = (
     (("main", "barrels"), 1, True, None), (("main", "calibre_mm"), 0.0, False, None),
     (("main", "calibre_length"), 0.0, False, None), (("secondary", "barrels"), 1, True, None),
     (("secondary", "calibre_mm"), 0.0, False, None), (("secondary", "calibre_length"), 0.0, False, None),
+    (("main", "rounds_per_gun"), 0, True, None), (("secondary", "rounds_per_gun"), 0, True, None),
 )
 
 

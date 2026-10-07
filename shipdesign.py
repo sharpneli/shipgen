@@ -53,8 +53,13 @@ def validate(design, limits=True):
         for k in path[:-1]:       # a list (several secondary batteries) checks every entry
             ds = [e for d in ds for e in (lambda v: v if isinstance(v, list) else [v or {}])(d.get(k))]
         for d in ds:
-            if path[-1] in d and not (lo <= d[path[-1]] <= hi):
-                errs.append(f"{'.'.join(path)} = {d[path[-1]]} is outside {lo}..{hi}")
+            if path[-1] not in d:
+                continue
+            v = d[path[-1]]
+            if not isinstance(v, (int, float)) or isinstance(v, bool):
+                errs.append(f"{'.'.join(path)} = {v!r}: give a number, {lo}..{hi}")
+            elif not lo <= v <= hi:
+                errs.append(f"{'.'.join(path)} = {v} is outside {lo}..{hi}")
     if "id" not in design:
         errs.append("design needs an 'id'")
     return errs + style.validate(design)

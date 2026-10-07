@@ -156,6 +156,7 @@
         "calibre_mm": 280,
         "calibre_length": 45,
         "barrels": 2,
+        "rounds_per_gun": 100,
         "armour_mm": 280,
         "fore": 1,
         "wing": 2,
@@ -168,6 +169,7 @@
         "calibre_mm": 150,
         "calibre_length": 45,
         "barrels": 1,
+        "rounds_per_gun": 208,
         "per_side": 6,
         "mount": "casemate",
         "armour_mm": 160
@@ -176,6 +178,7 @@
         "calibre_mm": 88,
         "calibre_length": 45,
         "barrels": 1,
+        "rounds_per_gun": 350,
         "per_side": 8,
         "mount": "casemate",
         "armour_mm": 25
@@ -221,8 +224,8 @@
     "length_m": 156.0,
     "beam_m": 26.69,
     "block_coefficient": 0.6,
-    "standard_displacement_t": 20409,
-    "full_displacement_t": 22801,
+    "standard_displacement_t": 20408,
+    "full_displacement_t": 22800,
     "draught_m": 8.9,
     "depth_m": 13.21,
     "freeboard_m": 4.31,
@@ -237,8 +240,8 @@
     "gale_heel_condition": "light",
     "deck_edge_deg": 21.4,
     "deck_edge_wind_kn": 176,
-    "trim_m": -0.01,
-    "lcg_m": -1.88,
+    "trim_m": -0.02,
+    "lcg_m": -1.89,
     "lcb_m": -1.87,
     "layout_shift_m": 1.94
   },
@@ -247,12 +250,12 @@
     "fuel": "coal",
     "rated_kw": 17692,
     "rated_shp": 23730.0,
-    "continuous_kw": 17162,
+    "continuous_kw": 17161,
     "overload_max": 1.12,
     "shafts": 3,
     "units": 3,
     "unit_mw": 5.9,
-    "weight_t": 1858.1,
+    "weight_t": 1858.0,
     "sfc_g_per_kwh": 955.0,
     "part_load": {
       "curve": "REC",
@@ -305,7 +308,7 @@
       "allowable_stress_mpa": 138.1,
       "required_m4": 41.73,
       "plating_m4": 23.56,
-      "armour_decks_m4": 28.66
+      "armour_decks_m4": 28.65
     }
   },
   "crew": {
@@ -354,7 +357,7 @@
     {
       "id": "Main director",
       "battery": "main",
-      "x": 39.44,
+      "x": 39.43,
       "y": 0.0,
       "eye_height_m": 16.21,
       "horizon_km": 15.5,
@@ -393,7 +396,7 @@
     {
       "name": "Machinery",
       "group": "machinery",
-      "t": 1858.1,
+      "t": 1858.0,
       "x": -8.75,
       "z": 4.23
     },
@@ -450,7 +453,7 @@
       "name": "Magazine W1P",
       "group": "armament",
       "t": 128.6,
-      "x": 20.95,
+      "x": 20.94,
       "z": 3.21
     },
     {
@@ -471,7 +474,7 @@
       "name": "Magazine W1S",
       "group": "armament",
       "t": 128.6,
-      "x": 20.95,
+      "x": 20.94,
       "z": 3.21
     },
     {
@@ -492,7 +495,7 @@
       "name": "Magazine W2P",
       "group": "armament",
       "t": 128.6,
-      "x": -35.14,
+      "x": -35.15,
       "z": 3.21
     },
     {
@@ -513,7 +516,7 @@
       "name": "Magazine W2S",
       "group": "armament",
       "t": 128.6,
-      "x": -35.14,
+      "x": -35.15,
       "z": 3.21
     },
     {
@@ -527,14 +530,14 @@
       "name": "Bridge base 2",
       "group": "superstructure",
       "t": 28.6,
-      "x": 36.4,
+      "x": 36.39,
       "z": 17.11
     },
     {
       "name": "Bridge",
       "group": "superstructure",
       "t": 28.6,
-      "x": 36.4,
+      "x": 36.39,
       "z": 19.71
     },
     {
@@ -548,7 +551,7 @@
       "name": "Conning tower",
       "group": "armour",
       "t": 208.5,
-      "x": 38.52,
+      "x": 38.26,
       "z": 15.81
     },
     {
@@ -583,7 +586,7 @@
       "name": "Uptakes Funnel 1",
       "group": "machinery",
       "t": 11.4,
-      "x": 0.74,
+      "x": 0.73,
       "z": 11.07
     },
     {
@@ -597,14 +600,14 @@
       "name": "Funnel 2",
       "group": "superstructure",
       "t": 23.7,
-      "x": -6.6,
+      "x": -6.61,
       "z": 19.91
     },
     {
       "name": "Uptakes Funnel 2",
       "group": "machinery",
       "t": 40.6,
-      "x": -2.93,
+      "x": -2.94,
       "z": 11.07
     },
     {
@@ -1045,14 +1048,14 @@
       "name": "Main director",
       "group": "fire_control",
       "t": 6.7,
-      "x": 39.44,
+      "x": 39.43,
       "z": 24.71
     },
     {
       "name": "Plotting room (Main director)",
       "group": "fire_control",
       "t": 1.0,
-      "x": 39.44,
+      "x": 39.43,
       "z": 3.96
     },
     {
@@ -1093,22 +1096,22 @@
     {
       "name": "Belt armour",
       "group": "armour",
-      "t": 2260.6,
-      "x": 0.04,
+      "t": 2260.5,
+      "x": 0.03,
       "z": 9.08
     },
     {
       "name": "Bulkheads",
       "group": "armour",
       "t": 753.3,
-      "x": 0.04,
+      "x": 0.03,
       "z": 8.72
     },
     {
       "name": "Fore end belt",
       "group": "armour",
       "t": 210.2,
-      "x": 66.68,
+      "x": 66.67,
       "z": 8.9
     },
     {
@@ -1122,27 +1125,27 @@
       "name": "Upper belt",
       "group": "armour",
       "t": 484.9,
-      "x": 0.04,
+      "x": 0.03,
       "z": 12.36
     },
     {
       "name": "Deck armour (second deck)",
       "group": "armour",
       "t": 1236.0,
-      "x": 0.04,
+      "x": 0.03,
       "z": 10.61
     },
     {
       "name": "Deck armour (third deck, fore)",
       "group": "armour",
-      "t": 222.5,
+      "t": 222.6,
       "x": 67.27,
       "z": 8.01
     },
     {
       "name": "Deck armour (third deck, aft)",
       "group": "armour",
-      "t": 223.3,
+      "t": 223.2,
       "x": -67.24,
       "z": 8.01
     },
@@ -1163,7 +1166,7 @@
     {
       "name": "Fuel",
       "group": "fuel",
-      "t": 2392.1,
+      "t": 2392.0,
       "x": -8.75,
       "z": 2.38
     }

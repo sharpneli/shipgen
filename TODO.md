@@ -48,7 +48,8 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Morale inputs in the report: per-rank sleep space and the officer/rating gap (`sleep_m2_per_man` is an all-hands average)
 
 ## Armament
-- [ ] Rounds per gun: 8" carries as many as 18" (100); real treaty cruisers ~150 (`TUNING["rounds"]`)
+- [ ] Default rounds per gun (designer UI default, `TUNING["rounds"]`): 8" gets as many as 18" (100); real treaty cruisers ~150
+- [ ] Report: per-battery rounds and magazine tonnes, so the designer UI can show the endurance-vs-weight trade
 - [ ] Abreast wing pairs keep full barrel swings apart: Lord Nelson and Danton run 30 % long
 - [ ] Torpedo placement full check (Japanese-cruiser-size batteries, funnel spacing, swing room) (deferred by user)
 
