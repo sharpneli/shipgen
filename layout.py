@@ -1385,7 +1385,10 @@ def add_level(lay, blocks, bid, level, x0, x1, w, support=None, keep=(), ignore=
     stand on, and its notches (_notches) for that level to keep. joins: (aft, fwd) blocks an end butts flush
     against: that end stays flat at x0 / x1, doesn't keep clear of the block, and where it is wider than the block's
     face falls back to the side in a shoulder (shoulder_outline) instead of a bevel. bevel: the corner cut
-    (bevel_outline's inner)."""
+    (bevel_outline's inner). A level wholly inside the raised hull under it (at or below its lowest deck there, its
+    ends allowed a break's 0.75 m overhang) is left out: the hull already is that level."""
+    if level <= lay.deck_levels((x0 + x1) / 2, max(0.0, (x1 - x0) / 2 - 0.75))[0]:
+        return None
     base, top = LEVEL_H * (level - 1), LEVEL_H * level
     pts = level_outline(lay, x0, x1, w, base, top, support, keep,
                         list(ignore) + [j["id"] for j in joins if j], notches)
