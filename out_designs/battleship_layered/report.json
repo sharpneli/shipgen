@@ -144,7 +144,6 @@
           "material": "STS"
         }
       ],
-      "turret_mm": 432,
       "materials": {
         "belt": "Class A",
         "upper_belt": "Class A",
@@ -157,13 +156,16 @@
         "secondary": "STS"
       }
     },
-    "main": {
-      "calibre_mm": 406,
-      "calibre_length": 50,
-      "barrels": 3,
-      "fore": 2,
-      "aft": 1
-    },
+    "main": [
+      {
+        "calibre_mm": 406,
+        "calibre_length": 50,
+        "barrels": 3,
+        "armour_mm": 432,
+        "fore": 2,
+        "aft": 1
+      }
+    ],
     "secondary": {
       "calibre_mm": 127,
       "calibre_length": 38,

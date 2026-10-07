@@ -131,7 +131,6 @@
           "extent": "citadel"
         }
       ],
-      "turret_mm": 25,
       "materials": {
         "belt": "high-tensile steel",
         "upper_belt": "high-tensile steel",
@@ -144,13 +143,16 @@
         "secondary": "high-tensile steel"
       }
     },
-    "main": {
-      "calibre_mm": 203,
-      "calibre_length": 50,
-      "barrels": 2,
-      "fore": 2,
-      "aft": 2
-    },
+    "main": [
+      {
+        "calibre_mm": 203,
+        "calibre_length": 50,
+        "barrels": 2,
+        "armour_mm": 25,
+        "fore": 2,
+        "aft": 2
+      }
+    ],
     "superstructure": {
       "t_per_m2": 0.32,
       "material": "steel",

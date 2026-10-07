@@ -140,7 +140,6 @@
           "extent": "full"
         }
       ],
-      "turret_mm": 170,
       "materials": {
         "belt": "Krupp cemented",
         "upper_belt": "Krupp cemented",
@@ -153,15 +152,18 @@
         "secondary": "Krupp cemented"
       }
     },
-    "main": {
-      "calibre_mm": 210,
-      "calibre_length": 40,
-      "barrels": 2,
-      "fore": 1,
-      "wing": 2,
-      "aft": 1,
-      "amidships_stands_on": "deck"
-    },
+    "main": [
+      {
+        "calibre_mm": 210,
+        "calibre_length": 40,
+        "barrels": 2,
+        "armour_mm": 170,
+        "fore": 1,
+        "wing": 2,
+        "aft": 1,
+        "amidships_stands_on": "deck"
+      }
+    ],
     "secondary": [
       {
         "calibre_mm": 150,

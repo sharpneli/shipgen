@@ -137,7 +137,6 @@
           "extent": "citadel"
         }
       ],
-      "turret_mm": 140,
       "materials": {
         "belt": "Krupp cemented",
         "upper_belt": "Krupp cemented",
@@ -150,13 +149,16 @@
         "secondary": "Krupp cemented"
       }
     },
-    "main": {
-      "calibre_mm": 283,
-      "calibre_length": 52,
-      "barrels": 3,
-      "fore": 1,
-      "aft": 1
-    },
+    "main": [
+      {
+        "calibre_mm": 283,
+        "calibre_length": 52,
+        "barrels": 3,
+        "armour_mm": 140,
+        "fore": 1,
+        "aft": 1
+      }
+    ],
     "superstructure": {
       "t_per_m2": 0.32,
       "material": "steel",

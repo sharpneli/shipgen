@@ -146,7 +146,6 @@
           "extent": "ends"
         }
       ],
-      "turret_mm": 290,
       "materials": {
         "belt": "cemented armour",
         "upper_belt": "cemented armour",
@@ -159,15 +158,18 @@
         "secondary": "cemented armour"
       }
     },
-    "main": {
-      "calibre_mm": 305,
-      "calibre_length": 45,
-      "barrels": 2,
-      "fore": 2,
-      "aft": 2,
-      "wing": 1,
-      "amidships_stands_on": "deckhouse"
-    },
+    "main": [
+      {
+        "calibre_mm": 305,
+        "calibre_length": 45,
+        "barrels": 2,
+        "armour_mm": 290,
+        "fore": 2,
+        "aft": 2,
+        "wing": 1,
+        "amidships_stands_on": "deckhouse"
+      }
+    ],
     "superstructure": {
       "t_per_m2": 0.32,
       "material": "steel",

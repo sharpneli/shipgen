@@ -140,7 +140,6 @@
           "extent": "ends"
         }
       ],
-      "turret_mm": 280,
       "materials": {
         "belt": "Witkowitz cemented",
         "upper_belt": "Witkowitz cemented",
@@ -153,13 +152,16 @@
         "secondary": "Witkowitz cemented"
       }
     },
-    "main": {
-      "calibre_mm": 305,
-      "calibre_length": 45,
-      "barrels": 3,
-      "fore": 2,
-      "aft": 2
-    },
+    "main": [
+      {
+        "calibre_mm": 305,
+        "calibre_length": 45,
+        "barrels": 3,
+        "armour_mm": 280,
+        "fore": 2,
+        "aft": 2
+      }
+    ],
     "superstructure": {
       "t_per_m2": 0.32,
       "material": "steel",

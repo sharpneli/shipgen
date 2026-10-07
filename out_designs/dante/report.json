@@ -138,7 +138,6 @@
           "extent": "ends"
         }
       ],
-      "turret_mm": 250,
       "materials": {
         "belt": "Terni cemented",
         "upper_belt": "Terni cemented",
@@ -151,16 +150,19 @@
         "secondary": "Terni cemented"
       }
     },
-    "main": {
-      "calibre_mm": 305,
-      "calibre_length": 46,
-      "barrels": 3,
-      "fore": 1,
-      "mid": 2,
-      "aft": 1,
-      "superfire": false,
-      "amidships_stands_on": "deckhouse"
-    },
+    "main": [
+      {
+        "calibre_mm": 305,
+        "calibre_length": 46,
+        "barrels": 3,
+        "armour_mm": 250,
+        "fore": 1,
+        "mid": 2,
+        "aft": 1,
+        "superfire": false,
+        "amidships_stands_on": "deckhouse"
+      }
+    ],
     "superstructure": {
       "t_per_m2": 0.32,
       "material": "steel",

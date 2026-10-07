@@ -131,7 +131,6 @@
           "extent": "citadel"
         }
       ],
-      "turret_mm": 300,
       "materials": {
         "belt": "Class A",
         "upper_belt": "Class A",
@@ -144,13 +143,16 @@
         "secondary": "STS"
       }
     },
-    "main": {
-      "calibre_mm": 356,
-      "calibre_length": 45,
-      "barrels": 3,
-      "fore": 2,
-      "aft": 2
-    },
+    "main": [
+      {
+        "calibre_mm": 356,
+        "calibre_length": 45,
+        "barrels": 3,
+        "armour_mm": 300,
+        "fore": 2,
+        "aft": 2
+      }
+    ],
     "secondary": {
       "calibre_mm": 127,
       "calibre_length": 38,

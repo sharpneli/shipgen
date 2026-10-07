@@ -131,7 +131,6 @@
           "extent": "citadel"
         }
       ],
-      "turret_mm": 406,
       "materials": {
         "belt": "cemented armour",
         "upper_belt": "cemented armour",
@@ -144,13 +143,16 @@
         "secondary": "non-cemented armour"
       }
     },
-    "main": {
-      "calibre_mm": 406,
-      "calibre_length": 45,
-      "barrels": 3,
-      "fore": 3,
-      "aft": 0
-    },
+    "main": [
+      {
+        "calibre_mm": 406,
+        "calibre_length": 45,
+        "barrels": 3,
+        "armour_mm": 406,
+        "fore": 3,
+        "aft": 0
+      }
+    ],
     "secondary": {
       "calibre_mm": 152,
       "calibre_length": 50,

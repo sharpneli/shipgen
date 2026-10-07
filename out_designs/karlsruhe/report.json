@@ -140,7 +140,6 @@
           "extent": "full"
         }
       ],
-      "turret_mm": 25,
       "materials": {
         "belt": "nickel steel",
         "upper_belt": "nickel steel",
@@ -153,14 +152,17 @@
         "secondary": "nickel steel"
       }
     },
-    "main": {
-      "calibre_mm": 105,
-      "calibre_length": 45,
-      "barrels": 1,
-      "fore": 1,
-      "aft": 1,
-      "superfire": false
-    },
+    "main": [
+      {
+        "calibre_mm": 105,
+        "calibre_length": 45,
+        "barrels": 1,
+        "armour_mm": 25,
+        "fore": 1,
+        "aft": 1,
+        "superfire": false
+      }
+    ],
     "superstructure": {
       "t_per_m2": 0.32,
       "material": "steel",

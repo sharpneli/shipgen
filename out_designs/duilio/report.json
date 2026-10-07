@@ -151,7 +151,6 @@
           "extent": "ends"
         }
       ],
-      "turret_mm": 432,
       "materials": {
         "belt": "steel",
         "upper_belt": "steel",
@@ -164,17 +163,20 @@
         "secondary": "steel"
       }
     },
-    "main": {
-      "calibre_mm": 450,
-      "calibre_length": 20,
-      "barrels": 2,
-      "fore": 0,
-      "aft": 0,
-      "wing": 1,
-      "echelon": true,
-      "cross_deck": true,
-      "amidships_stands_on": "deck"
-    },
+    "main": [
+      {
+        "calibre_mm": 450,
+        "calibre_length": 20,
+        "barrels": 2,
+        "armour_mm": 432,
+        "fore": 0,
+        "aft": 0,
+        "wing": 1,
+        "echelon": true,
+        "cross_deck": true,
+        "amidships_stands_on": "deck"
+      }
+    ],
     "secondary": [],
     "funnels": 2,
     "superstructure": {

@@ -135,7 +135,6 @@
           "extent": "citadel"
         }
       ],
-      "turret_mm": 203,
       "materials": {
         "belt": "Krupp cemented",
         "upper_belt": "Krupp cemented",
@@ -148,15 +147,18 @@
         "secondary": "Krupp cemented"
       }
     },
-    "main": {
-      "calibre_mm": 305,
-      "calibre_length": 52,
-      "barrels": 3,
-      "fore": 1,
-      "mid": 20,
-      "aft": 1,
-      "amidships_stands_on": "deckhouse"
-    },
+    "main": [
+      {
+        "calibre_mm": 305,
+        "calibre_length": 52,
+        "barrels": 3,
+        "armour_mm": 203,
+        "fore": 1,
+        "mid": 20,
+        "aft": 1,
+        "amidships_stands_on": "deckhouse"
+      }
+    ],
     "secondary": {
       "calibre_mm": 120,
       "calibre_length": 50,

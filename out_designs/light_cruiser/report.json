@@ -137,7 +137,6 @@
           "extent": "full"
         }
       ],
-      "turret_mm": 25,
       "materials": {
         "belt": "high-tensile steel",
         "upper_belt": "high-tensile steel",
@@ -150,14 +149,17 @@
         "secondary": "high-tensile steel"
       }
     },
-    "main": {
-      "calibre_mm": 152,
-      "calibre_length": 45,
-      "barrels": 1,
-      "fore": 2,
-      "mid": 1,
-      "aft": 2
-    },
+    "main": [
+      {
+        "calibre_mm": 152,
+        "calibre_length": 45,
+        "barrels": 1,
+        "armour_mm": 25,
+        "fore": 2,
+        "mid": 1,
+        "aft": 2
+      }
+    ],
     "torpedoes": {
       "mounts": 4,
       "tubes": 2

@@ -6,7 +6,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] `superfire: {"fore": 1}` with 3 fore turrets: B's sweep hits C (Nelson works around it)
 - [ ] Main director 2 placed inside X's barrel sweep (Colorado uses 1 director)
 - [ ] Wing turrets with `amidships_stands_on: "deck"` may overlap the bridge's level-1 core
-- [ ] Batteries with different `stands_on` on one ship aren't kept apart
+- [ ] Batteries with different `stands_on` on one ship aren't kept apart (deck-level wing turrets leave raised secondaries forward of them with no deckhouse under them)
 - [ ] Upper belt beyond the citadel ignores a short end belt's `reach`
 - [ ] Nassau verify noise at the 0.85 threshold (use 0.845 or a finer raster)
 
@@ -52,7 +52,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Morale inputs in the report: per-rank sleep space and the officer/rating gap (`sleep_m2_per_man` is an all-hands average)
 
 ## Armament
-- [ ] Several main/intermediate batteries (French floating hotels, Connecticut's 203 mm wing turrets)
+- [ ] More multi-battery designs (KGV 2 × 4 + 1 × 2, Lord Nelson, Danton, Brennus)
 - [ ] Torpedo placement full check (Japanese-cruiser-size batteries, funnel spacing, swing room) (deferred by user)
 
 ## Superstructure

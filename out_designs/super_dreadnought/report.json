@@ -145,7 +145,6 @@
           "extent": "aft"
         }
       ],
-      "turret_mm": 330,
       "materials": {
         "belt": "cemented armour",
         "upper_belt": "cemented armour",
@@ -158,13 +157,16 @@
         "secondary": "cemented armour"
       }
     },
-    "main": {
-      "calibre_mm": 381,
-      "calibre_length": 42,
-      "barrels": 2,
-      "fore": 2,
-      "aft": 2
-    },
+    "main": [
+      {
+        "calibre_mm": 381,
+        "calibre_length": 42,
+        "barrels": 2,
+        "armour_mm": 330,
+        "fore": 2,
+        "aft": 2
+      }
+    ],
     "secondary": [
       {
         "calibre_mm": 152,

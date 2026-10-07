@@ -142,7 +142,6 @@
           "extent": "citadel"
         }
       ],
-      "turret_mm": 305,
       "materials": {
         "belt": "Vickers cemented",
         "upper_belt": "Vickers cemented",
@@ -155,13 +154,16 @@
         "secondary": "Vickers cemented"
       }
     },
-    "main": {
-      "calibre_mm": 410,
-      "calibre_length": 45,
-      "barrels": 2,
-      "fore": 2,
-      "aft": 2
-    },
+    "main": [
+      {
+        "calibre_mm": 410,
+        "calibre_length": 45,
+        "barrels": 2,
+        "armour_mm": 305,
+        "fore": 2,
+        "aft": 2
+      }
+    ],
     "superstructure": {
       "t_per_m2": 0.32,
       "material": "steel",

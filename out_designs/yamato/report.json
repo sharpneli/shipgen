@@ -132,7 +132,6 @@
           "extent": "citadel"
         }
       ],
-      "turret_mm": 650,
       "materials": {
         "belt": "Vickers hardened",
         "upper_belt": "Vickers hardened",
@@ -145,13 +144,16 @@
         "secondary": "Vickers hardened"
       }
     },
-    "main": {
-      "calibre_mm": 460,
-      "calibre_length": 45,
-      "barrels": 3,
-      "fore": 2,
-      "aft": 1
-    },
+    "main": [
+      {
+        "calibre_mm": 460,
+        "calibre_length": 45,
+        "barrels": 3,
+        "armour_mm": 650,
+        "fore": 2,
+        "aft": 1
+      }
+    ],
     "superstructure": {
       "t_per_m2": 0.32,
       "material": "steel",

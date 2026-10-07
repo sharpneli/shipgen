@@ -136,7 +136,6 @@
           "extent": "ends"
         }
       ],
-      "turret_mm": 254,
       "materials": {
         "belt": "Krupp cemented",
         "upper_belt": "Krupp cemented",
@@ -149,13 +148,16 @@
         "secondary": "Krupp cemented"
       }
     },
-    "main": {
-      "calibre_mm": 305,
-      "calibre_length": 40,
-      "barrels": 2,
-      "fore": 1,
-      "aft": 1
-    },
+    "main": [
+      {
+        "calibre_mm": 305,
+        "calibre_length": 40,
+        "barrels": 2,
+        "armour_mm": 254,
+        "fore": 1,
+        "aft": 1
+      }
+    ],
     "secondary": [
       {
         "calibre_mm": 152,

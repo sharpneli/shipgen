@@ -137,7 +137,6 @@
           "extent": "citadel"
         }
       ],
-      "turret_mm": 360,
       "materials": {
         "belt": "Krupp cemented (KC n/A)",
         "upper_belt": "Krupp cemented (KC n/A)",
@@ -150,13 +149,16 @@
         "decks": "Wotan hart"
       }
     },
-    "main": {
-      "calibre_mm": 380,
-      "calibre_length": 52,
-      "barrels": 2,
-      "fore": 2,
-      "aft": 2
-    },
+    "main": [
+      {
+        "calibre_mm": 380,
+        "calibre_length": 52,
+        "barrels": 2,
+        "armour_mm": 360,
+        "fore": 2,
+        "aft": 2
+      }
+    ],
     "secondary": [
       {
         "calibre_mm": 150,

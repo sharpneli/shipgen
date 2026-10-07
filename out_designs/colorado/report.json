@@ -141,7 +141,6 @@
           "extent": "citadel"
         }
       ],
-      "turret_mm": 457,
       "materials": {
         "belt": "Class A armour",
         "upper_belt": "Class A armour",
@@ -154,13 +153,16 @@
         "secondary": "Class A armour"
       }
     },
-    "main": {
-      "calibre_mm": 406,
-      "calibre_length": 45,
-      "barrels": 2,
-      "fore": 2,
-      "aft": 2
-    },
+    "main": [
+      {
+        "calibre_mm": 406,
+        "calibre_length": 45,
+        "barrels": 2,
+        "armour_mm": 457,
+        "fore": 2,
+        "aft": 2
+      }
+    ],
     "superstructure": {
       "t_per_m2": 0.32,
       "material": "steel",
