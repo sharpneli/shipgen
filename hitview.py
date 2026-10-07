@@ -338,12 +338,12 @@ def render_subdivision(ship, out_dir, width=1800):
         d.polygon([P(x, y) for x, y in hull], outline=(200, 210, 220, 120))
         d.polygon([P(x, y) for x, y in form_outline(hb, (t["base"] + t["top"]) / 2)], outline=(200, 210, 220, 255))
         for c in hb["cells"]:
-            if c["tier"] != t["id"]:
-                continue
+            if c["base"] >= t["top"] - 1e-3 or c["top"] <= t["base"] + 1e-3:   # (a joined sliver's cell
+                continue                                                          # spans two tiers)
             kind = kinds[c["room"]]
             used.add(kind)
             rgb, _ = KIND.get(kind, ((200, 200, 200), 255))
-            pts = cell_outline(hb, c)
+            pts = cell_outline(hb, {**c, "base": max(c["base"], t["base"]), "top": min(c["top"], t["top"])})
             if len(pts) >= 3:
                 d.polygon([P(x, y) for x, y in pts], fill=rgb + (215,), outline=(20, 24, 30, 255))
             if (c["x1"] - c["x0"]) * S > 34 and (c["y1"] - c["y0"]) * S > 14:

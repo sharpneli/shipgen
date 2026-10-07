@@ -19,7 +19,8 @@ size search never runs it.
             armour deck), else the centre alone. A centreline machinery bulkhead splits the centre into CP | CS.
   cells     section x tier x band boxes. Their y extent reaches the hull's widest point over the section at the
             tier's top (geometry.HullForm: the sections narrow toward the keel), so the boxes tile the hull: a
-            point inside the hull below the main deck is in exactly one cell.
+            point inside the hull below the main deck is in exactly one cell. A sliver with almost no hull in it
+            (SLIVER_M3, SLIVER_FRAC) joins the cell above it (below if none), which then spans both tiers.
   rooms     the layout's compartments, snapped to whole cells: a room owns a cell when it overlaps the cell by at
             least half the shorter of the two along every axis; conflicts go by ROOM_PRIORITY, then overlap. A
             room too small for any cell of its own shares the cell it overlaps most ("also"). A room along the side (wing
@@ -46,6 +47,8 @@ MAX_SECTION_M = 2.5
 COLLISION = 0.05        # the collision bulkhead, x L abaft the bow
 STEEL_FRAME = 0.92      # usable half-width of the hull, as in powerplant (frames, side plating)
 Z_SAMPLES = 6           # heights a cell's volume is sampled at (the sections narrow toward the keel)
+SLIVER_M3 = 1.0         # a cell holding less hull than this, or than SLIVER_FRAC of its box (a forefoot's double
+SLIVER_FRAC = 0.05      # bottom, a hold over a cut-up, a wing under the bilge), joins the cell above it
 
 # who keeps a contested cell, and whose ends make the stations
 ROOM_PRIORITY = {"magazine": 9, "steering": 6, "boiler_room": 7, "engine_room": 7, "fuel_tank": 7, "bunker": 6,
@@ -252,6 +255,7 @@ def build(lay, design, res, ag, armoured, form):
         return max(form.half_width(x, z + D) for x in [x0, x1] + xs_in(x0, x1))
 
     cells, longi = [], []
+    lo_base = {}         # per section, the lowest banded tier's base: where the wing or torpedo bulkhead starts
     belts = ([dict(x0=ag["x0"], x1=ag["x1"], bottom=ag["belt_bottom"], top=ag["belt_top"], mm=ag["belt_mm"],
                    tip_mm=ag["belt_mm"], bottom_mm=ag["belt_bottom_mm"], wl=rz(ag["waterline"]),
                    extent="citadel", material=ag["belt_material"])] if ag["belt_mm"] > 0 else []) + ag["strakes"]
@@ -289,9 +293,12 @@ def build(lay, design, res, ag, armoured, form):
                     continue
                 x0, x1, hws = a, b, hw_samples(a, b)
             bottom = has_bottom and ti == 0
-            banded = split is not None and not bottom and tr["top"] <= s_top + 1e-6
             centre_split = cl and not bottom and tr["top"] <= under + 1e-6
             hw_t = min(hwmax, widest(x0, x1, tr["top"]))      # the sections narrow toward the keel
+            # a wing exists only where the hull reaches past its bulkhead at this tier (not under the bilge)
+            banded = split is not None and not bottom and tr["top"] <= s_top + 1e-6 and split < hw_t - 0.3
+            if banded:
+                lo_base[sec["id"]] = min(lo_base.get(sec["id"], tr["base"]), tr["base"])
             if banded:
                 ys = [("P", -hw_t, -split)] + ([("CP", -split, 0.0), ("CS", 0.0, split)] if centre_split
                                                else [("C", -split, split)]) + [("S", split, hw_t)]
@@ -314,7 +321,7 @@ def build(lay, design, res, ag, armoured, form):
                     continue                                      # slices miss still gets its cell)
                 c = dict(id=f"{sec['id']} {tr['id']} {band}", section=sec["id"], tier=tr["id"], band=band,
                          x0=x0, x1=x1, y0=y0, y1=y1, base=tr["base"], top=tr["top"], v_under=v_under,
-                         v_over=v_over, below_waterline=tr["below_waterline"], si=si, ti=ti)
+                         v_over=v_over, below_waterline=tr["below_waterline"], si=si, ti=ti, t0=ti)
                 if in_cit and armoured:
                     c["citadel"] = True
                 above = [d for d in adecks if tr["top"] <= d["z"] + 1e-6 and d["x0"] <= xm <= d["x1"]]
@@ -342,6 +349,32 @@ def build(lay, design, res, ag, armoured, form):
     under_k = cb * L * B * T / v_u if v_u > 0 else 1.0
     for c in cells:
         c["volume_m3"] = c.pop("v_under") * under_k + c.pop("v_over")
+    for l_ in longi:
+        if l_["section"] in lo_base and l_["kind"] != "centreline":
+            l_["base"] = round(lo_base[l_["section"]], 2)
+    longi = [l_ for l_ in longi if l_["kind"] == "centreline" or l_["section"] in lo_base]
+
+    # ---------------- slivers join the cell above (or below), whose box takes theirs ----------------
+    # (the joined cell keeps its id and tier; t0..ti are the tiers it spans, base..top its height)
+    flat = lambda t: "spans" not in tiers[t]
+    for c in sorted(cells, key=lambda c: c["ti"]):
+        box = (c["x1"] - c["x0"]) * (c["y1"] - c["y0"]) * (c["top"] - c["base"])
+        if c.get("merged") or c["volume_m3"] >= max(SLIVER_M3, SLIVER_FRAC * box) or not flat(c["ti"]):
+            continue
+        for dt in (1, -1):
+            into = [d for d in cells if d["si"] == c["si"] and not d.get("merged") and flat(d["ti"]) and
+                    (d["t0"] == c["ti"] + 1 if dt > 0 else d["ti"] == c["t0"] - 1) and
+                    d["y0"] <= c["y0"] + 1e-6 and d["y1"] >= c["y1"] - 1e-6]
+            if into:
+                d = into[0]
+                d["volume_m3"] += c["volume_m3"]
+                if dt > 0:
+                    d["base"], d["t0"] = c["base"], c["t0"]
+                else:
+                    d["top"], d["ti"] = c["top"], c["ti"]
+                c["merged"] = True
+                break
+    cells = [c for c in cells if not c.get("merged")]
 
     # ---------------- rooms take cells ----------------
     owner = {}
@@ -438,14 +471,15 @@ def build(lay, design, res, ag, armoured, form):
         if r["kind"] == "bunker" and r.get("fuel", fuel) == "coal":
             p = COAL_PERMEABILITY
         c["permeability"] = p
-    grid = {(c["si"], c["ti"]): [] for c in cells}
+    grid = {}            # per section; a merged cell spans tiers t0..ti
     for c in cells:
-        grid[(c["si"], c["ti"])].append(c)
+        grid.setdefault(c["si"], []).append(c)
+    meets = lambda c, d: d["t0"] <= c["ti"] and c["t0"] <= d["ti"]
     lon = {(l_["section"], l_["side"]): l_["id"] for l_ in longi}
     for c in cells:
         nb = []
-        for d in grid[(c["si"], c["ti"])]:        # across: the next band, through a longitudinal bulkhead
-            if d is c:
+        for d in grid[c["si"]]:                   # across: the next band, through a longitudinal bulkhead
+            if d is c or not meets(c, d):
                 continue
             if abs(d["y0"] - c["y1"]) < 1e-6:
                 y = c["y1"]
@@ -454,13 +488,14 @@ def build(lay, design, res, ag, armoured, form):
             else:
                 continue
             nb.append((d, lon[(c["section"], "C" if abs(y) < 1e-6 else "S" if y > 0 else "P")]))
-        for dt, deck in ((-1, tiers[c["ti"]]["floor"]), (1, tiers[c["ti"]]["ceiling"])):   # up and down
-            for d in grid.get((c["si"], c["ti"] + dt), []):
-                if _overlap(c["y0"], c["y1"], d["y0"], d["y1"]) > 1e-6:
+        for dt, deck in ((-1, tiers[c["t0"]]["floor"]), (1, tiers[c["ti"]]["ceiling"])):   # down and up
+            for d in grid[c["si"]]:
+                if (d["ti"] == c["t0"] - 1 if dt < 0 else d["t0"] == c["ti"] + 1) and \
+                        _overlap(c["y0"], c["y1"], d["y0"], d["y1"]) > 1e-6:
                     nb.append((d, deck))
         for ds in (-1, 1):                         # fore and aft, through the transverse bulkhead
-            for d in grid.get((c["si"] + ds, c["ti"]), []):
-                if _overlap(c["y0"], c["y1"], d["y0"], d["y1"]) > 1e-6:
+            for d in grid.get(c["si"] + ds, []):
+                if meets(c, d) and _overlap(c["y0"], c["y1"], d["y0"], d["y1"]) > 1e-6:
                     nb.append((d, tb[min(c["si"], d["si"])]["id"]))
         c["neighbours"] = [[d["id"], "open" if d["room"] == c["room"] else via] for d, via in nb]
 
@@ -472,7 +507,7 @@ def build(lay, design, res, ag, armoured, form):
         r["base"], r["top"] = round(min(c["base"] for c in own), 2), round(max(c["top"] for c in own), 2)
 
     def rnd(c):
-        out = {k: (round(v, 3) if isinstance(v, float) else v) for k, v in c.items() if k not in ("si", "ti")}
+        out = {k: (round(v, 3) if isinstance(v, float) else v) for k, v in c.items() if k not in ("si", "ti", "t0")}
         out["volume_m3"] = round(c["volume_m3"], 1)
         out["base"], out["top"] = round(c["base"], 2), round(c["top"], 2)
         return out

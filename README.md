@@ -388,7 +388,8 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
         - `tds`: inboard of the torpedo protection inside the citadel, up to the lowest armour deck.
         - `centreline`: through the machinery, when `machinery.centreline_bulkhead` is true.
     - `cells`: `id` (`"7 hold S"`), `section`, `tier`, and `band` (`P` | `C` | `S`, with the centre split `CP` | `CS` by a centreline bulkhead).
-      - Extent: `x0`/`x1`, `y0`/`y1` (out to the hull's widest point over the section at the cell's top, so clip to `hull_form`) and `base`/`top`. Low cells are narrower than high ones, and a wing cell exists only where the hull reaches past its bulkhead.
+      - Extent: `x0`/`x1`, `y0`/`y1` (out to the hull's widest point over the section at the cell's top, so clip to `hull_form`) and `base`/`top`. Low cells are narrower than high ones, and a wing cell exists only where the hull reaches past its bulkhead at that tier (a wing or torpedo bulkhead starts at the lowest tier with wings).
+      - A sliver (under `subdivision.SLIVER_M3`, 1 m³, or 5% of its box: the forefoot's double bottom, a hold over the cut-up, a wing under the bilge) joins the cell above it (below if there's none): that cell keeps its `id` and `tier` and reaches down to the sliver's `base`. So a cell may span two tiers. Use `base`/`top`, not the tier, for its height.
       - `volume_m3` is the hull's cross-sections inside the box, sampled in slices. The part below the waterline is scaled so the underwater parts add up to the displacement volume exactly (a correction of under 1%).
       - `permeability` comes from the room's kind (`subdivision.PERMEABILITY`; a full coal bunker is 0.4), and `below_waterline` is set from the tier (the whole cell is under water).
       - The owning `room`, and `also`: the rooms that share this cell because they're too small for one of their own.

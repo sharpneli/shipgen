@@ -166,6 +166,9 @@ doesn't: the decisions behind the current design, how to work safely here, and w
     - Cells: 9–220 per ship. The export adds about 2–9 ms per build.
     - A room smaller than any cell shares one (`also` on the cell, `shared` on the room). Examples: Mikasa's small casemate magazines inside the main secondary magazine's cell, small end bunkers, and the tanker's steering gear inside its aft engine room. The merchant layout overlaps those two when the engines are aft.
     - Planing craft have no inner bottom.
+    - **Flooding pass (2026-10-07, user: some cells were 0 m³; are the sizes sane for bulkheads?).** Section spacing was fine (warships 3–9 % L, merchants' holds 9–11 %, planing craft's engine room 34 % L, left alone). Fixed:
+      - Wing bunkers were one room per side over the whole machinery block (up to 0.55 L, 5–6 % of the displacement off-centre, all "open"). They're now cut per section (`per_section` on the layout's compartment). Dreadnought torpedoed amidships: capsized in 6 min, now founders in 74.
+      - 67 zero-volume cells in 43 ships: the forefoot's double bottom (cm wide), cells over the cut-up (Invincible's, Sverdlov's and Yamato's steering gear and Sverdlov's Magazine Y were 0 m³), wing slivers under the bilge. A cell under `SLIVER_M3` (1 m³) or `SLIVER_FRAC` (5 %) of its box now joins the cell above before rooms claim cells, and a wing exists only at tiers where the hull reaches 0.3 m past its bulkhead. A cell can span two tiers (`base`/`top`, the id is the receiving cell's). Tried first: raising stern rooms onto the keel; it took magazines off real hold volume, so it was dropped.
     - Crew is quartered in unclaimed cells above the waterline. `crew._accommodation` is gone.
     - Still to do:
       - shafts, propellers and rudders (done 2026-10-06, `propulsion.py`)
