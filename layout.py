@@ -1675,6 +1675,18 @@ def tower_levels(design, default):
     return int((design.get("superstructure") or {}).get("tower_levels", default))
 
 
+def aft_control(design):
+    """superstructure.aft_control: does the ship carry an aft control position (a second conning position aft, a
+    redundancy bought with its weight)? On by default, at any length."""
+    return bool((design.get("superstructure") or {}).get("aft_control", True))
+
+
+def levels_over_bridge(design):
+    """superstructure.levels_over_bridge: how many of the tower's levels stand over the navigating bridge (the compass
+    platform, the director tower) when the tower is taller than the view needs; 1 by default."""
+    return int((design.get("superstructure") or {}).get("levels_over_bridge", 1))
+
+
 def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> Layout:
     import armament     # armament imports layout
     import firecontrol
@@ -1714,7 +1726,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     plan_machinery(lay, design, res, hull)
     plant = lay.geo["plant"]
     lb = clamp(0.05 * L + 2, 7, 18)                 # bridge length
-    la = 0.045 * L + 2 if L >= 130 else 0.0         # aft control position length
+    la = 0.045 * L + 2 if aft_control(design) else 0.0     # aft control position length (0: none)
     # the bridge tower: base levels from level 2, the navigating bridge, then each level up to
     # superstructure.tower_levels, the main director on top; funnels stand as tall as a tower of up to 4 levels.
     # nb_need: the first level that sees over the highest forward turret's roof (bridge_level)
@@ -1731,10 +1743,10 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     aft_tier = min(na, max(n_step_a, 1)) - 1 if na else None
     na_lvl = bridge_level(aft_deck + 1.2 + tier_steps(A, aft_tier) + A[aft_tier].th if aft_tier is not None else None)
     # superstructure.tower_levels is the tower's height, a slider: the bridge stands as high in it as leaves the levels
-    # over it (Bridge upper, Tower n: the compass platform and director tower, 1 level, 2 from 180 m), and never below
+    # over it (Bridge upper, Tower n: the compass platform and director tower, superstructure.levels_over_bridge), never below
     # nb_need. A tall tower makes a tall tower bridge over its base levels (Nelson: about level 8 of 10); a tower too
     # low for the view puts the bridge on its top level, with a warning
-    over = 2 if L >= 180 else 1
+    over = levels_over_bridge(design)
     n_tower = tower_levels(design, nb_need + over)
     nb = min(n_tower, max(nb_need, n_tower - over))
     if nb < nb_need:

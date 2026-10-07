@@ -33,6 +33,7 @@ COMMON_LIMITS = {
        for k, lim in (("reach", (0, 1)), ("bulkhead_mm", (0, 2000)))},
     **{("armour", "steering_box", k): (0, 2000) for k in ("mm", "deck_mm", "bulkhead_mm")},
     ("superstructure", "t_per_m2"): (0, 5), ("superstructure", "tower_levels"): (1, 30),
+    ("superstructure", "levels_over_bridge"): (0, 30),
     ("superstructure", "deckhouse_levels"): (1, 30), ("superstructure", "plating_mm"): (0, 200),
     ("superstructure", "control_mm"): (0, 500),
     **{("fire_control", b, k): lim for b in ("main", "secondary", "aa") for k, lim in (
@@ -84,7 +85,8 @@ def undefined_errors(design):
     return errs
 
 
-SUPERSTRUCTURE_KEYS = ("t_per_m2", "material", "plating_mm", "control_mm", "tower_levels", "deckhouse_levels")
+SUPERSTRUCTURE_KEYS = ("t_per_m2", "material", "plating_mm", "control_mm", "tower_levels", "deckhouse_levels",
+                       "aft_control", "levels_over_bridge")
 # what a raised stretch runs between, bow to stern: the ends and the features (layout.RAISED_ANCHORS)
 RAISED_ANCHORS = ("bow", "fore_group", "bridge", "funnels", "aft_control", "aft_group", "stern")
 
@@ -141,6 +143,17 @@ def superstructure_errors(design, style) -> list[str]:
             errs.append(f"superstructure.tower_levels: the {style.name} style has no bridge tower")
         elif not isinstance(s["tower_levels"], int) or s["tower_levels"] < style.MIN_TOWER:
             errs.append(f"superstructure.tower_levels: use a whole number, {style.MIN_TOWER} or more")
+    if "aft_control" in s:
+        if not style.CONTROL_TOWERS:
+            errs.append(f"superstructure.aft_control: the {style.name} style has no aft control")
+        elif not isinstance(s["aft_control"], bool):
+            errs.append("superstructure.aft_control: true or false")
+    if "levels_over_bridge" in s:
+        if not style.CONTROL_TOWERS:
+            errs.append(f"superstructure.levels_over_bridge: the {style.name} style has no bridge tower of levels")
+        elif not isinstance(s["levels_over_bridge"], int) or isinstance(s["levels_over_bridge"], bool) or \
+                s["levels_over_bridge"] < 0:
+            errs.append("superstructure.levels_over_bridge: use a whole number, 0 or more")
     return errs
 
 
@@ -311,6 +324,7 @@ class Style:
     CASEMATES = False           # may a secondary battery be "mount": "casemate" (guns in the hull side)
     MIN_TOWER = 0               # the lowest superstructure.tower_levels the style's bridge tower takes (0: no tower)
     DECKHOUSE_LEVELS = False    # does the layout take superstructure.deckhouse_levels
+    CONTROL_TOWERS = False      # does the layout take superstructure.aft_control and levels_over_bridge
     RAISED_MOUNTS = False       # may wing / midships turrets and deck secondaries stand on the deckhouse (stands_on)
     RAISED_HULL = False         # does the layout take hull.raised (raised stretches of hull: forecastle, poop)
 

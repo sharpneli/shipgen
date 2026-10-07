@@ -19,6 +19,7 @@ class Warship(Style):
     CASEMATES = True
     MIN_TOWER = 2            # the bridge (level 2) at least
     DECKHOUSE_LEVELS = True
+    CONTROL_TOWERS = True    # superstructure.aft_control, levels_over_bridge
     RAISED_MOUNTS = True     # main.amidships_stands_on, secondary.stands_on
     RAISED_HULL = True       # hull.raised
 

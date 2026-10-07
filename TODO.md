@@ -11,8 +11,6 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Nassau verify noise at the 0.85 threshold (use 0.845 or a finer raster)
 
 ## Hidden thresholds (user: no arbitrary cutoffs; details in HANDOFF)
-- [ ] Aft control only from 130 m (`layout.py` `la`); the mainmast goes with it, silently
-- [ ] Bridge tower's levels over the bridge: 1, or 2 from 180 m (`layout.py` `over`)
 - [ ] Mounts under 150 mm weigh 4 t more than at 150 mm (`navarch.mount_weights` `mech`)
 - [ ] Rounds per gun step at 150 and 200 mm (`navarch.rounds_per_gun`)
 - [ ] Officer share 0.15 under 30 crew, 0.08 from 30: 29 crew get 4 officers, 30 get 2 (`crew.py`)
