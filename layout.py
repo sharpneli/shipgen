@@ -49,6 +49,43 @@ def _fp_rect(x0, y0, x1, y1):
     return ("r", x0, y0, x1, y1)
 
 
+def _nearest_spaced(spots, n, c, sp_cross, sp_same):
+    """n of the positions spots, as near c as possible (least sum of |x - c|), any two at least sp_same apart on the
+    same side of x = 0 and sp_cross apart across it (sp_cross <= sp_same). Sorted, or None if no n fit. Spacing only
+    needs checking between neighbours, so a pass per mount over the sorted spots, each extending the best placement
+    that ends far enough behind it (a prefix of the spots: the same side's far enough, plus the whole aft half when
+    the cross pitch reaches past amidships)."""
+    xs = sorted(spots)
+    if n <= 0 or len(xs) < n:
+        return [] if n <= 0 else None
+    neg = bisect.bisect_left(xs, 0.0)       # xs[:neg] stand aft of amidships
+    cost = [abs(x - c) for x in xs]
+    back = []
+    for _ in range(n - 1):
+        pre, run = [], (math.inf, -1)       # prefix minimum of cost, with where it was
+        for j, v in enumerate(cost):
+            run = min(run, (v, j))
+            pre.append(run)
+        nxt, ptr = [], []
+        for j, x in enumerate(xs):
+            lim = bisect.bisect_right(xs, x - sp_same) - 1
+            if x >= 0.0:
+                lim = max(lim, min(bisect.bisect_right(xs, x - sp_cross), neg) - 1)
+            v, i = pre[lim] if lim >= 0 else (math.inf, -1)
+            nxt.append(v + abs(x - c))
+            ptr.append(i)
+        cost = nxt
+        back.append(ptr)
+    j = min(range(len(xs)), key=lambda k: cost[k])
+    if cost[j] == math.inf:
+        return None
+    out = [xs[j]]
+    for ptr in reversed(back):
+        j = ptr[j]
+        out.append(xs[j])
+    return sorted(out)
+
+
 def _fp_poly(pts):
     pts = [tuple(p) for p in pts]
     return ("p", pts, min(x for x, _ in pts), min(y for _, y in pts), max(x for x, _ in pts), max(y for _, y in pts))
@@ -2264,12 +2301,21 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         def y_at(x):       # mounts follow the deck edge, 0.55 of the way out from the inner limit
             return max(inner, inner + 0.55 * (outer_at(x) - inner))
         xs_probe = [x_lo + (x_hi - x_lo) * k / 40 for k in range(41)]
+        x_lo0, x_hi0 = x_lo, x_hi     # between the turret groups
         if max(outer_at(x) for x in xs_probe) < inner:
             lay.fail("beam", f"Hull too narrow for {cal} secondary mounts: they need about "
                              f"{2 * (inner + rs_reach + 0.6):.1f} m of beam amidships.")
         else:   # keep to the stretch where they fit across; a hull narrowing to its ends asks for length instead
             fits = [x for x in xs_probe if outer_at(x) >= inner]
             x_lo, x_hi = min(fits), max(fits)
+
+        def short_of(msg, fit_wider):
+            # a battery that would fit between the turret groups on a hull wide enough there (fit_wider) is short of
+            # beam as much as length: fit's beam search keeps the beam as narrow as the load allows, and that beam
+            # narrows as the hull grows, so length alone could fail again further on (Deutschland, 170-200 m)
+            lay.fail("length", msg)
+            if (x_lo, x_hi) != (x_lo0, x_hi0) and fit_wider():
+                lay.short.add("beam")
         pitch_s = 2.1 * rs_reach + 1.0
         # the guns stow fore-and-aft toward the nearer end (armament.stow_bearing): their barrels lie along the deck,
         # so a mount keeps its barrels' length from the next one the way they point, and they must lie clear
@@ -2286,8 +2332,8 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         if x_hi <= x_lo:
             lay.fail("length", "No room amidships for the secondary battery.")
         elif first and nsec > 1 and (x_hi - x_lo) / (nsec - 1) < pitch_s:
-            lay.fail("length", f"{nsec} secondary mounts per side do not fit in {x_hi - x_lo:.0f} m amidships "
-                               f"(max {int((x_hi - x_lo) / pitch_s) + 1}).")
+            short_of(f"{nsec} secondary mounts per side do not fit in {x_hi - x_lo:.0f} m amidships "
+                     f"(max {int((x_hi - x_lo) / pitch_s) + 1}).", lambda: (x_hi0 - x_lo0) / (nsec - 1) >= pitch_s)
         step = min((x_hi - x_lo) / max(nsec - 1, 1), 2.2 * rs + 4.0)
         c = (x_lo + x_hi) / 2
         sxs = [c + (i - (nsec - 1) / 2) * step if nsec > 1 else c for i in range(nsec)]
@@ -2307,10 +2353,23 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
                         sxs.append(x)
                 if len(sxs) == nsec:
                     break
+            # nearest-first can strand the last mounts: pitch_stowed holds within each half and only sp across
+            # amidships, so where the first picks straddle x = 0 decides what is left, and that moved with the length
+            # (Deutschland fitted at 160 m and 206 m but not between). Then the placement nearest amidships (least
+            # sum of |x - c|), if any exists
+            for sp in (2.2 * rs + 4.0, pitch_s):
+                if len(sxs) == nsec:
+                    break
+                cand = _nearest_spaced(spots, nsec, c, sp, max(sp, pitch_stowed))
+                if cand and all(pitch_ok(x, cand[:i], sp) for i, x in enumerate(cand)):
+                    sxs = cand
             if len(sxs) < nsec:
-                where = "beside the wing turrets" if first else "amidships beside the other secondaries"
-                lay.fail("length", f"Only {len(sxs)} of {nsec} {'' if first else cal + ' '}secondary mounts per side "
-                                   f"fit {where}.")
+                where = ("beside the wing turrets" if nw else "amidships") if first \
+                    else "amidships beside the other secondaries"
+                short_of(f"Only {len(sxs)} of {nsec} {'' if first else cal + ' '}secondary mounts per side fit "
+                         f"{where}.", lambda: _nearest_spaced(
+                             [x for x in (x_lo0 + 0.5 * k for k in range(int(max(0.0, x_hi0 - x_lo0) * 2) + 1))
+                              if spot_ok(x)], nsec, c, pitch_s, max(pitch_s, pitch_stowed)))
             sxs.sort()
         for i, sx in enumerate(sxs):
             y_s = y_at(sx)
