@@ -32,7 +32,11 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
 - **Bearing logic:** every mount whose arcs hold the target bearing trains and fires; the rest stay at rest. A
   mount moves from rest to aim inside `traverse_deg` (`unwrap`). This shows the turret logic the game is
   meant to have.
-- **Firing pattern:** main guns fire in salvos (2.8 s with 280 mm and up, else 2.2 s). Secondaries fire on their
+- **Firing pattern:** each main battery fires salvos on its own beat, `1.6 + calibre/250` s (381 mm 3.1 s,
+  305 mm 2.8 s, 203 mm 2.4 s). A battery is one gun (calibre and calibre length from the turret type id), so
+  shipgen's several main batteries (2026-10-07, `babel`, `connecticut`, `lord_nelson`) each keep their own rhythm.
+  The biggest opens fire and the others follow 0.2–0.5 s later. This replaced one shared beat picked by a 280 mm
+  cutoff (2.8 s or 2.2 s). Calibres are parsed with decimals ("164.7mm"). Secondaries fire on their
   own beat (`0.7 + calibre/180` s, with a random phase). Torpedo mounts fire once, tube by tube. Muzzle points are
   the tips of each barrel polygon in `hitboxes.json`.
 - **Scale:** the ship fits 80% × 62% of the frame and is never drawn above the sprite's own px/m. It sits 7% of

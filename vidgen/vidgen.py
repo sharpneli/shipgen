@@ -469,8 +469,13 @@ class Scene:
             mt.rest = unwrap(m["rest_deg"], mt.trav)
             if mt.rest is None:      # README promises the traverse holds the rest bearing; be permissive anyway
                 mt.rest = m["rest_deg"]
-            nums = re.search(r"(\d+)\s*x\s*(\d+)\s*mm", desc) or re.search(r"(\d+)x(\d+)", mt.type)
+            # calibres can be fractional ("1 x 164.7mm/45"); the type id rounds them ("t1x165L45")
+            nums = re.search(r"(\d+)\s*x\s*([\d.]+)\s*mm", desc) or re.search(r"(\d+)x(\d+)", mt.type)
             mt.calibre = float(nums.group(2)) if nums else 100.0
+            # a main battery is one gun: several batteries (pre-dreadnought mixed calibres) each fire their own
+            # salvos. The type id names the gun and its barrels; batteries differing only in barrels share a beat
+            gun = re.search(r"x([\d.]+)(?:L(\d+))?", mt.type)
+            mt.gun = (gun.group(1), gun.group(2)) if gun else (mt.calibre, None)
             loc = comps.get(mt.id, {}).get("local", {})
             mt.muzzles = []
             for b in loc.get("barrels", []):
@@ -490,21 +495,27 @@ class Scene:
         bearing = [mt for mt in self.mounts if mt.aim is not None]
         self.has_guns = bool(bearing)
         self.t_fire = max((mt.train[1] for mt in bearing), default=REST_S) + SETTLE_S
-        # firing schedule: main guns in full salvos, secondaries rippling on their own beat, torpedoes once
+        # firing schedule: each main battery in full salvos on its own beat (bigger guns load slower), secondaries
+        # rippling on their own beat, torpedoes once. The biggest battery opens fire; the others follow within half
+        # a second, so mixed batteries don't all flash on one frame
         ev = []
         rng = self.rng
-        salvo = 2.8 if any(mt.calibre >= 280 for mt in bearing) else 2.2
+        salvo, first = {}, {}
+        mains = sorted({(mt.calibre, mt.gun) for mt in bearing if mt.kind == "main"}, key=lambda g: -g[0])
+        for i, (cal, gun) in enumerate(mains):
+            salvo[gun] = 1.6 + cal / 250          # smooth: 381 mm -> 3.1 s, 305 -> 2.8, 203 -> 2.4, 120 -> 2.1
+            first[gun] = self.t_fire + (rng.uniform(0.2, 0.5) if i else 0.0)
         for mt in bearing:
             n = len(mt.muzzles)
             if mt.kind == "torpedo":
                 for i in range(n):
                     ev.append((self.t_fire + 1.0 + 0.3 * i + rng.uniform(0, 0.1), mt, i))
             elif mt.kind == "main":
-                t = self.t_fire
+                t = first[mt.gun]
                 while t < self.t_fire + FIRE_S - 0.5:
                     for i in range(n):
                         ev.append((t + rng.uniform(0, 0.12) + 0.04 * i, mt, i))
-                    t += salvo
+                    t += salvo[mt.gun]
             else:
                 period = 0.7 + mt.calibre / 180
                 t = self.t_fire + 0.3 + rng.uniform(0, period)
