@@ -1,0 +1,598 @@
+{
+  "id": "duilio",
+  "name": "Duilio-like citadel ship (1880)",
+  "valid": true,
+  "errors": [],
+  "warnings": [
+    "The main battery has no director: each turret fires under local control."
+  ],
+  "inputs": {
+    "id": "duilio",
+    "name": "Duilio-like citadel ship (1880)",
+    "look": {
+      "navy": "la_spezia",
+      "era": "victorian"
+    },
+    "type": "BB",
+    "hull": {
+      "block_coefficient": 0.6,
+      "construction": {
+        "name": "Wrought iron, riveted",
+        "yield_mpa": 190,
+        "join_factor": 1.12,
+        "standard": 1.0
+      },
+      "plating": {
+        "shell_mm": 0,
+        "material": "wrought iron",
+        "deck_wood_mm": 100
+      },
+      "freeboard": 0.6,
+      "raised": [
+        {
+          "from": "bridge",
+          "to": "aft_control",
+          "decks": 1
+        }
+      ]
+    },
+    "speed_kn": 15,
+    "range_nm": 3800,
+    "crew": {
+      "standard": {
+        "name": "Hammocks over mess tables",
+        "sleep_rating_m2": 1.1,
+        "sleep_cpo_m2": 1.8,
+        "sleep_officer_m2": 5.0,
+        "mess_seats_per_man": 0.0,
+        "galley_k": 0.3,
+        "galley_min_m2": 4.0,
+        "sanitary_m2": 0.1,
+        "sickbay_beds_per_man": 0.01,
+        "welfare_m2": 0.0,
+        "services_k": 0.03,
+        "passage_factor": 1.15,
+        "deck_height_m": 2.3,
+        "provisions_m3_per_day": 0.007,
+        "water_l_per_day": 15,
+        "hotel_fraction": 0.05,
+        "cpo_fraction": 0.08,
+        "tolerance_days": 30
+      },
+      "endurance_days": 18,
+      "distiller": true,
+      "buffer_days": 5,
+      "water_l_per_day": 15,
+      "berth_ratio": 1.0,
+      "officer_fraction": 0.08
+    },
+    "machinery": {
+      "stress": 0.1,
+      "shafts": 2,
+      "units_per_shaft": 1,
+      "transmission": "mechanical",
+      "arrangement": "grouped",
+      "centreline_bulkhead": false,
+      "bunkers": "wing",
+      "wing_bunker_m": 2.0,
+      "rudders": 1,
+      "tech": {
+        "name": "Compound engines, cylindrical (Scotch) boilers (1880)",
+        "fuel": "coal",
+        "weight_kg_per_kw": 203.8,
+        "stress_floor": 0.75,
+        "sfc_g_per_kwh": 1378,
+        "density_t_per_m3": 0.24,
+        "unit_max_mw": 4.8,
+        "unit": {
+          "mw": 3,
+          "height_m": 5.5,
+          "width_m": 4.5,
+          "length_m": 6
+        },
+        "boiler_fraction": 0.6,
+        "crew_k": 40,
+        "part_load": "REC",
+        "draught": {
+          "system": "forced_boost",
+          "velocity_m_s": 7.0,
+          "reach_m": 7.0,
+          "natural_fraction": 0.55,
+          "gas_temp_k": 600,
+          "air_fuel_ratio": 16
+        }
+      }
+    },
+    "armour": {
+      "belt_mm": 550,
+      "belt_depth_m": 1.8,
+      "belt_height_m": 1.6,
+      "belt_bottom_mm": 550,
+      "bulkhead_mm": 550,
+      "upper_belt": {
+        "mm": 432,
+        "to_deck": -1,
+        "extent": "citadel"
+      },
+      "end_belts": {
+        "fore": {
+          "mm": 0,
+          "tip_mm": 0,
+          "reach": 1.0,
+          "bulkhead_mm": 0
+        },
+        "aft": {
+          "mm": 0,
+          "tip_mm": 0,
+          "reach": 1.0,
+          "bulkhead_mm": 0
+        }
+      },
+      "steering_box": {
+        "mm": 0,
+        "deck_mm": 0,
+        "bulkhead_mm": 0
+      },
+      "decks": [
+        {
+          "deck": -1,
+          "mm": 51,
+          "extent": "citadel"
+        },
+        {
+          "deck": 1,
+          "mm": 76,
+          "extent": "ends"
+        }
+      ],
+      "turret_mm": 432,
+      "materials": {
+        "belt": "steel",
+        "upper_belt": "steel",
+        "end_belts": "steel",
+        "bulkheads": "steel",
+        "decks": "wrought iron",
+        "turrets": "steel",
+        "barbettes": "steel",
+        "conning_tower": "steel",
+        "secondary": "steel"
+      }
+    },
+    "main": {
+      "calibre_mm": 450,
+      "calibre_length": 20,
+      "barrels": 2,
+      "fore": 0,
+      "aft": 0,
+      "wing": 1,
+      "echelon": true,
+      "cross_deck": true,
+      "amidships_stands_on": "deck"
+    },
+    "secondary": [],
+    "funnels": 2,
+    "superstructure": {
+      "t_per_m2": 0.32,
+      "material": "wrought iron",
+      "plating_mm": 0,
+      "control_mm": 0,
+      "tower_levels": 3,
+      "deckhouse_levels": 1
+    },
+    "fire_control": {
+      "main": {
+        "directors": 0,
+        "rangefinder_m": 0.0,
+        "armour_mm": 0,
+        "radar_t": 0,
+        "computer_t": 0.0
+      },
+      "secondary": {
+        "directors": 0,
+        "rangefinder_m": 0.0,
+        "armour_mm": 0,
+        "radar_t": 0.0,
+        "computer_t": 0.0
+      },
+      "aa": {
+        "directors": 0,
+        "rangefinder_m": 0.0,
+        "armour_mm": 0,
+        "radar_t": 0.0,
+        "computer_t": 0.0
+      },
+      "search_radar_t": 0.0
+    }
+  },
+  "results": {
+    "length_m": 130.5,
+    "beam_m": 28.4,
+    "block_coefficient": 0.6,
+    "standard_displacement_t": 18913,
+    "full_displacement_t": 19751,
+    "draught_m": 8.67,
+    "depth_m": 10.97,
+    "freeboard_m": 2.31,
+    "power_shp": 9200.0,
+    "fuel_t": 837,
+    "crew": 487,
+    "gm_full_m": 2.45,
+    "gm_light_m": 2.25,
+    "roll_period_s": 14.2,
+    "windage_m2": 877,
+    "gale_heel_deg": 0.6,
+    "gale_heel_condition": "light",
+    "deck_edge_deg": 10.7,
+    "deck_edge_wind_kn": 219,
+    "trim_m": -0.01,
+    "lcg_m": -1.57,
+    "lcb_m": -1.57,
+    "layout_shift_m": 2.61
+  },
+  "plant": {
+    "name": "Compound engines, cylindrical (Scotch) boilers (1880)",
+    "fuel": "coal",
+    "rated_kw": 6896,
+    "rated_shp": 9250.0,
+    "continuous_kw": 6793,
+    "overload_max": 1.135,
+    "shafts": 2,
+    "units": 2,
+    "unit_mw": 3.45,
+    "weight_t": 1370.3,
+    "sfc_g_per_kwh": 1389.0,
+    "part_load": {
+      "curve": "REC",
+      "loads": [
+        0.1,
+        0.25,
+        0.5,
+        0.75,
+        1.0
+      ],
+      "multipliers": [
+        1.45,
+        1.2,
+        1.07,
+        1.02,
+        1.0
+      ],
+      "overload_per_tenth": 0.5
+    },
+    "draught": "forced_boost",
+    "stress": 0.1,
+    "transmission": "mechanical",
+    "arrangement": "grouped",
+    "crew": 170,
+    "natural_fraction": 0.55,
+    "machinery_length_m": 32.4,
+    "boiler_rooms": 2,
+    "engine_rooms": 2,
+    "rows": 4,
+    "protrusion_m": 0.0,
+    "space_m": {
+      "width": 22.13,
+      "height": 9.97
+    },
+    "wing_bunkers_t": 837,
+    "end_bunkers_m": 0.0,
+    "funnels": 2,
+    "funnel_gas_area_m2": 11.0,
+    "funnel_gas_velocity_m_s": 7.0,
+    "smoke_reach_m": 26.3
+  },
+  "hull": {
+    "construction": "Wrought iron, riveted",
+    "structure_t": 3254,
+    "min_gauge_t": 3254,
+    "strength_t": 0,
+    "plate_min_mm": 7.9,
+    "plate_strength_mm": 0.0,
+    "shell_plating_t": 0,
+    "girder": {
+      "allowable_stress_mpa": 90.5,
+      "required_m4": 47.42,
+      "plating_m4": 24.01,
+      "armour_decks_m4": 68.62
+    }
+  },
+  "crew": {
+    "complement": 487,
+    "quartered_in_superstructure": 0,
+    "superstructure_quarters": {},
+    "officers": 39,
+    "cpos": 39,
+    "ratings": 409,
+    "departments": {
+      "engineering": 170,
+      "weapons": 182,
+      "deck_and_command": 110,
+      "hotel": 25
+    },
+    "standard": "Hammocks over mess tables",
+    "endurance_days": 18,
+    "range_days": 18,
+    "distiller": true,
+    "berth_ratio": 1.0,
+    "living_m3": 2216,
+    "provisions_m3": 86,
+    "water_m3": 37,
+    "water_in_double_bottom_m3": 37,
+    "distiller_m3_per_day": 8.8,
+    "space_needed_m3": 2303,
+    "space_usable_m3": 10300,
+    "space_free_m3": 15847,
+    "sleep_m2_per_man": 1.47,
+    "sleep_standard_m2": 1.1,
+    "headroom_m": 2.3,
+    "deck_height_m": 2.3,
+    "sickbay_beds": 5,
+    "tolerance_days": 30,
+    "battle_stations": {
+      "guns": 110,
+      "handling": 72,
+      "machinery": 170,
+      "command": 26,
+      "steering": 2,
+      "repair": 107
+    }
+  },
+  "fire_control": [],
+  "bridge": {
+    "level": 2,
+    "tower_levels": 3,
+    "eye_height_m": 6.61,
+    "horizon_km": 9.9,
+    "sees_over_turrets": true,
+    "level_to_see_over_turrets": 2
+  },
+  "weight_groups_t": {
+    "armour": 9287,
+    "hull": 3957,
+    "armament": 2915,
+    "machinery": 1440,
+    "misc": 1187,
+    "fuel": 837,
+    "superstructure": 128
+  },
+  "weights": [
+    {
+      "name": "Hull structure",
+      "group": "hull",
+      "t": 3253.8,
+      "x": -1.3,
+      "z": 6.37
+    },
+    {
+      "name": "Machinery",
+      "group": "machinery",
+      "t": 1370.3,
+      "x": -2.6,
+      "z": 3.51
+    },
+    {
+      "name": "Raised deck",
+      "group": "hull",
+      "t": 480.5,
+      "x": -0.12,
+      "z": 13.31
+    },
+    {
+      "name": "Turret W1P",
+      "group": "armament",
+      "t": 923.9,
+      "x": 2.5,
+      "z": 16.16
+    },
+    {
+      "name": "Magazine W1P",
+      "group": "armament",
+      "t": 533.6,
+      "x": 2.5,
+      "z": 4.69
+    },
+    {
+      "name": "Barbette W1P",
+      "group": "armour",
+      "t": 802.5,
+      "x": 2.5,
+      "z": 8.23
+    },
+    {
+      "name": "Turret W1S",
+      "group": "armament",
+      "t": 923.9,
+      "x": -14.47,
+      "z": 16.16
+    },
+    {
+      "name": "Magazine W1S",
+      "group": "armament",
+      "t": 533.6,
+      "x": -14.47,
+      "z": 4.69
+    },
+    {
+      "name": "Barbette W1S",
+      "group": "armour",
+      "t": 802.5,
+      "x": -14.47,
+      "z": 8.23
+    },
+    {
+      "name": "Bridge",
+      "group": "superstructure",
+      "t": 26.1,
+      "x": 34.96,
+      "z": 14.87
+    },
+    {
+      "name": "Bridge upper",
+      "group": "superstructure",
+      "t": 18.1,
+      "x": 35.32,
+      "z": 17.47
+    },
+    {
+      "name": "Conning tower",
+      "group": "armour",
+      "t": 455.3,
+      "x": 36.03,
+      "z": 13.57
+    },
+    {
+      "name": "Aft control",
+      "group": "superstructure",
+      "t": 19.0,
+      "x": -34.18,
+      "z": 14.87
+    },
+    {
+      "name": "Aft control upper",
+      "group": "superstructure",
+      "t": 5.7,
+      "x": -34.24,
+      "z": 17.47
+    },
+    {
+      "name": "Funnel 1",
+      "group": "superstructure",
+      "t": 25.0,
+      "x": 23.73,
+      "z": 20.29
+    },
+    {
+      "name": "Uptakes Funnel 1",
+      "group": "machinery",
+      "t": 21.4,
+      "x": 23.44,
+      "z": 10.17
+    },
+    {
+      "name": "Gratings Funnel 1",
+      "group": "armour",
+      "t": 3.3,
+      "x": 23.16,
+      "z": 10.97
+    },
+    {
+      "name": "Funnel 2",
+      "group": "superstructure",
+      "t": 25.0,
+      "x": 16.12,
+      "z": 20.29
+    },
+    {
+      "name": "Uptakes Funnel 2",
+      "group": "machinery",
+      "t": 48.5,
+      "x": 19.64,
+      "z": 10.17
+    },
+    {
+      "name": "Gratings Funnel 2",
+      "group": "armour",
+      "t": 3.3,
+      "x": 23.16,
+      "z": 10.97
+    },
+    {
+      "name": "Foremast",
+      "group": "superstructure",
+      "t": 4.5,
+      "x": 29.69,
+      "z": 23.29
+    },
+    {
+      "name": "Mainmast",
+      "group": "superstructure",
+      "t": 4.5,
+      "x": -34.33,
+      "z": 23.29
+    },
+    {
+      "name": "Crew and effects",
+      "group": "misc",
+      "t": 58.4,
+      "x": 0.0,
+      "z": 9.47
+    },
+    {
+      "name": "Provisions",
+      "group": "misc",
+      "t": 51.5,
+      "x": 0.0,
+      "z": 4.39
+    },
+    {
+      "name": "Fresh water",
+      "group": "misc",
+      "t": 36.5,
+      "x": -2.6,
+      "z": 0.55
+    },
+    {
+      "name": "Belt armour",
+      "group": "armour",
+      "t": 2039.9,
+      "x": -2.6,
+      "z": 8.57
+    },
+    {
+      "name": "Bulkheads",
+      "group": "armour",
+      "t": 1978.9,
+      "x": -2.6,
+      "z": 9.54
+    },
+    {
+      "name": "Upper belt",
+      "group": "armour",
+      "t": 1559.6,
+      "x": -2.6,
+      "z": 11.92
+    },
+    {
+      "name": "Deck armour (raised deck 1)",
+      "group": "armour",
+      "t": 711.0,
+      "x": -2.6,
+      "z": 13.57
+    },
+    {
+      "name": "Deck armour (second deck, fore)",
+      "group": "armour",
+      "t": 504.8,
+      "x": 48.7,
+      "z": 8.37
+    },
+    {
+      "name": "Deck armour (second deck, aft)",
+      "group": "armour",
+      "t": 425.6,
+      "x": -51.29,
+      "z": 8.37
+    },
+    {
+      "name": "Deck planking",
+      "group": "hull",
+      "t": 222.6,
+      "x": 0.0,
+      "z": 10.97
+    },
+    {
+      "name": "Equipment, outfit, crew & stores",
+      "group": "misc",
+      "t": 1040.2,
+      "x": 0.0,
+      "z": 5.49
+    },
+    {
+      "name": "Fuel",
+      "group": "fuel",
+      "t": 837.4,
+      "x": -2.6,
+      "z": 1.98
+    }
+  ]
+}

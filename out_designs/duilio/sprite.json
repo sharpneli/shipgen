@@ -1,0 +1,195 @@
+{
+  "id": "duilio",
+  "name": "Duilio-like citadel ship (1880)",
+  "scale_px_per_m": 10.0,
+  "size_px": [
+    1408,
+    384
+  ],
+  "origin_px": [
+    704.0,
+    192.0
+  ],
+  "orientation": "bow points +x (right); angles clockwise, 0 = ahead",
+  "layer_order": [
+    "hull",
+    "turrets (ascending z)"
+  ],
+  "layers": {
+    "hull": "hull.png",
+    "hull_mips": "hull_mips.png"
+  },
+  "turret_types": {
+    "t2x450L20": {
+      "file": "turrets/t2x450L20.png",
+      "size_px": [
+        256,
+        256
+      ],
+      "pivot_px": [
+        128.0,
+        128.0
+      ],
+      "desc": "2 x 450mm/20",
+      "mips_file": "turrets/t2x450L20_mips.png",
+      "mip_rects": [
+        [
+          0,
+          0,
+          256,
+          256
+        ],
+        [
+          256,
+          0,
+          128,
+          128
+        ],
+        [
+          256,
+          128,
+          64,
+          64
+        ],
+        [
+          320,
+          128,
+          32,
+          32
+        ],
+        [
+          320,
+          160,
+          16,
+          16
+        ],
+        [
+          336,
+          160,
+          8,
+          8
+        ]
+      ]
+    }
+  },
+  "mips": {
+    "levels": 5,
+    "scale_px_per_m": [
+      10.0,
+      5.0,
+      2.5,
+      1.25,
+      0.625,
+      0.3125
+    ],
+    "rule": "each layer has <name>_mips.png with level k at mip_rects[k] = [x, y, w, h]; within level k, size, origin_px, pivot_px and mount px are the level-0 values / 2^k"
+  },
+  "shadow": {
+    "height_map": "height.png",
+    "height_step_m": 0.25,
+    "deck_m": 2.31,
+    "max_height_m": 24.33,
+    "note": "height map grey value x height_step_m = metres above the waterline (0 = sea); mount top_m is the turret roof above the waterline; see shadow.py",
+    "height_map_mips": "height_mips.png"
+  },
+  "mounts": [
+    {
+      "id": "W1P",
+      "kind": "main",
+      "type": "t2x450L20",
+      "pos_m": [
+        2.4993107348098587,
+        -5.2176954182624575
+      ],
+      "px": [
+        728.9931073480985,
+        139.82304581737543
+      ],
+      "rest_deg": 0.0,
+      "arcs_deg": [
+        [
+          180.0,
+          360.0
+        ],
+        [
+          60.0,
+          120.0
+        ]
+      ],
+      "traverse_deg": [
+        180.0,
+        480.0
+      ],
+      "z": 0,
+      "top_m": 8.87
+    },
+    {
+      "id": "W1S",
+      "kind": "main",
+      "type": "t2x450L20",
+      "pos_m": [
+        -14.47429181139117,
+        5.2176954182624575
+      ],
+      "px": [
+        559.2570818860883,
+        244.17695418262457
+      ],
+      "rest_deg": -180.0,
+      "arcs_deg": [
+        [
+          0.0,
+          180.0
+        ],
+        [
+          240.0,
+          300.0
+        ]
+      ],
+      "traverse_deg": [
+        0.0,
+        300.0
+      ],
+      "z": 0,
+      "top_m": 8.87
+    }
+  ],
+  "mip_rects": [
+    [
+      0,
+      0,
+      1408,
+      384
+    ],
+    [
+      1408,
+      0,
+      704,
+      192
+    ],
+    [
+      1408,
+      192,
+      352,
+      96
+    ],
+    [
+      1760,
+      192,
+      176,
+      48
+    ],
+    [
+      1760,
+      240,
+      88,
+      24
+    ],
+    [
+      1848,
+      240,
+      44,
+      12
+    ]
+  ]
+}

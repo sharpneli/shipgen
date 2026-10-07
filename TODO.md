@@ -8,7 +8,6 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Ships under 130 m silently get no aft control (hidden size threshold)
 - [ ] Wing turrets with `amidships_stands_on: "deck"` may overlap the bridge's level-1 core
 - [ ] Batteries with different `stands_on` on one ship aren't kept apart
-- [ ] Bridge tower shifting aft can cross a raised-deck break; level-1 deckhouse can leave a sliver abaft a break
 - [ ] Upper belt beyond the citadel ignores a short end belt's `reach`
 - [ ] Nassau verify noise at the 0.85 threshold (use 0.845 or a finer raster)
 
@@ -21,7 +20,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] `M_req` undercounts the middle's length need (deferred by user)
 - [ ] User-facing sizing parameters: hull form, beam preference, `Style.SIZE` rules, engine efficiency
 - [ ] Cruise and fuel-range tuning (early turbine ships run 15–20 % long)
-- [ ] Calibration: carriers' full load light, PT boat heavy, T2 tanker underpowered
+- [ ] Calibration: carriers' full load light, PT boat heavy, T2 tanker underpowered, Duilio +70 % heavy (long armoured middle)
 - [ ] Unexplained weight gaps: Mikasa −19 %, Forrestal −27 %, Casablanca −22 %
 - [ ] Research a real planing power model (`navarch.planing_power`)
 - [ ] navarch GM uses its own cwp, not the hull form's; cwp doesn't know about transoms
@@ -55,9 +54,9 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Gun height has no payoff yet (needs a wetness/seakeeping model)
 
 ## Raised decks
-- [ ] Boats and masts assume the main deck
-- [ ] No midships raised stretch for warships
 - [ ] verify's barrel swing ignores raised decks
+- [ ] No raised-deck anchor for wing/midships turrets
+- [ ] Aft control's raised-deck break has no 0.75 m margin (bridge's has)
 - [ ] Carriers don't take `hull.raised`
 - [ ] No-forward-turret ship with a tall forecastle can fail trim
 
