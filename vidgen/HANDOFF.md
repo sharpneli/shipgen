@@ -271,8 +271,44 @@ before a realtime version. `sinkvid.py bismarck [--end stern|bow|both] [--still 
     - the frame centre is float32, since a float64 one promoted every `to_px` result
   - **vidgen's own `Water.shade` (107 -> 30 ms) and `box_blur`:** precomputed swell phases, 1-D ripple indices
     and slice-based cumsum windows. vidgen's output is unchanged (at most 1/255 on a few pixels).
-- **Open:** capsize and break-in-two aren't drawn (the timeline refuses a capsize). There are no side, bottom or
-  cut-face sprites (doc 2.7): a plunge only shows walls from the height-map steps.
+- **Open:** the flooding clips (stern, bow) still can't capsize (the timeline refuses one). There are no side or
+  bottom sprites (doc 2.7): a plunge only shows walls from the height-map steps.
+
+### Breaking in two (2026-10-07)
+The user asked for a sinking for "absolute loss": the ship breaking at the aft, middle or front. `--end break-aft`,
+`break-mid`, `break-fore` (or `breaks`) and `--cut X`. The physics is shipgen's `sinking.Break` (README "Sinking
+demo"); sinkvid only draws it.
+- **Where:** aft and fore are the centres of the aftmost and foremost main-battery magazine rooms. The torn zone is
+  the magazine room. Mid is the section holding amidships, a girder failure. With no main magazines (merchants), the
+  section a quarter of the length from that end. These were my picks: magazines are how big ships were lost
+  outright (Hood, Barham, Arizona, Queen Mary).
+- **Time:** the sim runs in game time at 0.05 s steps. The clip plays it in real time while the pieces' ends move at
+  0.8 m/s or more (`BreakTimeline.V_REF`), and up to 20x faster while they just flood (`RATE_MAX`). The warp follows
+  only pieces still in sight and is smoothed over 2 s. The HUD shows `(time xN)`. On Bismarck:
+  - aft: the stern is gone at 18 s; the main body floods for about 5 minutes, then capsizes and sinks (97 s of clip)
+  - mid: both halves are gone within a minute (63 s)
+  - fore: the bow is gone at 18 s, the rest as for aft (99 s)
+- **Drawing (my picks by eye):**
+  - The cut is ragged: `Cut.x_at`, sines across y and z of 0.07 B, plus a slant. Every point (deck, walls, the coarse
+    bottom) takes its piece from that surface.
+  - Both pieces get torn faces over the section at the cut, from the keel up to whatever stands there. They're dark,
+    with the decks as light lines and rust patches. Deck within ~0.12 B of the cut is scorched.
+  - In break clips the hull's bottom is drawn too, in antifouling. It shows only once a piece rolls or pitches past
+    the vertical: Bismarck's main body capsizes keel up.
+  - Points are grouped by (piece, normal kind), the bottom last. Old stern/bow clips are byte-identical (checked on
+    stills at 12 and 30 s).
+- **The blast (a stand-in for magazine.py's explosion, which needs vidgen.py's scene):** a flash (added light,
+  0.3–0.9 B, 0.25 s), a boil of 0.1 L and a ring, 420 spray particles, 320 thin smoke puffs (each at most 36 px:
+  vidgen's coarsest blur buckets drew a few big puffs as squares), steam and wreckage over 3 B. Fires and smoke burn
+  on each torn end while it's out of the water.
+- **Oil:** each torn end leaks half the flooding clips' rate, decaying over 15 s (torn bunkers empty fast). At a
+  steady rate, five compressed minutes pooled it black. As each piece goes under, it dumps its share by weight of
+  the intact wreck's eight tank puddles.
+- **Pieces can survive:** a broken-off end can float on trapped air (the destroyer's stern), and a boat's wooden
+  halves stay up. Invincible's main body survives a fore break for 45 minutes. The sim stops once the pieces still
+  afloat have lain still and taken under 0.5 t/s for 120 s (judged over 30 s windows: a step's flows chatter in and
+  out of a cell). That's honest to the model. If total loss should be certain, raise `BREAK_LEAK` or lower
+  `BULKHEAD_HEAD` in sinking.py.
 
 ## Known oddities
 - Masts cast long, thin, solid shadows on the sea. That's correct for a 23 m mast at 45°, but it can look heavy.

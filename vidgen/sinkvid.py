@@ -20,8 +20,15 @@ height, walls down every step, the bottom from hull_form. It's z-buffered at twi
 its rotated normals and shadowed by a sun shadow map, so a rising end casts a long shadow. Parts under the surface
 fade into the water with depth.
 
+With --end break-aft|break-mid|break-fore (or breaks for all three) the ship is a total loss instead: it breaks in
+two at the aftmost or foremost main magazine, or amidships (--cut X for a station of your own), and each piece sinks
+on its own in sinking.Break's rigid-body model, in real time while anything moves fast and sped up (shown on screen)
+while it just floods. The break draws a ragged cut with torn faces, scorching, a flash, a smoke column, fires on the
+torn ends while they're out of the water, and the hull's bottom once a piece rolls over.
+
     ~/.venv/bin/python vidgen/sinkvid.py bismarck                    # stern and bow -> vidgen/out/bismarck_sink_*.mp4
     ~/.venv/bin/python vidgen/sinkvid.py bismarck --end bow --still 30
+    ~/.venv/bin/python vidgen/sinkvid.py bismarck --end breaks       # -> bismarck_sink_break-{aft,mid,fore}.mp4
 """
 from __future__ import annotations
 
@@ -30,6 +37,7 @@ import math
 import os
 import sys
 import time
+import types
 from pathlib import Path
 
 for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):   # one thread each: frames are drawn in
@@ -173,7 +181,19 @@ class Timeline:
         self.f_s, self.f_th, self.f_ph = pchip(kt, ks), pchip(kt, kth), pchip(kt, kph)
         self.end = end
 
-    def pose(self, t):
+    n = 1
+    cell_piece = None
+
+    def poses(self, t):
+        return [self.pose(t)]
+
+    def label(self, x, y, z):
+        return np.zeros(np.shape(x), np.int8)
+
+    def time_rate(self, t):
+        return 1.0
+
+    def pose(self, t, k=0):
         if t >= self.t_last:
             return (self.f_s(self.t_last) + V_DESC * (t - self.t_last), self.f_th(self.t_last), self.f_ph(self.t_last))
         return (float(self.f_s(t)), float(self.f_th(t)), float(self.f_ph(t)))
@@ -195,13 +215,165 @@ class Timeline:
         return float(np.interp(self.game_time(t), self.hist[:, 0], self.hist[:, 4]))
 
 
+class Cut:
+    """Where a broken ship parted: a ragged surface x = x_cut + jag(y, z) (no break runs square), the label of a
+    point (0 aft of it, 1 forward), and the torn faces both pieces show across it."""
+
+    def __init__(self, x, hb, seed):
+        r = np.random.default_rng(seed + 7)
+        B = hb["beam"]
+        self.x, self.B = x, B
+        self.decks = [d["z"] - hb["vertical"]["waterline"] for d in hb["decks"]]
+        self.a = 0.07 * B                                    # the jag's size
+        self.k = [(r.uniform(0.6, 1.0) / (0.5 * B), r.uniform(0, 6.3), 0.6),
+                  (r.uniform(0.8, 1.2) / (0.17 * B), r.uniform(0, 6.3), 0.3)]
+        self.kz = (1 / r.uniform(4.0, 7.0), r.uniform(0, 6.3))
+        self.slant = r.uniform(-0.25, 0.25)                  # a break seldom runs square across
+        self.nph = r.uniform(0, 6.3, 3)
+
+    def x_at(self, y, z):
+        j = sum(w * np.sin(2 * math.pi * f * y + p) for f, p, w in self.k)
+        j = j + 0.5 * np.sin(2 * math.pi * self.kz[0] * z + self.kz[1] + 0.3 * y)
+        return (self.x + self.a * j + self.slant * y).astype(np.float32)
+
+    def label(self, x, y, z):
+        return (x > self.x_at(y, z)).astype(np.int8)
+
+    def noise(self, x, y):
+        return 0.5 + 0.5 * np.sin(0.9 * x + self.nph[0]) * np.sin(1.3 * y + self.nph[1] + 0.4 * x)
+
+    def faces(self, mask, hmap, ox, oy, ppm, bottom):
+        """Ship3D parts: the torn face of each piece over the hull's section at the cut (keel to whatever stands on
+        the deck there), dark, with the decks showing as lighter lines and rust and burn in patches."""
+        col = int(np.clip(round(self.x * ppm + ox), 0, mask.shape[1] - 1))
+        rows = np.flatnonzero(mask[:, col])
+        if not len(rows):
+            return []
+        y = (rows + 0.5 - oy) / ppm
+        top = hmap[rows, col]
+        bot = np.minimum(bottom(np.full(len(y), self.x), y), top - 0.5)
+        n = np.clip(np.ceil((top - bot) * ppm), 1, 2000).astype(int)
+        rep = np.repeat(np.arange(len(y)), n)
+        fr = (np.arange(len(rep)) - np.repeat(np.cumsum(n) - n, n) + 0.5) / np.repeat(n, n)
+        Y = y[rep].astype(np.float32)
+        Z = (top[rep] - (top[rep] - bot[rep]) * fr).astype(np.float32)
+        xf = self.x_at(Y, Z)
+        r = np.random.default_rng(int(self.x * 100) & 0xffff)
+        base = np.float32([0.15, 0.14, 0.13]) * r.uniform(0.7, 1.3, (len(Y), 1)).astype(np.float32)
+        deck = np.max([np.exp(-((Z - zd) / 0.2) ** 2) for zd in self.decks + [self.decks[-1] - 0.0]], axis=0)[:, None]
+        rust = (self.noise(Z * 1.7, Y) > 0.8)[:, None]
+        c = base * (1 - deck) + np.float32([0.42, 0.40, 0.37]) * deck
+        c = np.where(rust, np.float32([0.36, 0.20, 0.12]), c)
+        out = []
+        for side, nx in ((0, 1.0), (1, -1.0)):
+            dx = (0.35 if side else -0.35) / ppm
+            out.append((xf + dx, Y, Z, c, np.tile(np.float32([nx, 0, 0]), (len(Y), 1)), False, False))
+        return out
+
+
+class BreakTimeline:
+    """A ship broken in two (sinking.Break): each piece's pose from the rigid-body sim, run in game time and played
+    in real time while anything moves fast, sped up (up to RATE_MAX) while it all just settles and floods. The
+    interface is Timeline's, plus a pose per piece."""
+    V_REF, RATE_MAX = 0.8, 20.0      # m/s of end movement that plays in real time; the most the clip speeds up
+
+    def __init__(self, hb, rep, where, cut=None, seed=1):
+        if cut is not None:
+            x, zone, why = sinking.cut_point(hb, cut)
+        else:
+            x, zone, why = sinking.break_points(hb)[where]
+        self.where, self.why, self.x_cut = where, why, x
+        brk = sinking.Break(hb, rep, x, zone)
+        self.brk = brk
+        g, poses, act, fills, wt, vel = [0.0], [[p.pose() for p in brk.pieces]], [1.0], [], [0.0], []
+        fills.append(np.concatenate([p.w / p.cap for p in brk.pieces]))
+        while not brk.done():
+            brk.step()
+            g.append(brk.t)
+            poses.append([p.pose() for p in brk.pieces])
+            # the warp follows the pieces still in sight
+            act.append(max(p.activity() * float(smooth(p.zmax, -15.0, -5.0)) for p in brk.pieces))
+            fills.append(np.concatenate([np.clip(p.w / p.cap, 0, 1) for p in brk.pieces]).astype(np.float32))
+            wt.append(sum(sinking.RHO * float(p.w.sum()) for p in brk.pieces))
+        self.vel = [p.V.copy() for p in brk.pieces]
+        g = np.array(g)
+        a = np.array(act)
+        k = max(1, int(round(2.0 / sinking.BREAK_DT)))      # smoothed over ~2 s of game time, so the warp eases
+        a = np.convolve(np.pad(a, (k, k), mode="edge"), np.ones(2 * k + 1) / (2 * k + 1), mode="valid")
+        rate = np.clip(self.V_REF / np.maximum(a, 1e-3), 1.0, self.RATE_MAX)
+        clip = HIT_S + np.concatenate([[0.0], np.cumsum(np.diff(g) / rate[1:])])
+        self.g, self.clip, self.rate = g, clip, rate
+        self.P = np.array(poses, float)                     # (step, piece, 7)
+        self.fills = np.array(fills, np.float32)
+        self.wt = np.array(wt)
+        self.n = len(brk.pieces)
+        self.t_f = HIT_S
+        self.t_last = float(clip[-1])
+        self.game_f = 0.0
+        self.end = "break-" + where
+        self.fate = "breaks in two"
+        self.sign = -1.0
+        self.gone = [None if p.t_gone is None else float(np.interp(p.t_gone, g, clip)) for p in brk.pieces]
+        # the cells of both pieces as one list (a cell the cut runs through is in both)
+        cat = lambda k: np.concatenate([getattr(p, k) for p in brk.pieces])
+        self.flood = types.SimpleNamespace(
+            x0=cat("cx0"), x1=cat("cx1"), y0=cat("cy0"), y1=cat("cy1"), base=cat("base"), top=cat("top"),
+            cap=cat("cap"), ids=sum((p.ids for p in brk.pieces), []))
+        self.flood.xc = (self.flood.x0 + self.flood.x1) / 2
+        self.flood.yc = (self.flood.y0 + self.flood.y1) / 2
+        self.cell_piece = np.concatenate([np.full(len(p.ids), k, np.int8) for k, p in enumerate(brk.pieces)])
+        self.breach = []
+        self.cut = Cut(x, hb, seed)
+
+    def _i(self, t):
+        return float(np.interp(t, self.clip, np.arange(len(self.clip))))
+
+    def poses(self, t):
+        if t <= HIT_S:
+            return [tuple(float(v) for v in p) for p in self.P[0]]
+        if t >= self.t_last:
+            # past the sim's end every piece keeps going at its last velocity
+            dt = self.game_time(t) - self.g[-1]
+            out = []
+            for p, v in zip(self.P[-1], self.vel):
+                s, th, ph, px, pz, dx, dy = (float(q) for q in p)
+                out.append((s - v[2] * dt, th, ph, px, pz, dx + v[0] * dt, dy + v[1] * dt))
+            return out
+        u = self._i(t)
+        i = min(int(u), len(self.clip) - 2)
+        f = u - i
+        return [tuple(float(q) for q in self.P[i, k] * (1 - f) + self.P[i + 1, k] * f) for k in range(self.n)]
+
+    def pose(self, t, k=0):
+        return self.poses(t)[k]
+
+    def game_time(self, t):
+        if t <= HIT_S:
+            return 0.0
+        if t >= self.t_last:
+            return float(self.g[-1] + (t - self.t_last))
+        return float(np.interp(t, self.clip, self.g))
+
+    def time_rate(self, t):
+        return 1.0 if t <= HIT_S or t >= self.t_last else float(np.interp(t, self.clip, self.rate))
+
+    def fill(self, t):
+        return self.fills[int(np.clip(round(self._i(t)), 0, len(self.fills) - 1))]
+
+    def weight(self, t):
+        return float(np.interp(self.game_time(t), self.g, self.wt))
+
+    def label(self, x, y, z):
+        return self.cut.label(np.asarray(x, np.float32), np.asarray(y, np.float32), np.asarray(z, np.float32))
+
+
 # ---------------------------------------------------------------- the ship as points
 class Ship3D:
     """sinking.Points' recipe with normals: tops (the sprite at its height-map height, turrets at their roofs),
     walls down every height step (outward normals) and, apart, a coarser bottom from hull_form, which only takes
     part in the waterline cut and the crossing foam (a plunge never shows it)."""
 
-    def __init__(self, src, hb, sp, ppm):
+    def __init__(self, src, hb, sp, ppm, cut=None):
         S = sp["scale_px_per_m"]
         tp = {t: str(src / v["file"]) for t, v in sp["turret_types"].items()}
         img = render.composite(str(src / "hull.png"), tp, sp, lambda m: m["rest_deg"])
@@ -255,37 +427,68 @@ class Ship3D:
         WC = C[rep] * 0.75
         WC = np.where((WZ < 0)[:, None], ANTIFOULING, np.where((WZ < 0.9)[:, None], BOOT_TOP, WC))
         n = len(Z)
-        self.x = np.concatenate([X, X[rep]]).astype(np.float32)
-        self.y = np.concatenate([Y, Y[rep]]).astype(np.float32)
-        self.z = np.concatenate([Z, WZ]).astype(np.float32)
-        self.c = np.concatenate([C, WC]).astype(np.float32)
-        self.n = np.concatenate([np.tile(np.float32([0, 0, 1]), (n, 1)),
-                                 np.stack([nx_[rep], ny_[rep], np.zeros(len(rep))], 1)]).astype(np.float32)
-        self.top = np.concatenate([np.ones(n, bool), np.zeros(len(rep), bool)])
+        parts = [(X, Y, Z, C, np.tile(np.float32([0, 0, 1]), (n, 1)), True, False),
+                 (X[rep], Y[rep], WZ, WC, np.stack([nx_[rep], ny_[rep], np.zeros(len(rep))], 1), False, False)]
+        if cut is not None:
+            # a broken ship: scorched round the break, the torn faces of both pieces, and the bottom (drawn only once
+            # a piece rolls or pitches past the vertical and shows it)
+            d = np.abs(X - cut.x_at(Y, Z)) / (0.12 * self.beam(hb))
+            burn = np.exp(-d * d) * (0.55 + 0.45 * cut.noise(X, Y))
+            parts[0] = (X, Y, Z, C * (1 - 0.75 * burn)[:, None], *parts[0][4:])
+            parts += cut.faces(mask, hmap, ox, oy, ppm, bottom)
+            parts.append((X, Y, Zb, np.where((Zb < 0)[:, None], ANTIFOULING * 0.9, C * 0.6),
+                          np.tile(np.float32([0, 0, -1]), (n, 1)), False, True))
+        cat = lambda k, dt: np.concatenate([np.asarray(q[k]) for q in parts]).astype(dt)
+        self.x, self.y, self.z, self.c, self.n = (cat(k, np.float32) for k in range(5))
+        self.top = np.concatenate([np.full(len(q[0]), q[5], bool) for q in parts])
+        isb = np.concatenate([np.full(len(q[0]), q[6], bool) for q in parts])
+        pc = np.zeros(len(self.x), np.int64) if cut is None else cut.label(self.x, self.y, self.z).astype(np.int64)
         # normals come in a few kinds (deck up, walls facing +-x or +-y): shading looks a kind up, colours are
-        # bytes, so the per-pixel gathers stay small. Points are grouped by kind, so the drawing can take only the
-        # kinds facing the camera as slices: a wall is edge-on at rest and hidden under its top, and only shows
-        # once a pitch or a roll tips it up
-        self.normals, kind = np.unique(self.n, axis=0, return_inverse=True)
-        o = np.argsort(kind.ravel(), kind="stable")
-        self.x, self.y, self.z, self.c, self.n, self.top = (a[o] for a in (self.x, self.y, self.z, self.c, self.n,
-                                                                             self.top))
-        self.nkind = kind.ravel()[o].astype(np.int8)
+        # bytes, so the per-pixel gathers stay small. Points are grouped by kind (and by piece, for a broken ship;
+        # the drawn bottom last), so the drawing can take only the kinds facing the camera as slices: a wall is
+        # edge-on at rest and hidden under its top, and only shows once a pitch or a roll tips it up
+        normals, kind = np.unique(self.n, axis=0, return_inverse=True)
+        kind = kind.ravel()
+        K = len(normals)
+        key = kind + K * (pc + 2 * isb)
+        o = np.argsort(key, kind="stable")
+        self.x, self.y, self.z, self.c, self.n, self.top, isb, pc = (a[o] for a in (self.x, self.y, self.z, self.c,
+                                                                                    self.n, self.top, isb, pc))
+        keys, grp = np.unique(key[o], return_inverse=True)
+        self.normals, self.gpiece = normals[keys % K], (keys // K) % 2
+        self.nkind = grp.ravel().astype(np.int8)
+        self.ppiece = pc.astype(np.int8)
         ends = np.searchsorted(self.nkind, np.arange(len(self.normals) + 1))
         self.kslice = [(int(ends[k]), int(ends[k + 1])) for k in range(len(self.normals))]
         self.c8 = np.clip(np.rint(self.c * 255), 0, 255).astype(np.uint8)
         sub = (yy % 2 == 0) & (xx % 2 == 0)                  # bottom at half the density
         self.bx, self.by, self.bz = X[sub].astype(np.float32), Y[sub].astype(np.float32), Zb[sub].astype(np.float32)
+        self.pb = np.zeros(len(self.bx), np.int8) if cut is None else cut.label(self.bx, self.by, self.bz).astype(np.int8)
         self.lcf = hb["hydrostatics"]["lcf"]
         self.ppm = ppm
-        # every third point, contiguous: the sim's waterline cut, collar and footprint use only these
-        self.xs, self.ys, self.zs = self.x[::3].copy(), self.y[::3].copy(), self.z[::3].copy()
-        self.tops = self.top[::3].copy()
+        # every third point (not the drawn bottom), contiguous: the sim's waterline cut, collar and footprint use
+        # only these
+        si = np.flatnonzero(~isb)[::3]
+        self.xs, self.ys, self.zs = self.x[si], self.y[si], self.z[si]
+        self.tops = self.top[si]
+        self.ps = self.ppiece[si]
+
+    @staticmethod
+    def beam(hb):
+        return hb["beam"]
 
 
 def transform(x, y, z, pose, lcf, heading, n=None):
     """sinking.Points.frame's attitude: roll (starboard down for phi > 0), then pitch (bow down for theta > 0)
-    about the lcf, then sink; then the heading on screen. Returns screen-aligned world metres (y down)."""
+    about the lcf, then sink; then the heading on screen. Returns screen-aligned world metres (y down). A broken
+    ship's piece has a 7-tuple pose (sinking.apply_pose): its own pivot, and a move."""
+    if len(pose) == 7:
+        X2, Y1, Z = sinking.apply_pose(x, y, z, pose)
+        ch, sh = math.cos(math.radians(heading)), math.sin(math.radians(heading))
+        X, Y = X2 * ch - Y1 * sh, X2 * sh + Y1 * ch
+        if n is None:
+            return X, Y, Z
+        return X, Y, Z, rotate_normals(n, pose, heading)
     s, th, ph = pose
     cp, sp_ = math.cos(ph), math.sin(ph)
     ct, st = math.cos(th), math.sin(th)
@@ -307,7 +510,7 @@ def transform(x, y, z, pose, lcf, heading, n=None):
 
 def rotate_normals(n, pose, heading):
     """transform()'s rotation alone, for normals."""
-    _, th, ph = pose
+    th, ph = pose[1], pose[2]
     cp, sp_ = math.cos(ph), math.sin(ph)
     ct, st = math.cos(th), math.sin(th)
     ch, sh = math.cos(math.radians(heading)), math.sin(math.radians(heading))
@@ -320,7 +523,7 @@ def rotate_normals(n, pose, heading):
 
 # ---------------------------------------------------------------- the scene
 class SinkScene:
-    def __init__(self, src: Path, W, H, fps, heading, end, seed):
+    def __init__(self, src: Path, W, H, fps, heading, end, seed, cut_x=None):
         import json
         self.src, self.W, self.H, self.fps, self.heading = src, W, H, fps, heading
         self.rng = np.random.default_rng(seed)
@@ -336,8 +539,13 @@ class SinkScene:
         self.s = s = min(S0, 0.72 * W / (self.L * ch + self.B * sh), 0.55 * H / (self.L * sh + self.B * ch))
         self.C = np.array([W / 2, H / 2], np.float32)    # float32: a float64 centre promoted every to_px
         t0 = time.perf_counter()
-        self.tl = Timeline(self.hb, end)
-        self.ship = Ship3D(src, self.hb, self.sprite, 2 * s)
+        if end.startswith("break"):
+            self.tl = BreakTimeline(self.hb, self.report, end.split("-", 1)[1] if "-" in end else "mid", cut_x, seed)
+            self.ship = Ship3D(src, self.hb, self.sprite, 2 * s, self.tl.cut)
+        else:
+            self.tl = Timeline(self.hb, end)
+            self.ship = Ship3D(src, self.hb, self.sprite, 2 * s)
+        self.broken = self.tl.n > 1
         self.setup_s = time.perf_counter() - t0
         self.water = V.Water(self.rng, W, H, s, self.C)
         self.dens = V.Density(W, H)
@@ -367,6 +575,8 @@ class SinkScene:
         self.cz = (f.base[:, None] + (f.top - f.base)[:, None] * c).ravel().astype(np.float32)
         self.ncell = len(f.cap)
         self.cell_of = np.repeat(np.arange(self.ncell), len(a))
+        cp = self.tl.cell_piece if self.tl.cell_piece is not None else np.zeros(self.ncell, np.int8)
+        self.cell_pc, self.cs_pc = cp, cp[self.cell_of]
         self.cap = f.cap
         self.vent = np.stack([f.xc, f.yc, np.maximum(f.top, self.fb)], 1).astype(np.float32)
         self.released = np.zeros(self.ncell)
@@ -375,8 +585,14 @@ class SinkScene:
         self.trapped = 0.0
         self.p_hold, self.p_trap = 0.5, 0.35
 
-        bi = [f.ids.index(c) for c in self.tl.breach if c in f.ids]
-        self.breach_pt = np.array([f.xc[bi].mean(), self.B / 2 * 0.95, -3.0], np.float32)
+        if self.broken:      # the torn ends: oil from each, the blast over the cut
+            xc = self.tl.x_cut
+            self.breach_pts = [np.array([xc - 2.0, 0.0, -4.0], np.float32), np.array([xc + 2.0, 0.0, -4.0], np.float32)]
+            self.blast_pt = np.array([xc, 0.0, self.fb], np.float32)
+        else:
+            bi = [f.ids.index(c) for c in self.tl.breach if c in f.ids]
+            self.breach_pts = [np.array([f.xc[bi].mean(), self.B / 2 * 0.95, -3.0], np.float32)]
+        self.breach_pt = self.breach_pts[0]
         self.funnels = []
         for comp in self.hb["components"]:
             if comp["kind"] == "funnel":
@@ -396,8 +612,13 @@ class SinkScene:
         self.smoke = V.Particles(WIND, 1.2)
         self.steam = V.Particles(WIND, 1.0)
         self.spray = V.Particles((0, 0), 0.8)
+        self.blast = V.Particles(WIND, 3.0)     # a broken ship's explosion smoke, and the fires on the torn ends
+        self.puff_max = min(0.35 * self.B, 36.0 / self.s)   # m: past ~36 px a puff lands in a blocky bucket
         self.t = 0.0
         self.t_gone = None
+        self.p_gone = [None] * self.tl.n
+        self.blast_t, self.blast_xy = None, (0.0, 0.0)
+        self.p_last = [(np.zeros(2), 0.0)] * self.tl.n
         self.last_xy, self.last_area = np.zeros(2), 0.0
         self.hit_done = False
         self.duration = None
@@ -448,8 +669,13 @@ class SinkScene:
         big, small = V.font(max(14, self.H // 30)), V.font(max(11, self.H // 50))
         x, y = self.H // 36, self.H - self.H // 36
         name = self.sprite.get("name", self.sprite["id"])
-        stats = (f"{res['length_m']:.0f} m  ·  {res['standard_displacement_t']:,} t std  ·  "
-                 f"breached {'aft' if self.tl.end == 'stern' else 'forward'}, sinks {self.tl.fate.replace('plunges', 'by the ' + ('stern' if self.tl.sign < 0 else 'bow'))}")
+        if self.tl.n > 1:
+            where = {"aft": "aft", "mid": "amidships", "fore": "forward"}.get(self.tl.where, self.tl.where)
+            stats = (f"{res['length_m']:.0f} m  ·  {res['standard_displacement_t']:,} t std  ·  "
+                     f"broke in two {where} ({self.tl.why})")
+        else:
+            stats = (f"{res['length_m']:.0f} m  ·  {res['standard_displacement_t']:,} t std  ·  "
+                     f"breached {'aft' if self.tl.end == 'stern' else 'forward'}, sinks {self.tl.fate.replace('plunges', 'by the ' + ('stern' if self.tl.sign < 0 else 'bow'))}")
         d.text((x + 1, y - big.size - small.size - 5), name, font=big, fill=(0, 0, 0, 140))
         d.text((x, y - big.size - small.size - 6), name, font=big, fill=(240, 244, 246, 235))
         d.text((x, y - small.size), stats, font=small, fill=(220, 228, 232, 210))
@@ -460,8 +686,20 @@ class SinkScene:
     def to_px(self, X, Y):
         return X * self.s + self.C[0], Y * self.s + self.C[1]
 
-    def world_pt(self, p, t):
-        X, Y, Z = transform(np.float32([p[0]]), np.float32([p[1]]), np.float32([p[2]]), self.tl.pose(t),
+    def tf(self, x, y, z, pc, poses):
+        """transform() with each point in its piece's pose."""
+        if len(poses) == 1:
+            return transform(x, y, z, poses[0], self.ship.lcf, self.heading)
+        X, Y, Z = (np.empty(np.shape(x), np.result_type(x, np.float32)) for _ in range(3))
+        for k, pose in enumerate(poses):
+            m = pc == k
+            if m.any():
+                X[m], Y[m], Z[m] = transform(x[m], y[m], z[m], pose, self.ship.lcf, self.heading)
+        return X, Y, Z
+
+    def world_pt(self, p, t, k=None):
+        k = int(self.tl.label(p[0], p[1], p[2])) if k is None else k
+        X, Y, Z = transform(np.float32([p[0]]), np.float32([p[1]]), np.float32([p[2]]), self.tl.pose(t, k),
                             self.ship.lcf, self.heading)
         return float(X[0]), float(Y[0]), float(Z[0])
 
@@ -469,9 +707,9 @@ class SinkScene:
         """What the step needs: the every-third-point subset and the bottom, and the pose. The sim works on the
         subset only (each point counting three): the foam it feeds is blurred over a few pixels anyway, and memory
         traffic, not arithmetic, is what limits drawing in many processes at once."""
-        sh, pose = self.ship, self.tl.pose(t)
-        Xs, Ys, Zs = transform(sh.xs, sh.ys, sh.zs, pose, sh.lcf, self.heading)
-        BX, BY, BZ = transform(sh.bx, sh.by, sh.bz, pose, sh.lcf, self.heading)
+        sh, pose = self.ship, self.tl.poses(t)
+        Xs, Ys, Zs = self.tf(sh.xs, sh.ys, sh.zs, sh.ps, pose)
+        BX, BY, BZ = self.tf(sh.bx, sh.by, sh.bz, sh.pb, pose)
         return Zs, BZ, Xs, Ys, BX, BY, pose
 
     def splat(self, X, Y, w, roi, f=1):
@@ -562,7 +800,7 @@ class SinkScene:
             self._add_debris(np.stack([X[pick], Y[pick]], 1))
 
         # 3. air: water in = air out, per cell; boils once the vent's under
-        CX, CY, CZ = transform(self.cx, self.cy, self.cz, pose, self.ship.lcf, self.heading)
+        CX, CY, CZ = self.tf(self.cx, self.cy, self.cz, self.cs_pc, pose)
         f_geo = np.bincount(self.cell_of, weights=(CZ < 0).astype(float), minlength=self.ncell) / 27
         if self.zcell_prev is None:
             self.released = np.maximum(f_geo, self.tl.fill(0.0))
@@ -570,7 +808,7 @@ class SinkScene:
         f_new = np.maximum(self.released, np.maximum(f_geo, self.tl.fill(t)))
         dV = (f_new - self.released) * self.cap
         self.released = f_new
-        VX, VY, VZ = transform(self.vent[:, 0], self.vent[:, 1], self.vent[:, 2], pose, self.ship.lcf, self.heading)
+        VX, VY, VZ = self.tf(self.vent[:, 0], self.vent[:, 1], self.vent[:, 2], self.cell_pc, pose)
         for c in np.nonzero((dV > 0) | (self.held > 0.5))[0]:
             if VZ[c] >= 0:                 # vent above water: the air goes up the trunks, some is held below
                 self.held[c] += self.p_hold * dV[c]
@@ -588,6 +826,9 @@ class SinkScene:
                 self._boil(dict(t=t + depth / 2.0, x=VX[c] + jx, y=VY[c] + jy,
                                        S=0.9 * Vr ** (1 / 3) + 0.10 * depth, I=float(np.clip(1.15 - 0.008 * depth, 0.35, 1))))
         # the hit
+        if not self.hit_done and t >= HIT_S and self.broken:
+            self.hit_done = True
+            self._blast(t)
         if not self.hit_done and t >= HIT_S:
             self.hit_done = True
             hx, hy, _ = self.world_pt(self.breach_pt, t)
@@ -598,8 +839,10 @@ class SinkScene:
             sp = rng.uniform(2, 14, n)
             self.spray.add(x=hx + rng.normal(0, 2, n), y=hy + rng.normal(0, 2, n), vx=np.cos(a) * sp,
                            vy=np.sin(a) * sp, life=rng.uniform(1.5, 3.5, n), r0=2.0, r1=rng.uniform(4, 9, n), a0=0.55)
-        # gone? the slam, the ring, the tanks
-        if self.t_gone is None and t > HIT_S:
+        # gone? the slam, the ring, the tanks (a broken ship's pieces each in turn)
+        if self.broken and t > HIT_S:
+            self._pieces_gone(t, Xs, Ys, Zs)
+        elif self.t_gone is None and t > HIT_S:
             if zmax > 0:
                 above = Zs > 0
                 if above.any():          # the subset is every third point
@@ -632,10 +875,17 @@ class SinkScene:
                                        S=0.9 * Vr ** (1 / 3) + 0.10 * depth, I=float(np.clip(1.1 - 0.006 * depth, 0.3, 1))))
         # 5. oil from the torn tanks, once a second, rising from the breach
         if self.hit_done and self.t_gone is None and int(round(t * self.fps)) % self.fps == 0:
-            lx, ly, lz = self.world_pt(self.breach_pt, t)
-            for _ in range(3):         # oil comes up in several places, so the puddles merge into a slick
-                jx, jy = rng.normal(0, 0.35 * self.B, 2)
-                self.puddles.append((t + max(-lz, 0) / 1.0 + rng.uniform(0, 1), lx + jx, ly + jy, self.leak_rate / 3))
+            for k, bp in enumerate(self.breach_pts):
+                if self.broken and self.p_gone[k] is not None:
+                    continue
+                lx, ly, lz = self.world_pt(bp, t, k if self.broken else None)
+                for _ in range(3):     # oil comes up in several places, so the puddles merge into a slick
+                    jx, jy = rng.normal(0, (0.6 if self.broken else 0.35) * self.B, 2)
+                    # a broken ship's two torn ends leak side by side: half each, and the torn bunkers empty in
+                    # the first seconds, then trickle (a clip that plays minutes of flooding fast pooled it black)
+                    k_ = math.exp(-(t - HIT_S) / 15.0) if self.broken else 1.0
+                    self.puddles.append((t + max(-lz, 0) / 1.0 + rng.uniform(0, 1), lx + jx, ly + jy,
+                                         k_ * self.leak_rate / 3 / len(self.breach_pts) ** 2))
         # 6. debris: drift plus the boils' outflow
         if len(self.debris):
             v = np.tile(DRIFT.astype(np.float32), (len(self.debris), 1))
@@ -667,7 +917,9 @@ class SinkScene:
                 self.steam.add(x=fx + rng.normal(0, 2 * r, n), y=fy + rng.normal(0, 2 * r, n), vx=np.cos(a) * sp,
                                vy=np.sin(a) * sp, life=rng.uniform(2, 4.5, n), r0=0.3 * r,
                                r1=rng.uniform(0.6, 1.4, n) * r, a0=rng.uniform(0.12, 0.25, n), h=4.0)
-        for ps in (self.smoke, self.steam, self.spray):
+        if self.broken and self.hit_done:
+            self._fires(t, dt)
+        for ps in (self.smoke, self.steam, self.spray, self.blast):
             ps.step(dt)
         self.boils = [b for b in self.boils if t - b["t"] <= 21 * math.sqrt(b["S"] / 4)]   # 6 lifetimes
         self.Zsprev, self.Bprev = Zs, BZ
@@ -676,7 +928,7 @@ class SinkScene:
     # the state a frame is drawn from: the sim steps in one process, frames are drawn in a pool of workers that
     # each hold the same scene (built from the same seed). Copies, as the step changes the foam arrays in place
     # and the pool pickles a snapshot later, on its own thread.
-    SNAP = ("t", "t_gone", "boils", "rings", "puddles", "debris", "debris_c", "fbox")
+    SNAP = ("t", "t_gone", "boils", "rings", "puddles", "debris", "debris_c", "fbox", "p_gone", "blast_t", "blast_xy")
 
     def snapshot(self, fresh=None, resid=None):
         """The frame's state. With fresh and resid (shared-memory arrays), the foam canvases are copied there and
@@ -688,16 +940,89 @@ class SinkScene:
         elif self.fbox is not None:       # the box only grows, so a slot is zero outside it
             b_ = np.s_[self.fbox[1]:self.fbox[3], self.fbox[0]:self.fbox[2]]
             fresh[b_], resid[b_] = self.fresh[b_], self.resid[b_]
-        for name in ("smoke", "steam", "spray"):
+        for name in ("smoke", "steam", "spray", "blast"):
             d[name] = {k: v.copy() for k, v in getattr(self, name).d.items()}
+        d["p_gone"] = list(self.p_gone)
         return d
 
     def load(self, d, fresh=None, resid=None):
         for k in self.SNAP:
             setattr(self, k, d[k])
         self.fresh, self.resid = (d["fresh"], d["resid"]) if fresh is None else (fresh, resid)
-        for name in ("smoke", "steam", "spray"):
+        for name in ("smoke", "steam", "spray", "blast"):
             getattr(self, name).d = d[name]
+
+    def _blast(self, t):
+        """The break: a flash, a boil and ring, spray, a column of dark smoke, steam from the torn boilers and
+        wreckage over a wide circle. A stand-in for magazine.py's explosion, which lives in vidgen's scene."""
+        rng, B = self.rng, self.B
+        hx, hy, _ = self.world_pt(self.blast_pt, t, 0)
+        self.blast_t, self.blast_xy = t, (hx, hy)
+        self._boil(dict(t=t, x=hx, y=hy, S=0.1 * self.L, I=1.0))
+        self.rings.append(dict(t=t, x=hx, y=hy, A=1.4))
+        n = 420
+        a = rng.uniform(0, 2 * math.pi, n)
+        sp = rng.gamma(2.0, 7.0, n)
+        self.spray.add(x=hx + rng.normal(0, 0.25 * B, n), y=hy + rng.normal(0, 0.25 * B, n), vx=np.cos(a) * sp,
+                       vy=np.sin(a) * sp, life=rng.uniform(2, 5, n), r0=3.0, r1=rng.uniform(6, 16, n), a0=0.6)
+        # many small puffs, not a few big ones: vidgen's coarsest blur buckets draw a lone big puff as a block
+        m = 320
+        rmax = self.puff_max
+        a = rng.uniform(0, 2 * math.pi, m)
+        sp = rng.gamma(2.0, 2.0, m)
+        self.blast.add(x=hx + rng.normal(0, 0.3 * B, m), y=hy + rng.normal(0, 0.3 * B, m), vx=np.cos(a) * sp,
+                       vy=np.sin(a) * sp, life=rng.uniform(12, 28, m), r0=rng.uniform(0.25, 0.5, m) * rmax,
+                       r1=rng.uniform(0.6, 1.0, m) * rmax, a0=rng.uniform(0.10, 0.22, m), h=rng.uniform(20, 120, m))
+        n = 80
+        a = rng.uniform(0, 2 * math.pi, n)
+        sp = rng.uniform(2, 10, n)
+        self.steam.add(x=hx + rng.normal(0, 0.3 * B, n), y=hy + rng.normal(0, 0.3 * B, n), vx=np.cos(a) * sp,
+                       vy=np.sin(a) * sp, life=rng.uniform(3, 6, n), r0=0.1 * B, r1=rng.uniform(0.3, 0.6, n) * B,
+                       a0=rng.uniform(0.15, 0.3, n), h=8.0)
+        r = 3 * B * np.sqrt(rng.random(160))
+        a = rng.uniform(0, 2 * math.pi, 160)
+        self._add_debris(np.stack([hx + r * np.cos(a), hy + r * np.sin(a)], 1))
+
+    def _fires(self, t, dt):
+        """Smoke from the torn ends while they're out of the water."""
+        rng = self.rng
+        for k, xo in enumerate((-1.5, 1.5)):
+            if self.p_gone[k] is not None:
+                continue
+            fx, fy, fz = self.world_pt((self.tl.x_cut + xo, 0.0, self.fb), t, k)
+            if fz > 0.5:
+                n = int(rng.poisson(dt * 8.0))
+                if n:
+                    r = 0.1 * self.B
+                    self.blast.add(x=fx + rng.normal(0, r, n), y=fy + rng.normal(0, r, n), vx=rng.normal(0, 0.6, n),
+                                   vy=rng.normal(0, 0.6, n), life=rng.uniform(8, 14, n), r0=min(r, 0.4 * self.puff_max),
+                                   r1=rng.uniform(0.6, 1.0, n) * self.puff_max, a0=rng.uniform(0.12, 0.22, n), h=fz + 10)
+
+    def _pieces_gone(self, t, Xs, Ys, Zs):
+        """Each piece of a broken ship as it goes under: the slam, the ring, its tanks, wreckage."""
+        rng = self.rng
+        for k in range(self.tl.n):
+            if self.p_gone[k] is not None:
+                continue
+            above = (Zs > 0) & (self.ship.ps == k)
+            if above.any():
+                self.p_last[k] = (np.array([Xs[above].mean(), Ys[above].mean()]),
+                                  3 * float(above.sum()) / self.ship.ppm ** 2 * 0.5)
+                continue
+            self.p_gone[k] = t
+            (cx, cy), area = self.p_last[k]
+            S_ = 3.0 + 0.9 * math.sqrt(max(area, 1.0))
+            self._boil(dict(t=t + 0.3, x=cx, y=cy, S=S_, I=1.0))
+            self.rings.append(dict(t=t, x=cx, y=cy, A=0.6 + 0.02 * S_))
+            share = self.tl.brk.pieces[k].M0 / sum(p.M0 for p in self.tl.brk.pieces)
+            for j in range(4):         # the piece's share of the tanks (by weight), as the intact wreck's 8 puddles
+                jx, jy = rng.normal(0, [0.08 * self.L, 0.4 * self.B])
+                self.puddles.append((t + 2.0 + 1.5 * j, cx + jx, cy + jy, 0.004 * self.fuel_m3 / 4 * share))
+            r = rng.random((12, 2)) - 0.5
+            self._add_debris(np.stack([cx + r[:, 0] * 0.2 * self.L, cy + r[:, 1] * 0.12 * self.L], 1))
+        if self.t_gone is None and all(g is not None for g in self.p_gone):
+            self.t_gone = t
+            self.last_xy = self.p_last[int(np.argmax([g for g in self.p_gone]))][0]
 
     def _boil(self, b):
         b["k"], b["ph"] = int(self.rng.integers(11, 19)), float(self.rng.random() * 6.283)
@@ -817,12 +1142,17 @@ class SinkScene:
         cheaper than sorting the points by height), and only the ship's own pixels are shaded, then summed 2x2
         into the 1x window by bincount."""
         sh = self.ship
-        pose = self.tl.pose(t)
+        pose = self.tl.poses(t)
         # the kinds facing the camera (tops always), as one index array into the grouped points
-        nz = rotate_normals(sh.normals, pose, self.heading)[:, 2]
+        if len(pose) == 1:
+            nrot = rotate_normals(sh.normals, pose[0], self.heading)
+        else:
+            nrot = np.concatenate([rotate_normals(sh.normals[g:g + 1], pose[sh.gpiece[g]], self.heading)
+                                   for g in range(len(sh.normals))])
+        nz = nrot[:, 2]
         segs = [sh.kslice[k] for k in range(len(sh.normals)) if nz[k] > 0.05]
         sel = np.concatenate([np.arange(a, b, dtype=np.int32) for a, b in segs])
-        X, Y, Z = transform(sh.x[sel], sh.y[sel], sh.z[sel], pose, sh.lcf, self.heading)
+        X, Y, Z = self.tf(sh.x[sel], sh.y[sel], sh.z[sel], sh.ppiece[sel], pose)
         keep = np.flatnonzero(Z > -CULL_M)
         if not len(keep):
             return None
@@ -830,7 +1160,7 @@ class SinkScene:
         X, Y, Z = X[Z > -CULL_M], Y[Z > -CULL_M], Z[Z > -CULL_M]
         # shadow casters: every third point, walls and all (a column's walls carry its shadow down to the deck),
         # above water, into a 1x shadow map
-        CX, CY, CZ = transform(sh.xs, sh.ys, sh.zs, pose, sh.lcf, self.heading)
+        CX, CY, CZ = self.tf(sh.xs, sh.ys, sh.zs, sh.ps, pose)
         up = CZ > 0
         CX, CY, CZ = CX[up], CY[up], CZ[up]
         s2 = 2 * self.s
@@ -907,7 +1237,7 @@ class SinkScene:
         # wet near the sea), faded with depth below it
         orig = keep[pi]
         Ct = sh.c8[orig].astype(np.float32) * (1 / 255)
-        lam = np.clip(rotate_normals(sh.normals, pose, self.heading) @ LIGHT, 0, 1)
+        lam = np.clip(nrot @ LIGHT, 0, 1)
         fac = np.clip(0.45 + 0.55 * lam / LIGHT[2], 0.35, 1.3).astype(np.float32)[sh.nkind[orig]]
         above = tz >= 0
         wet = 1 - 0.25 * smooth(1.2 - tz, 0, 1.2)
@@ -930,6 +1260,33 @@ class SinkScene:
         sh1 = box_blur(sh1.astype(np.float32), 1, passes=1)
         top_pm *= (1 - SHADE * sh1)[..., None]
         return x0 // 2, y0 // 2, sub_pm, sub_a, sh1 * (1 - top_a), top_pm, top_a
+
+    def _break_phase(self):
+        t, tl = self.t, self.tl
+        if t < HIT_S:
+            return "Afloat"
+        if self.t_gone is not None:
+            return f"Gone {t - self.t_gone:.0f} s ago: trapped air, oil, wreckage"
+        g = tl.game_time(t)
+        L = self.L
+        parts = []
+        for k, pose in enumerate(tl.poses(t)):
+            p = tl.brk.pieces[k]
+            name = ("stern" if k == 0 else "bow") if p.length < 0.35 * L else ("after part" if k == 0 else "fore part")
+            if self.p_gone[k] is not None:
+                st = "gone"
+            elif abs(math.degrees(pose[2])) > 45:
+                st = "capsizing"
+            elif abs(math.degrees(pose[1])) > 50:
+                st = "standing on end"
+            elif abs(math.degrees(pose[1])) > 8:
+                st = "plunging"
+            else:
+                st = "flooding"
+            parts.append(f"{name} {st}")
+        r = tl.time_rate(t)
+        warp = f"  (time x{r:.0f})" if r > 1.5 else ""
+        return f"Broken in two: {', '.join(parts)}   T+{int(g // 60)}:{int(g % 60):02d}{warp}"
 
     # ----- drawing
     def field(self, ps, offset=(0.0, 0.0)):
@@ -1017,14 +1374,15 @@ class SinkScene:
         sd = SUN
         sh = np.zeros((self.dens.hh, self.dens.hw), np.float32)
         layers = []
-        for ps, base, k in ((self.smoke, (0.36, 0.36, 0.37), 1.0), (self.steam, STEAM, 0.3)):
+        for ps, base, k in ((self.smoke, (0.36, 0.36, 0.37), 1.0), (self.steam, STEAM, 0.3),
+                            (self.blast, (0.17, 0.16, 0.15), 1.0)):
             if not len(ps):
                 continue
             d = self.field(ps)
             h = float(np.mean(ps.d["h"]))
             o = (-SUN * (h + 4) / TAN_E * s)
             sh += k * self.field(ps, offset=(o[0], o[1]))
-            layers.append((d, base, ps is self.smoke))
+            layers.append((d, base, ps is not self.steam))
         if sh.any():
             frame *= (1 - 0.35 * np.clip(1 - np.exp(-upscale(sh, W, H)), 0, 1))[..., None]
         for d, base, lit in layers:          # steam unlit: lit, a thin puff showed a hard dark half
@@ -1036,11 +1394,14 @@ class SinkScene:
             f = np.s_[2 * j0:2 * j1, 2 * i0:2 * i1]
             ww, hh = 2 * (i1 - i0), 2 * (j1 - j0)
             col = np.float32(base)[None, None, :]
-            if lit:
+            if lit and min(dd.shape) > 1:
                 gy_, gx_ = np.gradient(dd)
                 col = col * upscale(np.clip(1.0 - 3.0 * (gx_ * sd[0] + gy_ * sd[1]), 0.55, 1.35), ww, hh)[..., None]
             al = np.clip(1 - np.exp(-1.4 * upscale(dd, ww, hh)), 0, 0.92)[..., None]
             frame[f] = frame[f] * (1 - al) + col * al
+
+        if self.broken:
+            self._glow(frame, t)
 
         out = (np.clip(frame, 0, 1) * 255).astype(np.uint8)
         hy0, hx0, hud = self.hud_box
@@ -1053,8 +1414,37 @@ class SinkScene:
         d.text((H // 36, H // 36), self.phase(), font=self.font_small, fill=(235, 240, 242, 220))
         return np.asarray(im)
 
+    def _glow(self, frame, t):
+        """The break's flash, then the fires on the torn ends while they're out of the water: added light."""
+        spots = []
+        if self.blast_t is not None and t - self.blast_t < 3.0:
+            a = t - self.blast_t
+            R = (0.3 + 0.6 * (1 - math.exp(-a / 0.25))) * self.B
+            spots.append((*self.blast_xy, R, 1.3 * math.exp(-a / 0.25) + 0.15 * math.exp(-a / 1.2)))
+        if self.blast_t is not None:
+            for k, xo in enumerate((-1.5, 1.5)):
+                if self.p_gone[k] is None:
+                    fx, fy, fz = self.world_pt((self.tl.x_cut + xo, 0.0, self.fb), t, k)
+                    fl = 0.75 + 0.25 * math.sin(11 * t + 2 * k) * math.sin(4.3 * t + k)
+                    spots.append((fx, fy, 0.18 * self.B, 0.35 * fl * float(smooth(fz, 0.0, 2.0))))
+        for x, y, R, I in spots:
+            if I < 0.01:
+                continue
+            cx, cy = self.to_px(x, y)
+            rr = 2.5 * R * self.s
+            i0, i1 = max(0, int(cx - rr)), min(self.W, int(cx + rr) + 1)
+            j0, j1 = max(0, int(cy - rr)), min(self.H, int(cy + rr) + 1)
+            if i1 <= i0 or j1 <= j0:
+                continue
+            dx = (np.arange(i0, i1, dtype=np.float32) + 0.5 - cx)[None, :]
+            dy = (np.arange(j0, j1, dtype=np.float32) + 0.5 - cy)[:, None]
+            g = np.exp(-(dx * dx + dy * dy) / (R * self.s) ** 2) * I
+            frame[j0:j1, i0:i1] += g[..., None] * np.float32([1.0, 0.62, 0.28])
+
     def phase(self):
         t, tl = self.t, self.tl
+        if self.broken:
+            return self._break_phase()
         g = tl.game_time(t) / 60
         end = "stern" if tl.sign < 0 else "bow"
         if t < HIT_S:
@@ -1106,7 +1496,7 @@ def _draw(snap, i):
 def make(src: Path, end: str, out: Path, args, still=None, workers=1):
     """One clip. With workers > 1 the frames are drawn in a pool while this process steps the sim and encodes."""
     t0 = time.perf_counter()
-    scene_args = (src, args.w, args.h, args.fps, args.heading, end, args.seed)
+    scene_args = (src, args.w, args.h, args.fps, args.heading, end, args.seed, args.cut)
     sc = SinkScene(*scene_args)
     dur = args.seconds or (sc.tl.t_last + 4 + TAIL_S)
     if not args.quiet:
@@ -1164,7 +1554,9 @@ def make(src: Path, end: str, out: Path, args, still=None, workers=1):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("ships", nargs="+", help="out_designs/<id> folders or ids")
-    ap.add_argument("--end", choices=["stern", "bow", "both"], default="both", help="which end is breached")
+    ap.add_argument("--end", choices=["stern", "bow", "both", "break-aft", "break-mid", "break-fore", "breaks"],
+                    default="both", help="which end is breached, or where the ship breaks in two (breaks: all three)")
+    ap.add_argument("--cut", type=float, default=None, help="with a break: the station it breaks at, m from amidships")
     ap.add_argument("--designs", default=str(V.ROOT / "out_designs"))
     ap.add_argument("--out", default=str(V.ROOT / "vidgen" / "out"))
     ap.add_argument("--size", default="1280x720")
@@ -1181,7 +1573,7 @@ def main():
     srcs = [Path(s) if (Path(s) / "sprite.json").exists() else base / s for s in args.ships]
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    ends = ["stern", "bow"] if args.end == "both" else [args.end]
+    ends = {"both": ["stern", "bow"], "breaks": ["break-aft", "break-mid", "break-fore"]}.get(args.end, [args.end])
     todo = []
     for src in srcs:
         for end in ends:

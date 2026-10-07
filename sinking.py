@@ -17,6 +17,9 @@ What it shows the game needs, all from hitboxes.json and sprite.json (nothing he
   drawing     every sprite pixel is a point at its height-map height (turrets at their roof), plus the hull's
               bottom from hull_form and walls down every height step, rolled, pitched and sunk, then shaded by
               how deep under the surface it is
+  breaking    Break: a total loss, the ship parted at a station (a main magazine, or amidships) into two rigid
+              bodies, each with large-angle buoyancy from hull_form, its own weight from report.json, its torn
+              end open to the sea and shocked bulkheads that give way under head (vidgen/sinkvid.py draws it)
 """
 import argparse
 import json
@@ -269,6 +272,458 @@ def simulate(hb, breach, hole_m2, leak=1.0, side=0, frames=48, end_frames=28):
         e["t"] = last["t"] + u * 120
         states.append(e)
     return states, fate or "stays afloat", f
+
+
+# --- breaking in two ------------------------------------------------------------------------------------------
+# A total loss: the ship breaks at a station (a magazine going up, or the girder failing) and the two pieces sink on
+# their own. Each piece is a rigid body: its buoyancy comes from the hull form at any attitude, not from
+# hydrostatics' small-angle coefficients, and its cells flood through the torn end with heads from the real pose.
+
+BREAK_DT = 0.05          # s per step
+BREAK_LEAK = 25.0        # the shock that broke her strains every bulkhead: leaks x this
+TORN_OPEN = 0.5          # share of a torn cell's end open to the sea; wreckage fills the rest
+SPLIT_V = 0.4            # m/s the break throws each piece away from it
+ZETA = 0.4               # linear damping, share of critical (radiation and viscous, lumped)
+CD_BODY = 1.0            # drag coefficient of a piece moving broadside through the water
+ADDED = (1.0, 1.0, 0.2)  # added mass in heave, pitch and roll, x the piece's own
+BREAK_HOURS = 0.75       # gives up after this, a piece still afloat
+SETTLED_S = 120.0        # done once every piece left afloat has lain still (and stopped taking water) this long
+# a shocked bulkhead (or deck) gives way when the head across it passes its strength, then is open over this share
+# of its face. Each one's strength head is drawn evenly from BULKHEAD_HEAD (m): the blast has strained them all,
+# some far worse than others
+BULKHEAD_HEAD = (1.5, 7.0)
+BULKHEAD_TORN = 0.3
+
+
+def hull_bottom(hb):
+    """z of the hull's bottom (over the design waterline) at ship (x, y), and its deck half-breadth at x."""
+    wl = hb["vertical"]["waterline"]
+    st = hb["hull_form"]["stations"]
+    sx = np.array([s["x"] for s in st])
+    ys = [np.maximum.accumulate(s["y"]) for s in st]
+    ymax = np.array([y[-1] for y in ys])
+
+    def bottom(x, y):
+        x, y = np.asarray(x, float), np.asarray(y, float)
+        i = np.clip(np.searchsorted(sx, x) - 1, 0, len(st) - 2)
+        out = np.empty_like(x)
+        for j in np.unique(i):
+            sel = i == j
+            za = np.interp(np.abs(y[sel]), ys[j], st[j]["z"])
+            zb = np.interp(np.abs(y[sel]), ys[j + 1], st[j + 1]["z"])
+            u = np.clip((x[sel] - sx[j]) / max(sx[j + 1] - sx[j], 1e-6), 0, 1)
+            out[sel] = za + (zb - za) * u - wl
+        return out
+    return bottom, lambda x: np.interp(x, sx, ymax)
+
+
+def hull_samples(hb, nx=160, ny=22, nz=22):
+    """Points filling the hull up to the main deck (x, y, z over the design waterline) and the volume each stands
+    for, scaled so the hull under the waterline holds hydrostatics' volume."""
+    L, B, v = hb["length"], hb["beam"], hb["vertical"]
+    bottom, half = hull_bottom(hb)
+    dx, dy, dz = L / nx, B / ny, v["depth"] / nz
+    gx = -L / 2 + dx * (np.arange(nx) + 0.5)
+    gy = -B / 2 + dy * (np.arange(ny) + 0.5)
+    gz = v["keel"] - v["waterline"] + dz * (np.arange(nz) + 0.5)
+    X, Y, Z = (a.ravel() for a in np.meshgrid(gx, gy, gz, indexing="ij"))
+    keep = (np.abs(Y) <= half(X)) & (Z >= bottom(X, Y))
+    X, Y, Z = X[keep], Y[keep], Z[keep]
+    dv = hb["hydrostatics"]["volume_m3"] / max(1, int((Z < 0).sum()))
+    return X, Y, Z, dv, dz
+
+
+def weight_curve(hb, rep, n=400):
+    """(bin centres, t per bin, t m of height per bin; heights over the design waterline). The report gives each
+    weight as a point, so the spread is assumed: armour at the belt's centre over the belt, a strake over itself,
+    machinery and fuel over the machinery rooms, hull and misc weights along the hull's section areas (tilted to
+    keep their centre), anything else (a turret, a deckhouse) over 2 % of the length either side. Then the whole
+    hull's share is tilted so the curve's centre is hydrostatics' lcg. A stand-in until shipgen exports extents."""
+    L, v = hb["length"], hb["vertical"]
+    xs = -L / 2 + L / n * (np.arange(n) + 0.5)
+    X, _, _, dv, _ = hull_samples(hb, nx=n, ny=12, nz=12)
+    area = np.bincount(np.clip(((X + L / 2) / L * n).astype(int), 0, n - 1), minlength=n).astype(float)
+    area = 0.5 * area / area.sum() + 0.5 / n                       # section areas, blended with even
+    spans = {}
+    belt = hb.get("armour", {}).get("belt")
+    if belt:
+        spans["belt"] = (belt["x0"], belt["x1"])
+    for s in hb.get("armour", {}).get("strakes", []):
+        spans[s["id"]] = (s["x0"], s["x1"])
+    mach = [r for r in hb["rooms"] if r["kind"] in ("boiler_room", "engine_room")]
+    if mach:
+        spans["machinery"] = (min(r["x0"] for r in mach), max(r["x1"] for r in mach))
+    near = lambda x, sp: abs(x - (sp[0] + sp[1]) / 2) < 1.0
+    t = np.zeros(n)
+    tz = np.zeros(n)
+    hull_t = np.zeros(n)
+    for w in rep["weights"]:
+        if w["t"] <= 0:
+            continue
+        z = w["z"] - v["draught"]
+        if w["name"] in spans:
+            sp = spans[w["name"]]
+        elif w["group"] == "armour" and "belt" in spans and near(w["x"], spans["belt"]):
+            sp = spans["belt"]
+        elif w["group"] in ("machinery", "fuel") and "machinery" in spans and near(w["x"], spans["machinery"]):
+            sp = spans["machinery"]
+        elif w["group"] in ("hull", "misc"):
+            # the hull's distribution, tilted (linearly in x) to put its centre at the weight's x
+            d = area * (1 + _tilt(xs, area, w["x"]) * xs)
+            d = np.maximum(d, 0)
+            d /= d.sum()
+            t += w["t"] * d
+            tz += w["t"] * z * d
+            hull_t += w["t"] * d
+            continue
+        else:
+            sp = (w["x"] - 0.02 * L, w["x"] + 0.02 * L)
+        lo, hi = max(sp[0], -L / 2), min(sp[1], L / 2)
+        d = np.clip((np.minimum(xs + L / n / 2, hi) - np.maximum(xs - L / n / 2, lo)) / (L / n), 0, 1)
+        d = d / d.sum() if d.sum() > 0 else (np.abs(xs - w["x"]) == np.abs(xs - w["x"]).min()).astype(float)
+        t += w["t"] * d
+        tz += w["t"] * z * d
+    # the whole hull's share tilted so the curve's centre is the ship's lcg
+    lcg = hb["hydrostatics"]["lcg"]
+    if hull_t.sum() > 0:
+        shift = (lcg * t.sum() - (t * xs).sum())
+        h = hull_t / hull_t.sum()
+        k = shift / max(hull_t.sum() * ((h * xs * xs).sum() - (h * xs).sum() ** 2), 1e-9)
+        adj = hull_t * k * (xs - (h * xs).sum())
+        adj = np.maximum(adj, -0.9 * hull_t)
+        zh = tz / np.maximum(t, 1e-9)
+        t = t + adj
+        tz = tz + adj * zh
+    return xs, t, tz
+
+
+def _tilt(xs, d, x_want):
+    """k so that d (1 + k x) has its centre at x_want (first order)."""
+    d = d / d.sum()
+    m1, m2 = (d * xs).sum(), (d * xs * xs).sum()
+    return (x_want - m1) / max(m2 - x_want * m1, 1e-9)
+
+
+def break_points(hb):
+    """name -> (cut x, the torn zone (x0, x1), why): aft and fore at the aftmost and foremost main-battery
+    magazines (the usual way a big ship is lost outright), mid at the section amidships (the girder failing). With
+    no main magazine, the section at a quarter of the length from that end."""
+    L = hb["length"]
+    main = {c["id"] for c in hb["components"] if c["kind"] == "main"}
+    mags = [r for r in hb["rooms"] if r["kind"] == "magazine"
+            and ({r.get("mount")} | set(r.get("mounts", []))) & main]
+    sec = lambda x: min(hb["sections"], key=lambda s: 0 if s["x0"] <= x <= s["x1"] else
+                        min(abs(x - s["x0"]), abs(x - s["x1"])))
+    out = {}
+    s = sec(0.0)
+    out["mid"] = (0.5 * (s["x0"] + s["x1"]), (s["x0"], s["x1"]), f"section {s['id']}")
+    for name, pick, x_q in (("aft", min, -0.25 * L), ("fore", max, 0.25 * L)):
+        if mags:
+            r = pick(mags, key=lambda r: r["x0"] + r["x1"])
+            out[name] = (0.5 * (r["x0"] + r["x1"]), (r["x0"], r["x1"]), r["id"])
+        else:
+            s = sec(x_q)
+            out[name] = (0.5 * (s["x0"] + s["x1"]), (s["x0"], s["x1"]), f"section {s['id']}")
+    return out
+
+
+def cut_point(hb, x):
+    """break_points' entry for a cut at x metres: the torn zone is the section holding it."""
+    s = min(hb["sections"], key=lambda s: 0 if s["x0"] <= x <= s["x1"] else min(abs(x - s["x0"]), abs(x - s["x1"])))
+    return x, (s["x0"], s["x1"]), f"section {s['id']}"
+
+
+def apply_pose(x, y, z, pose):
+    """A piece's attitude: roll (starboard down for phi > 0), then pitch (bow down for theta > 0), both about the
+    pivot (px, 0, pz), then the pivot moved by (dx, dy) and sunk by s. With the pivot at (lcf, 0, 0) and no move,
+    it's Points.frame's attitude."""
+    s, th, ph, px, pz, dx, dy = pose
+    cp, sp_ = math.cos(ph), math.sin(ph)
+    ct, st = math.cos(th), math.sin(th)
+    zr = z - pz
+    y1 = y * cp + zr * sp_
+    z1 = zr * cp - y * sp_
+    x0 = x - px
+    return x0 * ct + z1 * st + px + dx, y1 + dy, z1 * ct - x0 * st + pz - s
+
+
+def orifice(ha, hb_, zlo, zhi, area):
+    """Signed flow (m³/s) from the side at level ha to the one at hb_ through an opening spanning zlo..zhi: the
+    part under the higher level, at the head down to the lower level (or the wet part's middle)."""
+    hi, lo = np.maximum(ha, hb_), np.minimum(ha, hb_)
+    span = np.maximum(zhi - zlo, 1e-6)
+    wet = np.where(zhi - zlo > 1e-3, np.clip((hi - zlo) / span, 0, 1), (hi > zlo).astype(float))
+    mid = (zlo + np.minimum(hi, zhi)) / 2
+    head = np.clip(hi - np.maximum(lo, mid), 0, None)
+    return np.sign(ha - hb_) * CD * area * wet * np.sqrt(2 * G * head)
+
+
+class Piece:
+    """One part of a broken ship: its hull samples and dry weight on its side of the cut, its share of the cells
+    (a cell the cut runs through is split by length), and a rigid body's state. Heights are over the design
+    waterline, positions in the ship's frame at the moment of the break."""
+
+    def __init__(self, brk, side):
+        hb, xc = brk.hb, brk.x_cut
+        self.side = side                                   # -1 aft of the cut, +1 forward of it
+        on = (brk.hx > xc) if side > 0 else (brk.hx <= xc)
+        self.hx, self.hy, self.hz = brk.hx[on], brk.hy[on], brk.hz[on]
+        self.dv = brk.dv
+        won = (brk.wx > xc) if side > 0 else (brk.wx <= xc)
+        self.M0 = float(brk.wt[won].sum())
+        self.G = np.array([(brk.wt[won] * brk.wx[won]).sum() / self.M0, 0.0,
+                           brk.wtz[won].sum() / self.M0])
+        self.x0, self.x1 = (xc, hb["length"] / 2) if side > 0 else (-hb["length"] / 2, xc)
+        self.length = self.x1 - self.x0
+        # cells, clipped to this side
+        wl = hb["vertical"]["waterline"]
+        ids, rows = [], []
+        for c in hb["cells"]:
+            cap = c["volume_m3"] * c.get("permeability", 1)
+            if cap <= 0.5:
+                continue
+            a, b = max(c["x0"], self.x0), min(c["x1"], self.x1)
+            if b - a < 0.05:
+                continue
+            share = (b - a) / max(c["x1"] - c["x0"], 1e-6)
+            ids.append(c["id"])
+            rows.append((a, b, c["y0"], c["y1"], c["base"] - wl, c["top"] - wl, cap * share, c["top"] > -0.05,
+                         c["neighbours"]))
+        self.ids = ids
+        idx = {c: i for i, c in enumerate(ids)}
+        f = lambda k: np.array([r[k] for r in rows], float)
+        self.cx0, self.cx1, self.cy0, self.cy1, self.base, self.top, self.cap = (f(k) for k in range(7))
+        self.on_deck = np.array([r[7] for r in rows], bool)
+        self.w = np.zeros(len(rows))
+        self.plan = (self.cx1 - self.cx0) * (self.cy1 - self.cy0)
+        # the cells' corners, for their world height range
+        cx = np.stack([self.cx0, self.cx1], 1)[:, [0, 1, 0, 1, 0, 1, 0, 1]]
+        cy = np.stack([self.cy0, self.cy1], 1)[:, [0, 0, 1, 1, 0, 0, 1, 1]]
+        cz = np.stack([self.base, self.top], 1)[:, [0, 0, 0, 0, 1, 1, 1, 1]]
+        self.corners = (cx.ravel(), cy.ravel(), cz.ravel())
+        # openings to the sea: (cell, area, low point, high point). The torn zone's cells are open across their
+        # end at the cut (a little more on the side the blast came from, so the piece lists); a main-deck cell
+        # through its hatches once its deck is under
+        op = []
+        z0, z1_ = brk.zone
+        for i in range(len(rows)):
+            yc = 0.5 * (self.cy0[i] + self.cy1[i])
+            if self.cx1[i] > z0 and self.cx0[i] < z1_:
+                xf = self.cx1[i] if side < 0 else self.cx0[i]
+                bias = 0.8 + 0.2 * float(np.clip(yc / (hb["beam"] / 4), -1, 1)) * brk.blast_side
+                op.append((i, TORN_OPEN * bias * (self.cy1[i] - self.cy0[i]) * (self.top[i] - self.base[i]),
+                           (xf, yc, self.base[i]), (xf, yc, self.top[i])))
+            if self.on_deck[i]:
+                p = (0.5 * (self.cx0[i] + self.cx1[i]), yc, self.top[i])
+                op.append((i, DECK_OPEN * self.plan[i], p, p))
+        self.op_cell = np.array([o[0] for o in op], int)
+        self.op_area = np.array([o[1] for o in op], float)
+        self.op_lo = tuple(np.array([o[2][k] for o in op], float) for k in range(3))
+        self.op_hi = tuple(np.array([o[3][k] for o in op], float) for k in range(3))
+        # links between this piece's cells: (i, j, area, low point, high point)
+        lk = []
+        for i, r in enumerate(rows):
+            for nid, bnd in r[8]:
+                j = idx.get(nid)
+                if j is None or j <= i:
+                    continue
+                ox0, ox1 = max(self.cx0[i], self.cx0[j]), min(self.cx1[i], self.cx1[j])
+                oy0, oy1 = max(self.cy0[i], self.cy0[j]), min(self.cy1[i], self.cy1[j])
+                oz0, oz1 = max(self.base[i], self.base[j]), min(self.top[i], self.top[j])
+                vert = abs(self.top[i] - self.base[j]) < 0.05 or abs(self.top[j] - self.base[i]) < 0.05
+                face = max(0.0, ox1 - ox0) * max(0.0, oy1 - oy0) if vert else \
+                    max(max(0.0, ox1 - ox0), max(0.0, oy1 - oy0)) * max(0.0, oz1 - oz0)
+                tight = "ulkhead" in bnd or bnd == "Inner bottom"
+                if tight:
+                    area = LEAK * brk.leak * face
+                elif bnd == "open":
+                    area = max(1.0, 0.3 * face)
+                else:
+                    area = HATCH * face
+                if area <= 1e-4:
+                    continue
+                pc = (0.5 * (ox0 + ox1), 0.5 * (oy0 + oy1))
+                zl, zh = (min(self.top[i], self.top[j]),) * 2 if vert else (oz0, oz1)
+                lk.append((i, j, area, (pc[0], pc[1], zl), (pc[0], pc[1], zh), tight, BULKHEAD_TORN * face))
+        self.lk_i = np.array([l[0] for l in lk], int)
+        self.lk_j = np.array([l[1] for l in lk], int)
+        self.lk_a = np.array([l[2] for l in lk], float)
+        self.lk_lo = tuple(np.array([l[3][k] for l in lk], float) for k in range(3))
+        self.lk_hi = tuple(np.array([l[4][k] for l in lk], float) for k in range(3))
+        tight = np.array([l[5] for l in lk], bool)
+        self.lk_torn = np.array([l[6] for l in lk], float)
+        self.lk_fail = np.where(tight, brk.rng.uniform(*BULKHEAD_HEAD, len(lk)), np.inf)
+        self.failed = 0
+        # the body: G in the world, its velocity, pitch and roll and their rates
+        self.Gw = self.G.copy()
+        self.V = np.array([side * SPLIT_V, 0.0, 0.0])
+        self.th = self.ph = self.wth = self.wph = 0.0
+        # damping from the intact piece's own heave stiffness and roll period
+        self.dz = brk.dz
+        self.awp = float((np.abs(self.hz) < 0.5 * brk.dz).sum()) * self.dv / brk.dz
+        B = hb["beam"]
+        self.k_th, self.k_ph = 0.29 * self.length, 0.38 * B
+        self.om_z = math.sqrt(RHO * G * max(self.awp, 1.0) / (self.M0 * (1 + ADDED[0])))
+        self.om_ph = math.sqrt(G * max(hb["hydrostatics"]["gm_t"], 0.3)) / self.k_ph
+        self.q_th = RHO * CD_BODY * B * self.length ** 4 / 64
+        self.q_ph = RHO * CD_BODY * self.length * B ** 4 / 64
+        self.t_gone = None
+        self.zmax = float(self.hz.max())
+
+    def pose(self):
+        G = self.G
+        return (float(G[2] - self.Gw[2]), self.th, self.ph, float(G[0]), float(G[2]),
+                float(self.Gw[0] - G[0]), float(self.Gw[1]))
+
+    def levels(self, pose):
+        """World height of each cell's water surface: its fill over its world height range (a cell's water is
+        taken to lie level across it, which is rough past a few tens of degrees, but it's the mass that matters)."""
+        _, _, Z = apply_pose(*self.corners, pose)
+        Z = Z.reshape(-1, 8)
+        lo, hi = Z.min(1), Z.max(1)
+        f = np.clip(self.w / self.cap, 0, 1)
+        return lo + f * (hi - lo), lo, hi
+
+    def step(self, dt):
+        pose = self.pose()
+        zw, lo, hi = self.levels(pose)
+        harea = self.cap / np.maximum(hi - lo, 0.3)        # a cell's plan area at this attitude, roughly
+        dw = np.zeros_like(self.w)
+        if len(self.op_cell):
+            _, _, ol = apply_pose(*self.op_lo, pose)
+            _, _, oh = apply_pose(*self.op_hi, pose)
+            ol, oh = np.minimum(ol, oh), np.maximum(ol, oh)
+        if len(self.lk_i):
+            _, _, ll = apply_pose(*self.lk_lo, pose)
+            _, _, lh = apply_pose(*self.lk_hi, pose)
+            ll, lh = np.minimum(ll, lh), np.maximum(ll, lh)
+        # pressure levels: a filling cell rises toward the level of what feeds it, the sea through an opening under
+        # it or a neighbour through a link under that one's level (sinking.Flood's sea on up through a full cell).
+        # Blended in from 85 % full, as a cell's level from its fill is rough at an angle
+        fill = np.clip(self.w / self.cap, 0, 1)
+        k = np.clip((fill - 0.85) / 0.15, 0, 1)
+        k = k * k * (3 - 2 * k)
+        feed = np.full_like(zw, -np.inf)
+        if len(self.op_cell):
+            np.maximum.at(feed, self.op_cell[ol < 0], 0.0)
+        P = np.maximum(zw, zw + (np.maximum(feed, zw) - zw) * k)
+        if len(self.lk_i):
+            i, j = self.lk_i, self.lk_j
+            for _ in range(12):
+                f2 = feed.copy()
+                np.maximum.at(f2, j, np.where(ll < P[i], P[i], -np.inf))
+                np.maximum.at(f2, i, np.where(ll < P[j], P[j], -np.inf))
+                P2 = np.maximum(zw, zw + (np.maximum(f2, zw) - zw) * k)
+                if np.allclose(P2, P, atol=1e-3):
+                    break
+                P = P2
+        # the sea, through the openings (and back out, where a cell's water stands above the sea)
+        if len(self.op_cell):
+            c = self.op_cell
+            q = orifice(0.0, P[c], ol, oh, self.op_area) * dt
+            q = np.minimum(q, np.abs(zw[c]) * harea[c] + (self.cap[c] - self.w[c]))   # no further than the levels meeting
+            q = np.maximum(q, -self.w[c])
+            np.add.at(dw, c, q)
+        # between cells
+        if len(self.lk_i):
+            zl, zh = ll, lh
+            # bulkheads giving way: the head across one, at its foot
+            head = np.abs(P[i] - P[j]) * (np.maximum(P[i], P[j]) > zl)
+            gone = head > self.lk_fail
+            if gone.any():
+                self.lk_a[gone] = np.maximum(self.lk_a[gone], self.lk_torn[gone])
+                self.lk_fail[gone] = np.inf
+                self.failed += int(gone.sum())
+            q = orifice(P[i], P[j], zl, zh, self.lk_a) * dt
+            lim = 0.5 * np.abs(P[i] - P[j]) * np.minimum(harea[i], harea[j])
+            q = np.clip(q, -lim, lim)
+            q = np.clip(q, -0.5 * self.w[j], 0.5 * self.w[i])
+            np.add.at(dw, i, -q)
+            np.add.at(dw, j, q)
+        self.w = np.clip(self.w + dw, 0, self.cap)
+        # forces: buoyancy over the submerged samples, the dry weight at G, each cell's water at its centre
+        X, Y, Z = apply_pose(self.hx, self.hy, self.hz, pose)
+        self.zmax = float(Z.max())
+        sub = Z < 0
+        # the linear (wave-making) damping goes with the waterplane the piece still has
+        wp = min(1.5, float((np.abs(Z) < 0.5 * self.dz).sum()) * self.dv / self.dz / max(self.awp, 1.0))
+        Bf = RHO * G * self.dv * float(sub.sum())
+        wt = RHO * self.w
+        f = np.clip(self.w / self.cap, 0, 1)
+        WX, WY, _ = apply_pose(0.5 * (self.cx0 + self.cx1), 0.5 * (self.cy0 + self.cy1),
+                               self.base + 0.5 * f * (self.top - self.base), pose)
+        M = self.M0 + float(wt.sum())
+        gx, gy = self.Gw[0], self.Gw[1]
+        # generalised moments of the vertical forces: dZ/dtheta = -(X - Gx), dZ/dphi = -(Y - Gy) cos(theta)
+        if Bf > 0:
+            bx, by = float(X[sub].mean()), float(Y[sub].mean())
+        else:
+            bx, by = gx, gy
+        ww = wt * G
+        q_th = -Bf * (bx - gx) + float((ww * (WX - gx)).sum())
+        q_ph = math.cos(self.th) * (-Bf * (by - gy) + float((ww * (WY - gy)).sum()))
+        Fz = Bf - M * G
+        mz = M * (1 + ADDED[0])
+        i_th = M * (1 + ADDED[1]) * self.k_th ** 2
+        i_ph = M * (1 + ADDED[2]) * self.k_ph ** 2
+        L_, B_ = self.length, self.k_ph / 0.38
+        ct, cp = abs(math.cos(self.th)), abs(math.cos(self.ph))
+        a_z = L_ * B_ * ct * cp + B_ * 8.0 * abs(math.sin(self.th)) + L_ * 8.0 * abs(math.sin(self.ph))
+        vz = self.V[2]
+        Fz -= 2 * ZETA * wp * self.om_z * mz * vz + 0.5 * RHO * CD_BODY * a_z * abs(vz) * vz
+        q_th -= 2 * ZETA * wp * self.om_z * i_th * self.wth + self.q_th * abs(self.wth) * self.wth
+        q_ph -= 2 * ZETA * wp * self.om_ph * i_ph * self.wph + self.q_ph * abs(self.wph) * self.wph
+        self.V[2] += Fz / mz * dt
+        self.V[:2] *= math.exp(-dt / 20.0)
+        self.wth += q_th / i_th * dt
+        self.wph += q_ph / i_ph * dt
+        self.Gw += self.V * dt
+        self.th += self.wth * dt
+        self.ph += self.wph * dt
+        self.Bf, self.M = Bf, M
+
+    def activity(self):
+        """How fast its far ends move, m/s: the clip's time warp follows it."""
+        return abs(self.V[2]) + abs(self.wth) * self.length / 2 + abs(self.wph) * self.k_ph / 0.38 / 2
+
+
+class Break:
+    """A ship broken in two at x_cut: the parts aft and forward of it, each sinking on its own. zone is the torn
+    stretch (the magazine room or the section at the cut): its cells open to the sea across their ends."""
+
+    def __init__(self, hb, rep, x_cut, zone, leak=BREAK_LEAK, blast_side=1, seed=0):
+        self.hb, self.x_cut, self.zone, self.leak, self.blast_side = hb, x_cut, zone, leak, blast_side
+        self.rng = np.random.default_rng(seed)
+        self.hx, self.hy, self.hz, self.dv, self.dz = hull_samples(hb)
+        self.wx, self.wt, self.wtz = weight_curve(hb, rep)
+        self.pieces = [Piece(self, -1), Piece(self, 1)]
+        self.t = 0.0
+        self.still = 0.0
+        self.w_hist = []          # (t, water in each piece), a sample a second, for the settled test
+
+    def step(self, dt=BREAK_DT):
+        for p in self.pieces:
+            p.step(dt)
+            if p.t_gone is None and p.zmax < 0:
+                p.t_gone = self.t + dt
+        self.t += dt
+        # settled: the pieces afloat lie still and, over the last 30 s, took in under 0.5 t/s (a step's own
+        # flows chatter in and out of a cell, so it's judged over a window)
+        if not self.w_hist or self.t - self.w_hist[-1][0] >= 1.0:
+            self.w_hist.append((self.t, [RHO * float(p.w.sum()) for p in self.pieces]))
+            t0, w0 = next(h for h in self.w_hist if h[0] >= self.t - 30.0 - 1e-6)
+            afloat = [k for k, p in enumerate(self.pieces) if p.zmax > -60.0]
+            quiet = self.t - t0 >= 29.0 and all(
+                self.pieces[k].activity() < 0.1 and
+                RHO * float(self.pieces[k].w.sum()) - w0[k] < 0.5 * (self.t - t0) for k in afloat)
+            self.still = self.still + (self.t - (self.w_hist[-2][0] if len(self.w_hist) > 1 else 0.0)) \
+                if quiet else 0.0
+
+    def done(self, depth=60.0):
+        """Every piece deep, or the ones afloat settled (a broken-off end can float on its trapped air), or out of
+        time."""
+        return (all(p.zmax < -depth for p in self.pieces) or self.still > SETTLED_S
+                or self.t > BREAK_HOURS * 3600)
 
 
 # --- drawing --------------------------------------------------------------------------------------------------

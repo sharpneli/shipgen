@@ -84,7 +84,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Systems session: radar and masts, plotting room as a room, power and hydraulic networks, director armour material
 - [ ] Reload torpedoes, depth charges and boats as hitboxes
 - [ ] Destroyer has 19 sections (research: 12–16)
-- [ ] Buoyancy realism undecided; sinking demo lacks counter-flooding, displaced cargo/fuel, real plunge/capsize
+- [ ] Buoyancy realism undecided; sinking demo lacks counter-flooding, displaced cargo/fuel, real plunge/capsize (`sinking.Break`'s pieces have large-angle buoyancy; the flooding clips don't)
 
 ## Looks
 - [ ] Victorian pass: `generic` and `portsmouth` still close
@@ -102,7 +102,9 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Missiles, helicopters and electronics for Cold War ships
 
 ## vidgen
-- [ ] Magazine explosions: stern breaking off and sinking from `sinking.py` (next, user)
+- [ ] Breaking in two: put magazine.py's real explosion in sinkvid's break clips (sinkvid has a stand-in flash and smoke)
+- [ ] Breaking in two: shipgen should export weight extents (`sinking.weight_curve` spreads point weights by guessed spans)
+- [ ] Breaking in two: shallow water (pieces grounding with ends out, Invincible-style)
 - [ ] Mechanics resolver for magazine explosions (M, P(t), opening fail times; `magazine.F_FAST` is a stand-in)
 - [ ] Explosion extras not done: fire reflection, heat haze, smoke self-shadow sweep, underwater/capsized blasts, debris hitting other ships
 
