@@ -240,7 +240,7 @@ The design gives no size. The designer works out the hull from what it carries (
 - `echelon`, `cross_deck` and `amidships_stands_on` belong to each battery, so one ship can mix abreast and echelon pairs, or raised and deck-level wing turrets.
 - Every wing turret's outer edge stands on one line along each side, so smaller wing turrets stand further inboard.
 - Fire control: `fire_control.main` serves every main battery.
-- Examples: `connecticut.json` (twin 305 mm fore and aft; four twin 203 mm wing turrets on the deckhouse), `bouvet.json` (French lozenge: single 305 mm fore and aft, single 274 mm wing turrets, 138.6 mm turrets and 100 mm guns on the battery deck).
+- Examples: `connecticut.json` (twin 305 mm fore and aft; four twin 203 mm wing turrets on the deckhouse), `bouvet.json` (French lozenge: single 305 mm fore and aft, single 274 mm wing turrets, 138.6 mm turrets and 100 mm guns on the battery deck), `lord_nelson.json` (twin 305 mm ends; twin, single and twin 234 mm wing turrets down each side: the single battery is listed first, so its pair stands inboard of the forward twins), `danton.json` (three abreast pairs of twin 240 mm), `brennus.json` (one calibre in two batteries: a twin 340 mm turret forward, a single aft), `kgv.json` (as built: quadruple A and Y, a twin B listed second).
 
 Each battery's options:
 - `"mid": n` (warship style only) puts n centreline turrets amidships, between the funnels. Lion has a Q turret; Gangut has two amidships.

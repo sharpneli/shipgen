@@ -52,7 +52,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Morale inputs in the report: per-rank sleep space and the officer/rating gap (`sleep_m2_per_man` is an all-hands average)
 
 ## Armament
-- [ ] More multi-battery designs (KGV 2 × 4 + 1 × 2, Lord Nelson, Danton, Brennus)
+- [ ] Abreast wing pairs keep full barrel swings apart: Lord Nelson and Danton run 30 % long
 - [ ] Torpedo placement full check (Japanese-cruiser-size batteries, funnel spacing, swing room) (deferred by user)
 
 ## Superstructure
