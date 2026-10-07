@@ -101,5 +101,10 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Baked light rim on blocks and funnels
 - [ ] Missiles, helicopters and electronics for Cold War ships
 
+## vidgen
+- [ ] Magazine explosions: stern breaking off and sinking from `sinking.py` (next, user)
+- [ ] Mechanics resolver for magazine explosions (M, P(t), opening fail times; `magazine.F_FAST` is a stand-in)
+- [ ] Explosion extras not done: fire reflection, heat haze, smoke self-shadow sweep, underwater/capsized blasts, debris hitting other ships
+
 ## Shelved by the user
 - Turtleback (sloped) armour decks

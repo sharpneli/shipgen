@@ -15,6 +15,13 @@ normalisation and averaged over the frame, then a smoke puff whose optical depth
 shadow, a blast ring on the water that fades as the muzzle stands higher than the blast's length, and the shell on
 its ballistic arc (on a slowed clock) with its shadow on the sea.
 
+With --explode a magazine goes up (magazine.py, magazine_explosion.md): a hit on the mount over it, the jet phase
+(flame jets from the gun ports, hood, hatches, scuttles and the machinery rooms' vents beside it, then the
+barbette), the fireball, debris, the thrown gunhouse, the blast on the water, stem fires and boiler steam, all sized
+from the magazine's contents in hitboxes.json. The smoke goes into the same optical-depth field as the funnel and
+gun smoke, lifted up the screen by its height (the research's oblique projection); the fire glows through it. The
+ship stops firing and loses way. The stern breaking off and the sinking are for later.
+
 Shadows follow README "Shadows": the height map is marched toward the sun (shadow.shadow_mask, the reference
 implementation), and turret shadows are the turret sprites in black, offset by (top_m - deck_m) / tan(elevation)
 and kept where the height map is below top_m.
@@ -24,6 +31,8 @@ Everything is drawing; nothing here feeds back into the design. Particle and wav
     ~/.venv/bin/python vidgen/vidgen.py bismarck                  # -> vidgen/out/bismarck.mp4
     ~/.venv/bin/python vidgen/vidgen.py all --size 1920x1080
     ~/.venv/bin/python vidgen/vidgen.py kongo --target 300 --still 9.5   # one PNG frame instead of a video
+    ~/.venv/bin/python vidgen/vidgen.py bismarck --explode Y             # -> vidgen/out/bismarck_explode_Y.mp4
+    ~/.venv/bin/python vidgen/vidgen.py bismarck --explode B --tier column
 
 Needs numpy, pillow and imageio-ffmpeg (pip install imageio-ffmpeg; it bundles an ffmpeg binary).
 """
@@ -45,6 +54,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from shadow import HEIGHT_STEP_M, shadow_mask, sun_offset_px  # noqa: E402
 
+import magazine  # noqa: E402  (vidgen/magazine.py)
 import muzzle  # noqa: E402  (vidgen/muzzle.py)
 import wake  # noqa: E402  (vidgen/wake.py)
 
@@ -108,6 +118,34 @@ SHELL = np.array([0.25, 0.24, 0.22], np.float32)   # dark painted steel
 # by their own flash. Like TRAIN_RATE, readability over fidelity
 SHELL_TIME = 0.132
 SHELL_SMEAR = 0.5         # the speed smear behind a shell, in frames of its (slowed) motion
+
+# magazine explosions (magazine.py, from magazine_explosion.md)
+EXPLODE_AFTER = 4.0       # default: the hit lands this long after the first salvo
+EXPLODE_TAIL = 40.0       # the clip runs this long past the main event (the cap mushrooms by ~15 s, research 6)
+EXPLODE_FIT = 0.34        # the ship's share of the frame width in an explosion clip, so the column and cap fit
+EXPLODE_CY = 0.68         # and its height on screen: the column rises up the screen above it
+STOP_TAU = 12.0           # s: the ship loses way after the main event (until the sinking clip takes over)
+# vertical effects are drawn in the research's oblique "3/4" projection (3.1): height above the source lifts a
+# puff up the screen by K_OBL z', with the soft compression z' = H_C (1 - e^(-z/H_C)), while ships and water stay
+# top-down and shadows use the true height. DEPARTURE: z is measured from the source's height (the deck), not the
+# sea, so smoke still leaves from where it's made; funnel and gun smoke barely rise and stay unlifted
+K_OBL = 0.6
+H_C = 450.0
+H_CAM = 800.0             # pseudo-perspective scale 1 + z / H_CAM for flying solids (sinking_foam.md's)
+SMOKE_SOOT = (0.14, 0.12, 0.10)   # explosion smoke: soot from what the fire picks up (oil, paint, cork), research 1.2
+STEAM = SMOKE_NEUTRAL * 0.97 * SMOKE_GAIN
+FIRELIT = np.array([0.30, 0.12, 0.03], np.float32)   # smoke lit orange from inside and below (research 3.3)
+I_REF = 3.0e4             # fire light normalisation (the reference's)
+EXPLODE_VIS = 0.4         # explosion smoke's drawn optical depth against the reference's KAPPA (a look, as for guns)
+CLUMPS = 4                # clumps an explosion puff is drawn as (like the gun smoke's SUB_PUFFS)
+CLUMP_SIGMA = 0.5         # each clump's spread against the puff's
+CLUMP_SPREAD = 0.75       # the clumps' scatter about the puff's centre, in its spread
+EX_RELIEF = 6.0           # the explosion smoke's coarse relief lighting gain
+FIRE_SKIN = 0.8           # how hard the cooled smoke over a pixel dims its fire (power of the hot share)
+FIRE_STIR = 0.14          # +- share of the fire's temperature the noise stirs (luminance is steep in it)
+FIRE_NOISE_M = 22.0       # m: the stirring noise's feature size
+SPARK = muzzle.bb_rgb(1800) / float(muzzle.bb_rgb(1800) @ muzzle.LUM)
+DEBRIS = np.array([0.06, 0.055, 0.05], np.float32)
 
 BUCKETS = [1, 2, 4, 8, 16, 32, 64]   # blur radii (half-res px) the particle splats are sorted into
 PAD = 3 * BUCKETS[-1]            # density buffers extend this far past the frame so off-screen blobs bleed in
@@ -416,8 +454,42 @@ class Mount:
     pass
 
 
+class Pose:
+    """The ship's pose for magazine.Blast: ship-local <-> world, its velocity, and whether a world point is over
+    the hull (the hull layer's alpha: the camera follows the ship and the heading is fixed, so it stands still)."""
+
+    def __init__(self, sc):
+        self.sc = sc
+
+    @property
+    def vel(self):
+        return self.sc.vel
+
+    def world(self, xy):
+        return self.sc.world_of(xy)
+
+    def dirw(self, v):
+        return self.sc.dir_of(v)
+
+    def local(self, w):
+        a = math.radians(self.sc.heading)
+        R = np.array([[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]])
+        return (np.asarray(w, float) - self.sc.pos) @ R
+
+    def on_hull(self, w):
+        w = np.atleast_2d(w)
+        x, y = self.sc.scr(w[:, 0], w[:, 1])
+        xi, yi = np.round(x).astype(int), np.round(y).astype(int)
+        H, W = self.sc.hull_alpha.shape
+        ok = (xi >= 0) & (yi >= 0) & (xi < W) & (yi < H)
+        out = np.zeros(len(w), bool)
+        out[ok] = self.sc.hull_alpha[yi[ok], xi[ok]] > 0.5
+        return out
+
+
 class Scene:
-    def __init__(self, src: Path, W, H, fps, heading, target, seed, seconds=None, propellant=None):
+    def __init__(self, src: Path, W, H, fps, heading, target, seed, seconds=None, propellant=None, explode=None,
+                 tier="blast", explode_at=None):
         self.src, self.W, self.H, self.fps = src, W, H, fps
         self.rng = np.random.default_rng(seed)
         self.sprite = json.loads((src / "sprite.json").read_text())
@@ -439,14 +511,19 @@ class Scene:
         S0 = self.sprite["scale_px_per_m"]
         Lm, Bm = res["length_m"], res["beam_m"]
         ch, sh = abs(math.cos(math.radians(heading))), abs(math.sin(math.radians(heading)))
-        self.s = s = min(S0, 0.80 * W / (Lm * ch + Bm * sh), 0.62 * H / (Lm * sh + Bm * ch))
-        # the ship sits a little ahead of centre so the wake has room
-        self.C = np.array([W / 2, H / 2]) + unit(heading) * (0.07 * W)
+        fit = (EXPLODE_FIT, EXPLODE_FIT) if explode else (0.80, 0.62)
+        self.s = s = min(S0, fit[0] * W / (Lm * ch + Bm * sh), fit[1] * H / (Lm * sh + Bm * ch))
+        # the ship sits a little ahead of centre so the wake has room (and low in an explosion clip)
+        self.C = np.array([W / 2, H * EXPLODE_CY if explode else H / 2]) + unit(heading) * (0.07 * W)
 
         self._static_layers(S0)
         self._mounts(S0, self.target_bearing)
         self._funnels()
         self.duration = seconds or (self.t_fire + FIRE_S if self.has_guns else 10.0)
+        self.v0 = self.speed
+        self.blasts, self.t_stop, self.t_hit = [], None, None
+        if explode:
+            self._explode(explode, tier, explode_at, seed, seconds)
 
         self.water = Water(self.rng, W, H, s, self.C)
         self.dens = Density(W, H)
@@ -457,6 +534,11 @@ class Scene:
         self.shots = []                           # muzzle.Shot: flash, smoke puff and shell, all analytic in time
         self.fish = []                            # torpedoes [x, y, vx, vy, t0]
         self.edge_noise = self._noise_tile(128, 0.05)
+        # explosion puffs' clumps (_blast_blobs): offsets in the puff's spread, shares, and a slow turn, by seed
+        crng = np.random.default_rng(997)
+        self.clump_off = (crng.normal(0, CLUMP_SPREAD, (997, CLUMPS, 2))).astype(np.float32)
+        self.clump_w = crng.dirichlet(np.full(CLUMPS, 2.0), 997).astype(np.float32)
+        self.clump_spin = crng.uniform(-0.3, 0.3, 997).astype(np.float32)
         self.pos = np.zeros(2)
         self.t = -WARM_S
         self.hud = self._hud()
@@ -550,6 +632,10 @@ class Scene:
                 mt.muzzles.append(np.array([xm, p[np.abs(p[:, 0] - xm) < 1e-3, 1].mean()]))
             if not mt.muzzles:
                 mt.muzzles = [np.zeros(2)]
+            # gun ports, where each barrel leaves the gunhouse's face (magazine.py's jet openings)
+            body = np.array(loc["body"]) if loc.get("body") else None
+            front = float(body[:, 0].max()) if body is not None else 0.0
+            mt.ports = [(front, float(m[1])) for m in mt.muzzles]
             aim = target % 360.0
             ok = any(in_arc(aim, a) for a in m["arcs_deg"])
             mt.aim = unwrap(aim, mt.trav) if ok else None
@@ -591,6 +677,44 @@ class Scene:
                     t += period * rng.uniform(0.85, 1.15)
         self.events = sorted(ev, key=lambda e: e[0])
         self.next_ev = 0
+
+    def _explode(self, mags, tier, t_hit, seed, seconds):
+        """Set up the magazine explosion (magazine.py): a hit on the mount over the magazine EXPLODE_AFTER s after the
+        first salvo (or at t_hit), the jet phase, then the main event. Its own rng, so the rest of the clip matches
+        the plain one. After a blast the ship is out of action: no more firing, and it loses way (STOP_TAU)."""
+        rng = np.random.default_rng(seed + 7919)
+        if t_hit is None:
+            t_hit = (self.t_fire if self.has_guns else REST_S) + EXPLODE_AFTER
+        mounts = {mt.id: dict(pos=mt.pos_m, top_m=mt.top_m, bearing=self.bearing(mt, t_hit),
+                              el=mt.el if mt.aim is not None else 0.0, ports=mt.ports) for mt in self.mounts}
+        specs = magazine.plan(self.hit, mounts, mags, tier, t_hit, self.freeboard, rng)
+        self.blasts = [magazine.Blast(sp, rng, WIND) for sp in specs]
+        self.rng_fx = rng
+        self.t_hit = t_hit
+        first = specs[0]
+        if tier == "blast":
+            self.t_stop = first["t_main"]
+            self.events = [e for e in self.events if e[0] < first["t_main"]]
+            self.duration = seconds or (specs[-1]["t_main"] + EXPLODE_TAIL)
+        else:   # the column: the mount over the magazine is burning out; the rest fight on
+            self.t_stop = None
+            lost = {sp["mount"] for sp in specs}
+            self.events = [e for e in self.events if e[0] < t_hit or e[1].id not in lost]
+            self.duration = seconds or (first["t_lift"] + magazine.COLUMN_S + 10.0)
+        self.mount_by_id = {mt.id: mt for mt in self.mounts}
+        self.pose = Pose(self)
+        # the hull scorched around each magazine (research 3.4), and the barbette open where a gunhouse was thrown
+        u, v = np.meshgrid(np.arange(self.W, dtype=np.float32), np.arange(self.H, dtype=np.float32))
+        self.scorch = []
+        for sp in specs:
+            c = self.to_screen(sp["centre"])
+            R = max(12.0, 0.15 * sp["D"] if tier == "blast" else 1.5 * sp["barbette"]["r"] if sp["barbette"] else 10)
+            m = np.exp(-((u - c[0]) ** 2 + (v - c[1]) ** 2) / (2 * (R * self.s) ** 2)) * self.hull_alpha
+            hole = None
+            if sp["barbette"] and tier == "blast":
+                b = self.to_screen(sp["barbette"]["xy"])
+                hole = np.clip(sp["barbette"]["r"] * self.s - np.hypot(u - b[0], v - b[1]) + 0.5, 0, 1)
+            self.scorch.append((sp, m.astype(np.float32), hole))
 
     def _funnels(self):
         plant = self.report.get("plant", {})
@@ -721,6 +845,10 @@ class Scene:
         B = self.report["results"]["beam_m"]
         # thrown from where the bow crest leaves the hull, along the waterline's first stretch: spawned on the
         # centreline with big soft blobs, it read as a fuzzy block ahead of the stem, apart from the crest
+        if self.speed < self.v0:
+            n = int(rng.binomial(n, self.wake_k() ** 2))
+            if not n:
+                return
         xw = self.wl[:, 0].max() - rng.uniform(0, 0.12, n) ** 1.5 * self.wake_info["L"]
         side = np.where(rng.random(n) < 0.5, 1.0, -1.0)
         p = np.stack([xw, side * (wake.half_breadth(self.wl, xw) + rng.uniform(0, 0.04, n) * B)], 1)
@@ -771,9 +899,32 @@ class Scene:
             self.foam.add(x=muz[0] + d[0] * 0.4 * lb, y=muz[1] + d[1] * 0.4 * lb, vx=rv[:, 0], vy=rv[:, 1],
                           life=rng.uniform(0.8, 1.6, k), r0=1.0, r1=lb / 4 + 1, a0=0.55)
 
+    def wake_k(self):
+        """How much of the baked wake is left as the ship loses way after a magazine explosion: the bake is steady,
+        so it's faded with the speed (DEPARTURE from any wake model; until the sinking clip takes over)."""
+        return self.speed / self.v0 if self.v0 > 0 else 1.0
+
+    def splash(self, xy, size):
+        """A piece of debris (or a gunhouse) falling into the sea: a white burst and a foam ring that lingers."""
+        rng = self.rng_fx
+        k = int(6 + 3 * size)
+        a = rng.uniform(0, 2 * math.pi, k)
+        v = np.stack([np.cos(a), np.sin(a)], 1) * rng.uniform(0.5, 1.5, (k, 1)) * size
+        self.foam.add(x=xy[0] + v[:, 0] * 0.3, y=xy[1] + v[:, 1] * 0.3, vx=v[:, 0], vy=v[:, 1],
+                      life=rng.uniform(3, 6, k), r0=0.5 * size, r1=1.6 * size, a0=0.5)
+        self.spray.add(x=xy[0] + rng.normal(0, 0.3 * size, 4), y=xy[1] + rng.normal(0, 0.3 * size, 4),
+                       life=rng.uniform(0.3, 0.7, 4), r0=0.3 * size, r1=0.8 * size, a0=0.25)
+
     def step(self, dt):
+        if self.blasts and self.t_stop is not None and self.t > self.t_stop:
+            self.speed = self.v0 * math.exp(-(self.t - self.t_stop) / STOP_TAU)
+            self.vel = unit(self.heading) * self.speed
         self.pos = self.pos + self.vel * dt
         self.t += dt
+        for b in self.blasts:
+            b.step(self.t, dt, self.pose)
+            for xy, size in b.new_splashes:
+                self.splash(xy, size)
         self.spawn_spray(dt)
         self.spawn_smoke(dt)
         while self.next_ev < len(self.events) and self.events[self.next_ev][0] <= self.t:
@@ -826,15 +977,24 @@ class Scene:
 
     def render(self):
         W, H, s = self.W, self.H, self.s
-        frame = self.water.shade(self.pos, self.t, (self.wake_hx, self.wake_hy, self.wake_calm))
+        wk = self.wake_k()
+        if wk < 1:      # the ship losing way after a magazine explosion: the steady wake fades with its speed
+            frame = self.water.shade(self.pos, self.t, (self.wake_hx * wk, self.wake_hy * wk, self.wake_calm * wk))
+            wash, fresh, resid = self.wake_wash * wk, self.wake_fresh * wk, self.wake_resid * wk
+        else:
+            frame = self.water.shade(self.pos, self.t, (self.wake_hx, self.wake_hy, self.wake_calm))
+            wash, fresh, resid = self.wake_wash, self.wake_fresh, self.wake_resid
+        self._blobs = self._blast_blobs() if self.blasts else None
 
         # baked wake: the wash tints the water to a pale churned slick, then the three foam densities are broken up
         # by water-anchored noise (wake.md 6, shader note), the residual foam at half opacity
-        frame += (CHURN - frame) * np.clip(self.wake_wash * 0.9, 0, 0.7)[..., None]
+        frame += (CHURN - frame) * np.clip(wash * 0.9, 0, 0.7)[..., None]
         tw = self.foam_tex(self.tiles_wash, self.t, ridged=True)
         tc = self.foam_tex(self.tiles_crest, self.t, ridged=True)
-        f = np.maximum(np.maximum(lace(self.wake_wash, tw, "wash"), lace(self.wake_fresh, tc, "fresh")),
-                       LACE_RESID * lace(self.wake_resid, tw, "resid"))
+        f = np.maximum(np.maximum(lace(wash, tw, "wash"), lace(fresh, tc, "fresh")),
+                       LACE_RESID * lace(resid, tw, "resid"))
+        if self.blasts:
+            self._shock(frame, f, tc)
         frame += (FOAM - frame) * f[..., None]
         foam = upscale(self.field(self.foam) + self.field(self.spray), W, H) * self.water.foam_noise
         frame += (FOAM - frame) * np.clip(1 - np.exp(-1.6 * foam), 0, 0.95)[..., None]
@@ -842,9 +1002,14 @@ class Scene:
         # hull, then static and turret shadows on everything below the turrets
         a = self.hull_alpha[..., None]
         frame = frame * (1 - a) + self.hull[..., :3].astype(np.float32) / 255 * a
+        if self.blasts:
+            self._scorch(frame)
         shade = self.hull_shadow.copy()
         rots = []
+        gone = {b.s["mount"] for b in self.blasts if b.thrown}
         for mt in self.mounts:
+            if mt.id in gone:
+                continue
             ang = self.heading + self.bearing(mt, self.t)
             im = mt.img.rotate(-ang, resample=Image.BICUBIC, expand=True)
             arr = np.asarray(im)
@@ -860,39 +1025,327 @@ class Scene:
                 h = mt.base_h + (mt.top_m - mt.base_h) * j / n
                 off = sun_offset_px(s, SUN_AZ, SUN_EL, max(0.0, h - mt.recv_h))
                 stamp_max(shade, alpha, x0 + int(round(off[0])), y0 + int(round(off[1])), self.Hs, h)
+        flying = self._flyers(shade, rots) if self.blasts else []
         self.last_shade = shade          # kept for debugging shadow issues
         frame *= (1 - SHADE * shade)[..., None]
         for arr, x0, y0 in rots:
             blend(frame, arr, x0, y0)
+        if self.blasts:
+            self._fire_light(frame)
 
-        # smoke, funnel and gun alike: one optical-depth field with a colour per puff, shadows cast from each puff's
-        # height, then lit from the sun side as a surface whose height goes with the (blurred) log thickness
+        # smoke, funnel, gun and explosion alike: one optical-depth field with a colour per puff, shadows cast from
+        # each puff's height, then lit from the sun side as a surface whose height goes with the (blurred) log
+        # thickness
         tau, col, shd = self._smoke_fields()
+        self._tau = tau
         if shd.any():
-            frame *= (1 - np.clip(0.4 * upscale(1 - np.exp(-shd), W, H), 0, 0.6))[..., None]
+            dk = 0.4 * (1 - np.exp(-shd))
+            if self.blasts:   # explosion smoke is thick enough to take the sea toward 30 % (research 3.2)
+                dk = dk + 0.3 * (1 - np.exp(-shd / 6)) ** 2
+            frame *= (1 - np.clip(upscale(dk, W, H), 0, 0.7))[..., None]
         self._shells(frame, shadow=True)
         if tau.any():
             sd = unit(SUN_AZ)
             gy, gx = np.gradient(box_blur(np.log1p(tau), 2))
-            light = np.clip(1.0 - 2.0 * (gx * sd[0] + gy * sd[1]), 0.6, 1.25)
+            if self._tau_ex is None:
+                light = np.clip(1.0 - 2.0 * (gx * sd[0] + gy * sd[1]), 0.6, 1.25)
+            else:
+                # explosion smoke is far thicker than funnel smoke, so its clumps are lit as a coarser relief too
+                # (the 6-way flipbooks' stand-in, research 3.4); thin smoke and the funnels' look are unchanged
+                ey, ex = np.gradient(box_blur(np.log1p(self._tau_ex), 4))
+                share = np.clip(self._tau_ex / np.maximum(tau, 1e-6), 0, 1)
+                light = np.clip(1.0 - 2.0 * (gx * sd[0] + gy * sd[1]) - EX_RELIEF * (ex * sd[0] + ey * sd[1]),
+                                0.6 - 0.25 * share, 1.25 + 0.2 * share)
             c = col / np.maximum(tau, 1e-6)[..., None] * light[..., None]
             c = np.stack([upscale(c[..., i], W, H) for i in range(3)], -1)
             al = np.clip(upscale(1 - np.exp(-tau), W, H), 0, SMOKE_MAX)[..., None]
             frame = frame * (1 - al) + c * al
 
+        # explosion: flying debris and gunhouses over the smoke (dimmed by the smoke at their spot), then the fire
+        # glowing through it
+        if self.blasts:
+            self._solids(frame, tau, flying)
+            self._fire(frame)
         # the flashes over the smoke (research 7.6: the fireball is in front of its own smoke), and the shells over
         # the flashes: on the slowed clock they're still inside the fireball they really outran, so they show as
         # silhouettes against it, as in high-speed photographs of a shell leaving the muzzle
         self._flashes(frame)
         self._shells(frame)
+        shake = (0.0, 0.0)
+        if self.blasts:
+            shake = self._exposure(frame)
 
         # target marker and captions
         frame = np.clip(frame, 0, 1)
         out = (frame * 255).astype(np.uint8)
+        if shake != (0, 0):
+            dx, dy = shake
+            p = np.pad(out, ((abs(dy), abs(dy)), (abs(dx), abs(dx)), (0, 0)), mode="edge")
+            out = np.ascontiguousarray(p[abs(dy) - dy:abs(dy) - dy + H, abs(dx) - dx:abs(dx) - dx + W])
         hud = self.hud.astype(np.float32) / 255
         ha = hud[..., 3:4]
         out = (out * (1 - ha) + hud[..., :3] * 255 * ha).astype(np.uint8)
         return self._overlay(out)
+
+    # ----- magazine explosions (magazine.py)
+    def lift(self, z, z0):
+        """Screen px a point at height z rises up the screen above its source at z0 (the oblique VFX projection)."""
+        return K_OBL * H_C * (1 - np.exp(-np.maximum(z - z0, 0) / H_C)) * self.s
+
+    def _blast_blobs(self):
+        """Every blast particle as Density blobs, as for the gun smoke: each gas puff is CLUMPS clumps (offsets and
+        shares picked by its seed, turning slowly with its age) so the cloud breaks up like the funnel smoke, not one
+        smooth disc per puff. Each blob has where it's drawn (lifted), where its shadow is cast from (its true
+        position), its optical depth, colour and temperature. Sparks and debris are single points with their own
+        luminance. A blob's drawn sigma is about 1.22x the radius passed (Density); a puff's own spread is ~0.55 r
+        (the reference's profile). Blobs under the smallest bucket keep their integral (weights fall by the area
+        ratio)."""
+        s = self.s
+        live = [b for b in self.blasts if len(b.p)]
+        out = dict(n=0)
+        if not live:
+            return out
+        cat = lambda k: np.concatenate([b.p.d[k] for b in live])
+        z0 = np.concatenate([np.full(len(b.p), b.s["deck_z"]) for b in live])
+        pos, r, m, T, kind, age, seed, life = (cat(k) for k in ("pos", "r", "m", "temp", "kind", "age", "seed", "life"))
+        sx, sy = self.scr(pos[:, 0], pos[:, 1])
+        py = sy - self.lift(pos[:, 2], z0)
+        tau_pk = 0.85 * magazine.KAPPA * m / np.maximum(r, 0.3) ** 2
+        # fire light on the smoke near it: orange from inside and below (research 3.3)
+        lit = np.zeros(len(r))
+        for b in live:
+            for c, I in b.lights:
+                lit += min(I / I_REF, 3.0) * 3600.0 / (((pos - c) ** 2).sum(1) + 900.0)
+        lit = 1 - np.exp(-0.35 * lit)
+        g = np.nonzero(kind < 2)[0]
+        K = CLUMPS
+        j = (seed[g] * len(self.clump_off)).astype(int)
+        sp = 0.55 * r[g] * s                                       # the puff's spread, px
+        ang = self.clump_spin[j] * age[g]
+        ca, sa = np.cos(ang)[:, None], np.sin(ang)[:, None]
+        ox, oy = self.clump_off[j, :, 0], self.clump_off[j, :, 1]
+        dx, dy = (ox * ca - oy * sa) * sp[:, None], (ox * sa + oy * ca) * sp[:, None]
+        sc = CLUMP_SIGMA * sp                                      # each clump's sigma, px
+        # never in the smallest bucket: its 7-px box support shows as a square once a dense clump saturates
+        rp = np.maximum(sc / 1.22, 3.0)
+        cfac = np.minimum(1.0, (sc / (1.22 * rp)) ** 2)
+        fade = np.clip((life[g] - age[g]) / 0.3, 0, 1)            # short-lived jet puffs thin out, not vanish
+        pk = tau_pk[g] * (1 - 0.45 * T[g]) * EXPLODE_VIS / CLUMP_SIGMA ** 2 * cfac * fade
+        col = np.where((kind[g] == 1)[:, None], STEAM[None, :], np.array(SMOKE_SOOT)[None, :]) \
+            + lit[g, None] * FIRELIT
+        rep = lambda a: np.repeat(a, K, 0)
+        out.update(n=len(g) * K, px=(sx[g, None] + dx).ravel(), py=(py[g, None] + dy).ravel(),
+                   sx=(sx[g, None] + dx).ravel(), sy=(sy[g, None] + dy).ravel(), h=rep(pos[g, 2]),
+                   rp=rep(rp), tau=(pk[:, None] * self.clump_w[j]).ravel(), col=rep(col), T=rep(T[g]))
+        # sparks and burning debris: points with a blackbody luminance, under a pixel, so by their area
+        q = np.nonzero(kind >= 2)[0]
+        sig = 0.55 * r[q] * s
+        # burning debris glows as flaming wreckage (~1500 K at most), not as hot as the grains thrown from the vents
+        L = magazine.fire_luminance(np.where(kind[q] == 3, T[q], 0.6 * T[q])) / L_BG * EXPOSE * np.where(kind[q] == 3, 1.0, 0.5)
+        L *= np.minimum(1.0, (sig / np.maximum(2.83, sig)) ** 2) * (T[q] > 0.03)
+        out.update(qpx=sx[q], qpy=py[q], qsx=sx[q], qsy=sy[q], qh=pos[q, 2], qrp=sig / 1.22, qL=L, qT=T[q],
+                   deb=kind[q] == 2, qr=r[q])
+        return out
+
+    def _shock(self, frame, f, tc):
+        """The blast on the water (the muzzle-blast event at the magazine's lam, research 2.4): a dark leading edge
+        racing out at about the speed of sound, a frosted disc behind it fading in 2 s, and scour foam ~lam across,
+        drawn as the wake's fresh lace and fading over 10 s."""
+        s = self.s
+        for b in self.blasts:
+            if b.shock is None:
+                continue
+            (cx, cy), t0, lam = b.shock
+            te = self.t - t0
+            if te < 0 or te > 40:
+                continue
+            X = self.water.mx[0] + np.float32(self.pos[0] - cx)
+            Y = self.water.my[:, 0] + np.float32(self.pos[1] - cy)
+            r = np.sqrt(X[None, :] ** 2 + Y[:, None] ** 2)
+            if te < 3:
+                Rf = 345 * te + 2.5 * lam * (1 - math.exp(-te / 0.08))
+                sk = np.clip(1 - r / (4.0 * lam), 0, 1)
+                lead = sk * np.exp(-((r - Rf) / 5.0) ** 2)
+                frost = sk * (r < Rf) * math.exp(-te / 2.0)
+                frame *= (1 - 0.45 * lead)[..., None]
+                frame += (0.05 * frost)[..., None]
+            if te > 0.05:
+                d = np.clip(1.2 - r / lam, 0, 1) ** 1.5 * math.exp(-te / 10)
+                np.maximum(f, lace(d, tc, "fresh"), out=f)
+
+    def _scorch(self, frame):
+        for sp, m, hole in self.scorch:
+            t0 = sp["t_main"] if sp["tier"] == "blast" else sp["t_lift"]
+            k = smoothstep((self.t - t0) / 0.3)
+            if k <= 0:
+                continue
+            frame *= (1 - 0.85 * k * m)[..., None]
+            if hole is not None:
+                frame += (DEBRIS - frame) * (k * hole)[..., None]
+
+    def _fire_light(self, frame):
+        """The fire as a point light on the sea and the ship (research 3.3), restrained: in daylight it's a warm pool."""
+        fc = np.array([1.0, 0.45, 0.15], np.float32)
+        for b in self.blasts:
+            for c, I in b.lights:
+                In = I / I_REF
+                Lz = max(float(c[2]), 8.0)
+                X = self.water.mx[0] + np.float32(self.pos[0] - c[0])
+                Y = self.water.my[:, 0] + np.float32(self.pos[1] - c[1])
+                d2 = X[None, :] ** 2 + Y[:, None] ** 2 + np.float32(Lz * Lz)
+                irr = np.float32(In * (Lz / 60.0) ** -0.5) * (np.float32(Lz * Lz) / d2) ** 1.5
+                irr *= 1 + 0.5 * self.hull_alpha
+                frame += np.minimum(irr, 3.0)[..., None] * (0.12 * fc)
+
+    def _flyers(self, shade, rots):
+        """Thrown gunhouses: in the air, a turret sprite tumbling (squashed by the cosine of its tilt, dark when the
+        bottom shows), scaled 1 + z / H_CAM and lifted like the smoke, with its shadow on whatever is below it; landed
+        on the deck, drawn with the mounts. Returns the airborne ones' sprites for _solids."""
+        s, out = self.s, []
+        for b in self.blasts:
+            for fl in b.flyers:
+                if fl["landed"] == "sunk":
+                    continue
+                mt = self.mount_by_id[fl["mount"]]
+                base = self.heading + self.bearing(mt, self.t)
+                im = mt.img
+                if fl["landed"] is not None:
+                    loc, z, ang = fl["landed"]
+                    c = self.to_screen(loc)
+                    arr = np.asarray(im.rotate(-(base + ang), resample=Image.BICUBIC, expand=True))
+                    rots.append((arr, int(round(c[0] - arr.shape[1] / 2)), int(round(c[1] - arr.shape[0] / 2))))
+                    continue
+                p = fl["p"]
+                ct = math.cos(math.radians(fl["tilt"]))
+                k = 1 + p[2] / H_CAM
+                w = max(1, round(im.width * k * max(0.12, abs(ct))))
+                h = max(1, round(im.height * k))
+                sq = im.resize((w, h), Image.BILINEAR)
+                if ct < 0:      # the underside: the dark trunk and roller path
+                    a = np.asarray(sq).copy()
+                    a[..., :3] = (a[..., :3] * 0.3).astype(np.uint8)
+                    sq = Image.fromarray(a)
+                arr = np.asarray(sq.rotate(-(base + fl["ang"]), resample=Image.BICUBIC, expand=True))
+                cx, cy = self.scr(p[0], p[1])
+                alpha = arr[..., 3].astype(np.float32) / 255
+                off = sun_offset_px(s, SUN_AZ, SUN_EL, float(p[2]))
+                x0, y0 = int(round(cx - arr.shape[1] / 2)), int(round(cy - arr.shape[0] / 2))
+                stamp_max(shade, alpha * 0.9, x0 + int(round(off[0])), y0 + int(round(off[1])), self.Hs, float(p[2]))
+                cy -= float(self.lift(p[2], b.s["deck_z"]))
+                out.append((arr, int(round(cx - arr.shape[1] / 2)), int(round(cy - arr.shape[0] / 2))))
+        return out
+
+    def _solids(self, frame, tau, flying):
+        """Debris pieces as small dark discs and the airborne gunhouses, dimmed where smoke stands in front."""
+        B = self._blobs
+        H, W = frame.shape[:2]
+        tf = lambda x, y: float(tau[min(max(int(y / 2), 0), tau.shape[0] - 1), min(max(int(x / 2), 0), tau.shape[1] - 1)])
+        for arr, x0, y0 in flying:
+            vis = math.exp(-0.5 * tf(x0 + arr.shape[1] / 2, y0 + arr.shape[0] / 2))
+            a = arr.copy()
+            a[..., 3] = (a[..., 3] * vis).astype(np.uint8)
+            blend(frame, a, x0, y0)
+        if not B or "deb" not in B or not B["deb"].any():
+            return
+        for i in np.nonzero(B["deb"])[0]:
+            cx, cy = B["qpx"][i], B["qpy"][i]
+            R = max(0.8, 0.6 * B["qr"][i] * self.s)
+            x0, x1 = int(math.floor(cx - R - 1)), int(math.ceil(cx + R + 1))
+            y0, y1 = int(math.floor(cy - R - 1)), int(math.ceil(cy + R + 1))
+            x0, y0, x1, y1 = max(0, x0), max(0, y0), min(W, x1), min(H, y1)
+            if x0 >= x1 or y0 >= y1:
+                continue
+            X = np.arange(x0, x1, dtype=np.float32)[None, :] + 0.5 - np.float32(cx)
+            Y = np.arange(y0, y1, dtype=np.float32)[:, None] + 0.5 - np.float32(cy)
+            a = np.clip(R - np.sqrt(X * X + Y * Y) + 0.5, 0, 1) * 0.95 * math.exp(-0.5 * tf(cx, cy))
+            win = frame[y0:y1, x0:x1]
+            win += (DEBRIS - win) * a[..., None]
+
+    def _fire(self, frame):
+        """The fire's light: the hot gas as an emitting, absorbing medium, S (1 - e^-tau_hot), with S the blackbody
+        luminance (magazine.fire_luminance) at the hot gas's tau-weighted mean temperature over the pixel, dimmed by
+        the hot share of all the smoke there, (tau_hot / tau)^FIRE_SKIN: the soot skin is on top of the core (the
+        reference cools it first), so the fire shows through where it's thin. A ratio of two smooth fields: an
+        exponential in the cold optical depth (up to ~100 in the jets) cut holes with the coarse grid's straight
+        edges. Two splat passes more than the smoke. The
+        temperature is stirred by world-anchored noise rising with the gas (the flipbooks' stand-in, research 3.4), and luminance is steep in temperature, so the noise draws hot folds and dark
+        lanes. Sparks and burning debris add their own light. Then the flash's bloom and roll-off."""
+        B = self._blobs
+        if not B or not B["n"]:
+            return
+        tau = self._tau
+        if "qL" not in B:
+            return
+        hw = B["tau"] * np.clip((B["T"] - 0.2) / 0.25, 0, 1) ** 2     # the hot share of each blob's optical depth
+        th = self.dens.render(B["px"], B["py"], B["rp"], hw)
+        TT = self.dens.render(B["px"], B["py"], B["rp"], hw * B["T"])
+        Tm = TT / np.maximum(th, 1e-6)
+        hot = th > 1e-3
+        Lq = None
+        if B["qL"].any():
+            Lq = self.dens.render(B["qpx"], B["qpy"], B["qrp"], B["qL"])
+        if not hot.any() and Lq is None:
+            return
+        ys, xs = np.nonzero(hot | (Lq > 1e-3) if Lq is not None else hot)
+        if not len(xs):
+            return
+        y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+        # noise in world metres, half-res grid; rises at ~8 m/s and turns over (two tiles crossfaded) every ~3 s
+        hh = np.arange(y0, y1, dtype=np.float32) * 2 + 1
+        ww = np.arange(x0, x1, dtype=np.float32) * 2 + 1
+        X = (ww[None, :] - self.C[0]) / self.s + np.float32(self.pos[0])
+        Y = (hh[:, None] - self.C[1]) / self.s + np.float32(self.pos[1]) + np.float32(8.0 * self.t)
+        n = self.edge_noise.shape[0]
+        ph = 2 * math.pi * self.t / 3.0
+        g1 = sample_points(self.edge_noise, X / (FIRE_NOISE_M * n / 20), Y / (FIRE_NOISE_M * n / 20))
+        g2 = sample_points(self.edge_noise, X / (FIRE_NOISE_M * n / 50) + 0.37, Y / (FIRE_NOISE_M * n / 50) + 0.61)
+        g = g1 * math.cos(ph) + g2 * math.sin(ph)
+        Tw = Tm[y0:y1, x0:x1] * (1 + FIRE_STIR * g)
+        tw, tt = th[y0:y1, x0:x1], tau[y0:y1, x0:x1]
+        L = (magazine.fire_luminance(Tw) / L_BG * EXPOSE * (1 - np.exp(-tw))
+             * np.clip(tw / np.maximum(tt, 1e-6), 0, 1) ** FIRE_SKIN * hot[y0:y1, x0:x1])
+        rgb = magazine.fire_rgb(Tw)
+        rgb = rgb / np.maximum(rgb @ muzzle.LUM, 1e-3)[..., None]
+        F = (L[..., None] * rgb).astype(np.float32)
+        if Lq is not None:
+            F += Lq[y0:y1, x0:x1, None] * SPARK
+        Wf, Hf = self.W, self.H
+        M = 30
+        hy0, hx0 = max(0, y0 - M), max(0, x0 - M)
+        hy1, hx1 = min(tau.shape[0], y1 + M), min(tau.shape[1], x1 + M)
+        Fh = np.zeros((hy1 - hy0, hx1 - hx0, 3), np.float32)
+        Fh[y0 - hy0:y1 - hy0, x0 - hx0:x1 - hx0] = F
+        Ff = np.stack([upscale(Fh[..., i], 2 * (hx1 - hx0), 2 * (hy1 - hy0)) for i in range(3)], -1)
+        bx0, by0 = 2 * hx0, 2 * hy0
+        Ff = np.ascontiguousarray(Ff[:Hf - by0, :Wf - bx0])
+        self._glow(frame, Ff, bx0, by0)
+
+    def _glow(self, frame, F, bx0, by0):
+        """Bloom on a compressed copy of the light F (display units, a window of the frame at bx0, by0), or a big
+        flash paints the whole frame (research 7.2 item 6), then the luminance roll-off on what it adds only."""
+        src = F / (1 + F / 6)
+        for frac, r in ((0.20, 1), (0.10, 6), (0.05, 17)):
+            for c in range(3):
+                F[..., c] += frac * box_blur(src[..., c], r)
+        sub = frame[by0:by0 + F.shape[0], bx0:bx0 + F.shape[1]]
+        sub += tonemap(sub + F) - tonemap(sub)
+
+    def _exposure(self, frame):
+        """A warm exposure pulse at the main event and a short camera shake, both by the blast's lam (research 3.5).
+        The shake's direction comes from the clock, not the scene's rng, so rendering never changes the sim."""
+        dx = dy = 0.0
+        for b in self.blasts:
+            if b.shock is None:
+                continue
+            te = self.t - b.shock[1]
+            lam = b.shock[2]
+            if 0 <= te < 2:
+                frame += np.float32(0.10 * min(1.0, lam / 60) * math.exp(-te / 0.25)) * np.array(
+                    [1.0, 0.8, 0.6], np.float32)
+                A = min(6.0, 0.05 * lam * self.s) * math.exp(-te / 0.3)
+                dx += A * math.sin(97.0 * self.t)
+                dy += A * math.cos(131.0 * self.t)
+        return int(round(dx)), int(round(dy))
 
     def _smoke_fields(self):
         """Funnel smoke particles and every shot's gun smoke as blobs for one Density pass each: optical depth, the
@@ -925,14 +1378,26 @@ class Scene:
             tint = SMOKE_NEUTRAL + (shot.D["tint"] - SMOKE_NEUTRAL) * math.exp(-p["age"] / 5.0)
             cc = (tint * p["A_p"] + 0.97 * p["A_w"]) / p["A"] * SMOKE_GAIN
             cols.append(np.broadcast_to(cc.astype(np.float32), (k, 3)))
+        shx, shy = list(px), list(py)    # where each blob's shadow is cast from (explosion puffs are drawn lifted)
+        B = getattr(self, "_blobs", None)
+        if B and B["n"]:
+            px.append(B["px"]), py.append(B["py"]), r.append(B["rp"]), w.append(B["tau"])
+            h.append(B["h"]), cols.append(B["col"])
+            shx.append(B["sx"]), shy.append(B["sy"])
         z = np.zeros((self.dens.hh, self.dens.hw), np.float32)
+        self._tau_ex = None
         if not px:
             return z, z[..., None], z
-        px, py, r, w, h, cols = (np.concatenate(a) for a in (px, py, r, w, h, cols))
+        px, py, r, w, h, cols, shx, shy = (np.concatenate(a) for a in (px, py, r, w, h, cols, shx, shy))
         tau = self.dens.render(px, py, r, w)
         col = np.stack([self.dens.render(px, py, r, w * cols[:, i]) for i in range(3)], -1)
+        self._tau_ex = self.dens.render(B["px"], B["py"], B["rp"], B["tau"]) if B and B["n"] else None
         off = np.array(sun_offset_px(self.s, SUN_AZ, SUN_EL, 1.0))
-        shd = self.dens.render(px + off[0] * h, py + off[1] * h, r, w)
+        if B and B["n"] and B["deb"].any():     # debris casts small shadows too (it isn't smoke)
+            dd = B["deb"]
+            shx, shy = np.r_[shx, B["qsx"][dd]], np.r_[shy, B["qsy"][dd]]
+            h, r, w = np.r_[h, B["qh"][dd]], np.r_[r, B["qrp"][dd]], np.r_[w, np.full(dd.sum(), 1.0)]
+        shd = self.dens.render(shx + off[0] * h, shy + off[1] * h, r, w)
         return tau, col, shd
 
     def _shells(self, frame, shadow=False):
@@ -1059,13 +1524,7 @@ class Scene:
             Lpx = w * np.float32(I / area / L_BG * EXPOSE)
             rgb = e["rgb"] / max(float(e["rgb"] @ muzzle.LUM), 1e-3)
             F[y0 - by0:y1 - by0, x0 - bx0:x1 - bx0] += Lpx[..., None] * rgb.astype(np.float32)
-        # bloom on a compressed source, or a big flash paints the whole frame (research 7.2 item 6)
-        src = F / (1 + F / 6)
-        for frac, r in ((0.20, 1), (0.10, 6), (0.05, 17)):
-            for c in range(3):
-                F[..., c] += frac * box_blur(src[..., c], r)
-        sub = frame[by0:by1, bx0:bx1]
-        sub += tonemap(sub + F) - tonemap(sub)
+        self._glow(frame, F, bx0, by0)
 
     def _overlay(self, out):
         im = Image.fromarray(out)
@@ -1079,6 +1538,8 @@ class Scene:
             phase = "Training on target"
         else:
             phase = "Firing"
+        if self.t_hit is not None and t >= self.t_hit:
+            phase = "Hit" if t < self.t_hit + magazine.HIT_LEAD else "Magazine explosion"
         m = self.H // 36
         d.text((m, m), phase, font=self.font_small, fill=(235, 240, 242, 220))
         if self.has_guns and t >= REST_S - 0.5:
@@ -1106,13 +1567,21 @@ class Scene:
 
 
 # ---------------------------------------------------------------- driver
-def make(src: Path, out: Path, args, still=None):
-    sc = Scene(src, args.w, args.h, args.fps, args.heading, args.target, args.seed, args.seconds, args.propellant)
+def make(src: Path, out: Path, args, still=None, frames=None):
+    """Render one clip (or one PNG at `still` s). frames=(a, b): only frames a..b-1, to out (a chunk of a clip
+    rendered in parallel: the scene is rebuilt from the seed and stepped to frame a, and drawing never touches the
+    sim, so every chunk sees the same scene)."""
+    sc = Scene(src, args.w, args.h, args.fps, args.heading, args.target, args.seed, args.seconds, args.propellant,
+               args.explode, args.tier, args.explode_at)
     if not args.quiet:
         i = sc.wake_info
         print(f"  {src.name} wake: Fr_L {i['FrL']:.2f}, Zb {i['Zb']:.1f} m, solve {i['solve'][0]}x{i['solve'][1]}, "
               f"grid {i['grid'][0]}x{i['grid'][1]}, bake {i['t_total'] * 1000:.0f} ms, "
               f"setup {i['t_setup'] * 1000:.0f} ms")
+        for b in sc.blasts:
+            sp = b.s
+            print(f"  {sp['id']}: {sp['tier']}, M {sp['M'] / 1000:.1f} t, fireball {sp['D']:.0f} m / {sp['t_fb']:.1f} s, "
+                  f"lam {sp['lam']:.0f} m, {len(sp['openings'])} openings, main at {sp['t_main']:.1f} s")
     dt = 1.0 / args.fps
     for _ in range(int(WARM_S * args.fps)):
         sc.step(dt)
@@ -1124,19 +1593,59 @@ def make(src: Path, out: Path, args, still=None):
             sc.step(dt)
         Image.fromarray(sc.render()).save(out)
         return out
+    a, b = frames or (0, n)
     import imageio_ffmpeg
     w = imageio_ffmpeg.write_frames(str(out), (args.w, args.h), fps=args.fps, codec="libx264",
                                     pix_fmt_out="yuv420p", macro_block_size=1,
                                     output_params=["-crf", str(args.crf), "-preset", "medium",
                                                    "-movflags", "+faststart"])
     w.send(None)
-    for i in range(n):
-        w.send(np.ascontiguousarray(sc.render()).tobytes())
+    for i in range(min(b, n)):
+        if i >= a:
+            w.send(np.ascontiguousarray(sc.render()).tobytes())
         sc.step(dt)
         if i % args.fps == 0 and not args.quiet:
             print(f"\r  {out.name}: {i / args.fps:4.1f}/{sc.duration:.1f} s", end="", flush=True)
     w.close()
-    print(f"\r  {out.name}: {sc.duration:.1f} s, {n} frames")
+    if frames is None:
+        print(f"\r  {out.name}: {sc.duration:.1f} s, {n} frames")
+    return out
+
+
+def make_chunked(src: Path, out: Path, args, chunks):
+    """One clip rendered as `chunks` parts in parallel processes, then joined without re-encoding. Each part
+    steps the scene from the start (cheap next to drawing). Parts go to a scratch folder beside the output, so no
+    two processes ever write one file."""
+    from concurrent.futures import ProcessPoolExecutor
+    import shutil
+    import subprocess
+    import imageio_ffmpeg
+    sc = Scene(src, args.w, args.h, args.fps, args.heading, args.target, args.seed, args.seconds, args.propellant,
+               args.explode, args.tier, args.explode_at)
+    n = int(round(sc.duration * args.fps))
+    for b in sc.blasts:
+        sp = b.s
+        print(f"  {sp['id']}: {sp['tier']}, M {sp['M'] / 1000:.1f} t, fireball {sp['D']:.0f} m / {sp['t_fb']:.1f} s, "
+              f"lam {sp['lam']:.0f} m, {len(sp['openings'])} openings, main at {sp['t_main']:.1f} s")
+    del sc
+    tmp = out.parent / f".{out.stem}_parts"
+    tmp.mkdir(exist_ok=True)
+    cuts = [round(n * i / chunks) for i in range(chunks + 1)]
+    parts = [tmp / f"part{i:02d}.mp4" for i in range(chunks)]
+    quiet = args.quiet
+    args.quiet = True
+    t0 = time.perf_counter()
+    with ProcessPoolExecutor(chunks) as pool:
+        futs = [pool.submit(make, src, parts[i], args, None, (cuts[i], cuts[i + 1])) for i in range(chunks)]
+        for f in futs:
+            f.result()
+    args.quiet = quiet
+    lst = tmp / "list.txt"
+    lst.write_text("".join(f"file '{p.name}'\n" for p in parts))
+    subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
+                    "-i", str(lst), "-c", "copy", "-movflags", "+faststart", str(out)], check=True)
+    shutil.rmtree(tmp)
+    print(f"  {out.name}: {n / args.fps:.1f} s, {n} frames in {chunks} parts, {time.perf_counter() - t0:.0f} s")
     return out
 
 
@@ -1158,6 +1667,17 @@ def main():
     ap.add_argument("--crf", type=int, default=20, help="x264 quality (lower = better, bigger)")
     ap.add_argument("--still", type=float, default=None, help="write one PNG at this time instead of a video")
     ap.add_argument("--jobs", type=int, default=0, help="ships rendered at once (default: one per core)")
+    ap.add_argument("--chunks", type=int, default=0,
+                    help="one ship's clip rendered in this many parallel parts (default: up to 6 for one ship; "
+                         "memory bandwidth, not cores, is the limit past that)")
+    ap.add_argument("--explode", default=None,
+                    help="blow up a magazine: its room id ('Magazine Y') or a mount it serves ('Y'); several "
+                         "comma-separated go up in turn (tier 4). Writes <id>_explode_<mag>.mp4")
+    ap.add_argument("--tier", choices=("blast", "column"), default="blast",
+                    help="blast: fireball, gunhouse thrown (tier 3); column: the roof lifts and the barbette vents a "
+                         "flame column, the ship fights on (tier 1)")
+    ap.add_argument("--explode-at", type=float, default=None,
+                    help=f"time of the hit, s (default: {EXPLODE_AFTER:g} s after the first salvo)")
     args = ap.parse_args()
     args.w, args.h = (int(v) for v in args.size.lower().split("x"))
     if args.w % 2 or args.h % 2:
@@ -1168,14 +1688,23 @@ def main():
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     ext = ".png" if args.still is not None else ".mp4"
+    tag = ""
+    if args.explode:
+        args.explode = [m.strip() for m in args.explode.split(",") if m.strip()]
+        tag = "_explode_" + "_".join(re.sub(r"\W+", "", m.replace("Magazine", "")) for m in args.explode)
+        tag += "_column" if args.tier == "column" else ""
     todo = []
     for src in srcs:
         if not (src / "sprite.json").exists():
             print(f"skip {src}: no sprite.json", file=sys.stderr)
             continue
-        todo.append((src, out / f"{src.name}{ext}"))
+        todo.append((src, out / f"{src.name}{tag}{ext}"))
     jobs = max(1, min(args.jobs or os.cpu_count() or 1, len(todo)))
     args.quiet = jobs > 1          # interleaved progress lines would be noise; report each ship as it finishes
+    chunks = args.chunks or (min(6, os.cpu_count() or 1) if len(todo) == 1 else 1)
+    if args.still is None and len(todo) == 1 and chunks > 1:
+        print(f"wrote {make_chunked(*todo[0], args, chunks)}")
+        return
     if jobs == 1:
         for src, path in todo:
             print(f"wrote {make(src, path, args, still=args.still)}")

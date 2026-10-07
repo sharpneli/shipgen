@@ -490,7 +490,11 @@ an ffmpeg binary) besides numpy and pillow.
   single-base otherwise; `black_powder` suits the 1870s ships).
 - Shadows as README "Shadows": `shadow.shadow_mask` on the height map, and turret sprites in black, offset by
   `(top_m - deck_m) / tan(elevation)` and kept where the height map is below `top_m`. Smoke casts a soft shadow.
-- `vidgen.py all`, `--jobs N` (default one ship per core), `--size 1920x1080`, `--heading`, `--target`, `--seconds`, `--seed`, `--crf`, `--propellant`; `--still T` writes
+- Magazine explosions (`vidgen/magazine.py`, from `vidgen/magazine_explosion.md`): `--explode Y` (a magazine room or
+  a mount it serves) blows that magazine up after a hit: flame jets from the openings, the fireball, debris, the
+  smoke cap and the blast on the water, sized from the magazine's tonnes in `hitboxes.json`. `--tier column` vents
+  a flame column from the barbette instead. Writes `<id>_explode_<mag>.mp4`.
+- `vidgen.py all`, `--jobs N` (default one ship per core), `--chunks N` (one ship's clip in parallel parts), `--size 1920x1080`, `--heading`, `--target`, `--seconds`, `--seed`, `--crf`, `--propellant`; `--still T` writes
   one PNG at time T instead. About 0.35 s a frame at 720p, so a 14 s clip takes 2–3 minutes. Videos go to
   `vidgen/out/` (git-ignored).
 

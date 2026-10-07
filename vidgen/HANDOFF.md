@@ -16,8 +16,8 @@ The user plans to move vidgen into its own repo, to keep shipgen focused on desi
   - bow is +x, bearings run clockwise from ahead
   - `traverse_deg` is one interval that never wraps
   - a mount's `top_m` and the height map are metres above the waterline; hitbox heights are above the main deck
-- **Code:** `wake.py` and `muzzle.py` are vidgen's own (numpy only). `wake.md` and `wake_bake_ref.py` are the
-  wake's research notes and the scipy prototype (v2.2) it was ported from. `muzzle_flash_research.md`,
+- **Code:** `wake.py`, `muzzle.py` and `magazine.py` are vidgen's own (numpy only). `wake.md` and `wake_bake_ref.py` are the
+  wake's research notes and the scipy prototype (v2.2) it was ported from. `magazine.py` is the port of `magazine_explosion_ref.py` (research `magazine_explosion.md`). `muzzle_flash_research.md`,
   `muzzle_flash_ref.py` and `figs_muzzle_flash.py` are the same for the guns (the figure script needs scipy and
   matplotlib; the research's `claude/...` paths are where another session wrote it). `from shadow import HEIGHT_STEP_M, shadow_mask, sun_offset_px`. It reaches shipgen's root through
   `sys.path`. `shadow.py` imports `shipgen.py`, which needs cairosvg. In a new repo, copy `shadow_mask` and
@@ -154,6 +154,65 @@ time, and drops it when the shell has landed or left and the smoke is thin (peak
     would put it out.
 - **Speed:** about 0.35–0.55 s a frame at 720p while firing (five `Density` passes for smoke: tau, three colour
   channels, shadow).
+
+## Magazine explosions (magazine.py, 2026-10-07)
+The user asked for the research's effect (`magazine_explosion.md`, prototype `magazine_explosion_ref.py`), with the
+smoke in the same broad look as the funnel and gun smoke where it's thin. It's the effect only: the stern breaking
+off and the sinking (from `sinking.py`) come later. `vidgen.py <id> --explode Y` (a magazine room id or a mount it
+serves; `Y,X` sends a second one 0.3–0.8 s later, tier 4) writes `out/<id>_explode_Y.mp4`; `--tier column` is tier 1
+(Lion: the roof lifts, the barbette vents a flame column, the ship fights on); `--explode-at T` times the hit
+(default 4 s after the first salvo).
+- **From the ship, not hand-placed:** `magazine.plan` reads `hitboxes.json`'s magazine room (tonnes, x span, the
+  mounts it serves), the barbette, the adjacent boiler and engine rooms and the hull outline:
+  - M (propellant burned in the cascade window) = room tonnes × the propellant's share of a round (muzzle.py's
+    charge fit against its shell fit, 23 % for 380/52) × `F_FAST` 0.3. That's a tuning value until a mechanics
+    resolver exists: Queen Mary's forward group fits ~0.45, Invincible's ~0.17. Bismarck's Y: 22 t, fireball 163 m
+    for 12.6 s, lam 76 m.
+  - Openings: a gun port per barrel (where it leaves the gunhouse, along the trained barrel), the sighting hood,
+    deck hatches over the magazine (one per ~4 m), four side scuttles, the vents of machinery rooms that share a
+    bulkhead with the magazine (Hood), then the barbette when the roof lifts. Fail times are the prototype's
+    sequence; the pressure is its stand-in curve (the column plateaus instead, so its jets keep going).
+  - Steam from the nearest boiler room; stem fires spread over the magazine's length.
+- **Physics:** the reference's particles, ported as is (buoyancy from a decaying heat, drag to the sheared wind,
+  entrainment growth, the mushroom's circulation, the soot skin). The gunhouse flies as a tumbling turret sprite;
+  for a tier 3 event it stays inside the fireball the whole time, so it's correctly hidden.
+- **Drawing:**
+  - Oblique lift for everything vertical (research 3.1, k 0.6, H_c 450 m), measured from the deck, not the sea.
+    Funnel and gun smoke barely rise and are unlifted, so plain clips are byte-identical (checked against HEAD).
+    Shadows use the true height.
+  - Smoke goes into the shared optical-depth field: the same lighting, opacity cap and per-blob shadows as funnel
+    smoke. Each puff is 4 clumps turning slowly, like the gun smoke's SUB_PUFFS. Thick explosion smoke also gets a
+    coarser relief (`EX_RELIEF`) from its own tau, and its shadow can take the sea to 30 %. Both apply only in
+    explosion clips.
+  - Fire: the hot gas as an emitting medium, `S (1 - e^-tau_hot) (tau_hot / tau)^0.8`. S is the blackbody
+    luminance (muzzle.py's tables, so fire and flash share one scale) at the hot gas's mean temperature, stirred
+    ±14 % by rising world-anchored noise (the flipbooks' stand-in), then the flash's bloom and roll-off.
+  - Water: the dark leading edge at sonic speed and a frost disc (3 s), and scour foam ~lam across drawn as the
+    wake's fresh lace (fading over 10 s). Debris and the gunhouse splash.
+  - Also: the scorch and the open barbette on the hull, a warm exposure pulse and a camera shake by lam, and a
+    restrained fire light on the sea and the hull.
+- **Departures, my picks by eye** (each marked DEPARTURE in the code):
+  - Smoke drawn at `EXPLODE_VIS` 0.4 of the reference's KAPPA.
+  - Fire temperature mapped to 900 + 1100 T K.
+  - Soot skin 1.8 (the reference's 0.9 was tuned at night; in daylight the whole cap glowed for 10 s).
+  - The fire light is weighted by luminance, not T³: a huge, barely warm cap lit itself orange.
+  - Jet puffs at half the mass, fading out at the end of their life.
+  - Debris trails: one thin puff per 1.5 m of flight, from burning pieces only. The reference's were beads as
+    dense as fireball puffs.
+  - Roof plates don't trail.
+  - Side vents, stem fires, debris count and speed, and soot mass scale with the fireball (`D_REF` 157 m, the
+    reference's 20 t), so a destroyer's 0.3 t magazine doesn't throw a battleship's smoke.
+  - Steam is sized by the beam.
+  - After a blast the ship stops firing and loses way (`STOP_TAU` 12 s), and the baked wake fades with the speed.
+    That's a stand-in until the sinking clip takes over.
+- **Framing:** an explosion clip fits the ship to 34 % of the frame width, low on the screen (`EXPLODE_FIT`,
+  `EXPLODE_CY`), so the column and the cap have room. The clip runs 40 s past the main event.
+- **Speed:** a sim step takes ~1 ms; a frame takes 0.6–0.8 s at 720p (two to five more `Density` passes). A
+  single-ship clip now renders in `--chunks` parallel parts (default up to 6, the DRAM bandwidth limit), joined
+  without re-encoding: Bismarck's 53 s takes about 5 minutes.
+- **Not done:** night (no night mode in vidgen), the reflection of the fire, heat haze, smoke self-shadowing from
+  a sun sweep (research 3.2 option B), underwater or capsized explosions, debris hitting other ships, and a
+  mechanics resolver feeding M, P(t) and fail times.
 
 ## Sinking clips (sinkvid.py, 2026-10-06)
 The user asked for stern- and bow-first sinkings of Bismarck in vidgen's look, with the wake's lace foam, as a
