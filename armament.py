@@ -75,7 +75,9 @@ def add_mount(lay, mounts, kind, t_id, t, mid, x, y, base, rest, level=0, armour
                                                           else t["barrel_len"] / 2 + 0.3)
         lay.occupy(_fp_circle(x, y, r), base, top, mid)
         if extra.get("side_mount"):     # stowed fore-and-aft: the barrels lie along the deck (stow_bearing)
-            lay.occupy(barrel_footprint(t, x, y, rest), *barrel_band(base, top, t), mid)
+            fp = barrel_footprint(t, x, y, rest)
+            lay.occupy(fp, *barrel_band(base, top, t), mid)
+            lay.overhangs.add(id(fp))    # level 1 isn't kept under them (layout.build_layout)
     if kind == "torpedo":
         lay.weights.append(Weight(mid, "armament", torpedo_weight(t["barrels"], t.get("fixed_tube", False)), x=x,
                                   z_rel=("deck", base + 0.5)))

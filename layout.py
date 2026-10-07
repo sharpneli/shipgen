@@ -140,6 +140,7 @@ class Layout:
         self.directors = []     # fire-control directors (firecontrol.place)
         self.components = []    # exact geometry + heights (hitboxes)
         self.footprints = []    # (fp, base, top, owner_id) for collision tests
+        self.overhangs = set()  # id() of footprints that hang over the deck and need nothing under them (stowed barrels)
         self.weights = []       # navarch.Weight with x positions
         self.errors, self.warnings = [], []
         self.spec = {}
@@ -2611,7 +2612,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         runs = [(a_, b_) for a_, b_ in runs
                 if b_ - a_ >= DH_SLIVER or (a_, b_) == (x0_, x1_) or any(
                     o[1] >= LEVEL_H - 0.01 and a_ <= (_bbox(o[0])[0] + _bbox(o[0])[2]) / 2 <= b_ and o[3] not in
-                    raised_ids for o in lay.footprints)]
+                    raised_ids and id(o[0]) not in lay.overhangs for o in lay.footprints)]
         cut += [(pid + (f" part {k + 1}" if k else ""), a_, b_, w_) for k, (a_, b_) in enumerate(runs[::-1])]
     level1 = []
     for pid, x0_, x1_, w_ in cut:
@@ -2622,7 +2623,9 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
             else:
                 x0_ += 0.5
         # on the deck, under all that stands on it, wrapped round the funnels, joined with the housings
-        keep = [_bbox(o[0]) for o in lay.footprints if o[1] >= LEVEL_H - 0.01
+        # (stowed barrels overhang: they need nothing under them, and keeping level 1 under them could hold its
+        # corners in an end turret's low sweep, as Brennus's forward secondaries did)
+        keep = [_bbox(o[0]) for o in lay.footprints if o[1] >= LEVEL_H - 0.01 and id(o[0]) not in lay.overhangs
                 and x0_ <= (_bbox(o[0])[0] + _bbox(o[0])[2]) / 2 <= x1_]
         b_ = add_level(lay, blocks, pid, 1, x0_, x1_, w_, keep=keep,
                        ignore=[f["id"] for f in funnels] + [h["id"] for h in housings] + raised_ids)
