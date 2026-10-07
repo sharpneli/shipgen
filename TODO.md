@@ -36,6 +36,8 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Funnel gas area not re-planned for raised (taller) funnels
 - [ ] Hotel electrical load and distiller energy
 - [ ] Crew fills citadel cells first (optional, deferred by user)
+- [ ] Morale inputs in the report: quarters' surroundings (beside boilers, below waterline, wet ends) per rank
+- [ ] Morale inputs in the report: per-rank sleep space and the officer/rating gap (`sleep_m2_per_man` is an all-hands average)
 
 ## Armament
 - [ ] Several main/intermediate batteries (French floating hotels, Connecticut's 203 mm wing turrets)

@@ -440,6 +440,7 @@ Housekeeping, whenever convenient:
 - Output folders are named after the design's `id`, not its file name. Duplicate ids overwrite each other; this already happened once.
 
 ## Known gaps and ideas
+- **Crew morale (user, 2026-10-07: "we'll definitely do that"):** the game will rate morale from the report. Today it can use `inputs.crew.standard` (per-rank sleep areas), `crew` (officers/CPOs/ratings, `berth_ratio`, `sickbay_beds`, `headroom_m`, `endurance_days`, `range_days`, `tolerance_days`). Missing: (1) where the quarters are, e.g. the share of each rank's berths beside boiler rooms, below the waterline or in the wet ends, from the `accommodation` rooms in the hitboxes; (2) per-rank space and the officer/rating ratio as published numbers, since `crew.sleep_m2_per_man` averages all hands (doom: 0.87 against the ratings' 0.7). `designs/doom.json` is the test case: officers at 5 m², ratings at 0.7 m² hot-bunking 0.67.
 - **Deferred by the user (2026-10-05), to pick up later:**
   - **Beam refit after the spread:** `size` fits the beam with the spare length amidships (spread 0); `spread_ends` then lightens armoured ships (shorter citadel) on that beam, so they come out stiffer (battleship GM 2.01 → 2.79, heavy cruiser 1.31 → 1.97). Fit the beam again at the chosen spread.
   - **Pitch and yaw gyradius in the report:** nothing computes the moment of inertia yet. Every weight has an x (and z), so it's cheap; the game could turn and pitch by mass distribution, rewarding a compact heavy middle.
