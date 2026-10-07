@@ -1,0 +1,1800 @@
+{
+  "id": "doom",
+  "name": "Coastal battleship of doom (1900)",
+  "scale_px_per_m": 10.0,
+  "size_px": [
+    1600,
+    384
+  ],
+  "origin_px": [
+    800.0,
+    192.0
+  ],
+  "orientation": "bow points +x (right); angles clockwise, 0 = ahead",
+  "layer_order": [
+    "hull",
+    "turrets (ascending z)"
+  ],
+  "layers": {
+    "hull": "hull.png",
+    "hull_mips": "hull_mips.png"
+  },
+  "turret_types": {
+    "t2x432L25": {
+      "file": "turrets/t2x432L25.png",
+      "size_px": [
+        320,
+        320
+      ],
+      "pivot_px": [
+        160.0,
+        160.0
+      ],
+      "desc": "2 x 432mm/25",
+      "mips_file": "turrets/t2x432L25_mips.png",
+      "mip_rects": [
+        [
+          0,
+          0,
+          320,
+          320
+        ],
+        [
+          320,
+          0,
+          160,
+          160
+        ],
+        [
+          320,
+          160,
+          80,
+          80
+        ],
+        [
+          400,
+          160,
+          40,
+          40
+        ],
+        [
+          400,
+          200,
+          20,
+          20
+        ],
+        [
+          420,
+          200,
+          10,
+          10
+        ]
+      ]
+    },
+    "t1x152L40_casemate": {
+      "file": "turrets/t1x152L40_casemate.png",
+      "size_px": [
+        128,
+        128
+      ],
+      "pivot_px": [
+        64.0,
+        64.0
+      ],
+      "desc": "1 x 152mm/40",
+      "mips_file": "turrets/t1x152L40_casemate_mips.png",
+      "mip_rects": [
+        [
+          0,
+          0,
+          128,
+          128
+        ],
+        [
+          128,
+          0,
+          64,
+          64
+        ],
+        [
+          128,
+          64,
+          32,
+          32
+        ],
+        [
+          160,
+          64,
+          16,
+          16
+        ],
+        [
+          160,
+          80,
+          8,
+          8
+        ],
+        [
+          168,
+          80,
+          4,
+          4
+        ]
+      ]
+    },
+    "t1x120L40_casemate": {
+      "file": "turrets/t1x120L40_casemate.png",
+      "size_px": [
+        128,
+        128
+      ],
+      "pivot_px": [
+        64.0,
+        64.0
+      ],
+      "desc": "1 x 120mm/40",
+      "mips_file": "turrets/t1x120L40_casemate_mips.png",
+      "mip_rects": [
+        [
+          0,
+          0,
+          128,
+          128
+        ],
+        [
+          128,
+          0,
+          64,
+          64
+        ],
+        [
+          128,
+          64,
+          32,
+          32
+        ],
+        [
+          160,
+          64,
+          16,
+          16
+        ],
+        [
+          160,
+          80,
+          8,
+          8
+        ],
+        [
+          168,
+          80,
+          4,
+          4
+        ]
+      ]
+    },
+    "t1x76L40_casemate": {
+      "file": "turrets/t1x76L40_casemate.png",
+      "size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32.0,
+        32.0
+      ],
+      "desc": "1 x 76mm/40",
+      "mips_file": "turrets/t1x76L40_casemate_mips.png",
+      "mip_rects": [
+        [
+          0,
+          0,
+          64,
+          64
+        ],
+        [
+          64,
+          0,
+          32,
+          32
+        ],
+        [
+          64,
+          32,
+          16,
+          16
+        ],
+        [
+          80,
+          32,
+          8,
+          8
+        ],
+        [
+          80,
+          40,
+          4,
+          4
+        ],
+        [
+          84,
+          40,
+          2,
+          2
+        ]
+      ]
+    },
+    "t1x57L40_casemate": {
+      "file": "turrets/t1x57L40_casemate.png",
+      "size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32.0,
+        32.0
+      ],
+      "desc": "1 x 57mm/40",
+      "mips_file": "turrets/t1x57L40_casemate_mips.png",
+      "mip_rects": [
+        [
+          0,
+          0,
+          64,
+          64
+        ],
+        [
+          64,
+          0,
+          32,
+          32
+        ],
+        [
+          64,
+          32,
+          16,
+          16
+        ],
+        [
+          80,
+          32,
+          8,
+          8
+        ],
+        [
+          80,
+          40,
+          4,
+          4
+        ],
+        [
+          84,
+          40,
+          2,
+          2
+        ]
+      ]
+    },
+    "t1x47L40_casemate": {
+      "file": "turrets/t1x47L40_casemate.png",
+      "size_px": [
+        64,
+        64
+      ],
+      "pivot_px": [
+        32.0,
+        32.0
+      ],
+      "desc": "1 x 47mm/40",
+      "mips_file": "turrets/t1x47L40_casemate_mips.png",
+      "mip_rects": [
+        [
+          0,
+          0,
+          64,
+          64
+        ],
+        [
+          64,
+          0,
+          32,
+          32
+        ],
+        [
+          64,
+          32,
+          16,
+          16
+        ],
+        [
+          80,
+          32,
+          8,
+          8
+        ],
+        [
+          80,
+          40,
+          4,
+          4
+        ],
+        [
+          84,
+          40,
+          2,
+          2
+        ]
+      ]
+    }
+  },
+  "mips": {
+    "levels": 5,
+    "scale_px_per_m": [
+      10.0,
+      5.0,
+      2.5,
+      1.25,
+      0.625,
+      0.3125
+    ],
+    "rule": "each layer has <name>_mips.png with level k at mip_rects[k] = [x, y, w, h]; within level k, size, origin_px, pivot_px and mount px are the level-0 values / 2^k"
+  },
+  "shadow": {
+    "height_map": "height.png",
+    "height_step_m": 0.25,
+    "deck_m": 2.54,
+    "max_height_m": 19.34,
+    "note": "height map grey value x height_step_m = metres above the waterline (0 = sea); mount top_m is the turret roof above the waterline; see shadow.py",
+    "height_map_mips": "height_mips.png"
+  },
+  "mounts": [
+    {
+      "id": "W1P",
+      "kind": "main",
+      "type": "t2x432L25",
+      "pos_m": [
+        9.84070548654967,
+        -3.718343574329398
+      ],
+      "px": [
+        898.4070548654967,
+        154.81656425670602
+      ],
+      "rest_deg": 0.0,
+      "arcs_deg": [
+        [
+          180.0,
+          360.0
+        ],
+        [
+          60.0,
+          120.0
+        ]
+      ],
+      "traverse_deg": [
+        180.0,
+        480.0
+      ],
+      "z": 2,
+      "top_m": 9.01
+    },
+    {
+      "id": "W1S",
+      "kind": "main",
+      "type": "t2x432L25",
+      "pos_m": [
+        -10.834077884661106,
+        3.718343574329398
+      ],
+      "px": [
+        691.6592211533889,
+        229.18343574329398
+      ],
+      "rest_deg": -180.0,
+      "arcs_deg": [
+        [
+          0.0,
+          180.0
+        ],
+        [
+          240.0,
+          300.0
+        ]
+      ],
+      "traverse_deg": [
+        0.0,
+        300.0
+      ],
+      "z": 2,
+      "top_m": 9.01
+    },
+    {
+      "id": "S1S",
+      "kind": "secondary",
+      "type": "t1x152L40_casemate",
+      "pos_m": [
+        -24.5,
+        11.990796085256724
+      ],
+      "px": [
+        555.0,
+        311.90796085256727
+      ],
+      "rest_deg": 150.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "S1P",
+      "kind": "secondary",
+      "type": "t1x152L40_casemate",
+      "pos_m": [
+        -24.5,
+        -11.990796085256724
+      ],
+      "px": [
+        555.0,
+        72.09203914743276
+      ],
+      "rest_deg": -150.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "S2S",
+      "kind": "secondary",
+      "type": "t1x152L40_casemate",
+      "pos_m": [
+        -18.5,
+        12.103481126713014
+      ],
+      "px": [
+        615.0,
+        313.0348112671301
+      ],
+      "rest_deg": 150.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "S2P",
+      "kind": "secondary",
+      "type": "t1x152L40_casemate",
+      "pos_m": [
+        -18.5,
+        -12.103481126713014
+      ],
+      "px": [
+        615.0,
+        70.96518873286986
+      ],
+      "rest_deg": -150.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "S3S",
+      "kind": "secondary",
+      "type": "t1x152L40_casemate",
+      "pos_m": [
+        -3.5,
+        12.135
+      ],
+      "px": [
+        765.0,
+        313.35
+      ],
+      "rest_deg": 150.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "S3P",
+      "kind": "secondary",
+      "type": "t1x152L40_casemate",
+      "pos_m": [
+        -3.5,
+        -12.135
+      ],
+      "px": [
+        765.0,
+        70.65
+      ],
+      "rest_deg": -150.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "S4S",
+      "kind": "secondary",
+      "type": "t1x152L40_casemate",
+      "pos_m": [
+        2.5,
+        12.135
+      ],
+      "px": [
+        825.0,
+        313.35
+      ],
+      "rest_deg": 30.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "S4P",
+      "kind": "secondary",
+      "type": "t1x152L40_casemate",
+      "pos_m": [
+        2.5,
+        -12.135
+      ],
+      "px": [
+        825.0,
+        70.65
+      ],
+      "rest_deg": -30.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SC1S",
+      "kind": "secondary",
+      "type": "t1x76L40_casemate",
+      "pos_m": [
+        -43.0,
+        11.020168567287872
+      ],
+      "px": [
+        370.0,
+        302.20168567287874
+      ],
+      "rest_deg": 150.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SC1P",
+      "kind": "secondary",
+      "type": "t1x76L40_casemate",
+      "pos_m": [
+        -43.0,
+        -11.020168567287872
+      ],
+      "px": [
+        370.0,
+        81.79831432712129
+      ],
+      "rest_deg": -150.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SC2S",
+      "kind": "secondary",
+      "type": "t1x76L40_casemate",
+      "pos_m": [
+        -38.5,
+        11.35484903647245
+      ],
+      "px": [
+        415.0,
+        305.5484903647245
+      ],
+      "rest_deg": 150.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SC2P",
+      "kind": "secondary",
+      "type": "t1x76L40_casemate",
+      "pos_m": [
+        -38.5,
+        -11.35484903647245
+      ],
+      "px": [
+        415.0,
+        78.4515096352755
+      ],
+      "rest_deg": -150.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SC3S",
+      "kind": "secondary",
+      "type": "t1x76L40_casemate",
+      "pos_m": [
+        -34.0,
+        11.62174126253407
+      ],
+      "px": [
+        460.0,
+        308.21741262534067
+      ],
+      "rest_deg": 150.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SC3P",
+      "kind": "secondary",
+      "type": "t1x76L40_casemate",
+      "pos_m": [
+        -34.0,
+        -11.62174126253407
+      ],
+      "px": [
+        460.0,
+        75.7825873746593
+      ],
+      "rest_deg": -150.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SC4S",
+      "kind": "secondary",
+      "type": "t1x76L40_casemate",
+      "pos_m": [
+        -29.5,
+        11.82754997448701
+      ],
+      "px": [
+        505.0,
+        310.2754997448701
+      ],
+      "rest_deg": 150.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SC4P",
+      "kind": "secondary",
+      "type": "t1x76L40_casemate",
+      "pos_m": [
+        -29.5,
+        -11.82754997448701
+      ],
+      "px": [
+        505.0,
+        73.7245002551299
+      ],
+      "rest_deg": -150.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SC5S",
+      "kind": "secondary",
+      "type": "t1x76L40_casemate",
+      "pos_m": [
+        15.0,
+        12.113714290125053
+      ],
+      "px": [
+        950.0,
+        313.1371429012505
+      ],
+      "rest_deg": 30.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SC5P",
+      "kind": "secondary",
+      "type": "t1x76L40_casemate",
+      "pos_m": [
+        15.0,
+        -12.113714290125053
+      ],
+      "px": [
+        950.0,
+        70.86285709874947
+      ],
+      "rest_deg": -30.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SC6S",
+      "kind": "secondary",
+      "type": "t1x76L40_casemate",
+      "pos_m": [
+        19.5,
+        11.996550559392567
+      ],
+      "px": [
+        995.0,
+        311.9655055939257
+      ],
+      "rest_deg": 30.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SC6P",
+      "kind": "secondary",
+      "type": "t1x76L40_casemate",
+      "pos_m": [
+        19.5,
+        -11.996550559392567
+      ],
+      "px": [
+        995.0,
+        72.03449440607433
+      ],
+      "rest_deg": -30.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SE1S",
+      "kind": "secondary",
+      "type": "t1x47L40_casemate",
+      "pos_m": [
+        -55.0,
+        9.713672628629869
+      ],
+      "px": [
+        250.0,
+        289.13672628629865
+      ],
+      "rest_deg": 150.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SE1P",
+      "kind": "secondary",
+      "type": "t1x47L40_casemate",
+      "pos_m": [
+        -55.0,
+        -9.713672628629869
+      ],
+      "px": [
+        250.0,
+        94.86327371370132
+      ],
+      "rest_deg": -150.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SE2S",
+      "kind": "secondary",
+      "type": "t1x47L40_casemate",
+      "pos_m": [
+        -51.0,
+        10.227170030382348
+      ],
+      "px": [
+        290.0,
+        294.2717003038235
+      ],
+      "rest_deg": 150.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SE2P",
+      "kind": "secondary",
+      "type": "t1x47L40_casemate",
+      "pos_m": [
+        -51.0,
+        -10.227170030382348
+      ],
+      "px": [
+        290.0,
+        89.72829969617652
+      ],
+      "rest_deg": -150.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SE3S",
+      "kind": "secondary",
+      "type": "t1x47L40_casemate",
+      "pos_m": [
+        -47.0,
+        10.658464852400831
+      ],
+      "px": [
+        330.0,
+        298.58464852400834
+      ],
+      "rest_deg": 150.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SE3P",
+      "kind": "secondary",
+      "type": "t1x47L40_casemate",
+      "pos_m": [
+        -47.0,
+        -10.658464852400831
+      ],
+      "px": [
+        330.0,
+        85.41535147599168
+      ],
+      "rest_deg": -150.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SE4S",
+      "kind": "secondary",
+      "type": "t1x47L40_casemate",
+      "pos_m": [
+        23.5,
+        11.799297774468851
+      ],
+      "px": [
+        1035.0,
+        309.9929777446885
+      ],
+      "rest_deg": 30.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SE4P",
+      "kind": "secondary",
+      "type": "t1x47L40_casemate",
+      "pos_m": [
+        23.5,
+        -11.799297774468851
+      ],
+      "px": [
+        1035.0,
+        74.00702225531148
+      ],
+      "rest_deg": -30.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SE5S",
+      "kind": "secondary",
+      "type": "t1x47L40_casemate",
+      "pos_m": [
+        27.5,
+        11.510227780258658
+      ],
+      "px": [
+        1075.0,
+        307.10227780258657
+      ],
+      "rest_deg": 30.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SE5P",
+      "kind": "secondary",
+      "type": "t1x47L40_casemate",
+      "pos_m": [
+        27.5,
+        -11.510227780258658
+      ],
+      "px": [
+        1075.0,
+        76.89772219741342
+      ],
+      "rest_deg": -30.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SE6S",
+      "kind": "secondary",
+      "type": "t1x47L40_casemate",
+      "pos_m": [
+        31.5,
+        11.126510466556423
+      ],
+      "px": [
+        1115.0,
+        303.26510466556425
+      ],
+      "rest_deg": 30.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SE6P",
+      "kind": "secondary",
+      "type": "t1x47L40_casemate",
+      "pos_m": [
+        31.5,
+        -11.126510466556423
+      ],
+      "px": [
+        1115.0,
+        80.73489533443576
+      ],
+      "rest_deg": -30.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 0,
+      "top_m": 2.54,
+      "mount": "casemate"
+    },
+    {
+      "id": "SB1S",
+      "kind": "secondary",
+      "type": "t1x120L40_casemate",
+      "pos_m": [
+        -58.5,
+        9.182271729289688
+      ],
+      "px": [
+        215.0,
+        283.82271729289687
+      ],
+      "rest_deg": 150.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SB1P",
+      "kind": "secondary",
+      "type": "t1x120L40_casemate",
+      "pos_m": [
+        -58.5,
+        -9.182271729289688
+      ],
+      "px": [
+        215.0,
+        100.17728270710312
+      ],
+      "rest_deg": -150.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SB2S",
+      "kind": "secondary",
+      "type": "t1x120L40_casemate",
+      "pos_m": [
+        35.0,
+        10.71135582946729
+      ],
+      "px": [
+        1150.0,
+        299.1135582946729
+      ],
+      "rest_deg": 30.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SB2P",
+      "kind": "secondary",
+      "type": "t1x120L40_casemate",
+      "pos_m": [
+        35.0,
+        -10.71135582946729
+      ],
+      "px": [
+        1150.0,
+        84.88644170532709
+      ],
+      "rest_deg": -30.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SB3S",
+      "kind": "secondary",
+      "type": "t1x120L40_casemate",
+      "pos_m": [
+        40.5,
+        9.906159029548892
+      ],
+      "px": [
+        1205.0,
+        291.06159029548894
+      ],
+      "rest_deg": 30.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SB3P",
+      "kind": "secondary",
+      "type": "t1x120L40_casemate",
+      "pos_m": [
+        40.5,
+        -9.906159029548892
+      ],
+      "px": [
+        1205.0,
+        92.93840970451109
+      ],
+      "rest_deg": -30.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SB4S",
+      "kind": "secondary",
+      "type": "t1x120L40_casemate",
+      "pos_m": [
+        46.0,
+        8.910663533890881
+      ],
+      "px": [
+        1260.0,
+        281.1066353389088
+      ],
+      "rest_deg": 30.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SB4P",
+      "kind": "secondary",
+      "type": "t1x120L40_casemate",
+      "pos_m": [
+        46.0,
+        -8.910663533890881
+      ],
+      "px": [
+        1260.0,
+        102.89336466109118
+      ],
+      "rest_deg": -30.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SD1S",
+      "kind": "secondary",
+      "type": "t1x57L40_casemate",
+      "pos_m": [
+        -21.5,
+        12.057983115695958
+      ],
+      "px": [
+        585.0,
+        312.5798311569596
+      ],
+      "rest_deg": 150.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SD1P",
+      "kind": "secondary",
+      "type": "t1x57L40_casemate",
+      "pos_m": [
+        -21.5,
+        -12.057983115695958
+      ],
+      "px": [
+        585.0,
+        71.42016884304041
+      ],
+      "rest_deg": -150.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SD2S",
+      "kind": "secondary",
+      "type": "t1x57L40_casemate",
+      "pos_m": [
+        -15.5,
+        12.128506390686049
+      ],
+      "px": [
+        645.0,
+        313.2850639068605
+      ],
+      "rest_deg": 150.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SD2P",
+      "kind": "secondary",
+      "type": "t1x57L40_casemate",
+      "pos_m": [
+        -15.5,
+        -12.128506390686049
+      ],
+      "px": [
+        645.0,
+        70.71493609313951
+      ],
+      "rest_deg": -150.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SD3S",
+      "kind": "secondary",
+      "type": "t1x57L40_casemate",
+      "pos_m": [
+        -6.5,
+        12.135
+      ],
+      "px": [
+        735.0,
+        313.35
+      ],
+      "rest_deg": 150.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SD3P",
+      "kind": "secondary",
+      "type": "t1x57L40_casemate",
+      "pos_m": [
+        -6.5,
+        -12.135
+      ],
+      "px": [
+        735.0,
+        70.65
+      ],
+      "rest_deg": -150.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SD4S",
+      "kind": "secondary",
+      "type": "t1x57L40_casemate",
+      "pos_m": [
+        -0.5,
+        12.135
+      ],
+      "px": [
+        795.0,
+        313.35
+      ],
+      "rest_deg": 150.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SD4P",
+      "kind": "secondary",
+      "type": "t1x57L40_casemate",
+      "pos_m": [
+        -0.5,
+        -12.135
+      ],
+      "px": [
+        795.0,
+        70.65
+      ],
+      "rest_deg": -150.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SD5S",
+      "kind": "secondary",
+      "type": "t1x57L40_casemate",
+      "pos_m": [
+        5.5,
+        12.135
+      ],
+      "px": [
+        855.0,
+        313.35
+      ],
+      "rest_deg": 30.0,
+      "arcs_deg": [
+        [
+          30.0,
+          150.0
+        ]
+      ],
+      "traverse_deg": [
+        30.0,
+        150.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    },
+    {
+      "id": "SD5P",
+      "kind": "secondary",
+      "type": "t1x57L40_casemate",
+      "pos_m": [
+        5.5,
+        -12.135
+      ],
+      "px": [
+        855.0,
+        70.65
+      ],
+      "rest_deg": -30.0,
+      "arcs_deg": [
+        [
+          210.0,
+          330.0
+        ]
+      ],
+      "traverse_deg": [
+        210.0,
+        330.0
+      ],
+      "z": 1,
+      "top_m": 5.14,
+      "mount": "casemate"
+    }
+  ],
+  "mip_rects": [
+    [
+      0,
+      0,
+      1600,
+      384
+    ],
+    [
+      1600,
+      0,
+      800,
+      192
+    ],
+    [
+      1600,
+      192,
+      400,
+      96
+    ],
+    [
+      2000,
+      192,
+      200,
+      48
+    ],
+    [
+      2000,
+      240,
+      100,
+      24
+    ],
+    [
+      2100,
+      240,
+      50,
+      12
+    ]
+  ]
+}
