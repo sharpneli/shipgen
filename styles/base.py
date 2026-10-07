@@ -85,13 +85,13 @@ def undefined_errors(design):
 
 
 SUPERSTRUCTURE_KEYS = ("t_per_m2", "material", "plating_mm", "control_mm", "tower_levels", "deckhouse_levels")
-RAISED_ENDS = ("bow", "stern")
-# what a raised stretch runs through from its end, bow to stern (layout.raised_breaks)
-RAISED_FEATURES = ("fore_group", "bridge", "funnels", "aft_control", "aft_group")
+# what a raised stretch runs between, bow to stern: the ends and the features (layout.RAISED_ANCHORS)
+RAISED_ANCHORS = ("bow", "fore_group", "bridge", "funnels", "aft_control", "aft_group", "stern")
 
 
 def raised_errors(design, style) -> list[str]:
-    """hull.raised: [{"from": "bow" | "stern", "to": a feature, "decks": n}], raised stretches of hull."""
+    """hull.raised: [{"from": an anchor, "to": an anchor, "decks": n}], raised stretches of hull over both anchors and
+    all between (RAISED_ANCHORS: the bow, the stern or a feature; either order)."""
     rs = (design.get("hull") or {}).get("raised", [])
     if not isinstance(rs, list):
         return ["hull.raised: use a list of raised stretches, e.g. [{\"from\": \"bow\", \"to\": \"bridge\", "
@@ -103,10 +103,9 @@ def raised_errors(design, style) -> list[str]:
         if not isinstance(r, dict):
             errs.append(f"hull.raised[{k}]: use {{\"from\", \"to\", \"decks\"}}")
             continue
-        if r.get("from") not in RAISED_ENDS:
-            errs.append(f"hull.raised[{k}].from = {r.get('from')!r}: use {' or '.join(RAISED_ENDS)}")
-        if r.get("to") not in RAISED_FEATURES:
-            errs.append(f"hull.raised[{k}].to = {r.get('to')!r}: use one of {', '.join(RAISED_FEATURES)}")
+        for key in ("from", "to"):
+            if r.get(key) not in RAISED_ANCHORS:
+                errs.append(f"hull.raised[{k}].{key} = {r.get(key)!r}: use one of {', '.join(RAISED_ANCHORS)}")
         if not (isinstance(r.get("decks"), int) and not isinstance(r.get("decks"), bool) and r["decks"] >= 1):
             errs.append(f"hull.raised[{k}].decks: use a whole number of decks, 1 or more")
     return errs

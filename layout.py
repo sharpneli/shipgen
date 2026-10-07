@@ -357,6 +357,16 @@ def add_raised(lay, design, rid, x0, x1, levels=1, breaks=None):
     return lay.raised[-1]
 
 
+# what a raised stretch runs between (hull.raised from, to), bow to stern (styles.base validates the same names)
+RAISED_ANCHORS = ("bow", "fore_group", "bridge", "funnels", "aft_control", "aft_group", "stern")
+
+
+def raised_covers(q, feature):
+    """Does the hull.raised entry q run over the feature (its anchors on either side of it, or it)?"""
+    i, j = sorted(RAISED_ANCHORS.index(a) for a in (q["from"], q["to"]))
+    return i <= RAISED_ANCHORS.index(feature) <= j
+
+
 def raised_profile(spans, L):
     """Stretches [(x0, x1, levels)] that may overlap, as one stepped profile: [(x0, x1, levels, (aft, fwd))] aft to
     forward, each the highest stretch over it, with the decks of its breaks (the step down at each end)."""
@@ -381,17 +391,22 @@ def raised_profile(spans, L):
 
 def raised_names(prof, L):
     """raised_profile's stretches with ids: Forecastle, Forecastle 2, ... stepping down aft from the bow, Poop, Poop 2,
-    ... forward from the stern, and Raised deck n for one touching neither."""
+    ... forward from the stern, and Raised deck for one touching neither (Raised deck 1, 2, ... forward from aft when
+    there are several)."""
     out = []
     for k, (x0, x1, lv, brk) in enumerate(prof):
         bow = all(prof[j][1] >= prof[j + 1][0] - 1e-6 for j in range(k, len(prof) - 1)) and prof[-1][1] >= L / 2 - 1e-6
         stern = all(prof[j][1] >= prof[j + 1][0] - 1e-6 for j in range(k)) and prof[0][0] <= -L / 2 + 1e-6
         n = len(prof) - k if bow else k + 1
-        rid = ("Forecastle" if bow else "Poop") + (f" {n}" if n > 1 else "") if bow or stern else f"Raised deck {k + 1}"
-        out.append((rid, x0, x1, lv, brk))
-    return out
+        rid = ("Forecastle" if bow else "Poop") + (f" {n}" if n > 1 else "") if bow or stern else None
+        out.append([rid, x0, x1, lv, brk])
+    mids = [o for o in out if o[0] is None]
+    for k, o in enumerate(mids):
+        o[0] = "Raised deck" + (f" {k + 1}" if len(mids) > 1 else "")
+    return [tuple(o) for o in out]
 
 
+DH_SLIVER = 3.0       # m: a level-1 piece shorter than this beside a break, with nothing on its roof, is left out
 RAISED_CLEAR = 1.1     # m a main turret's guns keep above a raised deck their sweep crosses (superfire_step's least)
 
 
@@ -489,12 +504,14 @@ class _Slabs:
         return [(ys[k], ys[k + 1]) for k in range(0, len(ys) - 1, 2)]
 
 
-def mast_weight(lay, m, top, name):
+def mast_weight(lay, m, top, name, base=0.0):
     """A mast's weight at half its height: tripod legs or a pole, tubes that get stouter the taller they are
-    (MAST_T_K x top^2 per leg: a 20 m pole 4.8 t, a battleship's tripod about 14 t)."""
+    (MAST_T_K x h^2 per leg: a 20 m pole 4.8 t, a battleship's tripod about 14 t). top: its top above the main deck;
+    base: the deck its heel stands on (a raised stretch), so h = top - base."""
     legs = 3 if m.get("tripod") else 1
-    lay.weights.append(Weight(name, "superstructure", legs * MAST_T_K * top ** 2, x=m["x"],
-                              z_rel=("deck", top / 2)))
+    h = top - base
+    lay.weights.append(Weight(name, "superstructure", legs * MAST_T_K * h ** 2, x=m["x"],
+                              z_rel=("deck", base + h / 2)))
 
 
 MAST_T_K = 0.012
@@ -1620,14 +1637,12 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     # the bridge tower: base levels from level 2, the navigating bridge, then each level up to
     # superstructure.tower_levels, the main director on top; funnels stand as tall as a tower of up to 4 levels.
     # nb_need: the first level that sees over the highest forward turret's roof (bridge_level)
-    # (levels count from the main deck: a raised stretch is level 1 where it stands. Every stretch from the bow
-    # runs through the forward group, whose turrets stand forward of every feature it can run to, and one from the
-    # stern only when it runs to it; the same aft)
+    # (levels count from the main deck: a raised stretch is level 1 where it stands. A stretch covers the forward
+    # group when its anchors span it: every stretch from the bow does, whose turrets stand forward of every feature it
+    # can run to, and one from the stern or amidships only when it runs to it; the same aft)
     raised_in = (design.get("hull") or {}).get("raised") or []
-    fwd_deck = LEVEL_H * max([q["decks"] for q in raised_in if q["from"] == "bow" or q["to"] == "fore_group"],
-                             default=0)
-    aft_deck = LEVEL_H * max([q["decks"] for q in raised_in if q["from"] == "stern" or q["to"] == "aft_group"],
-                             default=0)
+    fwd_deck = LEVEL_H * max([q["decks"] for q in raised_in if raised_covers(q, "fore_group")], default=0)
+    aft_deck = LEVEL_H * max([q["decks"] for q in raised_in if raised_covers(q, "aft_group")], default=0)
     fwd_tier = min(nf, max(n_step_f, 1)) - 1 if (tm and nf) else None    # the forward group's top tier
     fwd_roof = fwd_deck + 1.2 + fwd_tier * superfire_step(th) + th if fwd_tier is not None else None
     nb_need = bridge_level(fwd_roof)
@@ -2059,28 +2074,36 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     lay.geo["machinery"] = (min(p_[1] for p_ in plant_placed), max(p_[2] for p_ in plant_placed))
     lay.geo["machinery_x"] = mach_c
     # ---------------- raised stretches of hull (hull.raised) ----------------
-    # Each rises its decks from the bow or the stern through a feature, its break just beyond it (a feature the ship
-    # lacks: the next one toward that end). Together they make one stepped profile (raised_profile).
+    # Each rises its decks between two anchors, bow to stern: the bow, the features, the stern. It covers both anchors
+    # and all between, its breaks just beyond them (a feature the ship lacks: the next one toward the other anchor; a
+    # stretch with nothing left is dropped). Together they make one stepped profile (raised_profile).
     f_aft, f_fwd = (min(fxs) - fl / 2, max(fxs) + fl / 2) if fxs else (None, None)
-    breaks_at = {        # feature: break x, from the bow (the feature and all forward of it raised), from the stern
+    breaks_at = {        # feature: (aft edge, forward edge), the break x of a stretch ending there
         "fore_group": (mid_fwd, fore[0] + r + 1.0 if fore else None),
         "bridge": (bx0 - 0.75, mid_fwd),
         "funnels": (f_aft - 0.75 if fxs else None, f_fwd + 0.75 if fxs else None),
         "aft_control": (mid_aft if la else None, mid_aft + la + 0.75 if la else None),
         "aft_group": (aft[0] - r - 1.0 if aft else None, mid_aft),
     }
-    order = list(breaks_at)
+    edges = {"bow": (None, L / 2), **breaks_at, "stern": (-L / 2, None)}
     spans = []
     for q in raised_in:
-        end = 0 if q["from"] == "bow" else 1
-        i = order.index(q["to"])
-        while breaks_at[order[i]][end] is None:      # toward the stretch's own end
-            i += -1 if end == 0 else 1
-        if order[i] != q["to"]:
-            lay.warnings.append(f"hull.raised: no {q['to'].replace('_', ' ')} to run the raised deck from the "
-                                f"{q['from']} to; it runs to the {order[i].replace('_', ' ')}.")
-        xb = breaks_at[order[i]][end]
-        spans.append((xb, L / 2, q["decks"]) if end == 0 else (-L / 2, xb, q["decks"]))
+        i, j = sorted(RAISED_ANCHORS.index(a) for a in (q["from"], q["to"]))
+        i0, j0 = i, j
+        while i <= j and edges[RAISED_ANCHORS[i]][1] is None:     # the forward anchor, toward the aft one
+            i += 1
+        while i <= j and edges[RAISED_ANCHORS[j]][0] is None:     # the aft anchor, toward the forward one
+            j -= 1
+        name = lambda k: RAISED_ANCHORS[k].replace("_", " ")
+        what = f"the raised deck from the {q['from'].replace('_', ' ')} to the {q['to'].replace('_', ' ')}"
+        x0_, x1_ = (edges[RAISED_ANCHORS[j]][0], edges[RAISED_ANCHORS[i]][1]) if i <= j else (0.0, 0.0)
+        if i > j or x1_ - x0_ < 0.5:
+            lay.warnings.append(f"hull.raised: nothing to raise {what} over; it is left out.")
+            continue
+        for k, k0 in ((i, i0), (j, j0)):
+            if k != k0:
+                lay.warnings.append(f"hull.raised: no {name(k0)} for {what}; it runs to the {name(k)}.")
+        spans.append((x0_, x1_, q["decks"]))
     for rid, x0_, x1_, lv, brk in raised_names(raised_profile(spans, L), L):
         add_raised(lay, design, rid, x0_, x1_, lv, brk)
 
@@ -2430,8 +2453,22 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         hw = min(hull.half_width(x0), hull.half_width(x1)) - 0.6
         return _fp_rect(x0, -hw, x1, hw)
 
-    level1 = []
+    # level 1 stands on the main deck only: a raised stretch already is level 1 where it stands, so a piece over one
+    # is cut at its breaks, flat against them, and a sliver left beside a break (shorter than DH_SLIVER, nothing on
+    # its roof) is left out
+    raised_ids = [s_["id"] for s_ in lay.raised]
+    cut = []
     for pid, x0_, x1_, w_ in pieces:
+        runs = [[x0_, x1_]]
+        for s_ in lay.raised:
+            runs = [q for a_, b_ in runs for q in ([a_, min(b_, s_["x0"])], [max(a_, s_["x1"]), b_]) if q[1] > q[0]]
+        runs = [(a_, b_) for a_, b_ in runs
+                if b_ - a_ >= DH_SLIVER or (a_, b_) == (x0_, x1_) or any(
+                    o[1] >= LEVEL_H - 0.01 and a_ <= (_bbox(o[0])[0] + _bbox(o[0])[2]) / 2 <= b_ and o[3] not in
+                    raised_ids for o in lay.footprints)]
+        cut += [(pid + (f" part {k + 1}" if k else ""), a_, b_, w_) for k, (a_, b_) in enumerate(runs[::-1])]
+    level1 = []
+    for pid, x0_, x1_, w_ in cut:
         # trim the ends out of low turrets' sweeps
         while not lay.clear(dh_rect(x0_, x1_), LEVEL_H) and x1_ - x0_ > 4:
             if lay.clear(dh_rect(x0_, (x0_ + x1_) / 2), LEVEL_H):
@@ -2442,7 +2479,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         keep = [_bbox(o[0]) for o in lay.footprints if o[1] >= LEVEL_H - 0.01
                 and x0_ <= (_bbox(o[0])[0] + _bbox(o[0])[2]) / 2 <= x1_]
         b_ = add_level(lay, blocks, pid, 1, x0_, x1_, w_, keep=keep,
-                       ignore=[f["id"] for f in funnels] + [h["id"] for h in housings])
+                       ignore=[f["id"] for f in funnels] + [h["id"] for h in housings] + raised_ids)
         if b_:
             blocks.insert(0, blocks.pop())  # draw level 1 first, under the towers
             level1.append(b_)
@@ -2567,19 +2604,23 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     if la:
         masts.append(dict(x=ax0 + la * 0.5, yard=min(0.22 * B, 8), tripod=False))
     for k, m in enumerate(masts):
-        mast_weight(lay, m, m.get("top", mast_top), "Foremast" if k == 0 else "Mainmast")
+        mast_weight(lay, m, m.get("top", mast_top), "Foremast" if k == 0 else "Mainmast", lay.deck_z(m["x"]))
     boats = []
     bl_ = clamp(0.03 * L, 4, 8)
     for x in [mach_c + k * 2.0 for k in range(-6, 7)]:
         if len(boats) >= 2:
             break
         y = (dh_w / 2 - 0.35 * bl_ - 0.6) if riders else (B / 2 - 0.35 * bl_ - 1.0)   # on the gun deck, or by the edge
+        # on the gun deck's roof (or a raised stretch as high), or in davits a level over the weather deck; never
+        # across a break
+        lo_, hi_ = lay.deck_levels(x, bl_ / 2)
+        z = max(LEVEL_H, hi_ * LEVEL_H) if riders else LEVEL_H + hi_ * LEVEL_H
         fps = [_fp_rect(x - bl_ / 2, s * y - 0.15 * bl_, x + bl_ / 2, s * y + 0.15 * bl_) for s in (1, -1)]
-        if y > fw / 2 + 0.3 * bl_ and all(lay.free(fp, 0.3, ignore=dh_ids) and lay.clear(fp, LEVEL_H + 1.5)
-                                          for fp in fps):
+        if lo_ == hi_ and y > fw / 2 + 0.3 * bl_ and all(lay.free(fp, 0.3, ignore=dh_ids) and lay.clear(fp, z + 1.5)
+                                                         for fp in fps):
             for s, fp in zip((1, -1), fps):
                 boats.append(dict(x=x, y=s * y, l=bl_, w=0.3 * bl_))
-                lay.occupy(fp, LEVEL_H, LEVEL_H + 1.5, f"Boat{len(boats)}")
+                lay.occupy(fp, z, z + 1.5, f"Boat{len(boats)}")
 
     # ---------------- citadel & compartments ----------------
     # the citadel covers the main turrets and the whole machinery block with its grouped magazines (an all-forward

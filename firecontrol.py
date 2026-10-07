@@ -148,36 +148,39 @@ def place(lay, design, blocks):
             lay.directors.append(rec)
             mine.append(rec)
 
-        spots = roof_spots(blocks, l, w)
-
         def smoky(x, y, z0):    # out of the funnels' smoke first (hitbox.assign_smoke), at the same height
             return bool(smoke_from(lay.funnels_planned, max((f.get("top", 0.0) for f in lay.funnels_planned),
                                                             default=0.0),
                                    lay.geo.get("smoke_reach", 0.0), x + hl, z0 + LEVEL_H, y, w))
 
-        if bat == "main":       # the highest roofs, spread fore and aft; single directors, on the roof's line
-            cands = sorted(((x, y, z0) for x, y, z0, pair in spots if not pair), key=lambda s: (-s[2], -s[0]))
-            for spread in (MAIN_SPREAD * L, 0.0):
-                for x, y, z0 in cands:
-                    if len(mine) >= n:
+        # the superstructure's roofs, then the raised stretches' decks (a level-1 roof of the hull) for any left
+        for spots in (roof_spots(blocks, l, w), roof_spots(raised_roofs(lay), l, w)):
+            if len(mine) >= n:
+                break
+            if bat == "main":       # the highest roofs, spread fore and aft; single directors, on the roof's line
+                cands = sorted(((x, y, z0) for x, y, z0, pair in spots if not pair), key=lambda s: (-s[2], -s[0]))
+                for spread in (MAIN_SPREAD * L, 0.0):
+                    for x, y, z0 in cands:
+                        if len(mine) >= n:
+                            break
+                        if any(abs(x - m["x"]) < max(spread if len(mine) < 2 else 0.0, l + 0.4) for m in mine):
+                            continue
+                        if ok(x, y, z0):
+                            put(x, y, z0)
+            else:                   # the highest roofs first, for the horizon: a pair, one each side, where it fits
+                                    # and two are left, else singly on the roof's line (a narrow house or tower top)
+                for x, y, z0, pair in sorted(spots, key=lambda s: (-s[2], smoky(s[0], s[1], s[2]), not s[3],
+                                                                   abs(s[0]))):
+                    left = n - len(mine)
+                    if left <= 0:
                         break
-                    if any(abs(x - m["x"]) < max(spread if len(mine) < 2 else 0.0, l + 0.4) for m in mine):
+                    if pair and left < 2:
                         continue
-                    if ok(x, y, z0):
-                        put(x, y, z0)
-        else:                   # the highest roofs first, for the horizon: a pair, one each side, where it fits
-                                # and two are left, else singly on the roof's line (a narrow house or tower top)
-            for x, y, z0, pair in sorted(spots, key=lambda s: (-s[2], smoky(s[0], s[1], s[2]), not s[3], abs(s[0]))):
-                left = n - len(mine)
-                if left <= 0:
-                    break
-                if pair and left < 2:
-                    continue
-                pts = [(x, y), (x, -y)] if pair else [(x, y)]
-                if all(ok(px, py, z0) for px, py in pts):
-                    unit = len({m["unit"] for m in mine}) + 1
-                    for px, py in pts:
-                        put(px, py, z0, pair, unit)
+                    pts = [(x, y), (x, -y)] if pair else [(x, y)]
+                    if all(ok(px, py, z0) for px, py in pts):
+                        unit = len({m["unit"] for m in mine}) + 1
+                        for px, py in pts:
+                            put(px, py, z0, pair, unit)
         if len(mine) < n:
             lay.fail("beam", f"Only {len(mine)} of {n} {'AA' if bat == 'aa' else bat} directors find a roof to stand on "
                            f"({w:.1f} m across with the rangefinder).")
@@ -185,6 +188,19 @@ def place(lay, design, blocks):
     if (main.get("fore", 0) + main.get("aft", 0) + main.get("mid", 0) + main.get("wing", 0)) and \
             not fc["main"]["directors"]:
         lay.warnings.append("The main battery has no director: each turret fires under local control.")
+
+
+def raised_roofs(lay):
+    """The raised stretches' decks as roofs for roof_spots: block-like dicts at their level, the deck's outline."""
+    from geometry import DECK_PITCH
+    out = []
+    for dk in lay.decks:
+        if dk["kind"] != "deck":
+            continue
+        xs, ys = [p[0] for p in dk["points"]], [p[1] for p in dk["points"]]
+        out.append(dict(id=dk["id"], x0=min(xs), x1=max(xs), w=max(ys) - min(ys), y=0.0, z0=0.0,
+                        level=round(dk["top"] / DECK_PITCH), points=dk["points"]))
+    return out
 
 
 def search_radar(lay, design, blocks, masts, fun_top):
