@@ -38,7 +38,7 @@ TUNING = dict(
     gun_k=1.9e-6,           # gun mass (with breech) t = gun_k * cal_mm^3 * (L/50): 38 cm/52 108 t (real 111 t)
     mount_k=2.2,            # turret machinery and structure = mount_k * guns. With turret_t_avg: Bismarck's twin
     turret_t_avg=0.65,      # 38 cm 994 t (real 1,056 t), Iowa's triple 16" 1,860 t (about 1,700 t); turret armour
-                            # averages this x turret_mm over the gunhouse
+                            # averages this x the battery's armour_mm over the gunhouse
     tds_mm_per_m=12.0,      # torpedo protection: longitudinal bulkheads totalling this many mm per metre of
                             # armour.tds_m, each side over the citadel, inner bottom to the roof deck (Bismarck
                             # 45 mm torpedo bulkhead plus thinner ones, 5.5 m deep; Iowa four bulkheads, 5.2 m)
@@ -733,19 +733,32 @@ def armour_weights(design, L, B, D, g):
     return out
 
 
+def main_batteries(design):
+    """The main batteries, in the design's order: "main" is a list of batteries (one object is taken as a list of
+    one). Each has its turret (calibre_mm, calibre_length, barrels, armour_mm, optional material) and where its
+    turrets stand: fore, aft, mid, wing (pairs) and the placement choices (superfire, echelon, cross_deck,
+    amidships_stands_on). The layout puts every battery's turrets in the same groups, in list order (layout.py)."""
+    m = design.get("main")
+    return [b for b in (m if isinstance(m, list) else [m] if m else []) if isinstance(b, dict) and b]
+
+
+def battery_turrets(b):
+    """How many turrets a main battery has: its end, midships and wing turrets (two to a pair)."""
+    return b.get("fore", 0) + b.get("aft", 0) + b.get("mid", 0) + 2 * b.get("wing", 0)
+
+
 def rough_payload(design, D):
     """First-pass armament estimate before the layout exists (all at x=0)."""
     from geometry import make_turret_type, make_torpedo_type
     out = []
-    a = design.get("armour", {})
-    m = design.get("main")
-    if m:
+    for k, m in enumerate(main_batteries(design)):
         _, t = make_turret_type(m["calibre_mm"], m["calibre_length"], m["barrels"])
-        n = m.get("fore", 0) + m.get("aft", 0) + m.get("mid", 0) + 2 * m.get("wing", 0)
-        tw, bw, aw = mount_weights(t, a.get("turret_mm", 0), D, 0)
-        out.append(Weight("Main battery", "armament", n * tw, z_rel=("deck", 2)))
-        out.append(Weight("Main barbettes", "armour", n * bw, z_rel=("frac", 0.75)))
-        out.append(Weight("Main magazines", "armament", n * aw, z_rel=("frac", 0.25)))
+        n = battery_turrets(m)
+        tw, bw, aw = mount_weights(t, m.get("armour_mm", 0), D, 0)
+        sfx = f" {k + 1}" if k else ""
+        out.append(Weight("Main battery" + sfx, "armament", n * tw, z_rel=("deck", 2)))
+        out.append(Weight("Main barbettes" + sfx, "armour", n * bw, z_rel=("frac", 0.75)))
+        out.append(Weight("Main magazines" + sfx, "armament", n * aw, z_rel=("frac", 0.25)))
     secs = design.get("secondary") or []
     for s in (secs if isinstance(secs, list) else [secs]):   # one battery, or a list (carriers, merchants)
         n = s.get("count", 2 * s.get("per_side", 0))

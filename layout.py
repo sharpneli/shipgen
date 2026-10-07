@@ -30,7 +30,7 @@ from geometry import (make_turret_type, make_torpedo_type, rrect_polygon, rrect_
                       DECK_PITCH)
 import ordnance
 import powerplant
-from navarch import Weight, mount_weights, torpedo_weight, TUNING
+from navarch import Weight, main_batteries, mount_weights, torpedo_weight, TUNING
 from hitbox import ARC_BEAM, ARC_CROSS
 from geometry import Hull, AA_CFG
 
@@ -535,7 +535,7 @@ def magazine_plan(design, tm):
     wing pair k goes to the end of the middle it stands at (even k forward). Returns {"fore"|"aft": [(battery,
     mounts, magazine m3 per mount)]}."""
     out = {"fore": [], "aft": []}
-    main = design.get("main") or {}
+    main = (main_batteries(design) or [{}])[0]
     if tm and not main.get("echelon"):
         for k in range(main.get("wing", 0)):
             out["fore" if k % 2 == 0 else "aft"].append((f"W{k + 1}", 2, ordnance.ammo_m3(tm)))
@@ -1636,7 +1636,8 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     deck = design.get("deck", "wood" if L >= 150 else "steel")
 
     # ---------------- main battery groups ----------------
-    main = design.get("main") or {}
+    main = (main_batteries(design) or [{}])[0]
+    t_arm = dict(armour_mm=main.get("armour_mm", 0), **({"material": main["material"]} if main.get("material") else {}))
     nf, na, nm = main.get("fore", 0), main.get("aft", 0), main.get("mid", 0)
     nw, echelon = main.get("wing", 0), bool(main.get("echelon", False))   # wing turret pairs
     cross = echelon and bool(main.get("cross_deck", False))   # echelon pairs that also fire across the deck
@@ -2187,7 +2188,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
                 prev = base
                 mid = turret_name(names[gname], i)
                 m = armament.add_mount(lay, mounts, "main", tm_id, tm, mid, x, 0.0, base, rest_, level=level,
-                                       armour_mm=armour.get("turret_mm", 0), depth=depth, footprint_r=reach,
+                                       **t_arm, depth=depth, footprint_r=reach,
                                        label="Turret",
                                        deck=base - 1.2 - level * superfire_step(th) if lay.raised else dz)
                 if flush:
@@ -2205,7 +2206,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
             base = max(dz, LEVEL_H if mid_raised else 0.0) + 1.2
             base += raised_lift(lay, dict(kind="main", t=tm, x=x, y=y, rest=rest, base=base, top=base + th, **kw))
             lay.reserve_sweep(armament.add_mount(
-                lay, mounts, "main", tm_id, tm, mid, x, y, base, rest, armour_mm=armour.get("turret_mm", 0),
+                lay, mounts, "main", tm_id, tm, mid, x, y, base, rest, **t_arm,
                 depth=depth, footprint_r=reach, label="Turret",
                 deck=max(0.0, base - 1.2 - (LEVEL_H if mid_raised else 0.0)) if lay.raised else dz, **kw))
             if mid_raised and dz < LEVEL_H:

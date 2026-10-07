@@ -115,9 +115,9 @@ def _layout(design, res, shift):
     fore, aft = armament.gun_groups(design)
     if fore:
         armament.gun_line(lay, mounts, turret_types, fore, "main", "ABC", L / 2 - 0.16 * L, -1, 0.0, 0,
-                          lambda x: 0.2, armour_mm=(design.get("armour") or {}).get("turret_mm", 0), depth=depth)
+                          lambda x: 0.2, armour_mm=fore.get("armour_mm", 0), depth=depth)
         armament.gun_line(lay, mounts, turret_types, aft, "main", "YXW", -L / 2 + 1.6, +1, 0.0, 180,
-                          lambda x: 0.2, armour_mm=(design.get("armour") or {}).get("turret_mm", 0), depth=depth)
+                          lambda x: 0.2, armour_mm=fore.get("armour_mm", 0), depth=depth)
 
     xs = [-L / 2 + 0.1 * L + v * 0.7 * L for v in _vdc(48)]
     sec = design.get("secondary") or {}

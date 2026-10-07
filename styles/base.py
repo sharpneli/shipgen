@@ -18,12 +18,12 @@ COMMON_LIMITS = {
     ("speed_kn",): (8, 42), ("range_nm",): (1000, 25000),
     ("main", "calibre_mm"): (1, 2000), ("main", "calibre_length"): (1, 200), ("main", "barrels"): (1, 20),
     ("main", "fore"): (0, 40), ("main", "aft"): (0, 40), ("main", "mid"): (0, 40),
-    ("main", "wing"): (0, 20),
+    ("main", "wing"): (0, 20), ("main", "armour_mm"): (0, 2000),
     ("secondary", "calibre_mm"): (1, 2000), ("secondary", "calibre_length"): (1, 200),
     ("secondary", "barrels"): (1, 20), ("secondary", "per_side"): (0, 100), ("secondary", "count"): (0, 200),
     ("torpedoes", "mounts"): (0, 40), ("torpedoes", "tubes"): (1, 20),
     ("aa", "heavy"): (0, 500), ("aa", "light"): (0, 500),
-    ("armour", "belt_mm"): (0, 2000), ("armour", "turret_mm"): (0, 2000),
+    ("armour", "belt_mm"): (0, 2000),
     ("armour", "tds_m"): (0, 20), ("armour", "bulkhead_mm"): (0, 2000),
     ("armour", "belt_bottom_mm"): (0, 2000), ("armour", "belt_depth_m"): (0, 30), ("armour", "belt_height_m"): (0, 30),
     ("armour", "upper_belt", "mm"): (0, 2000),
@@ -157,6 +157,8 @@ def armour_errors(design) -> list[str]:
     if "deck_mm" in a:
         errs.append("armour.deck_mm is gone: list the armour decks top down in armour.decks, e.g. "
                     "[{\"deck\": 1, \"mm\": 152, \"extent\": \"citadel\"}]")
+    if "turret_mm" in a:
+        errs.append("armour.turret_mm is gone: give each main battery its turrets' armour_mm (main[k].armour_mm)")
     decks = a.get("decks", [])
     if not isinstance(decks, list):
         return errs + ["armour.decks: use a list of armour decks, top down"]
@@ -204,6 +206,8 @@ def armour_errors(design) -> list[str]:
         if isinstance(a.get("steering_box"), dict) and "deck_material" in a["steering_box"] else []
     sec = design.get("secondary") or []
     owns += [(f"secondary[{k}]", b) for k, b in enumerate(sec if isinstance(sec, list) else [sec]) if isinstance(b, dict)]
+    mb = design.get("main") or []
+    owns += [(f"main[{k}]", b) for k, b in enumerate(mb if isinstance(mb, list) else [mb]) if isinstance(b, dict)]
     errs += [f"{where}.material: name the material as a string" for where, d in owns
              if "material" in d and (not isinstance(d["material"], str) or not d["material"])]
     eb = a.get("end_belts")
@@ -267,27 +271,40 @@ class Style:
                     errs.append("secondary.stands_on: deck batteries only (casemates use tier)")
                 elif b["stands_on"] not in STANDS_ON:
                     errs.append(f"secondary.stands_on = {b['stands_on']!r}: use {' or '.join(STANDS_ON)}")
-        main = design.get("main") or {}
-        if main.get("mid") and not self.MIDSHIPS_TURRETS:
-            errs.append(f"main.mid: the {self.name} style has no midships turrets")
-        if main.get("wing") and not self.WING_TURRETS:
-            errs.append(f"main.wing: the {self.name} style has no wing turrets")
-        if "amidships_stands_on" in main:
-            if not self.RAISED_MOUNTS:
-                errs.append(f"main.amidships_stands_on: the {self.name} style has no deckhouse to raise guns on")
-            elif main["amidships_stands_on"] not in STANDS_ON:
-                errs.append(f"main.amidships_stands_on = {main['amidships_stands_on']!r}: use {' or '.join(STANDS_ON)}")
-        if not isinstance(main.get("echelon", False), bool):
-            errs.append("main.echelon: use true or false")
-        if not isinstance(main.get("cross_deck", False), bool):
-            errs.append("main.cross_deck: use true or false")
-        sf = main.get("superfire", True)
-        if not isinstance(sf, (bool, dict)) or (isinstance(sf, dict) and not all(
-                isinstance(v, int) and 0 <= v <= main.get(k, 0) for k, v in sf.items() if k in ("fore", "aft"))):
-            errs.append("main.superfire: use true, false, or {\"fore\": n, \"aft\": n} within the group sizes")
+        mains = design.get("main")
+        if mains is not None and not isinstance(mains, (list, dict)):
+            errs.append("main: use a list of batteries, each {\"calibre_mm\", \"calibre_length\", \"barrels\", "
+                        "\"armour_mm\", \"fore\", \"aft\", ...}")
+            mains = []
+        mains = mains if isinstance(mains, list) else [mains] if mains else []
+        if len(mains) > 1 and not self.MAIN_LIST:
+            errs.append(f"main: the {self.name} style takes one main battery, not a list of several")
+        for k, main in enumerate(mains):
+            if not isinstance(main, dict):
+                continue        # undefined_errors says what's missing
+            w = f"main[{k}]"
+            if main.get("mid") and not self.MIDSHIPS_TURRETS:
+                errs.append(f"{w}.mid: the {self.name} style has no midships turrets")
+            if main.get("wing") and not self.WING_TURRETS:
+                errs.append(f"{w}.wing: the {self.name} style has no wing turrets")
+            if "amidships_stands_on" in main:
+                if not self.RAISED_MOUNTS:
+                    errs.append(f"{w}.amidships_stands_on: the {self.name} style has no deckhouse to raise guns on")
+                elif main["amidships_stands_on"] not in STANDS_ON:
+                    errs.append(f"{w}.amidships_stands_on = {main['amidships_stands_on']!r}: use "
+                                f"{' or '.join(STANDS_ON)}")
+            if not isinstance(main.get("echelon", False), bool):
+                errs.append(f"{w}.echelon: use true or false")
+            if not isinstance(main.get("cross_deck", False), bool):
+                errs.append(f"{w}.cross_deck: use true or false")
+            sf = main.get("superfire", True)
+            if not isinstance(sf, (bool, dict)) or (isinstance(sf, dict) and not all(
+                    isinstance(v, int) and 0 <= v <= main.get(k_, 0) for k_, v in sf.items() if k_ in ("fore", "aft"))):
+                errs.append(f"{w}.superfire: use true, false, or {{\"fore\": n, \"aft\": n}} within the group sizes")
         return errs + undefined_errors(design)
 
     DEFAULT_TECH = None         # machinery.tech when the design gives none (None: powerplant.DEFAULT_TECH)
+    MAIN_LIST = False           # may "main" list several batteries (each with its own turrets and groups)
     MIDSHIPS_TURRETS = False    # does the layout support main["mid"]
     WING_TURRETS = False        # does the layout support main["wing"] (pairs) and main["echelon"]
     SECONDARY_LIST = False      # may "secondary" be a list of batteries with count/where (armament.batteries)

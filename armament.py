@@ -317,7 +317,8 @@ def place_aa(lay, aa_out, kind, count, cands, spacing=None, ignore=(), layer_of=
 def gun_groups(design):
     """The main battery as two lines: (fore spec, aft spec), each with 'count' and 'stepped' (how many
     superfire; see layout.stepped_counts)."""
-    main = design.get("main") or {}
+    from navarch import main_batteries
+    main = (main_batteries(design) or [{}])[0]     # the styles that line their guns up take one battery
     if not (main.get("fore", 0) + main.get("aft", 0)):
         return None, None
     sf, sa = stepped_counts(main)

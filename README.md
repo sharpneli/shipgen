@@ -59,8 +59,8 @@ design.py      the command line: validate, shipdesign.build, write report.json a
   "armour": {"belt_mm": 307, "belt_depth_m": 3.0, "belt_height_m": 3.0, "belt_bottom_mm": 307, "bulkhead_mm": 287, "upper_belt": {"mm": 0, "to_deck": 0, "extent": "citadel"},
              "end_belts": {"fore": {"mm": 0, "tip_mm": 0, "reach": 1.0, "bulkhead_mm": 0}, "aft": {"mm": 0, "tip_mm": 0, "reach": 1.0, "bulkhead_mm": 0}},
              "steering_box": {"mm": 343, "deck_mm": 157, "bulkhead_mm": 287},
-             "turret_mm": 432, "decks": [{"deck": 1, "mm": 152, "extent": "citadel"}]},
-  "main": {"calibre_mm": 406, "calibre_length": 50, "barrels": 3, "fore": 2, "aft": 1},
+             "decks": [{"deck": 1, "mm": 152, "extent": "citadel"}]},
+  "main": [{"calibre_mm": 406, "calibre_length": 50, "barrels": 3, "armour_mm": 432, "fore": 2, "aft": 1}],
   "secondary": {"calibre_mm": 127, "calibre_length": 38, "barrels": 2, "per_side": 5, "stands_on": "deckhouse"},
   "torpedoes": {"mounts": 0, "tubes": 5},
   "aa": {"heavy": 20, "light": 30},
@@ -232,7 +232,9 @@ The design gives no size. The designer works out the hull from what it carries (
 - Results: the report gives `length_m`, `beam_m` and `block_coefficient`. Most realistic designs land within 2–10% of the real ship's length.
 - An error that says something doesn't fit means the largest hull (`Style.SIZE`: 1,000 × 100 m, planing craft 60 × 12 m) still can't carry it.
 
-`main` options:
+`main` is a list of main batteries (one object is read as a list of one). Each gives its turret, `calibre_mm`, `calibre_length`, `barrels` and `armour_mm` (the turret face; sides, rear, roof and barbette are fractions of it, `hitbox.TURRET_*`), optionally a `material` over `armour.materials`' turrets and barbettes, and where its turrets stand. `armour.turret_mm` is gone: each battery carries its own armour. Every design writes `armour_mm`. Planing craft take one battery.
+
+Each battery's options:
 - `"mid": n` (warship style only) puts n centreline turrets amidships, between the funnels. Lion has a Q turret; Gangut has two amidships.
 - `"superfire"` sets how many turrets of each end group step up: `true` (default, all), `false` (none, so each group has one end turret and flush turrets behind it), or `{"fore": 2}`. A flush turret behind a stepped one (Nelson's X) fires to the sides only. Each stepped tier stands `2.0 + 0.2 × turret height` m above the one it fires over (about a deck: 2.3 m for 5in twins, 2.6 m for 16in triples, after Atlanta and Iowa).
 - `"wing": n` (warship style only) adds n pairs of wing turrets, one each side, amidships. They fire bow to stern on their own side, so the forward pairs can fire dead ahead together with the forward group, and across the deck only with `cross_deck`.

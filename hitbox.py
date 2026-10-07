@@ -46,7 +46,7 @@ ARC_CASEMATE = 60.0
 ARC_TORPEDO = 60.0
 ARC_FIXED = 1.0
 
-# Turret armour other than the face (the design's turret_mm), as fractions of the face. Roughly Iowa, KGV and
+# Turret armour other than the face (the battery's armour_mm), as fractions of the face. Roughly Iowa, KGV and
 # Bismarck: sides 0.56-0.69, rear 0.5-0.9, roof 0.4-0.43.
 TURRET_SIDE, TURRET_REAR, TURRET_ROOF = 0.55, 0.5, 0.4
 BARBETTE = 0.8   # barbette armour, fraction of the turret face (as navarch weighs it)
@@ -343,8 +343,7 @@ def export_hitboxes(lay, design, res):
     for m in lay.mounts:
         t = m["t"]
         sh = turret_shapes(t)
-        arm = m["armour_mm"] if "armour_mm" in m else (
-            armour.get("turret_mm", 0) if m["kind"] == "main" else (sec_arm if m["kind"] == "secondary" else 0))
+        arm = m["armour_mm"] if "armour_mm" in m else (sec_arm if m["kind"] == "secondary" else 0)
         comps.append(dict(
             id=m["id"], kind=m["kind"], type=m["type"], x=round(m["x"], 3), y=round(m["y"], 3),
             base=round(m["base"], 2), top=round(m["top"], 2), armour_mm=arm,
@@ -353,7 +352,7 @@ def export_hitboxes(lay, design, res):
             traverse_deg=m["traverse"],
             local={"body": r3(sh["body"]), "parts": [r3(p) for p in sh["parts"]],
                    "barrels": [r3(p) for p in sh["barrels"]]}))
-        mat = (armour_material(design, "turrets") if m["kind"] == "main" else
+        mat = (m.get("material") or armour_material(design, "turrets") if m["kind"] == "main" else
                m.get("material") or armour_material(design, "secondary") if m["kind"] == "secondary" else None)
         if m["kind"] in ("main", "secondary"):
             comps[-1]["armour"] = dict(face=arm, side=round(TURRET_SIDE * arm), rear=round(TURRET_REAR * arm),
@@ -378,7 +377,8 @@ def export_hitboxes(lay, design, res):
                               base=(min(rz(barbette_z), round(m["base"], 2)) if in_hull
                                     else round(m["base"] - 1.0, 2)),
                               top=round(m["base"], 2), armour_mm=round(BARBETTE * arm)))
-            with_material(comps[-1], armour_material(design, "barbettes") if m["kind"] == "main" else mat)
+            with_material(comps[-1], m.get("material") or armour_material(design, "barbettes") if m["kind"] == "main"
+                          else mat)
     directors = {d["id"]: d for d in lay.directors}
     sup_material = (design.get("superstructure") or {}).get("material")
     quarters = (getattr(lay, "crew", None) or {}).get("superstructure_quarters", {})
