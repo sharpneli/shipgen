@@ -9116,7 +9116,7 @@
    "y": 7.281,
    "x0": -77.992,
    "x1": -68.885,
-   "base": -14.12,
+   "base": -13.0,
    "top": -2.6
   },
   {
@@ -9127,67 +9127,11 @@
    "y": -7.281,
    "x0": -77.992,
    "x1": -68.885,
-   "base": -14.12,
+   "base": -13.0,
    "top": -2.6
   }
  ],
  "cells": [
-  {
-   "id": "1 bottom C",
-   "section": "1",
-   "tier": "bottom",
-   "band": "C",
-   "x0": 96.75,
-   "x1": 107.5,
-   "y0": -0.032,
-   "y1": 0.032,
-   "base": -15.18,
-   "top": -14.12,
-   "below_waterline": true,
-   "volume_m3": 0.0,
-   "room": "Double bottom 1",
-   "permeability": 0.95,
-   "neighbours": [
-    [
-     "1 hold C",
-     "Inner bottom"
-    ],
-    [
-     "2 bottom C",
-     "Bulkhead 1"
-    ]
-   ]
-  },
-  {
-   "id": "1 hold C",
-   "section": "1",
-   "tier": "hold",
-   "band": "C",
-   "x0": 96.75,
-   "x1": 107.5,
-   "y0": -0.136,
-   "y1": 0.136,
-   "base": -14.12,
-   "top": -13.0,
-   "below_waterline": true,
-   "volume_m3": 0.4,
-   "room": "Stores 1",
-   "permeability": 0.6,
-   "neighbours": [
-    [
-     "1 bottom C",
-     "Inner bottom"
-    ],
-    [
-     "1 sixth C",
-     "open"
-    ],
-    [
-     "2 hold C",
-     "Bulkhead 1"
-    ]
-   ]
-  },
   {
    "id": "1 sixth C",
    "section": "1",
@@ -9197,20 +9141,24 @@
    "x1": 107.5,
    "y0": -0.613,
    "y1": 0.613,
-   "base": -13.0,
+   "base": -15.18,
    "top": -10.4,
    "below_waterline": true,
-   "volume_m3": 5.3,
+   "volume_m3": 5.7,
    "room": "Stores 1",
    "permeability": 0.6,
    "neighbours": [
     [
-     "1 hold C",
+     "1 fifth C",
      "open"
     ],
     [
-     "1 fifth C",
-     "open"
+     "2 bottom C",
+     "Bulkhead 1"
+    ],
+    [
+     "2 hold C",
+     "Bulkhead 1"
     ],
     [
      "2 sixth C",
@@ -9388,7 +9336,7 @@
      "Inner bottom"
     ],
     [
-     "1 bottom C",
+     "1 sixth C",
      "Bulkhead 1"
     ],
     [
@@ -9422,7 +9370,7 @@
      "open"
     ],
     [
-     "1 hold C",
+     "1 sixth C",
      "Bulkhead 1"
     ],
     [
@@ -20318,7 +20266,7 @@
      "Bulkhead 15"
     ],
     [
-     "17 hold C",
+     "17 sixth C",
      "open"
     ]
    ],
@@ -21080,43 +21028,6 @@
    ]
   },
   {
-   "id": "17 hold C",
-   "section": "17",
-   "tier": "hold",
-   "band": "C",
-   "x0": -77.992,
-   "x1": -68.885,
-   "y0": -7.281,
-   "y1": 7.281,
-   "base": -14.12,
-   "top": -13.0,
-   "below_waterline": true,
-   "citadel": true,
-   "armour_above_mm": [
-    127
-   ],
-   "armour_above_material": [
-    "non-cemented armour"
-   ],
-   "volume_m3": 6.3,
-   "room": "Magazine Y",
-   "permeability": 0.6,
-   "neighbours": [
-    [
-     "17 sixth C",
-     "open"
-    ],
-    [
-     "16 hold C",
-     "open"
-    ]
-   ],
-   "through": [
-    "Shaft alley 2",
-    "Shaft alley 3"
-   ]
-  },
-  {
    "id": "17 sixth P",
    "section": "17",
    "tier": "sixth",
@@ -21171,7 +21082,7 @@
    "x1": -68.885,
    "y0": -7.281,
    "y1": 7.281,
-   "base": -13.0,
+   "base": -14.12,
    "top": -10.4,
    "below_waterline": true,
    "citadel": true,
@@ -21181,7 +21092,7 @@
    "armour_above_material": [
     "non-cemented armour"
    ],
-   "volume_m3": 262.1,
+   "volume_m3": 268.5,
    "room": "Magazine Y",
    "permeability": 0.6,
    "neighbours": [
@@ -21194,12 +21105,12 @@
      "Torpedo bulkhead 17 S"
     ],
     [
-     "17 hold C",
-     "open"
-    ],
-    [
      "17 fifth C",
      "Fifth deck"
+    ],
+    [
+     "16 hold C",
+     "open"
     ],
     [
      "16 sixth C",
@@ -21842,7 +21753,7 @@
      "Bulkhead 17"
     ],
     [
-     "19 fifth C",
+     "19 fourth C",
      "Bulkhead 18"
     ]
    ]
@@ -21964,35 +21875,6 @@
    ]
   },
   {
-   "id": "19 fifth C",
-   "section": "19",
-   "tier": "fifth",
-   "band": "C",
-   "x0": -101.05,
-   "x1": -90.3,
-   "y0": -6.463,
-   "y1": 6.463,
-   "base": -10.4,
-   "top": -7.8,
-   "below_waterline": true,
-   "volume_m3": 5.4,
-   "room": "Stores 19",
-   "also": [
-    "Steering gear"
-   ],
-   "permeability": 0.6,
-   "neighbours": [
-    [
-     "19 fourth C",
-     "open"
-    ],
-    [
-     "18 fifth C",
-     "Bulkhead 18"
-    ]
-   ]
-  },
-  {
    "id": "19 fourth C",
    "section": "19",
    "tier": "fourth",
@@ -22001,20 +21883,23 @@
    "x1": -90.3,
    "y0": -10.074,
    "y1": 10.074,
-   "base": -7.8,
+   "base": -10.4,
    "top": -5.2,
    "below_waterline": false,
-   "volume_m3": 295.1,
+   "volume_m3": 300.5,
    "room": "Stores 19",
+   "also": [
+    "Steering gear"
+   ],
    "permeability": 0.6,
    "neighbours": [
     [
-     "19 fifth C",
-     "open"
-    ],
-    [
      "19 third C",
      "Third deck"
+    ],
+    [
+     "18 fifth C",
+     "Bulkhead 18"
     ],
     [
      "18 fourth C",
@@ -22179,22 +22064,9 @@
  ],
  "rooms": [
   {
-   "id": "Double bottom 1",
-   "kind": "double_bottom",
-   "cells": [
-    "1 bottom C"
-   ],
-   "volume_m3": 0.0,
-   "x0": 96.75,
-   "x1": 107.5,
-   "base": -15.18,
-   "top": -14.12
-  },
-  {
    "id": "Stores 1",
    "kind": "stores",
    "cells": [
-    "1 hold C",
     "1 sixth C",
     "1 fifth C",
     "1 fourth C"
@@ -22202,7 +22074,7 @@
    "volume_m3": 63.3,
    "x0": 96.75,
    "x1": 107.5,
-   "base": -14.12,
+   "base": -15.18,
    "top": -5.2
   },
   {
@@ -23230,7 +23102,6 @@
    "cells": [
     "16 hold C",
     "16 sixth C",
-    "17 hold C",
     "17 sixth C"
    ],
    "tonnes": 528.4,
@@ -23401,14 +23272,14 @@
    "id": "Steering gear",
    "kind": "steering",
    "cells": [
-    "19 fifth C"
+    "19 fourth C"
    ],
    "shared": true,
    "volume_m3": 0,
    "x0": -101.05,
    "x1": -90.3,
    "base": -10.4,
-   "top": -7.8,
+   "top": -5.2,
    "rudders": [
     "Rudder"
    ]
@@ -23417,7 +23288,6 @@
    "id": "Stores 19",
    "kind": "stores",
    "cells": [
-    "19 fifth C",
     "19 fourth C"
    ],
    "volume_m3": 300.5,

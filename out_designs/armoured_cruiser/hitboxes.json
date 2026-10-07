@@ -10221,38 +10221,6 @@
  ],
  "cells": [
   {
-   "id": "1 bottom C",
-   "section": "1",
-   "tier": "bottom",
-   "band": "C",
-   "x0": 64.575,
-   "x1": 71.75,
-   "y0": -0.026,
-   "y1": 0.026,
-   "base": -11.92,
-   "top": -10.92,
-   "below_waterline": true,
-   "armour_above_mm": [
-    40
-   ],
-   "armour_above_material": [
-    "nickel steel"
-   ],
-   "volume_m3": 0.0,
-   "room": "Double bottom 1",
-   "permeability": 0.95,
-   "neighbours": [
-    [
-     "1 hold C",
-     "Inner bottom"
-    ],
-    [
-     "2 bottom C",
-     "Bulkhead 1"
-    ]
-   ]
-  },
-  {
    "id": "1 hold C",
    "section": "1",
    "tier": "hold",
@@ -10261,7 +10229,7 @@
    "x1": 71.75,
    "y0": -0.393,
    "y1": 0.393,
-   "base": -10.92,
+   "base": -11.92,
    "top": -7.8,
    "below_waterline": true,
    "armour_above_mm": [
@@ -10274,10 +10242,6 @@
    "room": "Stores 1",
    "permeability": 0.6,
    "neighbours": [
-    [
-     "1 bottom C",
-     "Inner bottom"
-    ],
     [
      "1 fourth C",
      "open"
@@ -10426,42 +10390,6 @@
    ]
   },
   {
-   "id": "2 bottom C",
-   "section": "2",
-   "tier": "bottom",
-   "band": "C",
-   "x0": 59.445,
-   "x1": 64.575,
-   "y0": -0.175,
-   "y1": 0.175,
-   "base": -11.92,
-   "top": -10.92,
-   "below_waterline": true,
-   "armour_above_mm": [
-    40
-   ],
-   "armour_above_material": [
-    "nickel steel"
-   ],
-   "volume_m3": 0.3,
-   "room": "Double bottom 2",
-   "permeability": 0.95,
-   "neighbours": [
-    [
-     "2 hold C",
-     "Inner bottom"
-    ],
-    [
-     "1 bottom C",
-     "Bulkhead 1"
-    ],
-    [
-     "3 bottom C",
-     "Bulkhead 2"
-    ]
-   ]
-  },
-  {
    "id": "2 hold C",
    "section": "2",
    "tier": "hold",
@@ -10470,7 +10398,7 @@
    "x1": 64.575,
    "y0": -1.207,
    "y1": 1.207,
-   "base": -10.92,
+   "base": -11.92,
    "top": -7.8,
    "below_waterline": true,
    "armour_above_mm": [
@@ -10479,14 +10407,10 @@
    "armour_above_material": [
     "nickel steel"
    ],
-   "volume_m3": 11.3,
+   "volume_m3": 11.6,
    "room": "Stores 2",
    "permeability": 0.6,
    "neighbours": [
-    [
-     "2 bottom C",
-     "Inner bottom"
-    ],
     [
      "2 fourth C",
      "open"
@@ -10494,6 +10418,10 @@
     [
      "1 hold C",
      "Bulkhead 1"
+    ],
+    [
+     "3 bottom C",
+     "Bulkhead 2"
     ],
     [
      "3 hold C",
@@ -10681,7 +10609,7 @@
      "Inner bottom"
     ],
     [
-     "2 bottom C",
+     "2 hold C",
      "Bulkhead 2"
     ],
     [
@@ -11932,7 +11860,7 @@
     "nickel steel"
    ],
    "volume_m3": 71.7,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 8 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -11953,7 +11881,7 @@
     ],
     [
      "9 hold P",
-     "open"
+     "Bulkhead 8"
     ]
    ]
   },
@@ -12029,7 +11957,7 @@
     "nickel steel"
    ],
    "volume_m3": 71.7,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 8 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -12050,7 +11978,7 @@
     ],
     [
      "9 hold S",
-     "open"
+     "Bulkhead 8"
     ]
    ]
   },
@@ -12076,7 +12004,7 @@
    "belt_mm": 114,
    "belt_material": "Krupp cemented",
    "volume_m3": 82.1,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 8 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -12097,7 +12025,7 @@
     ],
     [
      "9 fourth P",
-     "open"
+     "Bulkhead 8"
     ]
    ]
   },
@@ -12174,7 +12102,7 @@
    "belt_mm": 114,
    "belt_material": "Krupp cemented",
    "volume_m3": 82.1,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 8 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -12195,7 +12123,7 @@
     ],
     [
      "9 fourth S",
-     "open"
+     "Bulkhead 8"
     ]
    ]
   },
@@ -12221,7 +12149,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 85.6,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 8 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -12242,7 +12170,7 @@
     ],
     [
      "9 third P",
-     "open"
+     "Bulkhead 8"
     ]
    ]
   },
@@ -12319,7 +12247,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 85.6,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 8 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -12340,7 +12268,7 @@
     ],
     [
      "9 third S",
-     "open"
+     "Bulkhead 8"
     ]
    ]
   },
@@ -12360,7 +12288,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 89.8,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 8 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -12381,7 +12309,7 @@
     ],
     [
      "9 second P",
-     "open"
+     "Bulkhead 8"
     ]
    ]
   },
@@ -12447,7 +12375,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 89.8,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 8 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -12468,7 +12396,7 @@
     ],
     [
      "9 second S",
-     "open"
+     "Bulkhead 8"
     ]
    ]
   },
@@ -12579,7 +12507,7 @@
     "nickel steel"
    ],
    "volume_m3": 68.5,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 9 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -12596,11 +12524,11 @@
     ],
     [
      "8 hold P",
-     "open"
+     "Bulkhead 8"
     ],
     [
      "10 hold P",
-     "open"
+     "Bulkhead 9"
     ]
    ]
   },
@@ -12673,7 +12601,7 @@
     "nickel steel"
    ],
    "volume_m3": 68.5,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 9 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -12690,11 +12618,11 @@
     ],
     [
      "8 hold S",
-     "open"
+     "Bulkhead 8"
     ],
     [
      "10 hold S",
-     "open"
+     "Bulkhead 9"
     ]
    ]
   },
@@ -12720,7 +12648,7 @@
    "belt_mm": 114,
    "belt_material": "Krupp cemented",
    "volume_m3": 65.5,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 9 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -12737,11 +12665,11 @@
     ],
     [
      "8 fourth P",
-     "open"
+     "Bulkhead 8"
     ],
     [
      "10 fourth P",
-     "open"
+     "Bulkhead 9"
     ]
    ]
   },
@@ -12818,7 +12746,7 @@
    "belt_mm": 114,
    "belt_material": "Krupp cemented",
    "volume_m3": 65.5,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 9 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -12835,11 +12763,11 @@
     ],
     [
      "8 fourth S",
-     "open"
+     "Bulkhead 8"
     ],
     [
      "10 fourth S",
-     "open"
+     "Bulkhead 9"
     ]
    ]
   },
@@ -12865,7 +12793,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 66.7,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 9 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -12882,11 +12810,11 @@
     ],
     [
      "8 third P",
-     "open"
+     "Bulkhead 8"
     ],
     [
      "10 third P",
-     "open"
+     "Bulkhead 9"
     ]
    ]
   },
@@ -12963,7 +12891,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 66.7,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 9 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -12980,11 +12908,11 @@
     ],
     [
      "8 third S",
-     "open"
+     "Bulkhead 8"
     ],
     [
      "10 third S",
-     "open"
+     "Bulkhead 9"
     ]
    ]
   },
@@ -13004,7 +12932,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 67.8,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 9 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -13021,11 +12949,11 @@
     ],
     [
      "8 second P",
-     "open"
+     "Bulkhead 8"
     ],
     [
      "10 second P",
-     "open"
+     "Bulkhead 9"
     ]
    ]
   },
@@ -13091,7 +13019,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 67.8,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 9 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -13108,11 +13036,11 @@
     ],
     [
      "8 second S",
-     "open"
+     "Bulkhead 8"
     ],
     [
      "10 second S",
-     "open"
+     "Bulkhead 9"
     ]
    ]
   },
@@ -13223,7 +13151,7 @@
     "nickel steel"
    ],
    "volume_m3": 63.5,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 10 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -13240,11 +13168,11 @@
     ],
     [
      "9 hold P",
-     "open"
+     "Bulkhead 9"
     ],
     [
      "11 hold P",
-     "open"
+     "Bulkhead 10"
     ]
    ]
   },
@@ -13317,7 +13245,7 @@
     "nickel steel"
    ],
    "volume_m3": 63.5,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 10 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -13334,11 +13262,11 @@
     ],
     [
      "9 hold S",
-     "open"
+     "Bulkhead 9"
     ],
     [
      "11 hold S",
-     "open"
+     "Bulkhead 10"
     ]
    ]
   },
@@ -13364,7 +13292,7 @@
    "belt_mm": 114,
    "belt_material": "Krupp cemented",
    "volume_m3": 64.3,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 10 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -13381,11 +13309,11 @@
     ],
     [
      "9 fourth P",
-     "open"
+     "Bulkhead 9"
     ],
     [
      "11 fourth P",
-     "open"
+     "Bulkhead 10"
     ]
    ]
   },
@@ -13462,7 +13390,7 @@
    "belt_mm": 114,
    "belt_material": "Krupp cemented",
    "volume_m3": 64.3,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 10 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -13479,11 +13407,11 @@
     ],
     [
      "9 fourth S",
-     "open"
+     "Bulkhead 9"
     ],
     [
      "11 fourth S",
-     "open"
+     "Bulkhead 10"
     ]
    ]
   },
@@ -13509,7 +13437,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 66.0,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 10 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -13526,11 +13454,11 @@
     ],
     [
      "9 third P",
-     "open"
+     "Bulkhead 9"
     ],
     [
      "11 third P",
-     "open"
+     "Bulkhead 10"
     ]
    ]
   },
@@ -13607,7 +13535,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 66.0,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 10 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -13624,11 +13552,11 @@
     ],
     [
      "9 third S",
-     "open"
+     "Bulkhead 9"
     ],
     [
      "11 third S",
-     "open"
+     "Bulkhead 10"
     ]
    ]
   },
@@ -13648,7 +13576,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 67.5,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 10 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -13665,11 +13593,11 @@
     ],
     [
      "9 second P",
-     "open"
+     "Bulkhead 9"
     ],
     [
      "11 second P",
-     "open"
+     "Bulkhead 10"
     ]
    ]
   },
@@ -13735,7 +13663,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 67.5,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 10 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -13752,11 +13680,11 @@
     ],
     [
      "9 second S",
-     "open"
+     "Bulkhead 9"
     ],
     [
      "11 second S",
-     "open"
+     "Bulkhead 10"
     ]
    ]
   },
@@ -13867,7 +13795,7 @@
     "nickel steel"
    ],
    "volume_m3": 40.4,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 11 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -13884,11 +13812,11 @@
     ],
     [
      "10 hold P",
-     "open"
+     "Bulkhead 10"
     ],
     [
      "12 hold P",
-     "open"
+     "Bulkhead 11"
     ]
    ]
   },
@@ -13968,7 +13896,7 @@
     "nickel steel"
    ],
    "volume_m3": 40.4,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 11 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -13985,11 +13913,11 @@
     ],
     [
      "10 hold S",
-     "open"
+     "Bulkhead 10"
     ],
     [
      "12 hold S",
-     "open"
+     "Bulkhead 11"
     ]
    ]
   },
@@ -14015,7 +13943,7 @@
    "belt_mm": 114,
    "belt_material": "Krupp cemented",
    "volume_m3": 51.4,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 11 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -14032,11 +13960,11 @@
     ],
     [
      "10 fourth P",
-     "open"
+     "Bulkhead 10"
     ],
     [
      "12 fourth P",
-     "open"
+     "Bulkhead 11"
     ]
    ]
   },
@@ -14113,7 +14041,7 @@
    "belt_mm": 114,
    "belt_material": "Krupp cemented",
    "volume_m3": 51.4,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 11 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -14130,11 +14058,11 @@
     ],
     [
      "10 fourth S",
-     "open"
+     "Bulkhead 10"
     ],
     [
      "12 fourth S",
-     "open"
+     "Bulkhead 11"
     ]
    ]
   },
@@ -14160,7 +14088,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 55.1,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 11 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -14177,11 +14105,11 @@
     ],
     [
      "10 third P",
-     "open"
+     "Bulkhead 10"
     ],
     [
      "12 third P",
-     "open"
+     "Bulkhead 11"
     ]
    ]
   },
@@ -14258,7 +14186,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 55.1,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 11 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -14275,11 +14203,11 @@
     ],
     [
      "10 third S",
-     "open"
+     "Bulkhead 10"
     ],
     [
      "12 third S",
-     "open"
+     "Bulkhead 11"
     ]
    ]
   },
@@ -14299,7 +14227,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 59.0,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 11 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -14316,11 +14244,11 @@
     ],
     [
      "10 second P",
-     "open"
+     "Bulkhead 10"
     ],
     [
      "12 second P",
-     "open"
+     "Bulkhead 11"
     ]
    ]
   },
@@ -14386,7 +14314,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 59.0,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 11 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -14403,11 +14331,11 @@
     ],
     [
      "10 second S",
-     "open"
+     "Bulkhead 10"
     ],
     [
      "12 second S",
-     "open"
+     "Bulkhead 11"
     ]
    ]
   },
@@ -14510,7 +14438,7 @@
     "nickel steel"
    ],
    "volume_m3": 15.1,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 12 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -14523,11 +14451,11 @@
     ],
     [
      "11 hold P",
-     "open"
+     "Bulkhead 11"
     ],
     [
      "13 hold P",
-     "open"
+     "Bulkhead 12"
     ]
    ]
   },
@@ -14605,7 +14533,7 @@
     "nickel steel"
    ],
    "volume_m3": 15.1,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 12 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -14618,11 +14546,11 @@
     ],
     [
      "11 hold S",
-     "open"
+     "Bulkhead 11"
     ],
     [
      "13 hold S",
-     "open"
+     "Bulkhead 12"
     ]
    ]
   },
@@ -14648,7 +14576,7 @@
    "belt_mm": 114,
    "belt_material": "Krupp cemented",
    "volume_m3": 30.9,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 12 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -14665,11 +14593,11 @@
     ],
     [
      "11 fourth P",
-     "open"
+     "Bulkhead 11"
     ],
     [
      "13 fourth P",
-     "open"
+     "Bulkhead 12"
     ]
    ]
   },
@@ -14746,7 +14674,7 @@
    "belt_mm": 114,
    "belt_material": "Krupp cemented",
    "volume_m3": 30.9,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 12 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -14763,11 +14691,11 @@
     ],
     [
      "11 fourth S",
-     "open"
+     "Bulkhead 11"
     ],
     [
      "13 fourth S",
-     "open"
+     "Bulkhead 12"
     ]
    ]
   },
@@ -14793,7 +14721,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 37.2,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 12 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -14810,11 +14738,11 @@
     ],
     [
      "11 third P",
-     "open"
+     "Bulkhead 11"
     ],
     [
      "13 third P",
-     "open"
+     "Bulkhead 12"
     ]
    ]
   },
@@ -14891,7 +14819,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 37.2,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 12 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -14908,11 +14836,11 @@
     ],
     [
      "11 third S",
-     "open"
+     "Bulkhead 11"
     ],
     [
      "13 third S",
-     "open"
+     "Bulkhead 12"
     ]
    ]
   },
@@ -14932,7 +14860,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 44.7,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 12 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -14949,11 +14877,11 @@
     ],
     [
      "11 second P",
-     "open"
+     "Bulkhead 11"
     ],
     [
      "13 second P",
-     "open"
+     "Bulkhead 12"
     ]
    ]
   },
@@ -15019,7 +14947,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 44.7,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 12 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -15036,11 +14964,11 @@
     ],
     [
      "11 second S",
-     "open"
+     "Bulkhead 11"
     ],
     [
      "13 second S",
-     "open"
+     "Bulkhead 12"
     ]
    ]
   },
@@ -15143,7 +15071,7 @@
     "nickel steel"
    ],
    "volume_m3": 1.0,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 13 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -15156,7 +15084,7 @@
     ],
     [
      "12 hold P",
-     "open"
+     "Bulkhead 12"
     ]
    ]
   },
@@ -15234,7 +15162,7 @@
     "nickel steel"
    ],
    "volume_m3": 1.0,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 13 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -15247,7 +15175,7 @@
     ],
     [
      "12 hold S",
-     "open"
+     "Bulkhead 12"
     ]
    ]
   },
@@ -15273,7 +15201,7 @@
    "belt_mm": 114,
    "belt_material": "Krupp cemented",
    "volume_m3": 9.7,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 13 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -15290,7 +15218,7 @@
     ],
     [
      "12 fourth P",
-     "open"
+     "Bulkhead 12"
     ],
     [
      "14 fourth C",
@@ -15371,7 +15299,7 @@
    "belt_mm": 114,
    "belt_material": "Krupp cemented",
    "volume_m3": 9.7,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 13 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -15388,7 +15316,7 @@
     ],
     [
      "12 fourth S",
-     "open"
+     "Bulkhead 12"
     ],
     [
      "14 fourth C",
@@ -15418,7 +15346,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 21.1,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 13 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -15435,7 +15363,7 @@
     ],
     [
      "12 third P",
-     "open"
+     "Bulkhead 12"
     ],
     [
      "14 third C",
@@ -15516,7 +15444,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 21.1,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 13 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -15533,7 +15461,7 @@
     ],
     [
      "12 third S",
-     "open"
+     "Bulkhead 12"
     ],
     [
      "14 third C",
@@ -15557,7 +15485,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 34.5,
-   "room": "Wing bunker P",
+   "room": "Wing bunker 13 P",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -15574,7 +15502,7 @@
     ],
     [
      "12 second P",
-     "open"
+     "Bulkhead 12"
     ],
     [
      "14 second C",
@@ -15644,7 +15572,7 @@
    "belt_mm": 150,
    "belt_material": "Krupp cemented",
    "volume_m3": 34.5,
-   "room": "Wing bunker S",
+   "room": "Wing bunker 13 S",
    "permeability": 0.4,
    "neighbours": [
     [
@@ -15661,7 +15589,7 @@
     ],
     [
      "12 second S",
-     "open"
+     "Bulkhead 12"
     ],
     [
      "14 second C",
@@ -15743,7 +15671,7 @@
      "Bulkhead 13"
     ],
     [
-     "15 bottom C",
+     "15 hold C",
      "Bulkhead 14"
     ]
    ]
@@ -15975,39 +15903,6 @@
    ]
   },
   {
-   "id": "15 bottom C",
-   "section": "15",
-   "tier": "bottom",
-   "band": "C",
-   "x0": -52.009,
-   "x1": -42.739,
-   "y0": -3.333,
-   "y1": 3.333,
-   "base": -11.92,
-   "top": -10.92,
-   "below_waterline": true,
-   "citadel": true,
-   "armour_above_mm": [
-    40
-   ],
-   "armour_above_material": [
-    "nickel steel"
-   ],
-   "volume_m3": 1.7,
-   "room": "Double bottom 15",
-   "permeability": 0.95,
-   "neighbours": [
-    [
-     "15 hold C",
-     "Inner bottom"
-    ],
-    [
-     "14 bottom C",
-     "Bulkhead 14"
-    ]
-   ]
-  },
-  {
    "id": "15 hold C",
    "section": "15",
    "tier": "hold",
@@ -16016,7 +15911,7 @@
    "x1": -42.739,
    "y0": -6.861,
    "y1": 6.861,
-   "base": -10.92,
+   "base": -11.92,
    "top": -7.8,
    "below_waterline": true,
    "citadel": true,
@@ -16026,17 +15921,17 @@
    "armour_above_material": [
     "nickel steel"
    ],
-   "volume_m3": 208.3,
+   "volume_m3": 210.0,
    "room": "Magazine Y",
    "permeability": 0.6,
    "neighbours": [
     [
-     "15 bottom C",
-     "Inner bottom"
-    ],
-    [
      "15 fourth C",
      "Fourth deck"
+    ],
+    [
+     "14 bottom C",
+     "Bulkhead 14"
     ],
     [
      "14 hold C",
@@ -16356,7 +16251,7 @@
      "Bulkhead 16"
     ],
     [
-     "18 fourth C",
+     "18 third C",
      "Bulkhead 17"
     ]
    ]
@@ -16438,40 +16333,6 @@
    ]
   },
   {
-   "id": "18 fourth C",
-   "section": "18",
-   "tier": "fourth",
-   "band": "C",
-   "x0": -71.75,
-   "x1": -67.445,
-   "y0": -0.949,
-   "y1": 0.949,
-   "base": -7.8,
-   "top": -5.2,
-   "below_waterline": true,
-   "armour_above_mm": [
-    40
-   ],
-   "armour_above_material": [
-    "nickel steel"
-   ],
-   "belt_mm": 80,
-   "belt_material": "Krupp cemented",
-   "volume_m3": 0.0,
-   "room": "Stores 18",
-   "permeability": 0.6,
-   "neighbours": [
-    [
-     "18 third C",
-     "Third deck"
-    ],
-    [
-     "17 fourth C",
-     "Bulkhead 17"
-    ]
-   ]
-  },
-  {
    "id": "18 third C",
    "section": "18",
    "tier": "third",
@@ -16480,7 +16341,7 @@
    "x1": -67.445,
    "y0": -5.421,
    "y1": 5.421,
-   "base": -5.2,
+   "base": -7.8,
    "top": -2.6,
    "below_waterline": false,
    "armour_above_mm": [
@@ -16497,12 +16358,12 @@
    "permeability": 0.95,
    "neighbours": [
     [
-     "18 fourth C",
-     "Third deck"
-    ],
-    [
      "18 second C",
      "open"
+    ],
+    [
+     "17 fourth C",
+     "Bulkhead 17"
     ],
     [
      "17 third C",
@@ -16542,18 +16403,6 @@
  ],
  "rooms": [
   {
-   "id": "Double bottom 1",
-   "kind": "double_bottom",
-   "cells": [
-    "1 bottom C"
-   ],
-   "volume_m3": 0.0,
-   "x0": 64.575,
-   "x1": 71.75,
-   "base": -11.92,
-   "top": -10.92
-  },
-  {
    "id": "Stores 1",
    "kind": "stores",
    "cells": [
@@ -16563,7 +16412,7 @@
    "volume_m3": 10.5,
    "x0": 64.575,
    "x1": 71.75,
-   "base": -10.92,
+   "base": -11.92,
    "top": -5.2
   },
   {
@@ -16582,28 +16431,16 @@
    "top": 2.6
   },
   {
-   "id": "Double bottom 2",
-   "kind": "double_bottom",
-   "cells": [
-    "2 bottom C"
-   ],
-   "volume_m3": 0.3,
-   "x0": 59.445,
-   "x1": 64.575,
-   "base": -11.92,
-   "top": -10.92
-  },
-  {
    "id": "Stores 2",
    "kind": "stores",
    "cells": [
     "2 hold C",
     "2 fourth C"
    ],
-   "volume_m3": 42.1,
+   "volume_m3": 42.4,
    "x0": 59.445,
    "x1": 64.575,
-   "base": -10.92,
+   "base": -11.92,
    "top": -5.2
   },
   {
@@ -16908,75 +16745,35 @@
    "top": -2.6
   },
   {
-   "id": "Wing bunker S",
+   "id": "Wing bunker 8 S",
    "kind": "bunker",
    "cells": [
     "8 hold S",
     "8 fourth S",
     "8 third S",
-    "8 second S",
-    "9 hold S",
-    "9 fourth S",
-    "9 third S",
-    "9 second S",
-    "10 hold S",
-    "10 fourth S",
-    "10 third S",
-    "10 second S",
-    "11 hold S",
-    "11 fourth S",
-    "11 third S",
-    "11 second S",
-    "12 hold S",
-    "12 fourth S",
-    "12 third S",
-    "12 second S",
-    "13 hold S",
-    "13 fourth S",
-    "13 third S",
-    "13 second S"
+    "8 second S"
    ],
    "fuel": "coal",
-   "tonnes": 727.8,
-   "volume_m3": 1259.1,
-   "x0": -35.562,
+   "tonnes": 190.2,
+   "volume_m3": 329.1,
+   "x0": 4.755,
    "x1": 17.093,
    "base": -10.92,
    "top": 0.0
   },
   {
-   "id": "Wing bunker P",
+   "id": "Wing bunker 8 P",
    "kind": "bunker",
    "cells": [
     "8 hold P",
     "8 fourth P",
     "8 third P",
-    "8 second P",
-    "9 hold P",
-    "9 fourth P",
-    "9 third P",
-    "9 second P",
-    "10 hold P",
-    "10 fourth P",
-    "10 third P",
-    "10 second P",
-    "11 hold P",
-    "11 fourth P",
-    "11 third P",
-    "11 second P",
-    "12 hold P",
-    "12 fourth P",
-    "12 third P",
-    "12 second P",
-    "13 hold P",
-    "13 fourth P",
-    "13 third P",
-    "13 second P"
+    "8 second P"
    ],
    "fuel": "coal",
-   "tonnes": 727.8,
-   "volume_m3": 1259.1,
-   "x0": -35.562,
+   "tonnes": 190.2,
+   "volume_m3": 329.1,
+   "x0": 4.755,
    "x1": 17.093,
    "base": -10.92,
    "top": 0.0
@@ -17022,6 +16819,40 @@
    "top": -2.6
   },
   {
+   "id": "Wing bunker 9 S",
+   "kind": "bunker",
+   "cells": [
+    "9 hold S",
+    "9 fourth S",
+    "9 third S",
+    "9 second S"
+   ],
+   "fuel": "coal",
+   "tonnes": 155.2,
+   "volume_m3": 268.5,
+   "x0": -4.073,
+   "x1": 4.755,
+   "base": -10.92,
+   "top": 0.0
+  },
+  {
+   "id": "Wing bunker 9 P",
+   "kind": "bunker",
+   "cells": [
+    "9 hold P",
+    "9 fourth P",
+    "9 third P",
+    "9 second P"
+   ],
+   "fuel": "coal",
+   "tonnes": 155.2,
+   "volume_m3": 268.5,
+   "x0": -4.073,
+   "x1": 4.755,
+   "base": -10.92,
+   "top": 0.0
+  },
+  {
    "id": "Double bottom 9",
    "kind": "double_bottom",
    "cells": [
@@ -17060,6 +16891,40 @@
    "x1": -4.073,
    "base": -10.92,
    "top": -2.6
+  },
+  {
+   "id": "Wing bunker 10 S",
+   "kind": "bunker",
+   "cells": [
+    "10 hold S",
+    "10 fourth S",
+    "10 third S",
+    "10 second S"
+   ],
+   "fuel": "coal",
+   "tonnes": 151.0,
+   "volume_m3": 261.3,
+   "x0": -12.901,
+   "x1": -4.073,
+   "base": -10.92,
+   "top": 0.0
+  },
+  {
+   "id": "Wing bunker 10 P",
+   "kind": "bunker",
+   "cells": [
+    "10 hold P",
+    "10 fourth P",
+    "10 third P",
+    "10 second P"
+   ],
+   "fuel": "coal",
+   "tonnes": 151.0,
+   "volume_m3": 261.3,
+   "x0": -12.901,
+   "x1": -4.073,
+   "base": -10.92,
+   "top": 0.0
   },
   {
    "id": "Double bottom 10",
@@ -17120,6 +16985,40 @@
    ]
   },
   {
+   "id": "Wing bunker 11 S",
+   "kind": "bunker",
+   "cells": [
+    "11 hold S",
+    "11 fourth S",
+    "11 third S",
+    "11 second S"
+   ],
+   "fuel": "coal",
+   "tonnes": 119.0,
+   "volume_m3": 205.9,
+   "x0": -21.115,
+   "x1": -12.901,
+   "base": -10.92,
+   "top": 0.0
+  },
+  {
+   "id": "Wing bunker 11 P",
+   "kind": "bunker",
+   "cells": [
+    "11 hold P",
+    "11 fourth P",
+    "11 third P",
+    "11 second P"
+   ],
+   "fuel": "coal",
+   "tonnes": 119.0,
+   "volume_m3": 205.9,
+   "x0": -21.115,
+   "x1": -12.901,
+   "base": -10.92,
+   "top": 0.0
+  },
+  {
    "id": "Double bottom 11",
    "kind": "double_bottom",
    "cells": [
@@ -17163,6 +17062,40 @@
    ]
   },
   {
+   "id": "Wing bunker 12 S",
+   "kind": "bunker",
+   "cells": [
+    "12 hold S",
+    "12 fourth S",
+    "12 third S",
+    "12 second S"
+   ],
+   "fuel": "coal",
+   "tonnes": 74.0,
+   "volume_m3": 128.0,
+   "x0": -28.338,
+   "x1": -21.115,
+   "base": -10.92,
+   "top": 0.0
+  },
+  {
+   "id": "Wing bunker 12 P",
+   "kind": "bunker",
+   "cells": [
+    "12 hold P",
+    "12 fourth P",
+    "12 third P",
+    "12 second P"
+   ],
+   "fuel": "coal",
+   "tonnes": 74.0,
+   "volume_m3": 128.0,
+   "x0": -28.338,
+   "x1": -21.115,
+   "base": -10.92,
+   "top": 0.0
+  },
+  {
    "id": "Double bottom 12",
    "kind": "double_bottom",
    "cells": [
@@ -17201,6 +17134,40 @@
    "x1": -28.338,
    "base": -10.92,
    "top": -2.6
+  },
+  {
+   "id": "Wing bunker 13 S",
+   "kind": "bunker",
+   "cells": [
+    "13 hold S",
+    "13 fourth S",
+    "13 third S",
+    "13 second S"
+   ],
+   "fuel": "coal",
+   "tonnes": 38.3,
+   "volume_m3": 66.3,
+   "x0": -35.562,
+   "x1": -28.338,
+   "base": -10.92,
+   "top": 0.0
+  },
+  {
+   "id": "Wing bunker 13 P",
+   "kind": "bunker",
+   "cells": [
+    "13 hold P",
+    "13 fourth P",
+    "13 third P",
+    "13 second P"
+   ],
+   "fuel": "coal",
+   "tonnes": 38.3,
+   "volume_m3": 66.3,
+   "x0": -35.562,
+   "x1": -28.338,
+   "base": -10.92,
+   "top": 0.0
   },
   {
    "id": "Double bottom 13",
@@ -17319,23 +17286,11 @@
    ],
    "tonnes": 54.2,
    "mount": "Y",
-   "volume_m3": 208.3,
-   "x0": -52.009,
-   "x1": -42.739,
-   "base": -10.92,
-   "top": -7.8
-  },
-  {
-   "id": "Double bottom 15",
-   "kind": "double_bottom",
-   "cells": [
-    "15 bottom C"
-   ],
-   "volume_m3": 1.7,
+   "volume_m3": 210.0,
    "x0": -52.009,
    "x1": -42.739,
    "base": -11.92,
-   "top": -10.92
+   "top": -7.8
   },
   {
    "id": "Stores 15",
@@ -17420,18 +17375,6 @@
    "top": 0.0
   },
   {
-   "id": "Stores 18",
-   "kind": "stores",
-   "cells": [
-    "18 fourth C"
-   ],
-   "volume_m3": 0.0,
-   "x0": -71.75,
-   "x1": -67.445,
-   "base": -7.8,
-   "top": -5.2
-  },
-  {
    "id": "Quarters 18",
    "kind": "accommodation",
    "cells": [
@@ -17442,7 +17385,7 @@
    "volume_m3": 185.8,
    "x0": -71.75,
    "x1": -67.445,
-   "base": -5.2,
+   "base": -7.8,
    "top": 0.0
   }
  ]

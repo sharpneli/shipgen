@@ -5708,32 +5708,6 @@
  ],
  "cells": [
   {
-   "id": "1 bottom C",
-   "section": "1",
-   "tier": "bottom",
-   "band": "C",
-   "x0": 36.45,
-   "x1": 40.5,
-   "y0": -0.104,
-   "y1": 0.104,
-   "base": -6.95,
-   "top": -5.95,
-   "below_waterline": true,
-   "volume_m3": 0.0,
-   "room": "Double bottom 1",
-   "permeability": 0.95,
-   "neighbours": [
-    [
-     "1 hold C",
-     "Inner bottom"
-    ],
-    [
-     "2 bottom C",
-     "Bulkhead 1"
-    ]
-   ]
-  },
-  {
    "id": "1 hold C",
    "section": "1",
    "tier": "hold",
@@ -5742,20 +5716,20 @@
    "x1": 40.5,
    "y0": -1.084,
    "y1": 1.084,
-   "base": -5.95,
+   "base": -6.95,
    "top": -2.6,
    "below_waterline": false,
-   "volume_m3": 7.2,
+   "volume_m3": 7.3,
    "room": "Quarters 1",
    "permeability": 0.95,
    "neighbours": [
     [
-     "1 bottom C",
-     "Inner bottom"
-    ],
-    [
      "1 second C",
      "open"
+    ],
+    [
+     "2 bottom C",
+     "Bulkhead 1"
     ],
     [
      "2 hold C",
@@ -5811,7 +5785,7 @@
      "Inner bottom"
     ],
     [
-     "1 bottom C",
+     "1 hold C",
      "Bulkhead 1"
     ],
     [
@@ -7180,7 +7154,7 @@
      "Bulkhead 15"
     ],
     [
-     "17 bottom C",
+     "17 hold C",
      "Bulkhead 16"
     ]
    ]
@@ -7252,32 +7226,6 @@
    ]
   },
   {
-   "id": "17 bottom C",
-   "section": "17",
-   "tier": "bottom",
-   "band": "C",
-   "x0": -34.02,
-   "x1": -28.846,
-   "y0": -0.986,
-   "y1": 0.986,
-   "base": -6.95,
-   "top": -5.95,
-   "below_waterline": true,
-   "volume_m3": 0.4,
-   "room": "Double bottom 17",
-   "permeability": 0.95,
-   "neighbours": [
-    [
-     "17 hold C",
-     "Inner bottom"
-    ],
-    [
-     "16 bottom C",
-     "Bulkhead 16"
-    ]
-   ]
-  },
-  {
    "id": "17 hold C",
    "section": "17",
    "tier": "hold",
@@ -7286,21 +7234,21 @@
    "x1": -28.846,
    "y0": -4.88,
    "y1": 4.88,
-   "base": -5.95,
+   "base": -6.95,
    "top": -2.6,
    "below_waterline": false,
-   "volume_m3": 118.3,
+   "volume_m3": 118.7,
    "crew": 6,
    "room": "Quarters 17",
    "permeability": 0.95,
    "neighbours": [
     [
-     "17 bottom C",
-     "Inner bottom"
-    ],
-    [
      "17 second C",
      "open"
+    ],
+    [
+     "16 bottom C",
+     "Bulkhead 16"
     ],
     [
      "16 hold C",
@@ -7460,18 +7408,6 @@
  ],
  "rooms": [
   {
-   "id": "Double bottom 1",
-   "kind": "double_bottom",
-   "cells": [
-    "1 bottom C"
-   ],
-   "volume_m3": 0.0,
-   "x0": 36.45,
-   "x1": 40.5,
-   "base": -6.95,
-   "top": -5.95
-  },
-  {
    "id": "Quarters 1",
    "kind": "accommodation",
    "cells": [
@@ -7479,10 +7415,10 @@
     "1 second C"
    ],
    "crew": 1,
-   "volume_m3": 21.5,
+   "volume_m3": 21.6,
    "x0": 36.45,
    "x1": 40.5,
-   "base": -5.95,
+   "base": -6.95,
    "top": 0.0
   },
   {
@@ -7916,18 +7852,6 @@
    "top": 0.0
   },
   {
-   "id": "Double bottom 17",
-   "kind": "double_bottom",
-   "cells": [
-    "17 bottom C"
-   ],
-   "volume_m3": 0.4,
-   "x0": -34.02,
-   "x1": -28.846,
-   "base": -6.95,
-   "top": -5.95
-  },
-  {
    "id": "Quarters 17",
    "kind": "accommodation",
    "cells": [
@@ -7935,10 +7859,10 @@
     "17 second C"
    ],
    "crew": 13,
-   "volume_m3": 254.8,
+   "volume_m3": 255.2,
    "x0": -34.02,
    "x1": -28.846,
-   "base": -5.95,
+   "base": -6.95,
    "top": 0.0
   },
   {

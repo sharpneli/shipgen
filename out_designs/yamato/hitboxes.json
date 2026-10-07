@@ -10543,32 +10543,6 @@
  ],
  "cells": [
   {
-   "id": "1 bottom C",
-   "section": "1",
-   "tier": "bottom",
-   "band": "C",
-   "x0": 104.175,
-   "x1": 115.75,
-   "y0": -0.039,
-   "y1": 0.039,
-   "base": -17.77,
-   "top": -16.52,
-   "below_waterline": true,
-   "volume_m3": 0.1,
-   "room": "Double bottom 1",
-   "permeability": 0.95,
-   "neighbours": [
-    [
-     "1 hold C",
-     "Inner bottom"
-    ],
-    [
-     "2 bottom C",
-     "Bulkhead 1"
-    ]
-   ]
-  },
-  {
    "id": "1 hold C",
    "section": "1",
    "tier": "hold",
@@ -10577,20 +10551,20 @@
    "x1": 115.75,
    "y0": -0.486,
    "y1": 0.486,
-   "base": -16.52,
+   "base": -17.77,
    "top": -13.0,
    "below_waterline": true,
-   "volume_m3": 4.8,
+   "volume_m3": 4.9,
    "room": "Stores 1",
    "permeability": 0.6,
    "neighbours": [
     [
-     "1 bottom C",
-     "Inner bottom"
-    ],
-    [
      "1 sixth C",
      "open"
+    ],
+    [
+     "2 bottom C",
+     "Bulkhead 1"
     ],
     [
      "2 hold C",
@@ -10767,7 +10741,7 @@
      "Inner bottom"
     ],
     [
-     "1 bottom C",
+     "1 hold C",
      "Bulkhead 1"
     ],
     [
@@ -23630,7 +23604,7 @@
      "Bulkhead 17"
     ],
     [
-     "19 sixth C",
+     "19 fifth C",
      "Bulkhead 18"
     ]
    ]
@@ -23794,40 +23768,6 @@
    ]
   },
   {
-   "id": "19 sixth C",
-   "section": "19",
-   "tier": "sixth",
-   "band": "C",
-   "x0": -106.49,
-   "x1": -97.23,
-   "y0": -2.75,
-   "y1": 2.75,
-   "base": -13.0,
-   "top": -10.4,
-   "below_waterline": true,
-   "armour_above_mm": [
-    200
-   ],
-   "armour_above_material": [
-    "Molybdenum steel"
-   ],
-   "belt_mm": 350,
-   "belt_material": "Vickers hardened",
-   "volume_m3": 0.0,
-   "room": "Steering gear",
-   "permeability": 0.85,
-   "neighbours": [
-    [
-     "19 fifth C",
-     "Fifth deck"
-    ],
-    [
-     "18 sixth C",
-     "Bulkhead 18"
-    ]
-   ]
-  },
-  {
    "id": "19 fifth C",
    "section": "19",
    "tier": "fifth",
@@ -23836,27 +23776,27 @@
    "x1": -97.23,
    "y0": -9.131,
    "y1": 9.131,
-   "base": -10.4,
+   "base": -13.0,
    "top": -7.8,
    "below_waterline": true,
    "volume_m3": 148.5,
-   "room": "Stores 19",
-   "permeability": 0.6,
+   "room": "Steering gear",
+   "permeability": 0.85,
    "neighbours": [
     [
-     "19 sixth C",
-     "Fifth deck"
+     "19 fourth C",
+     "Fourth deck"
     ],
     [
-     "19 fourth C",
-     "open"
+     "18 sixth C",
+     "Bulkhead 18"
     ],
     [
      "18 fifth C",
      "Bulkhead 18"
     ],
     [
-     "20 fifth C",
+     "20 fourth C",
      "Bulkhead 19"
     ]
    ]
@@ -23879,7 +23819,7 @@
    "neighbours": [
     [
      "19 fifth C",
-     "open"
+     "Fourth deck"
     ],
     [
      "19 third C",
@@ -23962,32 +23902,6 @@
    ]
   },
   {
-   "id": "20 fifth C",
-   "section": "20",
-   "tier": "fifth",
-   "band": "C",
-   "x0": -115.75,
-   "x1": -106.49,
-   "y0": -3.341,
-   "y1": 3.341,
-   "base": -10.4,
-   "top": -7.8,
-   "below_waterline": true,
-   "volume_m3": 0.0,
-   "room": "Stores 20",
-   "permeability": 0.6,
-   "neighbours": [
-    [
-     "20 fourth C",
-     "open"
-    ],
-    [
-     "19 fifth C",
-     "Bulkhead 19"
-    ]
-   ]
-  },
-  {
    "id": "20 fourth C",
    "section": "20",
    "tier": "fourth",
@@ -23996,7 +23910,7 @@
    "x1": -106.49,
    "y0": -8.824,
    "y1": 8.824,
-   "base": -7.8,
+   "base": -10.4,
    "top": -5.2,
    "below_waterline": false,
    "volume_m3": 169.7,
@@ -24004,12 +23918,12 @@
    "permeability": 0.6,
    "neighbours": [
     [
-     "20 fifth C",
-     "open"
-    ],
-    [
      "20 third C",
      "Third deck"
+    ],
+    [
+     "19 fifth C",
+     "Bulkhead 19"
     ],
     [
      "19 fourth C",
@@ -24078,18 +23992,6 @@
  ],
  "rooms": [
   {
-   "id": "Double bottom 1",
-   "kind": "double_bottom",
-   "cells": [
-    "1 bottom C"
-   ],
-   "volume_m3": 0.1,
-   "x0": 104.175,
-   "x1": 115.75,
-   "base": -17.77,
-   "top": -16.52
-  },
-  {
    "id": "Stores 1",
    "kind": "stores",
    "cells": [
@@ -24101,7 +24003,7 @@
    "volume_m3": 107.0,
    "x0": 104.175,
    "x1": 115.75,
-   "base": -16.52,
+   "base": -17.77,
    "top": -5.2
   },
   {
@@ -25335,13 +25237,13 @@
    "id": "Steering gear",
    "kind": "steering",
    "cells": [
-    "19 sixth C"
+    "19 fifth C"
    ],
-   "volume_m3": 0.0,
+   "volume_m3": 148.5,
    "x0": -106.49,
    "x1": -97.23,
    "base": -13.0,
-   "top": -10.4,
+   "top": -7.8,
    "rudders": [
     "Rudder 1",
     "Rudder 2"
@@ -25351,13 +25253,12 @@
    "id": "Stores 19",
    "kind": "stores",
    "cells": [
-    "19 fifth C",
     "19 fourth C"
    ],
-   "volume_m3": 582.5,
+   "volume_m3": 434.0,
    "x0": -106.49,
    "x1": -97.23,
-   "base": -10.4,
+   "base": -7.8,
    "top": -5.2
   },
   {
@@ -25378,7 +25279,6 @@
    "id": "Stores 20",
    "kind": "stores",
    "cells": [
-    "20 fifth C",
     "20 fourth C"
    ],
    "volume_m3": 169.7,

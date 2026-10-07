@@ -7120,7 +7120,7 @@
      "Bulkhead 15"
     ],
     [
-     "17 bottom C",
+     "17 hold C",
      "Bulkhead 16"
     ]
    ],
@@ -7265,32 +7265,6 @@
    ]
   },
   {
-   "id": "17 bottom C",
-   "section": "17",
-   "tier": "bottom",
-   "band": "C",
-   "x0": -67.5,
-   "x1": -62.1,
-   "y0": -0.873,
-   "y1": 0.873,
-   "base": -7.81,
-   "top": -6.81,
-   "below_waterline": true,
-   "volume_m3": 0.6,
-   "room": "Double bottom 17",
-   "permeability": 0.95,
-   "neighbours": [
-    [
-     "17 hold C",
-     "Inner bottom"
-    ],
-    [
-     "16 bottom C",
-     "Bulkhead 16"
-    ]
-   ]
-  },
-  {
    "id": "17 hold C",
    "section": "17",
    "tier": "hold",
@@ -7299,20 +7273,20 @@
    "x1": -62.1,
    "y0": -2.781,
    "y1": 2.781,
-   "base": -6.81,
+   "base": -7.81,
    "top": -5.2,
    "below_waterline": true,
-   "volume_m3": 6.4,
+   "volume_m3": 7.1,
    "room": "Stores 17",
    "permeability": 0.6,
    "neighbours": [
     [
-     "17 bottom C",
-     "Inner bottom"
-    ],
-    [
      "17 third C",
      "open"
+    ],
+    [
+     "16 bottom C",
+     "Bulkhead 16"
     ],
     [
      "16 hold C",
@@ -7897,28 +7871,16 @@
    "top": 2.6
   },
   {
-   "id": "Double bottom 17",
-   "kind": "double_bottom",
-   "cells": [
-    "17 bottom C"
-   ],
-   "volume_m3": 0.6,
-   "x0": -67.5,
-   "x1": -62.1,
-   "base": -7.81,
-   "top": -6.81
-  },
-  {
    "id": "Stores 17",
    "kind": "stores",
    "cells": [
     "17 hold C",
     "17 third C"
    ],
-   "volume_m3": 31.4,
+   "volume_m3": 32.0,
    "x0": -67.5,
    "x1": -62.1,
-   "base": -6.81,
+   "base": -7.81,
    "top": -2.6
   },
   {

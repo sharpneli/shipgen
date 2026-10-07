@@ -9090,32 +9090,6 @@
  ],
  "cells": [
   {
-   "id": "1 hold C",
-   "section": "1",
-   "tier": "hold",
-   "band": "C",
-   "x0": 106.425,
-   "x1": 118.25,
-   "y0": -0.087,
-   "y1": 0.087,
-   "base": -14.4,
-   "top": -13.0,
-   "below_waterline": true,
-   "volume_m3": 0.2,
-   "room": "Stores 1",
-   "permeability": 0.6,
-   "neighbours": [
-    [
-     "1 sixth C",
-     "open"
-    ],
-    [
-     "2 hold C",
-     "Bulkhead 1"
-    ]
-   ]
-  },
-  {
    "id": "1 sixth C",
    "section": "1",
    "tier": "sixth",
@@ -9124,20 +9098,20 @@
    "x1": 118.25,
    "y0": -0.4,
    "y1": 0.4,
-   "base": -13.0,
+   "base": -14.4,
    "top": -10.4,
    "below_waterline": true,
-   "volume_m3": 3.5,
+   "volume_m3": 3.8,
    "room": "Stores 1",
    "permeability": 0.6,
    "neighbours": [
     [
-     "1 hold C",
+     "1 fifth C",
      "open"
     ],
     [
-     "1 fifth C",
-     "open"
+     "2 hold C",
+     "Bulkhead 1"
     ],
     [
      "2 sixth C",
@@ -9314,7 +9288,7 @@
      "open"
     ],
     [
-     "1 hold C",
+     "1 sixth C",
      "Bulkhead 1"
     ],
     [
@@ -13433,7 +13407,7 @@
      "open"
     ],
     [
-     "18 sixth C",
+     "18 fifth C",
      "Bulkhead 17"
     ]
    ]
@@ -13601,32 +13575,6 @@
    ]
   },
   {
-   "id": "18 sixth C",
-   "section": "18",
-   "tier": "sixth",
-   "band": "C",
-   "x0": -99.33,
-   "x1": -87.838,
-   "y0": -2.647,
-   "y1": 2.647,
-   "base": -13.0,
-   "top": -10.4,
-   "below_waterline": true,
-   "volume_m3": 0.0,
-   "room": "Stores 18",
-   "permeability": 0.6,
-   "neighbours": [
-    [
-     "18 fifth C",
-     "open"
-    ],
-    [
-     "17 sixth C",
-     "Bulkhead 17"
-    ]
-   ]
-  },
-  {
    "id": "18 fifth C",
    "section": "18",
    "tier": "fifth",
@@ -13635,7 +13583,7 @@
    "x1": -87.838,
    "y0": -8.915,
    "y1": 8.915,
-   "base": -10.4,
+   "base": -13.0,
    "top": -7.8,
    "below_waterline": true,
    "volume_m3": 160.6,
@@ -13643,12 +13591,12 @@
    "permeability": 0.6,
    "neighbours": [
     [
-     "18 sixth C",
+     "18 fourth C",
      "open"
     ],
     [
-     "18 fourth C",
-     "open"
+     "17 sixth C",
+     "Bulkhead 17"
     ],
     [
      "17 fifth C",
@@ -13945,7 +13893,6 @@
    "id": "Stores 1",
    "kind": "stores",
    "cells": [
-    "1 hold C",
     "1 sixth C",
     "1 fifth C",
     "1 fourth C"
@@ -14729,7 +14676,6 @@
    "id": "Stores 18",
    "kind": "stores",
    "cells": [
-    "18 sixth C",
     "18 fifth C",
     "18 fourth C"
    ],

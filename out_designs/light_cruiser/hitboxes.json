@@ -7625,38 +7625,6 @@
    ]
   },
   {
-   "id": "2 bottom C",
-   "section": "2",
-   "tier": "bottom",
-   "band": "C",
-   "x0": 56.691,
-   "x1": 63.9,
-   "y0": -0.213,
-   "y1": 0.213,
-   "base": -9.09,
-   "top": -8.09,
-   "below_waterline": true,
-   "armour_above_mm": [
-    25
-   ],
-   "armour_above_material": [
-    "high-tensile steel"
-   ],
-   "volume_m3": 0.4,
-   "room": "Double bottom 2",
-   "permeability": 0.95,
-   "neighbours": [
-    [
-     "2 hold C",
-     "Inner bottom"
-    ],
-    [
-     "3 bottom C",
-     "Bulkhead 2"
-    ]
-   ]
-  },
-  {
    "id": "2 hold C",
    "section": "2",
    "tier": "hold",
@@ -7665,7 +7633,7 @@
    "x1": 63.9,
    "y0": -1.401,
    "y1": 1.401,
-   "base": -8.09,
+   "base": -9.09,
    "top": -5.2,
    "below_waterline": true,
    "armour_above_mm": [
@@ -7676,14 +7644,10 @@
    ],
    "belt_mm": 45,
    "belt_material": "high-tensile steel",
-   "volume_m3": 16.6,
+   "volume_m3": 17.1,
    "room": "Stores 2",
    "permeability": 0.6,
    "neighbours": [
-    [
-     "2 bottom C",
-     "Inner bottom"
-    ],
     [
      "2 third C",
      "Third deck"
@@ -7691,6 +7655,10 @@
     [
      "1 hold C",
      "Bulkhead 1"
+    ],
+    [
+     "3 bottom C",
+     "Bulkhead 2"
     ],
     [
      "3 hold C",
@@ -7842,7 +7810,7 @@
      "Inner bottom"
     ],
     [
-     "2 bottom C",
+     "2 hold C",
      "Bulkhead 2"
     ],
     [
@@ -10701,7 +10669,7 @@
      "Bulkhead 18"
     ],
     [
-     "20 hold C",
+     "20 third C",
      "Bulkhead 19"
     ]
    ]
@@ -10789,40 +10757,6 @@
    ]
   },
   {
-   "id": "20 hold C",
-   "section": "20",
-   "tier": "hold",
-   "band": "C",
-   "x0": -66.74,
-   "x1": -59.64,
-   "y0": -1.681,
-   "y1": 1.681,
-   "base": -8.09,
-   "top": -5.2,
-   "below_waterline": true,
-   "armour_above_mm": [
-    25
-   ],
-   "armour_above_material": [
-    "high-tensile steel"
-   ],
-   "belt_mm": 51,
-   "belt_material": "high-tensile steel",
-   "volume_m3": 0.5,
-   "room": "Steering gear",
-   "permeability": 0.85,
-   "neighbours": [
-    [
-     "20 third C",
-     "open"
-    ],
-    [
-     "19 hold C",
-     "Bulkhead 19"
-    ]
-   ]
-  },
-  {
    "id": "20 third C",
    "section": "20",
    "tier": "third",
@@ -10831,7 +10765,7 @@
    "x1": -59.64,
    "y0": -5.994,
    "y1": 5.994,
-   "base": -5.2,
+   "base": -8.09,
    "top": -2.6,
    "below_waterline": false,
    "armour_above_mm": [
@@ -10842,17 +10776,17 @@
    ],
    "belt_mm": 51,
    "belt_material": "high-tensile steel",
-   "volume_m3": 165.8,
+   "volume_m3": 166.3,
    "room": "Steering gear",
    "permeability": 0.85,
    "neighbours": [
     [
-     "20 hold C",
-     "open"
-    ],
-    [
      "20 second C",
      "Second deck"
+    ],
+    [
+     "19 hold C",
+     "Bulkhead 19"
     ],
     [
      "19 third C",
@@ -11003,27 +10937,15 @@
    "top": 2.6
   },
   {
-   "id": "Double bottom 2",
-   "kind": "double_bottom",
-   "cells": [
-    "2 bottom C"
-   ],
-   "volume_m3": 0.4,
-   "x0": 56.691,
-   "x1": 63.9,
-   "base": -9.09,
-   "top": -8.09
-  },
-  {
    "id": "Stores 2",
    "kind": "stores",
    "cells": [
     "2 hold C"
    ],
-   "volume_m3": 16.6,
+   "volume_m3": 17.1,
    "x0": 56.691,
    "x1": 63.9,
-   "base": -8.09,
+   "base": -9.09,
    "top": -5.2
   },
   {
@@ -11641,7 +11563,6 @@
    "id": "Steering gear",
    "kind": "steering",
    "cells": [
-    "20 hold C",
     "20 third C"
    ],
    "volume_m3": 166.3,
