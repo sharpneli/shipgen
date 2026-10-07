@@ -106,7 +106,7 @@ SUB_SIGMA = 0.45          # each clump's spread against the puff's
 SHELL = np.array([0.25, 0.24, 0.22], np.float32)   # dark painted steel
 # shells fly their real path on a slowed clock: at 800-900 m/s they leave the frame in two or three frames, hidden
 # by their own flash. Like TRAIN_RATE, readability over fidelity
-SHELL_TIME = 0.12
+SHELL_TIME = 0.132
 SHELL_SMEAR = 0.5         # the speed smear behind a shell, in frames of its (slowed) motion
 
 BUCKETS = [1, 2, 4, 8, 16, 32, 64]   # blur radii (half-res px) the particle splats are sorted into

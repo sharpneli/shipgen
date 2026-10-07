@@ -140,7 +140,7 @@ time, and drops it when the shell has landed or left and the smoke is thin (peak
   frame's motion. Its shadow on the sea moves away from the sun by its height, and its strength falls as
   `d / (d + 0.0093 z)`, the sun's disc blurring it.
 - **Departures, my picks by eye:**
-  - **Slowed shells:** `SHELL_TIME` = 0.12. At real speed a shell crosses the frame in 2–3 frames, inside its
+  - **Slowed shells:** `SHELL_TIME` = 0.132 (user, 2026-10-07: 10 % faster than the first 0.12). At real speed a shell crosses the frame in 2–3 frames, inside its
     own fireball. Its path is real; only its clock is slowed, like `TRAIN_RATE`.
   - **Shells over the flash:** on the slowed clock a shell is still inside the fireball it really outran, so it's
     drawn on top, a dark silhouette as in high-speed photographs.
