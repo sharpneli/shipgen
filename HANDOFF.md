@@ -456,8 +456,11 @@ Still open (TODO.md "Code structure"), roughly by value:
   import at the top); `navarch.solve` still imports styles inside the function.
   - Rule for new work: a new armour piece touches armour.py (and the hitbox/subdivision export only if it is a
     new kind); a new gun/battery input touches batteries.py; a new stability check stability.py. Keep it so.
-  - Still open: `armour_geometry` is computed in 4 places (keep it on the result); battery normalisation (list or
-    object, the secondary's 25 mm default) is still repeated outside batteries.py.
+  - Follow-up: the solved ship's armour geometry is `navarch.Result.armour` (computed once at the end of solve);
+    `armour_checks` and `shipdesign.interior` read it. Still computed separately: inside solve's loop (each trial
+    draught) and by `layout`'s machinery space (a layout in progress), both on purpose.
+  - Still open: battery normalisation (list or object, the secondary's 25 mm default) is still repeated outside
+    batteries.py.
 - **Side channels:** `lay.geo` keys (plant, machinery_x, funnel_plan, bridge, holds, ...) are an undocumented contract
   between layout, navarch, ordnance, shipdesign and hitbox. `block_plating` writes `b["_plate_mm"]` for hitbox;
   `build_hull` writes `spec["_clutter"]` into its input for render. The rest bearing lives in `lay.mounts` and

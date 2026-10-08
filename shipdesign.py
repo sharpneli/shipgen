@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import copy
 
-from armour import armour_geometry
 import crew
 import firecontrol
 import hullweight
@@ -358,11 +357,11 @@ def hull_plating(lay, design, res):
 
 
 def interior(lay, design, r):
-    """What the solved, laid-out ship is inside, beyond the layout: its armour (armour.armour_geometry), hull form
+    """What the solved, laid-out ship is inside, beyond the layout: its armour (r.armour), hull form
     (round the stern gear), subdivision with its plating, hydrostatics, propulsion train linked into the
     subdivision, and battle stations (which also go in the report's crew). export_hitboxes publishes it."""
     D, T = r.depth, r.draught
-    ag = armour_geometry(design, lay.hull.L, T, D, lay.geo)
+    ag = r.armour
     cb = design["hull"]["block_coefficient"]
     gear = propulsion.gear(lay, design, r)        # the stern's lines make room for it
     form = HullForm(lay.hull, cb, cwp(cb), T, D, navarch.froude(design["speed_kn"], lay.hull.L), gear, r.lcb)

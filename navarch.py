@@ -63,6 +63,7 @@ class Result:
     plant: dict = field(default_factory=dict)       # powerplant.spec of the design
     plant_rated: dict = field(default_factory=dict)  # powerplant.rated at power_shp
     hull: dict = field(default_factory=dict)         # hullweight.weight: the structure and its hull girder
+    armour: dict = field(default_factory=dict)       # armour.armour_geometry at the solved draught and depth
     gm_full: float = 0.0
     gm_light: float = 0.0
     roll_s: float = 0.0        # natural roll period at full load
@@ -214,6 +215,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
     res.cruise_kn = vc
     res.plant, res.plant_rated = plant, powerplant.rated(plant, shp)
     res.hull = hull
+    res.armour = armour_geometry(design, L, res.draught, res.depth, geo)
     res.weights = items
     groups = {}
     for w in items:
@@ -237,7 +239,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
     stability.checks(res, L, B, tun)
     fn = froude(V, L)
     res.warnings += style.checks(design, res, tun)
-    res.warnings += armour_checks(design, L, res, geo)
+    res.warnings += armour_checks(design, res, geo)
     res.warnings += hullweight.structure_checks(res.hull)
     if fn > tun.get("fn_warn", 0.62):
         res.warnings.append(f"Speed {V} kn is extreme for a {L:.0f} m hull (Froude {fn:.2f}); power is enormous.")

@@ -347,21 +347,20 @@ def armour_weights(design, L, B, D, g):
     return out
 
 
-def armour_checks(design, L, res, geo):
-    """Warnings on the solved ship's armour (res: navarch.Result): an armour deck the hull is too shallow for, a
-    belt too shallow under the waterline, an upper belt with no height."""
+def armour_checks(design, res, geo):
+    """Warnings on the solved ship's armour (res: navarch.Result, with its armour geometry): an armour deck the hull
+    is too shallow for, a belt too shallow under the waterline, an upper belt with no height."""
     out = []
     for d in armour_decks(design, res.depth, geo.get("raised", ())):
         if d["asked"] != d["deck"]:
             out.append(f"The hull has no {deck_name(d['asked']).lower()} ({res.depth:.1f} m deep): its "
-                                f"{d['mm']} mm deck armour lies on the {deck_name(d['deck']).lower()}.")
+                       f"{d['mm']} mm deck armour lies on the {deck_name(d['deck']).lower()}.")
     arm = design.get("armour") or {}
     if arm.get("belt_mm", 0) > 0 and arm.get("belt_depth_m", 1.0) < 1.0:
         out.append(f"The belt reaches only {arm['belt_depth_m']:.1f} m below the waterline: rolling or "
-                            "flooding uncovers the side under it.")
+                   "flooding uncovers the side under it.")
     ub = (design.get("armour") or {}).get("upper_belt") or {}
-    if ub.get("mm", 0) > 0 and not any(s["kind"] == "upper" for s in armour_geometry(
-            design, L, res.draught, res.depth, geo)["strakes"]):
+    if ub.get("mm", 0) > 0 and not any(s["kind"] == "upper" for s in res.armour["strakes"]):
         out.append(f"The {ub['mm']} mm upper belt has no height: the belt below it already reaches the "
-                            f"{deck_name(ub.get('to_deck', 0)).lower()}.")
+                   f"{deck_name(ub.get('to_deck', 0)).lower()}.")
     return out
