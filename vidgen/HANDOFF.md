@@ -470,12 +470,37 @@ loved and must stay. Every change is a smooth function of the scale `s`, never a
   the explosion fire shares `_glow`, so it gets the same glare at the same zoom.
 - **Clips (user's to compare):** `out/lion_s0.25_v1.mp4` and `lion_s1_v1.mp4` (smoke only), `lion_s0.25.mp4` and
   `lion_s0.5.mp4` (plus wake and glare).
-- **The zoom demo:** shipgen exports mips (user, 2026-10-08: use them): `hull_mips.png`, `height_mips.png` (2x2 max)
-  and `turrets/<type>_mips.png`, five halvings from 10 px/m packed in 1.5W x H, rects in `sprite.json` `mip_rects`
-  (README "Outputs"). Per frame take the two levels around the scale and blend them, in place of `Ship.layers`'
-  one Lanczos resize. The shadows march the height map per scale; the wake's warp and foam tiles need re-making or
-  a mip chain too.
-- **Not done yet:** the sea's swell streaks; shell legibility; the zoom itself.
+- **The sea:** left as it is. At 1:1 the "streaks" at 0.25 are the swell's long crests broken into groups, as swell
+  looks from altitude; ocean.py is exact at any zoom (waves under 3 px go into the glint's roughness).
+- **Shells:** left. A shell is invisible at 4 m/px; how to show fire from high up belongs with ships firing at each
+  other (research first).
+
+## The zoom demo (2026-10-08)
+The user: "start with looking at just one ship, then zoom out to reveal it was a squadron and then end up at
+strategic scale. It conveys the scale the game mostly operates on." `vidgen.py lion+lion+lion+tiger_1914 --size
+1920x1080 --zoom` writes `out/<ids>_zoom.mp4` (`make_zoom`, `Zoom`).
+- **Timeline (`ZOOM_T`, `ZOOM_S`):** 9 s on the lead at 4 px/m (training, the first salvos), 18 s zooming out
+  (smootherstep in log s) to 0.25 px/m, 8 s held there; the line fires throughout. The camera's centre goes from
+  the lead to a little behind the line's centre by `u = (1/s - 1/s0)/(1/s1 - 1/s0)`, so the lead stays put while
+  close and the line slides in as the view opens. The caption crossfades from the lead's to the line's between 2.8
+  and 2.0 px/m (`ZOOM_HUD`); the target marker's ray leaves from the lead, then the line's centre. A scale bar
+  (1-2-5 lengths, top right: the target marker usually sits bottom right) shows the scale. The clip renders in
+  ~11 min (6 parts).
+- **How:** every scale-dependent layer in vidgen (hull, height map and shadows, the wake bake and warp, the sea's
+  DFT matrices, turret sprites) is made once per Scene at one scale. So the zoom keeps a ladder of Scenes, `ZOOM_STEP`
+  sqrt 2 apart (9 levels), each with the same seed, so they run the same sim. A frame is drawn bare from the level at
+  or just above its scale, on a canvas covering every frame that level draws (`Zoom.view`, about 2x the frame's
+  pixels), cut around the camera and Lanczos-downsampled by up to sqrt 2, then captioned. `Scene.set_look(s)` sets
+  the zoom-drawn looks (gun smoke share, plume fade, glare, lace) to the frame's own scale, so they're smooth while
+  the levels switch. Frames either side of a switch matched by eye. The levels are the mip chain, so shipgen's
+  exported mips (user's pointer: `hull_mips.png`, `height_mips.png` (2x2 max), `turrets/<type>_mips.png`, rects in
+  `sprite.json`) aren't needed here; a realtime renderer zooming per frame should use them.
+- **Same sim at every scale:** `Water` drew a canvas-sized foam noise and a scale-dependent number of old swell
+  numbers from the scene's stream; both are now fixed (the noise has its own stream). Every clip's smoke and firing
+  phases shifted once for this. The wake foam's clump size is fixed through a zoom (`ZOOM_FEAT` 0.6 m, `feat_m`),
+  and its lace fades as the clumps go under ~2 px.
+- **Cost:** each level's scene is built when first needed (4 wake bakes) and stepped from the start; a chunk holds
+  only its levels.
 
 ## Known oddities
 - Masts cast long, thin, solid shadows on the sea. That's correct for a 23 m mast at 45°, but it can look heavy.

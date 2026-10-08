@@ -42,6 +42,8 @@ Everything is drawing; nothing here feeds back into the design. Particle and wav
     ~/.venv/bin/python vidgen/vidgen.py bismarck --explode B --tier column
     ~/.venv/bin/python vidgen/vidgen.py bismarck --beaufort 5 --swell 2,12,270   # rougher sea, westerly swell
     ~/.venv/bin/python vidgen/vidgen.py invincible+invincible --fire 20  # a line of battle -> invincible+invincible.mp4
+    ~/.venv/bin/python vidgen/vidgen.py lion --size 1920x1080 --scale 0.25 --fire 20   # one ship at strategic scale
+    ~/.venv/bin/python vidgen/vidgen.py lion+lion+lion+tiger_1914 --size 1920x1080 --zoom  # one ship -> squadron -> strategic
 
 Needs numpy, pillow and imageio-ffmpeg (pip install imageio-ffmpeg; it bundles an ffmpeg binary).
 """
@@ -561,10 +563,9 @@ class Water:
         self.W, self.H, self.s = W, H, s
         u, v = np.meshgrid(np.arange(W, dtype=np.float32), np.arange(H, dtype=np.float32))
         self.mx, self.my = (u - C[0]) / s, (v - C[1]) / s       # metres from the ship's centre
-        # the old swell and ripple tile's draws, kept so the rest of the scene's random stream is unchanged
-        for lam in np.geomspace(110, 6, 14):
-            if lam * s >= 10:
-                rng.uniform(size=3)
+        # the old swell and ripple tile's draws (now a fixed count: a zoom's scenes at every scale must draw the same
+        # numbers, so their smoke and salvos match)
+        rng.uniform(size=(14, 3))
         rng.standard_normal((256, 256))
         U = SEA_WIND if beaufort is None else ocean.beaufort_u(beaufort)
         wdir = WIND / np.hypot(*WIND)
@@ -573,7 +574,7 @@ class Water:
         L = (math.cos(math.radians(SUN_EL)) * unit(SUN_AZ)[0], math.cos(math.radians(SUN_EL)) * unit(SUN_AZ)[1],
              math.sin(math.radians(SUN_EL)))
         self.sea = ocean.Ocean(W, H, s, C, sea, L, body=WATER_BODY)
-        noise = rng.standard_normal((H // 8 + 2, W // 8 + 2)).astype(np.float32)
+        noise = np.random.default_rng(4241).standard_normal((H // 8 + 2, W // 8 + 2)).astype(np.float32)
         self.foam_noise = np.clip(0.75 + 0.35 * upscale(box_blur(noise, 1), W, H), 0.3, 1.2)
 
     def shade(self, cam, t, wake=None, half=None, rough=None):
@@ -921,9 +922,11 @@ class Ship:
 class Scene:
     def __init__(self, srcs, W, H, fps, heading, target, seed, seconds=None, propellant=None, explode=None,
                  tier="blast", explode_at=None, sea=None, sink=False, spacing=LINE_SPACING, fire_s=FIRE_S,
-                 fit=None, scale=None):
+                 fit=None, scale=None, view=None, feat_m=None):
         """srcs: one exported ship, or a list: a line of battle, the first leading. scale: px per metre, in place
-        of fitting the ship or line to the frame (never above the sprites' own scale)."""
+        of fitting the ship or line to the frame (never above the sprites' own scale). view: (W, H, C, Wo, Ho), a
+        canvas W x H with the line's centre at C, for a zoom's level (make_zoom); the HUD is for an Wo x Ho output.
+        feat_m: the wake foam's clump size, fixed (a zoom), in place of one tied to the scale."""
         srcs = [srcs] if isinstance(srcs, (str, Path)) else list(srcs)
         if explode and len(srcs) > 1:
             raise ValueError("magazine explosions are for one ship for now")
@@ -966,6 +969,12 @@ class Scene:
         # C there, and each frame is the output window cut from it where the camera puts the ship on screen
         self.Wo, self.Ho = W, H
         self.frames_at = None
+        self.feat_m = feat_m
+        self.bare = False
+        if view:
+            self.W, self.H = W, H = view[0], view[1]
+            self.C = np.array(view[2], float)
+            self.Wo, self.Ho = view[3], view[4]
         if explode:
             keys = [CAM_GUNS, CAM_BLAST] + ([CAM_SINK] if sink else [])
             P = np.array([(k[0] * W, k[1] * H) for k in keys])
@@ -993,14 +1002,11 @@ class Scene:
 
         self.water = Water(self.rng, W, H, s, self.C, **(sea or {}))
         self.dens = Density(W, H, res=1, conserve=True)   # full res, blobs keep their optical depth at any zoom
-        self.lace_k = lace_k(s)
-        self.glare = FLASH_GLARE * smoothstep(math.log(S_REF / s) / math.log(S_REF / GLARE_FULL_S))
-        self.smoke_vis = min(1.0, GUN_SMOKE_VIS * (S_REF / s) ** GUN_SMOKE_ZOOM)
         self._wake()
         self.foam = Particles((0, 0), 2.5)       # water at rest; the push from the hull dies away
         self.spray = Particles((0, 0), 0.6)      # thrown off the stem, falls back within a second
         self.smoke = Plume(WIND, 1.2)
-        self.smoke.fade_s = PLUME_FADE_S * (S_REF / s) ** PLUME_FADE_ZOOM
+        self.set_look(s)
         self.shots = []                           # muzzle.Shot: flash, smoke puff and shell, all analytic in time
         self.gun_blasts = []                      # muzzle.Blast: each mount's salvo on the water
         self.fish = []                            # torpedoes [x, y, vx, vy, t0]
@@ -1015,6 +1021,18 @@ class Scene:
         for sh in self.ships:
             sh.prewarm_smoke(-WARM_S - PLUME_LIFE[1], -WARM_S, prng)
         self.hud = self._hud()
+
+    def set_look(self, s):
+        """The looks drawn by zoom (gun smoke's share, the plume's fade, flash glare, the wake's lace), for s px/m. A
+        zoom renders each frame from a scene at a fixed scale a little above s, and sets these to s itself, so
+        they change smoothly while the scene switches."""
+        self.look_s = s
+        self.lace_k = lace_k(s)
+        if self.feat_m:       # a fixed clump size: its lace fades as the clumps shrink under ~2 px
+            self.lace_k *= smoothstep((self.feat_m * s - 1.0) / 1.5)
+        self.glare = FLASH_GLARE * smoothstep(math.log(S_REF / s) / math.log(S_REF / GLARE_FULL_S))
+        self.smoke_vis = min(1.0, GUN_SMOKE_VIS * (S_REF / s) ** GUN_SMOKE_ZOOM)
+        self.smoke.fade_s = PLUME_FADE_S * (S_REF / s) ** PLUME_FADE_ZOOM
 
     # ----- setup
     def to_screen(self, m):
@@ -1134,7 +1152,7 @@ class Scene:
         self.wake_calm = np.clip(self.wake_wash * 0.9, 0, 0.75)
 
         # foam tiles in ship axes, anchored to the water: streaky along the track for the wash, rounder for crests
-        feat = max(0.6, 2.5 / s)         # foam clump size, m: never finer than about two and a half pixels
+        feat = self.feat_m or max(0.6, 2.5 / s)   # foam clump size, m: never finer than about two and a half pixels
         n = 512
         self.tile_k = 4 / feat           # tile px per metre
         rng = self.rng
@@ -1173,16 +1191,18 @@ class Scene:
         th = np.tanh(0.7978845 * (g + 0.044715 * g * g * g))     # 2 Phi(g) - 1
         return 1 - np.abs(th) if ridged else 0.5 + 0.5 * th
 
-    def _hud(self):
+    def _hud(self, single=False):
+        """The caption: the ship, or the line (single: the lead alone, as a zoom opens on it)."""
         im = Image.new("RGBA", (self.Wo, self.Ho), (0, 0, 0, 0))
         d = ImageDraw.Draw(im)
         res = self.report["results"]
         big, small = font(max(14, self.Ho // 30)), font(max(11, self.Ho // 50))
         x, y = self.Ho // 36, self.Ho - self.Ho // 36
-        if len(self.ships) == 1:
+        if len(self.ships) == 1 or single:
             name = self.ships[0].name
+            nm = len(self.mounts) if len(self.ships) == 1 else len(self.ships[0].sprite["mounts"])
             stats = (f"{res['length_m']:.0f} m  ·  {res['standard_displacement_t']:,} t std  ·  "
-                     f"{self.report['inputs'].get('speed_kn', '?')} kn  ·  {len(self.mounts)} mounts")
+                     f"{self.report['inputs'].get('speed_kn', '?')} kn  ·  {nm} mounts")
         else:
             runs = []           # sister ships in a row: "3 × Lion-like  ·  Tiger-like"
             for sh in self.ships:
@@ -1550,10 +1570,42 @@ class Scene:
             dx, dy = shake
             p = np.pad(out, ((abs(dy), abs(dy)), (abs(dx), abs(dx)), (0, 0)), mode="edge")
             out = np.ascontiguousarray(p[abs(dy) - dy:abs(dy) - dy + H, abs(dx) - dx:abs(dx) - dx + W])
-        hud = self.hud.astype(np.float32) / 255
+        if self.bare:
+            return out
+        return self.compose(out)
+
+    def compose(self, out, scale_bar=None, hud=None):
+        """The HUD, phase caption and target marker over a finished Wo x Ho frame (C_out: where the marker's ray
+        starts, the line's centre). scale_bar: px per metre, to draw a scale bar. hud: an RGBA caption in place of
+        the scene's."""
+        hud = (self.hud if hud is None else hud).astype(np.float32) / 255
         ha = hud[..., 3:4]
         out = (out * (1 - ha) + hud[..., :3] * 255 * ha).astype(np.uint8)
-        return self._overlay(out)
+        out = self._overlay(out)
+        if scale_bar:
+            out = self._scale_bar(out, scale_bar)
+        return out
+
+    def _scale_bar(self, out, s):
+        """A scale bar at the top right (the target marker often sits bottom right): the 1-2-5 length nearest a
+        sixth of the frame, its ends ticked."""
+        im = Image.fromarray(out)
+        d = ImageDraw.Draw(im, "RGBA")
+        want = self.Wo / 6 / s
+        e = 10 ** math.floor(math.log10(want))
+        L = min((m * e for m in (1, 2, 5, 10)), key=lambda v: abs(math.log(v / want)))
+        px = L * s
+        m = self.Ho // 36
+        x1, y = self.Wo - 3 * m, 2.5 * m
+        x0 = x1 - px
+        col = (235, 240, 242, 220)
+        d.line([(x0, y), (x1, y)], fill=col, width=max(2, self.Ho // 400))
+        for x in (x0, x1):
+            d.line([(x, y - m / 3), (x, y + m / 3)], fill=col, width=max(2, self.Ho // 400))
+        lab = f"{L / 1000:g} km" if L >= 1000 else f"{L:g} m"
+        w = d.textlength(lab, font=self.font_small)
+        d.text(((x0 + x1) / 2 - w / 2, y - m * 1.4), lab, font=self.font_small, fill=col)
+        return np.asarray(im)
 
     def _gun_blast_water(self):
         """The guns' blasts on the sea (muzzle.Blast, muzzle_blast_water-vfx.md 3.2), worked out at quarter
@@ -2233,6 +2285,165 @@ def make(src, out: Path, args, still=None, frames=None):
     return out
 
 
+# ---------------------------------------------------------------- the zoom (user, 2026-10-08): one ship close up, out
+# to reveal it was a squadron, ending at the strategic scale
+ZOOM_S = (4.0, 0.25)      # px/m at the start (one Lion fills about half a 1080p frame) and the end (strategic)
+ZOOM_T = (9.0, 18.0, 8.0) # s: held close (training, the first salvos), zooming out, held at the strategic scale
+ZOOM_STEP = math.sqrt(2)  # the levels' scales apart: each frame is drawn from the level at or just above its scale
+ZOOM_HUD = (2.8, 2.0)     # px/m: the caption crossfades from the lead's to the line's as the next ship comes in
+ZOOM_FEAT = 0.6           # m: the wake foam's clump size, fixed through a zoom (its lace fades as it goes sub-pixel)
+
+
+class Zoom:
+    """The zoom's timeline: s(t) holds, then runs smootherstep in log s, then holds. The camera's centre (world
+    metres from the line's centre) goes from the lead ship to a little behind the line's centre as the view widens,
+    u = (1/s - 1/s0) / (1/s1 - 1/s0), so the lead stays put while close and the line slides in as it opens."""
+
+    def __init__(self, W, H, fps, heading, lead_off):
+        self.W, self.H, self.fps = W, H, fps
+        self.n = int(round(sum(ZOOM_T) * fps))
+        s0, s1 = ZOOM_S
+        self.levels = []
+        v = s0
+        while v > s1 * 1.0001:
+            self.levels.append(v)
+            v /= ZOOM_STEP
+        self.levels.append(s1)
+        h = unit(heading)
+        self.focus = h * lead_off
+        self.end = -h * (0.07 * W / s1)          # the line a little ahead of centre, as in a still clip
+
+    def s(self, t):
+        a, b, _ = ZOOM_T
+        x = smootherstep(min(1.0, max(0.0, (t - a) / b)))
+        return math.exp(math.log(ZOOM_S[0]) + (math.log(ZOOM_S[1]) - math.log(ZOOM_S[0])) * x)
+
+    def u(self, s):
+        s0, s1 = ZOOM_S
+        return (1 / s - 1 / s0) / (1 / s1 - 1 / s0)
+
+    def cam(self, s):
+        u = self.u(s)
+        return self.focus * (1 - u) + self.end * u
+
+    def level(self, s):
+        return max(k for k, v in enumerate(self.levels) if v >= s * 0.9999)
+
+    def view(self, k):
+        """Level k's canvas: (W, H, C), covering every frame drawn from it, with the line's centre at C."""
+        sk = self.levels[k]
+        lo, hi = np.array([np.inf, np.inf]), np.array([-np.inf, -np.inf])
+        for i in range(self.n):
+            s = self.s(i / self.fps)
+            if self.level(s) != k:
+                continue
+            c = self.cam(s) * sk
+            half = np.array([self.W, self.H]) / 2 * sk / s
+            lo, hi = np.minimum(lo, c - half), np.maximum(hi, c + half)
+        lo, hi = np.floor(lo) - 4, np.ceil(hi) + 4
+        Wc, Hc = (int(v) + int(v) % 2 for v in hi - lo)
+        return Wc, Hc, -lo
+
+
+def make_zoom(srcs, out: Path, args, frames=None, stills=None):
+    """The zoom clip (or frames a..b-1 of it, a chunk): every level is a Scene at its own fixed scale with the
+    same seed, so they all run the same sim (smoke, salvos) and any of them can draw a frame. A frame is drawn
+    bare from its level's scene with the looks set to its own scale, cut around the camera, downsampled
+    (Lanczos, by up to ZOOM_STEP), then the HUD goes on with a scale bar. Scenes are made when first needed and
+    stepped up to the clip's time; a zoom only goes out, so a scene is dropped once it's passed. stills: frame
+    indices to write as PNGs beside `out` instead of a clip."""
+    W, H, fps = args.w, args.h, args.fps
+    probe = Scene(srcs, 320, 180, fps, args.heading, args.target, args.seed, scale=0.1)
+    z = Zoom(W, H, fps, args.heading, probe.ships[0].off)
+    del probe
+    dt = 1.0 / fps
+    a, b = frames or ((min(stills), max(stills) + 1) if stills else (0, z.n))
+    scenes = {}
+    huds = None
+    import imageio_ffmpeg
+    if not stills:
+        w = imageio_ffmpeg.write_frames(str(out), (W, H), fps=fps, codec="libx264", pix_fmt_out="yuv420p",
+                                        macro_block_size=1, output_params=["-crf", str(args.crf), "-preset", "medium",
+                                                                           "-movflags", "+faststart"])
+        w.send(None)
+    for i in range(a, b):
+        t = i / fps
+        s = z.s(t)
+        k = z.level(s)
+        if stills and i not in stills:
+            for sc_ in scenes.values():
+                sc_.step(dt)
+            continue
+        if k not in scenes:
+            for j in [j for j in scenes if j < k]:
+                del scenes[j]
+            Wc, Hc, C = z.view(k)
+            sc = Scene(srcs, W, H, fps, args.heading, args.target, args.seed, seconds=sum(ZOOM_T),
+                       propellant=args.propellant, sea=sea_args(args), spacing=args.spacing, fire_s=sum(ZOOM_T),
+                       scale=z.levels[k], view=(Wc, Hc, C, W, H), feat_m=ZOOM_FEAT)
+            sc.bare = True
+            for _ in range(int(WARM_S * fps)):
+                sc.step(dt)
+            sc.t = 0.0
+            sc.next_ev = 0
+            for _ in range(i):
+                sc.step(dt)
+            scenes[k] = sc
+            if not args.quiet:
+                print(f"\n  level {k}: {z.levels[k]:.3g} px/m, canvas {Wc}x{Hc}", flush=True)
+        sc = scenes[k]
+        sc.set_look(s)
+        img = Image.fromarray(sc.render())
+        sk = sc.s
+        c = sc.C + z.cam(s) * sk
+        hw, hh = W / 2 * sk / s, H / 2 * sk / s
+        img = img.resize((W, H), Image.LANCZOS, box=(c[0] - hw, c[1] - hh, c[0] + hw, c[1] + hh))
+        u = z.u(s)
+        sc.C_out = np.array([W / 2, H / 2]) + (z.focus * (1 - u) - z.cam(s)) * s    # the marker leaves the lead,
+        if huds is None:                                                            # then the line's centre
+            huds = (sc._hud(single=True).astype(np.float32), sc.hud.astype(np.float32))
+        m = smoothstep(math.log(ZOOM_HUD[0] / s) / math.log(ZOOM_HUD[0] / ZOOM_HUD[1]))
+        hud = (huds[0] * (1 - m) + huds[1] * m).astype(np.uint8)
+        fr = np.ascontiguousarray(sc.compose(np.asarray(img), scale_bar=s, hud=hud))
+        if stills:
+            Image.fromarray(fr).save(out.parent / f"{out.stem}_{i:04d}_L{k}.png")
+        else:
+            w.send(fr.tobytes())
+        for sc_ in scenes.values():
+            sc_.step(dt)
+        if i % fps == 0 and not args.quiet:
+            print(f"\r  {out.name}: {t:4.1f}/{sum(ZOOM_T):.1f} s, {s:.3g} px/m", end="", flush=True)
+    if not stills:
+        w.close()
+    return out
+
+
+def make_zoom_chunked(srcs, out: Path, args, chunks):
+    """make_zoom in `chunks` parallel parts, joined without re-encoding (as make_chunked)."""
+    from concurrent.futures import ProcessPoolExecutor
+    import imageio_ffmpeg
+    import subprocess
+    n = int(round(sum(ZOOM_T) * args.fps))
+    tmp = out.parent / (out.stem + "_parts")
+    tmp.mkdir(exist_ok=True)
+    cuts = [round(n * j / chunks) for j in range(chunks + 1)]
+    parts = [tmp / f"part{j:02d}.mp4" for j in range(chunks)]
+    args.quiet = True
+    t0 = time.time()
+    with ProcessPoolExecutor(chunks) as pool:
+        list(pool.map(make_zoom, [srcs] * chunks, parts, [args] * chunks,
+                      [(cuts[j], cuts[j + 1]) for j in range(chunks)]))
+    lst = tmp / "list.txt"
+    lst.write_text("".join(f"file '{p.name}'\n" for p in parts))
+    subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-loglevel", "error", "-y", "-f", "concat", "-safe", "0",
+                    "-i", str(lst), "-c", "copy", "-movflags", "+faststart", str(out)], check=True)
+    for p in parts + [lst]:
+        p.unlink()
+    tmp.rmdir()
+    print(f"  {out.name}: {n} frames in {chunks} parts, {time.time() - t0:.0f} s")
+    return out
+
+
 def make_chunked(src, out: Path, args, chunks):
     """One clip rendered as `chunks` parts in parallel processes, then joined without re-encoding. Each part
     steps the scene from the start (cheap next to drawing). Parts go to a scratch folder beside the output, so no
@@ -2320,6 +2531,9 @@ def main():
     ap.add_argument("--scale", type=float, default=None,
                     help="zoom as px per metre, in place of --fit (the strategic view of a four-ship line at "
                          "1920x1080 is about 0.25)")
+    ap.add_argument("--zoom", action="store_true",
+                    help="the zoom demo: one ship close up, out to the whole line, ending at the strategic scale "
+                         f"({ZOOM_S[0]:g} to {ZOOM_S[1]:g} px/m). Writes <ids>_zoom.mp4")
     ap.add_argument("--spacing", type=float, default=LINE_SPACING,
                     help=f"a line's distance between ships, centre to centre, m (default {LINE_SPACING:g}, ~2 cables)")
     ap.add_argument("--beaufort", type=float, default=None,
@@ -2355,6 +2569,15 @@ def main():
         ap.error("--sink needs --explode with --tier blast")
     if args.explode and any(len(g) > 1 for g in srcs):
         ap.error("--explode is for one ship for now, not a line")
+    if args.zoom:
+        if len(srcs) != 1 or args.explode or args.still is not None:
+            ap.error("--zoom takes one ship or one line, no --explode or --still")
+        group = srcs[0]
+        name = "+".join(p.name for p in group)
+        path = out / f"{name}_zoom.mp4"
+        chunks = args.chunks or min(6, os.cpu_count() or 1)
+        print(f"wrote {make_zoom_chunked(group if len(group) > 1 else group[0], path, args, chunks)}")
+        return
     todo = []
     for group in srcs:
         missing = [s for s in group if not (s / "sprite.json").exists()]
