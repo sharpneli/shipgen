@@ -10,6 +10,7 @@ Heights are metres above the keel. Design side, standard library only.
 """
 from __future__ import annotations
 
+from batteries import as_list
 from decks import deck_name, deck_stack, raised_pieces
 from geometry import DECK_PITCH, cwp
 import ordnance
@@ -91,10 +92,8 @@ def armour_errors(design) -> list[str]:
     owns += [("armour.steering_box", a["steering_box"])] if isinstance(a.get("steering_box"), dict) else []
     owns += [("armour.steering_box.deck", {"material": a["steering_box"]["deck_material"]})] \
         if isinstance(a.get("steering_box"), dict) and "deck_material" in a["steering_box"] else []
-    sec = design.get("secondary") or []
-    owns += [(f"secondary[{k}]", b) for k, b in enumerate(sec if isinstance(sec, list) else [sec]) if isinstance(b, dict)]
-    mb = design.get("main") or []
-    owns += [(f"main[{k}]", b) for k, b in enumerate(mb if isinstance(mb, list) else [mb]) if isinstance(b, dict)]
+    owns += [(f"{g}[{k}]", b) for g in ("secondary", "main") for k, b in enumerate(as_list(design.get(g)))
+             if isinstance(b, dict)]
     errs += [f"{where}.material: name the material as a string" for where, d in owns
              if "material" in d and (not isinstance(d["material"], str) or not d["material"])]
     eb = a.get("end_belts")

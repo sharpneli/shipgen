@@ -188,10 +188,10 @@ def warn_unpaired(lay, bats):
                                 f"{b['per_side']} per side ({2 * b['per_side']} mounts).")
 
 
-def place_batteries(lay, mounts, turret_types, design, end_lines, side_slots, depth=10.0, armour_mm=0):
+def place_batteries(lay, mounts, turret_types, design, end_lines, side_slots, depth=10.0):
     """Fit every secondary battery. end_lines: (x_start, step_dir, y, rest, deck_h, ignore) per end, in the
     order they fill; side_slots(t) -> starboard candidates for side_pairs. All mounts are kind "secondary",
-    flat on deck (no superfiring). armour_mm: the mounts' armour unless a battery gives its own."""
+    flat on deck (no superfiring), armoured as their battery says (batteries.secondary_batteries)."""
     cursor = [ln[0] for ln in end_lines]
     for k, b in enumerate(batteries(design)):
         first = len(mounts)
@@ -210,12 +210,12 @@ def place_batteries(lay, mounts, turret_types, design, end_lines, side_slots, de
                 continue
             gun_line(lay, mounts, turret_types, {**b, "count": n, "flat": True}, "secondary",
                      [f"{prefix}{made + j + 1}" for j in range(n)], cursor[i], d, y, rest, deck_h,
-                     armour_mm=b.get("armour_mm", armour_mm), depth=depth, label="Secondary", ignore=ign)
+                     armour_mm=b["armour_mm"], depth=depth, label="Secondary", ignore=ign)
             cursor[i] += d * (2 * body_reach(t) + (n - 1) * (2.2 * t["r"] + 3.0) + 1.0)
             made += n
         if n_side:
             side_pairs(lay, mounts, turret_types, "secondary", t_id, t, n_side, side_slots(t), prefix,
-                       armour_mm=b.get("armour_mm", armour_mm), depth=depth)
+                       armour_mm=b["armour_mm"], depth=depth)
         for m in mounts[first:]:
             m["material"] = b.get("material")      # the battery's own armour material, if it names one
 

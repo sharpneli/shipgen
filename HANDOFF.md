@@ -459,8 +459,12 @@ Still open (TODO.md "Code structure"), roughly by value:
   - Follow-up: the solved ship's armour geometry is `navarch.Result.armour` (computed once at the end of solve);
     `armour_checks` and `shipdesign.interior` read it. Still computed separately: inside solve's loop (each trial
     draught) and by `layout`'s machinery space (a layout in progress), both on purpose.
-  - Still open: battery normalisation (list or object, the secondary's 25 mm default) is still repeated outside
-    batteries.py.
+  - Follow-up: battery inputs are read only through batteries.py: `as_list` (the validators, tolerant of junk),
+    `main_batteries`, `secondary_batteries` (fills count, per_side and armour_mm). One secondary armour default
+    for every style, `SECONDARY_ARMOUR_MM` 25 (merchants used to get 0 through `place_batteries`' parameter, the
+    hitbox had its own 25 fallback); every design now writes its secondaries' `armour_mm` (merchants 0). The
+    Q-ship moved 102.5 → 103 m: its first rough estimate had assumed 25 mm guns. Planing craft ignored a
+    secondary's `armour_mm` (always 25.0); they now use it.
 - **Side channels:** `lay.geo` keys (plant, machinery_x, funnel_plan, bridge, holds, ...) are an undocumented contract
   between layout, navarch, ordnance, shipdesign and hitbox. `block_plating` writes `b["_plate_mm"]` for hitbox;
   `build_hull` writes `spec["_clutter"]` into its input for render. The rest bearing lives in `lay.mounts` and

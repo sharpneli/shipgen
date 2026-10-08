@@ -6,6 +6,7 @@ from __future__ import annotations
 import math
 
 from armour import armour_errors
+from batteries import as_list
 
 # Input limits shared by every style: (lo, hi) per dotted path; a style's LIMITS are merged over these.
 # These are sanity bounds for the generator, not gameplay rules: the game's designer enforces those. Armament
@@ -68,7 +69,7 @@ def undefined_errors(design):
     errs = []
     for group, keys in REQUIRED.items():
         v = design.get(group)
-        for i, b in enumerate(v if isinstance(v, list) else [v] if v else []):
+        for i, b in enumerate(as_list(v)):
             where = f"{group}[{i}]" if isinstance(v, list) else group
             if not isinstance(b, dict):
                 errs.append(f"{where}: give an object with {', '.join(keys)}")
@@ -191,8 +192,9 @@ class Style:
         errs += firecontrol.validate(design) + superstructure_errors(design, self) + raised_errors(design, self)
         if isinstance(design.get("secondary"), list) and not self.SECONDARY_LIST:
             errs.append(f"secondary: the {self.name} style takes one secondary battery, not a list")
-        sec = design.get("secondary") or []
-        for b in (sec if isinstance(sec, list) else [sec]):
+        for b in as_list(design.get("secondary")):
+            if not isinstance(b, dict):
+                continue        # undefined_errors says what's missing
             if "count" in b and "per_side" in b:
                 errs.append("secondary: give count (total mounts) or per_side (pairs), not both")
             mount = b.get("mount", "deck")
@@ -214,7 +216,7 @@ class Style:
             errs.append("main: use a list of batteries, each {\"calibre_mm\", \"calibre_length\", \"barrels\", "
                         "\"armour_mm\", \"fore\", \"aft\", ...}")
             mains = []
-        mains = mains if isinstance(mains, list) else [mains] if mains else []
+        mains = as_list(mains)
         if len(mains) > 1 and not self.MAIN_LIST:
             errs.append(f"main: the {self.name} style takes one main battery, not a list of several")
         for k, main in enumerate(mains):

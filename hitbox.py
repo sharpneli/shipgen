@@ -71,8 +71,6 @@ def export_hitboxes(lay, design, res, inner):
     # waterline, when unarmoured)
     barbette_z = (ag["main_z"] if ag["main_z"] is not None else ag["belt_top"] if ag["belt_mm"] > 0
                   else max(T, D - DECK_PITCH))
-    sec = design.get("secondary") or {}
-    sec_arm = sec.get("armour_mm", 25) if isinstance(sec, dict) else 25
     r3 = lambda pts: [[round(x, 3), round(y, 3)] for x, y in pts]
     fd_base = min([dk["base"] for dk in lay.decks if dk["kind"] == "flight_deck"] + [1e9])
     comps = []
@@ -83,7 +81,7 @@ def export_hitboxes(lay, design, res, inner):
     for m in lay.mounts:
         t = m["t"]
         sh = turret_shapes(t)
-        arm = m["armour_mm"] if "armour_mm" in m else (sec_arm if m["kind"] == "secondary" else 0)
+        arm = m.get("armour_mm", 0)       # every gun mount has its own (armament.add_mount)
         comps.append(dict(
             id=m["id"], kind=m["kind"], type=m["type"], x=round(m["x"], 3), y=round(m["y"], 3),
             base=round(m["base"], 2), top=round(m["top"], 2), armour_mm=arm,

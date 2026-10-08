@@ -472,8 +472,7 @@ def _flight_deck_layout(design, res, shift):
     armament.place_batteries(
         lay, mounts, turret_types, design,
         [(ix1 + 1.0, +1, yi, 0, on_fd, ()), (ix0 - 1.0, -1, yi, 180, on_fd, ())],
-        lambda t: sponson_slots(armament.body_reach(t), fd_h - armament.turret_height(t) - 0.3), depth=depth,
-        armour_mm=25)
+        lambda t: sponson_slots(armament.body_reach(t), fd_h - armament.turret_height(t) - 0.3), depth=depth)
     tp = design.get("torpedoes") or {}
     if tp.get("mounts"):
         tt_id, tt = armament.torpedo_type(tp)
@@ -582,8 +581,7 @@ def _seaplane_layout(design, res, shift):
     armament.place_batteries(
         lay, mounts, turret_types, design,
         [(L / 2 - 0.08 * L, -1, 0.0, 0, lambda x: 0.3, ()), (hx0 + 0.5, +1, 0.0, 180, lambda x: roof, hangar_ids)],
-        lambda t: [(x, hull.half_width(x) - armament.body_reach(t) - 0.6, 0.0) for x in xs], depth=depth,
-        armour_mm=25)
+        lambda t: [(x, hull.half_width(x) - armament.body_reach(t) - 0.6, 0.0) for x in xs], depth=depth)
     tp = design.get("torpedoes") or {}
     if tp.get("mounts"):
         tt_id, tt = armament.torpedo_type(tp)

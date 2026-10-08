@@ -75,26 +75,35 @@ def torpedo_weight(tubes, fixed=False):
     return TUNING["torp_mount_t"] + tubes * (TUNING["torp_tube_t"] + TUNING["torp_t"])
 
 
+SECONDARY_ARMOUR_MM = 25    # a secondary battery's mount armour when the design gives none (every style)
+
+
+def as_list(v):
+    """A battery input as a list: "main" and "secondary" take one object or a list. Tolerates anything (the
+    validators use it before the design is known to be valid); main_batteries and secondary_batteries are the
+    readers for a valid design."""
+    return v if isinstance(v, list) else [v] if v else []
+
+
 def main_batteries(design):
     """The main batteries, in the design's order: "main" is a list of batteries (one object is taken as a list of
     one). Each has its turret (calibre_mm, calibre_length, barrels, armour_mm, optional material) and where its
     turrets stand: fore, aft, mid, wing (pairs) and the placement choices (superfire, echelon, cross_deck,
     amidships_stands_on). The layout puts every battery's turrets in the same groups, in list order (layout.py)."""
-    m = design.get("main")
-    return [b for b in (m if isinstance(m, list) else [m] if m else []) if isinstance(b, dict) and b]
+    return [b for b in as_list(design.get("main")) if isinstance(b, dict) and b]
 
 
 def secondary_batteries(design):
     """The secondary batteries, in the design's order: "secondary" is one battery or a list (a lone object is a list
     of one). Each gives its mounts as "count" (total) or "per_side" (validation rejects both); both come back filled
     in: count = 2 x per_side, or per_side = count // 2 (a style that mounts its secondaries in pairs leaves an odd one
-    out, with a warning: armament.warn_unpaired). Batteries without mounts stay, so list positions name them
-    (layout.battery_prefix)."""
-    s = design.get("secondary")
+    out, with a warning: armament.warn_unpaired), and armour_mm (SECONDARY_ARMOUR_MM if not given). Batteries without
+    mounts stay, so list positions name them (layout.battery_prefix)."""
     out = []
-    for b in (s if isinstance(s, list) else [s] if s else []):
+    for b in as_list(design.get("secondary")):
         n = b["count"] if "count" in b else 2 * b.get("per_side", 0)
-        out.append({**b, "count": n, "per_side": b.get("per_side", n // 2)})
+        out.append({**b, "count": n, "per_side": b.get("per_side", n // 2),
+                    "armour_mm": b.get("armour_mm", SECONDARY_ARMOUR_MM)})
     return out
 
 
@@ -119,7 +128,7 @@ def rough_armament(design, D):
         if not n:
             continue
         _, t = battery_type(s)
-        tw, bw, aw = mount_weights(t, s.get("armour_mm", 25), D, 0)
+        tw, bw, aw = mount_weights(t, s["armour_mm"], D, 0)
         out.append(Weight("Secondary battery", "armament", n * (tw + aw), z_rel=("deck", 2)))
     tp = design.get("torpedoes")
     if tp and tp.get("mounts", 0):

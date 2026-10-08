@@ -1139,7 +1139,7 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
             lay.fail("length", f"Only {len(got)} of {n} {sec['calibre_mm']:g} mm {'upper ' if upper else ''}casemates "
                                f"per side fit {'on deck' if upper else 'in the hull sides'}. "
                                "Use fewer or smaller guns.")
-        arm, rc = sec.get("armour_mm", 25), t["r"]
+        arm, rc = sec["armour_mm"], t["r"]
         for i, x in enumerate(got):
             if upper and not in_raised(x, rc):
                 yo, d = housing(x - 1.05 * rc, x + 1.05 * rc, rc)
@@ -2577,7 +2577,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
             for side in (1, -1):
                 mid = f"{pre}{i + 1}{'S' if side > 0 else 'P'}"
                 armament.add_mount(lay, mounts, "secondary", ts_id, ts, mid, sx, side * y_s, sec_base(sx),
-                                   armament.stow_bearing(sx, side, 90.0), armour_mm=sec.get("armour_mm", 25),
+                                   armament.stow_bearing(sx, side, 90.0), armour_mm=sec["armour_mm"],
                                    depth=depth, top=sec_base(sx) + ths, footprint_r=rs_reach,
                                    material=sec.get("material"), deck=lay.deck_z(sx, rs_reach), side_mount=True)
         if raised and sxs:     # level 1 under them, where no raised stretch already is

@@ -129,7 +129,7 @@ def _layout(design, res, shift):
         ts_id, ts = armament.gun_type(sec)
         r = armament.body_reach(ts)
         armament.side_pairs(lay, mounts, turret_types, "secondary", ts_id, ts, sec["per_side"],
-                            [(x, hull.half_width(x) - r - 0.3, 0.2) for x in xs], "S")
+                            [(x, hull.half_width(x) - r - 0.3, 0.2) for x in xs], "S", armour_mm=sec["armour_mm"])
     firecontrol.place(lay, design, blocks)
     # AA (machine guns, 20 mm): a pair just aft of the bridge first, then along the deck
     aa_out = []
