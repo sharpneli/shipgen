@@ -8,6 +8,7 @@ angle (clockwise, 0 = ahead) and translate it to the mount position.
 """
 from __future__ import annotations
 
+import bisect
 import functools
 import math
 from typing import NamedTuple
@@ -143,6 +144,25 @@ def circle_polygon(cx, cy, r, seg=32):
 def rotate_translate(pts, deg, tx, ty):
     c, s = math.cos(math.radians(deg)), math.sin(math.radians(deg))
     return [(tx + x * c - y * s, ty + x * s + y * c) for x, y in pts]
+
+
+def row_crossings(y, pts):
+    """Where the line at y crosses the polygon's edges, sorted: point_in_polygon(x, y, pts) is an odd count of
+    them past x (row_inside), with the same arithmetic, for testing many points on one row."""
+    out = []
+    n = len(pts)
+    for i in range(n):
+        x1, y1 = pts[i]
+        x2, y2 = pts[(i + 1) % n]
+        if (y1 > y) != (y2 > y):
+            out.append(x1 + (y - y1) * (x2 - x1) / (y2 - y1))
+    out.sort()
+    return out
+
+
+def row_inside(x, crossings):
+    """point_in_polygon for a point on the row that row_crossings was taken along."""
+    return (len(crossings) - bisect.bisect_right(crossings, x)) % 2 == 1
 
 
 def point_in_polygon(x, y, pts):

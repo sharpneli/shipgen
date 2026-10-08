@@ -22,7 +22,7 @@ from __future__ import annotations
 import math
 import random
 
-from geometry import block_outline, point_in_polygon, polygon_area, polygon_y_span
+from geometry import block_outline, point_in_polygon, polygon_area, polygon_y_span, row_crossings, row_inside
 
 # Item sizes (l along the ship, w across, h tall, all m) and how each is placed:
 #   pair    mirrored about the centreline, anywhere across (a lone one on the centreline when the roof is narrow)
@@ -127,6 +127,17 @@ def _overlap(a, b):
     return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
 
 
+def _bbox(pts):
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    return (min(xs), min(ys), max(xs), max(ys))
+
+
+def _near(r, b, eps=1e-6):
+    """Can rectangle r reach bounding box b? (A point outside a polygon's box never tests inside it; eps keeps a
+    rounded edge crossing from making that a near miss.)"""
+    return r[0] <= b[2] + eps and b[0] - eps <= r[2] and r[1] <= b[3] + eps and b[1] - eps <= r[3]
+
+
 def _samples(r, step=0.6):
     """Points over the rectangle r, its corners and edges included."""
     nx = max(1, math.ceil((r[2] - r[0]) / step))
@@ -168,8 +179,12 @@ class _Surface:
         self.bbox = (min(xs), min(ys), max(xs), max(ys))
         self.area = polygon_area(pts)
         self.inner = inset_polygon(pts, MARGIN) if len(pts) >= 3 else pts
+        self.inner_box = _bbox(self.inner) if self.inner else None
 
     def holds(self, r):
+        b = self.inner_box      # every corner is a sample: one outside the box fails
+        if b and not (b[0] - 1e-6 <= r[0] and r[2] <= b[2] + 1e-6 and b[1] - 1e-6 <= r[1] and r[3] <= b[3] + 1e-6):
+            return False
         return all(point_in_polygon(x, y, self.inner) for x, y in _samples(r))
 
 
@@ -178,7 +193,9 @@ class Placer:
         self.spec, self.hull = spec, hull
         self.blocks = [b for b in spec.get("superstructure") or [] if not b.get("director")]
         self.block_polys = [(b.get("level", 1), block_outline(b)) for b in self.blocks]
+        self.block_polys = [(lvl, poly, _bbox(poly)) for lvl, poly in self.block_polys]
         self.directors = [block_outline(b) for b in spec.get("superstructure") or [] if b.get("director")]
+        self.directors = [(poly, _bbox(poly)) for poly in self.directors]
         self.circles, self.rects = [], []
         for m in spec.get("turrets") or []:
             t = turret_types[m["type"]]
@@ -217,10 +234,11 @@ class Placer:
             if dx * dx + dy * dy < cr * cr:
                 return False
         pts = _samples(g, 0.5)
-        for lvl, poly in self.block_polys:
-            if (surf.kind == "deck" or lvl > surf.level) and any(point_in_polygon(x, y, poly) for x, y in pts):
+        for lvl, poly, box in self.block_polys:
+            if (surf.kind == "deck" or lvl > surf.level) and _near(g, box) \
+                    and any(point_in_polygon(x, y, poly) for x, y in pts):
                 return False
-        if any(point_in_polygon(x, y, poly) for poly in self.directors for x, y in pts):
+        if any(point_in_polygon(x, y, poly) for poly, box in self.directors if _near(g, box) for x, y in pts):
             return False
         if surf.kind == "deck":
             lv = {self.deck_level(x) for x, _ in ((g[0], 0), (g[2], 0))}
@@ -403,11 +421,15 @@ def plan(spec, hull, turret_types, shapes):
     items = []
     surfs = surfaces(spec, hull)
     for s in surfs:   # what's left open once the blocks above are drawn over it
-        x0, y0, x1, y1 = s.bbox
-        pts = [(x0 + 0.5 + i, y0 + 0.5 + j) for i in range(int(x1 - x0)) for j in range(int(y1 - y0))]
-        pts = [q for q in pts if point_in_polygon(*q, s.pts)]
-        above = [poly for lvl, poly in P.block_polys if s.kind == "deck" or lvl > s.level]
-        s.area = sum(1 for q in pts if not any(point_in_polygon(*q, poly) for poly in above))
+        x0, y0, x1, y1 = s.bbox     # a 1 m grid, a row at a time
+        above = [poly for lvl, poly, _ in P.block_polys if s.kind == "deck" or lvl > s.level]
+        s.area = 0
+        for j in range(int(y1 - y0)):
+            y = y0 + 0.5 + j
+            own, over = row_crossings(y, s.pts), [row_crossings(y, poly) for poly in above]
+            over = [c for c in over if c]
+            s.area += sum(1 for i in range(int(x1 - x0)) if row_inside(x0 + 0.5 + i, own)
+                          and not any(row_inside(x0 + 0.5 + i, c) for c in over))
     # boats first, on the widest open roofs (the boat deck)
     if kit["boats"] and not spec.get("flight_deck"):
         roofs = sorted((s for s in surfs if s.kind == "roof" and s.bbox[3] - s.bbox[1] >= BOAT_ROOF_W
