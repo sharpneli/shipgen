@@ -20,7 +20,6 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Drawing: tripod foremast and breakwater from 150 m, depth-charge racks under 140 m, boat deck on roofs of 60 m² or more
 
 ## Code structure (review 2026-10-08; details in HANDOFF)
-- [ ] Secondary count: layout prefers `per_side`, navarch/armament prefer `count` (differ for odd counts or both given)
 - [ ] Semantics parsed from ids: block role, mount battery (`battery_of`), `"W"` wing prefix, AA calibre from `"40" in type` (3x), vidgen regexes calibre
 - [ ] Export numeric `calibre_mm`/`calibre_length` in sprite.json turret types and hitbox components
 - [ ] Normalise "one battery or a list" once after validation (about 12 copies; secondary default 25 mm armour 5x)

@@ -430,11 +430,12 @@ commit byte-identical on every design and the legacy fleet (diff -r against a ba
   (`navarch.hydrostatics`), the propulsion train (`propulsion.link` ties it into rooms and cells) and battle stations
   (`crew.assign_battle_crew`, from the layout, not the exported components). `export_hitboxes(lay, design, r, inner)`
   only serialises. `build()` makes the interior before the report, which reads the battle stations from `lay.crew`.
+- Secondary mounts are read one way (`navarch.secondary_batteries`): `count` or `per_side`, both filled in. Layout
+  used to prefer `per_side`, navarch and armament `count`. Giving both is now a validation error; an odd `count` on
+  a paired style (warship, planing) warns that one is left out (`armament.warn_unpaired`); planing craft used to
+  ignore `count`.
 
 Still open (TODO.md "Code structure"), roughly by value:
-- **Secondary count precedence:** layout (`magazine_plan`, `place_casemates`, `build_layout`) takes
-  `per_side or count // 2`; navarch.rough_payload and armament.batteries take `count or 2 * per_side`. They disagree
-  when both are given or the count is odd. Only the first-pass weight estimate is affected on warships today.
 - **Ids carry meaning:** `block_role` regexes the block id, `battery_of` the mount id, `add_magazines` tests
   `bat.startswith("W")`, crew and hitbox take an AA mount's calibre from `"40" in type`, vidgen regexes the turret
   type id and `desc` for calibre and length. Store role, battery and calibre as fields; export the calibre.

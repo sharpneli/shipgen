@@ -19,7 +19,7 @@ import firecontrol
 import ordnance
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_steering, clamp, finish_layout,
                     plan_machinery, set_citadel)
-from navarch import Weight, volumetric_froude
+from navarch import Weight, secondary_batteries, volumetric_froude
 from geometry import AA_CFG, Hull
 from styles.base import Style
 from styles.carrier import _vdc
@@ -120,7 +120,9 @@ def _layout(design, res, shift):
                           lambda x: 0.2, armour_mm=fore.get("armour_mm", 0), depth=depth)
 
     xs = [-L / 2 + 0.1 * L + v * 0.7 * L for v in _vdc(48)]
-    sec = design.get("secondary") or {}
+    secs = secondary_batteries(design)
+    armament.warn_unpaired(lay, secs)
+    sec = secs[0] if secs else {}
     if sec.get("per_side"):
         ts_id, ts = armament.gun_type(sec)
         r = armament.body_reach(ts)

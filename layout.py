@@ -30,7 +30,8 @@ from geometry import (battery_type, make_torpedo_type, rrect_polygon, rrect_clam
                       DECK_PITCH)
 import ordnance
 import powerplant
-from navarch import Weight, battery_turrets, main_batteries, mount_weights, torpedo_weight, TUNING
+from navarch import (Weight, battery_turrets, main_batteries, mount_weights, secondary_batteries, torpedo_weight,
+                     TUNING)
 from arcs import ARC_BEAM, ARC_CASEMATE, ARC_CROSS, mount_traverse
 from geometry import Hull, AA_CFG, has_barbette
 
@@ -535,9 +536,8 @@ def magazine_plan(design, wings=()):
     out = {"fore": [], "aft": []}
     for wid, grp, g in wings:
         out[grp].append((wid, 2, ordnance.ammo_m3(g.t)))
-    secs = design.get("secondary") or []
-    for k, s in enumerate(secs if isinstance(secs, list) else [secs]):
-        n = s.get("per_side", s.get("count", 0) // 2)
+    for k, s in enumerate(secondary_batteries(design)):
+        n = s["per_side"]
         if not n:
             continue
         kind = "casemate" if s.get("mount") == "casemate" else "auto"
@@ -1013,7 +1013,7 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
     from geometry import CASEMATE_SHIELD
     bats = []
     for sec in secs:
-        n = sec.get("per_side", sec.get("count", 0) // 2)
+        n = sec["per_side"]
         if sec.get("mount") == "casemate" and n:
             t_id, t = battery_type(sec, kind="casemate")
             turret_types[t_id] = t
@@ -1771,8 +1771,8 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     lay.geo["bridge"] = dict(level=nb, floor=LEVEL_H * (nb - 1), need=nb_need, tower=n_tower,
                              turret_roof=fwd_roof)
     hood = firecontrol.HOOD_H if firecontrol.spec(design)["main"]["directors"] else 0.0
-    secs = design.get("secondary") or []
-    secs = [{**b, "prefix": battery_prefix(k)} for k, b in enumerate(secs if isinstance(secs, list) else [secs])]
+    secs = [{**b, "prefix": battery_prefix(k)} for k, b in enumerate(secondary_batteries(design))]
+    armament.warn_unpaired(lay, secs)
     # torpedo mounts stand in pairs at the deck edges where the hull leaves room for their swing beside the edge,
     # else on the centreline between the funnels (which then stand far enough apart)
     tp = design.get("torpedoes") or {}
@@ -2474,7 +2474,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     dh_w = 0.62 * B
     first = True
     for sec in secs:
-        nsec = sec.get("per_side", sec.get("count", 0) // 2)
+        nsec = sec["per_side"]
         if sec.get("mount", "deck") != "deck" or not nsec:
             continue
         pre, cal = sec["prefix"], f"{sec['calibre_mm']:g} mm"

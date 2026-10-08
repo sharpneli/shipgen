@@ -272,6 +272,8 @@ class Style:
             errs.append(f"secondary: the {self.name} style takes one secondary battery, not a list")
         sec = design.get("secondary") or []
         for b in (sec if isinstance(sec, list) else [sec]):
+            if "count" in b and "per_side" in b:
+                errs.append("secondary: give count (total mounts) or per_side (pairs), not both")
             mount = b.get("mount", "deck")
             if mount not in ("deck", "casemate"):
                 errs.append(f"secondary.mount = {mount!r}: use deck or casemate")

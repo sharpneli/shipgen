@@ -773,6 +773,20 @@ def main_batteries(design):
     return [b for b in (m if isinstance(m, list) else [m] if m else []) if isinstance(b, dict) and b]
 
 
+def secondary_batteries(design):
+    """The secondary batteries, in the design's order: "secondary" is one battery or a list (a lone object is a list
+    of one). Each gives its mounts as "count" (total) or "per_side" (validation rejects both); both come back filled
+    in: count = 2 x per_side, or per_side = count // 2 (a style that mounts its secondaries in pairs leaves an odd one
+    out, with a warning: armament.warn_unpaired). Batteries without mounts stay, so list positions name them
+    (layout.battery_prefix)."""
+    s = design.get("secondary")
+    out = []
+    for b in (s if isinstance(s, list) else [s] if s else []):
+        n = b["count"] if "count" in b else 2 * b.get("per_side", 0)
+        out.append({**b, "count": n, "per_side": b.get("per_side", n // 2)})
+    return out
+
+
 def battery_turrets(b):
     """How many turrets a main battery has: its end, midships and wing turrets (two to a pair)."""
     return b.get("fore", 0) + b.get("aft", 0) + b.get("mid", 0) + 2 * b.get("wing", 0)
@@ -790,9 +804,8 @@ def rough_payload(design, D):
         out.append(Weight("Main battery" + sfx, "armament", n * tw, z_rel=("deck", 2)))
         out.append(Weight("Main barbettes" + sfx, "armour", n * bw, z_rel=("frac", 0.75)))
         out.append(Weight("Main magazines" + sfx, "armament", n * aw, z_rel=("frac", 0.25)))
-    secs = design.get("secondary") or []
-    for s in (secs if isinstance(secs, list) else [secs]):   # one battery, or a list (carriers, merchants)
-        n = s.get("count", 2 * s.get("per_side", 0))
+    for s in secondary_batteries(design):
+        n = s["count"]
         if not n:
             continue
         _, t = battery_type(s)

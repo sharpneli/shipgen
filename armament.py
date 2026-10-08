@@ -14,7 +14,7 @@ import math
 from geometry import battery_type, make_torpedo_type, rotate_translate, superfire_step, turret_height, turret_reach
 from geometry import turret_shapes
 from layout import _fp_circle, _fp_rect, _overlap, stepped_counts, turret_name
-from navarch import TUNING, Weight, mount_weights, torpedo_weight
+from navarch import TUNING, Weight, mount_weights, secondary_batteries, torpedo_weight
 from geometry import AA_CFG
 
 
@@ -175,13 +175,16 @@ def batteries(design):
     merchants). "secondary" is one battery or a list; each has "count" (total mounts) or "per_side", and
     "where": "sides" (pairs along the sides, the default; an odd mount goes to an end) or "ends" (on the
     centreline / island line, fore and aft alternately)."""
-    sec = design.get("secondary") or []
-    out = []
-    for b in (sec if isinstance(sec, list) else [sec]):
-        n = b.get("count", 2 * b.get("per_side", 0))
-        if n:
-            out.append({**b, "count": n, "where": b.get("where", "sides")})
-    return out
+    return [{**b, "where": b.get("where", "sides")} for b in secondary_batteries(design) if b["count"]]
+
+
+def warn_unpaired(lay, bats):
+    """Warn about an odd count on a style that mounts its secondaries in pairs (warships, planing craft): per_side
+    (navarch.secondary_batteries) leaves the odd one out."""
+    for b in bats:
+        if b["count"] % 2:
+            lay.warnings.append(f"secondary count {b['count']}: secondaries go in pairs on this style, so "
+                                f"{b['per_side']} per side ({2 * b['per_side']} mounts).")
 
 
 def place_batteries(lay, mounts, turret_types, design, end_lines, side_slots, depth=10.0, armour_mm=0):
