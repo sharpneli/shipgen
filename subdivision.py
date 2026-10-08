@@ -442,7 +442,7 @@ def build(lay, design, res, ag, armoured, form):
         owner[c["id"]] = rid
 
     # ---------------- crew: the complement (less those quartered up top) over the quarters, by volume ----------------
-    c_ = getattr(lay, "crew", None) or {}
+    c_ = lay.crew or {}
     n = c_.get("complement", 0) - c_.get("quartered_in_superstructure", 0)   # the rest live in the superstructure
     quarters = [c for c in cells if room_out[owner[c["id"]]]["kind"] == "accommodation"]
     qv = sum(c["volume_m3"] for c in quarters)

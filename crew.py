@@ -321,7 +321,7 @@ def battle_stations(lay, sub):
     from geometry import AA_CFG, block_outline, has_barbette, polygon_centroid
     from layout import block_role
     from layout import block_base, block_top
-    c = getattr(lay, "crew", None) or {}
+    c = lay.crew or {}
     deps = dict(c.get("departments") or {})
     if not deps:
         return dict(components={}, rooms={}, summary={})
@@ -414,6 +414,6 @@ def assign_battle_crew(lay, sub):
             own = {cid: cells[cid]["volume_m3"] for cid in r["cells"] if cells[cid]["room"] == r["id"]}
             for cid, m in spread(men, own).items():
                 cells[cid]["battle_crew"] = m
-    if getattr(lay, "crew", None) is not None and st["summary"]:
+    if lay.crew is not None and st["summary"]:
         lay.crew["battle_stations"] = st["summary"]
     return st["components"]

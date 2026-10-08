@@ -121,10 +121,10 @@ def export_hitboxes(lay, design, res, inner):
                           else mat)
     directors = {d["id"]: d for d in lay.directors}
     sup_material = (design.get("superstructure") or {}).get("material")
-    quarters = (getattr(lay, "crew", None) or {}).get("superstructure_quarters", {})
+    quarters = (lay.crew or {}).get("superstructure_quarters", {})
     for b in lay.blocks:
         pts = block_outline(b)
-        smoke = getattr(lay, "smoke", {}).get(b["id"])
+        smoke = lay.smoke.get(b["id"])
         # a rounded rectangle also gives its parameters; a polygon block only its points
         rr = {} if b.get("points") else dict(rrect=dict(
             x0=round(b["x0"], 3), x1=round(b["x1"], 3), y0=round(b["y"] - b["w"] / 2, 3),

@@ -159,6 +159,11 @@ class Layout:
         self.casings = []       # casings over machinery taller than its space: dict(id, x0, x1, w, base, top, ...)
         self.conning_tower = None   # armoured warships: dict(x, y, r, top), inside the bridge (not drawn)
         self.short = set()      # what the hull lacks for everything to fit: "length" and/or "beam" (sizing)
+        self.end_mounts = []    # the end groups' main turrets, which every superstructure level keeps clear of
+        self.smoke = {}         # {block id: [funnel ids]}: control positions in smoke (firecontrol.assign_smoke)
+        self.crew = None        # the complement and where it lives (crew.apply), for the report and the subdivision
+        self._deck_band = None  # deck_band's cache
+        self._scan = {}         # level_outline's cache
 
     def fail(self, need, msg):
         """Something doesn't fit: an error, and what more of (need: "length", "beam" or None) would fix it."""
@@ -1260,7 +1265,7 @@ FP_MARGIN = 0.3        # what stands at a level's height is kept this far from i
 
 def deck_band(lay):
     """The main deck less DH_INSET at the sides, as a convex polygon: what level 1 stands on (cached on the layout)."""
-    if getattr(lay, "_deck_band", None) is None:
+    if lay._deck_band is None:
         hull = lay.hull
         xa, xb = -hull.L / 2, hull.L / 2
         k = max(2, int(xb - xa))
@@ -1329,8 +1334,8 @@ def level_outline(lay, x0, x1, w, base, top, support=None, keep=(), ignore=(), n
     n = max(1, int(math.ceil(H / st - 1e-6)))
     ys = [min(H, j * st) for j in range(n + 1)]
     floor = -0.3 * (x1 - x0)
-    ends = getattr(lay, "end_mounts", [])
-    scan = lay.__dict__.setdefault("_scan", {})
+    ends = lay.end_mounts
+    scan = lay._scan
     end_ids = {m["id"] for m in ends}
     fps = [o[0] for o in lay.footprints if o[2] > base + 1e-6 and o[1] < top - 1e-6 and o[3] not in ignore
            and o[3] not in end_ids]

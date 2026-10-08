@@ -259,7 +259,7 @@ def report(lay, deck_m):
     """The directors for the report: where they stand, how high their eyes are above the waterline (deck_m: the main
     deck's height above it), how far they see, and what they weigh."""
     out = []
-    for d in getattr(lay, "directors", []):
+    for d in lay.directors:
         eye = deck_m + d["eye"]
         out.append(dict(id=d["id"], battery=d["battery"], x=round(d["x"], 2), y=round(d["y"], 2),
                         eye_height_m=round(eye, 2), horizon_km=round(horizon_km(eye), 1),
