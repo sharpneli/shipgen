@@ -7,12 +7,9 @@ what a hit does is the game's business.
 """
 from __future__ import annotations
 
-import math
-import re
-
 from geometry import rrect_polygon, block_outline, turret_shapes, turret_reach
 from geometry import AA_CFG, HullForm
-import powerplant
+from layout import block_base, block_role, block_top, own_plate_mm
 import ordnance
 from navarch import gun_rounds
 import propulsion
@@ -22,57 +19,6 @@ import subdivision
 # Bismarck: sides 0.56-0.69, rear 0.5-0.9, roof 0.4-0.43.
 TURRET_SIDE, TURRET_REAR, TURRET_ROOF = 0.55, 0.5, 0.4
 BARBETTE = 0.8   # barbette armour, fraction of the turret face (as navarch weighs it)
-
-# What a superstructure block is for, by its id with any trailing number and side letter removed.
-BLOCK_ROLES = {
-    "Bridge": "bridge", "Bridge upper": "bridge", "Bridge base": "bridge", "Charthouse": "bridge",
-    "Main director": "director", "Aft director": "director", "Director": "director",
-    "Secondary director": "director", "AA director": "director",
-    "Tower": "bridge", "Island tower": "island",
-    "Aft control": "aft_control", "Aft control upper": "aft_control", "Aft control base": "aft_control",
-    "Island": "island", "Island upper": "island",
-    "Hangar": "hangar", "Hangar roof": "hangar",
-    "Casemate housing": "casemate",
-}
-
-
-CONTROL_ROLES = ("bridge", "director", "aft_control")
-BASE_BLOCKS = ("Bridge base", "Aft control base")   # offices and cabins under a control position: no view needed
-
-
-def assign_smoke(lay, res):
-    """Control positions in a funnel's smoke (powerplant model, section 6b): a bridge, director or aft control
-    standing aft of a funnel, closer than its smoke reach (powerplant.smoke_reach) and lower than the funnel top
-    plus 0.3 x the distance. Sets lay.smoke {block id: [funnel ids]} and warns about each."""
-    from layout import block_top
-    lay.smoke = {}
-    if not lay.funnels:
-        return
-    reach = powerplant.smoke_reach(res.plant, res.power_shp)
-    for b in lay.blocks:
-        if block_role(b["id"]) not in CONTROL_ROLES or re.sub(r"\s*\d+$", "", b["id"]) in BASE_BLOCKS:
-            continue
-        hit = smoke_from(lay.funnels, lay.fun_top, reach, b["x1"], block_top(b), b["y"], b["w"])
-        if hit:
-            lay.smoke[b["id"]] = hit
-            lay.warnings.append(f"{b['id']} stands in the smoke of {', '.join(hit)}: poor visibility from it.")
-
-
-def smoke_from(funnels, fun_top, reach, x1, top, y, w):
-    """Ids of the funnels whose smoke blinds a control position whose forward end is at x1, its roof at top and
-    its centre at y, w wide: one standing aft of the funnel, closer than reach and lower than the funnel top plus
-    0.3 x the distance."""
-    hit = []
-    for f in funnels:
-        d = (f["x"] - f["l"] / 2) - x1
-        if 0 <= d < reach and top < fun_top + 0.3 * d and abs(f["y"] - y) < w / 2 + f["w"]:
-            hit.append(f["id"])
-    return hit
-
-
-def block_role(bid):
-    """A superstructure block's role (BLOCK_ROLES); anything else is a deckhouse."""
-    return BLOCK_ROLES.get(re.sub(r"\s*\d+[SP]?$", "", bid), "deckhouse")
 
 
 def propulsion_components(lay, design, res, form, sub, gear=None):
@@ -158,7 +104,6 @@ def hull_plating(lay, design, res):
     """The unarmoured plating (hullweight.plates): the hull's from its structure, the superstructure's from the
     design (superstructure.plating_mm, control_mm) over the structure's own gauge."""
     import hullweight
-    from layout import own_plate_mm
     sup = design.get("superstructure") or {}
     hp = hullweight.plating(design)
     h = res.hull if "t_min_mm" in res.hull else {**res.hull, "plate_own_mm": own_plate_mm(lay)}
@@ -218,7 +163,6 @@ def battle_crew(lay, sub, comps):
 def export_hitboxes(lay, design, res):
     """hitboxes.json. Heights are metres above the main deck; res (navarch.Result) places the keel, the
     waterline and the armour."""
-    from layout import block_base, block_top
     from navarch import armour_geometry, armour_material, cwp, deck_name, froude, DECK_PITCH
     D, T = res.depth, res.draught
     rz = lambda z: round(z - D, 2)        # metres above the keel -> above the main deck

@@ -1,6 +1,7 @@
 """
 firecontrol: directors, the plotting rooms that turn their readings into gun orders, and the search radar. Shared by
-every style: each style lays out its superstructure, then place() stands the directors on its roofs.
+every style: each style lays out its superstructure, then place() stands the directors on its roofs. assign_smoke()
+finds the control positions (bridge, directors, aft control) standing in a funnel's smoke.
 
 The design gives raw numbers (the game's designer UI keeps the templates, like a design bureau's director that many
 ships use):
@@ -31,6 +32,7 @@ needs for GM, and the heel in a beam wind.
 from __future__ import annotations
 
 import math
+import re
 
 BATTERIES = ("main", "secondary", "aa")
 FIELDS = ("directors", "rangefinder_m", "armour_mm", "radar_t", "computer_t")
@@ -99,6 +101,41 @@ def horizon_km(eye_m):
     return 3.57 * math.sqrt(REFRACTION * max(0.0, eye_m))
 
 
+CONTROL_ROLES = ("bridge", "director", "aft_control")
+BASE_BLOCKS = ("Bridge base", "Aft control base")   # offices and cabins under a control position: no view needed
+
+
+def assign_smoke(lay, res):
+    """Control positions in a funnel's smoke (powerplant model, section 6b): a bridge, director or aft control
+    standing aft of a funnel, closer than its smoke reach (powerplant.smoke_reach) and lower than the funnel top
+    plus 0.3 x the distance. Sets lay.smoke {block id: [funnel ids]} and warns about each."""
+    import powerplant
+    from layout import block_role, block_top
+    lay.smoke = {}
+    if not lay.funnels:
+        return
+    reach = powerplant.smoke_reach(res.plant, res.power_shp)
+    for b in lay.blocks:
+        if block_role(b["id"]) not in CONTROL_ROLES or re.sub(r"\s*\d+$", "", b["id"]) in BASE_BLOCKS:
+            continue
+        hit = smoke_from(lay.funnels, lay.fun_top, reach, b["x1"], block_top(b), b["y"], b["w"])
+        if hit:
+            lay.smoke[b["id"]] = hit
+            lay.warnings.append(f"{b['id']} stands in the smoke of {', '.join(hit)}: poor visibility from it.")
+
+
+def smoke_from(funnels, fun_top, reach, x1, top, y, w):
+    """Ids of the funnels whose smoke blinds a control position whose forward end is at x1, its roof at top and
+    its centre at y, w wide: one standing aft of the funnel, closer than reach and lower than the funnel top plus
+    0.3 x the distance."""
+    hit = []
+    for f in funnels:
+        d = (f["x"] - f["l"] / 2) - x1
+        if 0 <= d < reach and top < fun_top + 0.3 * d and abs(f["y"] - y) < w / 2 + f["w"]:
+            hit.append(f["id"])
+    return hit
+
+
 def place(lay, design, blocks):
     """Stand the design's directors on the superstructure's roofs (layout.roof_spots) as blocks of their own (kind
     "director": drawn and hit like superstructure, appended to blocks), with their weights: the director at its
@@ -106,7 +143,6 @@ def place(lay, design, blocks):
     MAIN_SPREAD of the length apart when they can; secondary and AA directors go in pairs, highest first. Sets
     lay.directors. A director with nowhere to stand is an error (more length rarely helps: it needs a roof)."""
     from geometry import director_parts
-    from hitbox import smoke_from
     from layout import LEVEL_H, _fp_rect, add_block, roof_spots
     from navarch import Weight
     fc = spec(design)
@@ -148,7 +184,7 @@ def place(lay, design, blocks):
             lay.directors.append(rec)
             mine.append(rec)
 
-        def smoky(x, y, z0):    # out of the funnels' smoke first (hitbox.assign_smoke), at the same height
+        def smoky(x, y, z0):    # out of the funnels' smoke first (assign_smoke), at the same height
             return bool(smoke_from(lay.funnels_planned, max((f.get("top", 0.0) for f in lay.funnels_planned),
                                                             default=0.0),
                                    lay.geo.get("smoke_reach", 0.0), x + hl, z0 + LEVEL_H, y, w))

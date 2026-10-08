@@ -314,7 +314,6 @@ def block_plating(lay, b):
     plate beyond the structure's own gauge, t (the walls: perimeter x height, plain steel plate; the structure's own
     is in t_per_m2). Thinner than the own gauge saves nothing: superstructure.t_per_m2 is the lighter structure."""
     import hullweight
-    from hitbox import block_role
     from geometry import block_outline
     own = hullweight.SUP_PLATE_K * own_plate_mm(lay)
     mm = max(own, lay.sup_plate[0])
@@ -814,6 +813,24 @@ def block_base(b):
 
 def block_top(b):
     return b.get("z0", 0.0) + LEVEL_H * b["level"]
+
+
+# What a superstructure block is for, by its id with any trailing number and side letter removed.
+BLOCK_ROLES = {
+    "Bridge": "bridge", "Bridge upper": "bridge", "Bridge base": "bridge", "Charthouse": "bridge",
+    "Main director": "director", "Aft director": "director", "Director": "director",
+    "Secondary director": "director", "AA director": "director",
+    "Tower": "bridge", "Island tower": "island",
+    "Aft control": "aft_control", "Aft control upper": "aft_control", "Aft control base": "aft_control",
+    "Island": "island", "Island upper": "island",
+    "Hangar": "hangar", "Hangar roof": "hangar",
+    "Casemate housing": "casemate",
+}
+
+
+def block_role(bid):
+    """A superstructure block's role (BLOCK_ROLES); anything else is a deckhouse."""
+    return BLOCK_ROLES.get(re.sub(r"\s*\d+[SP]?$", "", bid), "deckhouse")
 
 
 # Warship and carrier planform. The main deck fills more of its L x B box than the waterplane (navarch.cwp), since

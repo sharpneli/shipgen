@@ -175,7 +175,7 @@ def crew_space(lay, design, res):
     carrier's galleries)."""
     import powerplant
     from layout import LEVEL_H
-    from hitbox import block_role
+    from layout import block_role
     from navarch import cwp
     hull = lay.hull
     L, B = hull.L, hull.B
@@ -321,7 +321,7 @@ def battle_stations(lay, sub, comps):
     superstructure). Returns dict(components={(kind, id): men}, rooms={id: men}, summary={station: men}); components
     are keyed by kind too, since ids may repeat across kinds (a carrier's Hangar block and hangar bay)."""
     from geometry import AA_CFG, block_outline, polygon_centroid
-    from hitbox import block_role
+    from layout import block_role
     from layout import block_base, block_top
     c = getattr(lay, "crew", None) or {}
     deps = dict(c.get("departments") or {})

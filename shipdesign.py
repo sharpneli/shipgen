@@ -35,7 +35,8 @@ import navarch
 import styles
 from geometry import AA_CFG, rrect_polygon, block_outline
 from arcs import assign_arcs
-from hitbox import assign_smoke, export_hitboxes
+from firecontrol import assign_smoke
+from hitbox import export_hitboxes
 import powerplant
 from layout import LEVEL_H, block_top
 
