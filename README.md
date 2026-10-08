@@ -29,6 +29,7 @@ design JSON (player input: counts, calibres, armour, speed, look)
    ├─ decks.py     the deck stack: deck heights, names, raised stretches
    ├─ weights.py   the Weight record and densities every module books with
    ├─ layout.py    warship layout + shared layout primitives; balances CG over CB by shifting the arrangement
+   ├─ geo.py       Geo: the layout's facts for the physics and later passes (machinery, citadel, ...) and their defaults
    ├─ armament.py  style-neutral gun, torpedo and AA placement; every style books its mounts with add_mount
    ├─ ordnance.py  magazines for every style: ammunition (and a carrier's bombs and avgas) stowed low
    ├─ arcs.py      fixed firing arcs by mount kind, and each mount's traverse
