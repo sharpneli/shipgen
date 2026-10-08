@@ -553,7 +553,7 @@ def end_card(s):
 
 
 # ------------------------------------------------------------------------------------------------------ the mix
-GAINS = dict(strings=0.8, brass=1.15, choir=0.55, keys=0.8, perc=1.15, fx=0.5, sea=0.9)
+GAINS = dict(strings=0.8, brass=1.15, choir=0.55, keys=0.8, perc=1.15, fx=0.5, sea=0.36)
 
 
 def render(t0=0.0, t1=None):

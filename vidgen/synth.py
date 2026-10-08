@@ -31,7 +31,9 @@ def _t(n):
 def adsr(n, a, d, s, r_at, r, curve=2.0):
     """An envelope n samples long: attack a s (eased), decay d s to level s, held until r_at s, released over r s."""
     t = _t(n)
-    e = np.where(t < a, (t / max(a, 1e-4)) ** (1 / curve) if a > 0 else 1.0, 1.0).astype(np.float32)
+    a = max(a, 0.004)
+    # ease-out attack: fast at first but with a finite slope, so even an 8 ms attack doesn't click
+    e = (1 - (1 - np.clip(t / a, 0, 1)) ** curve).astype(np.float32)
     if d > 0:
         dd = np.clip((t - a) / d, 0, 1)
         e = np.where(t >= a, 1 - (1 - s) * (1 - (1 - dd) ** 2), e)
@@ -93,7 +95,9 @@ def strings(m, dur, vel=0.7, attack=0.35, release=0.6, voices=4, bright=1.0, bod
     hi = 1800 + 3200 * vel * bright
     out = np.zeros(n, np.float32)
     for v in range(voices):
-        cents = (v - (voices - 1) / 2) / max(1, voices - 1) * 2 * detune + RNG.normal(0, 1.5)
+        # low notes beat slowly and deeply between few players, so they spread less
+        dt = detune * float(np.clip(f0 / 300, 0.35, 1.0))
+        cents = (v - (voices - 1) / 2) / max(1, voices - 1) * 2 * dt + RNG.normal(0, 1.0)
         fv = f0 * 2 ** (cents / 1200)
         P = int(min(60, (SR / 2 - 500) / fv))
         k = np.arange(1, P + 1)
@@ -101,6 +105,7 @@ def strings(m, dur, vel=0.7, attack=0.35, release=0.6, voices=4, bright=1.0, bod
         ph = _phase(fv, n, vib=vib * RNG.uniform(0.8, 1.2), vib_rate=RNG.uniform(4.8, 6.0), drift=0.0015)
         sig = _partials(ph, k, amps)
         dl = int(RNG.uniform(0, 0.03) * SR)                 # players don't start together
+        sig *= np.clip(_t(n) / max(attack, 0.006), 0, 1)     # each fades in on their own: a late entry mid-attack clicked
         out[dl:] += sig[: n - dl]
     env = adsr(n, attack, 0.0, 1.0, dur, release, curve=1.6)
     if trem:
@@ -114,7 +119,7 @@ def strings(m, dur, vel=0.7, attack=0.35, release=0.6, voices=4, bright=1.0, bod
 def spiccato(m, vel=0.8, length=0.11, bright=1.0):
     """A short, bouncing bow stroke: strings with a hard attack and a quick decay."""
     n = int((length + 0.25) * SR)
-    s = strings(m, length, vel, attack=0.008, release=0.18, voices=3, bright=1.2 * bright, vib=0.0)
+    s = strings(m, length, vel, attack=0.012, release=0.18, voices=3, bright=1.2 * bright, vib=0.0)
     t = _t(len(s))
     return s * np.exp(-t / (length * 1.2)).astype(np.float32)
 
@@ -141,17 +146,18 @@ def brass(m, dur, vel=0.7, attack=0.07, release=0.35, kind="horn", voices=2, swe
     out = np.zeros(n, np.float32)
     for v in range(voices):
         fv = f0 * 2 ** (RNG.normal(0, 4) / 1200)
-        P = int(min(40, (SR / 2 - 500) / fv))
+        P = int(min(40, 12000 / fv))
         k = np.arange(1, P + 1, dtype=np.float32)
         tilt = _body(k * fv, [(1100 if kind == "horn" else 1500, 0.6, 0.6)], lo=60, hi=cut)
         amps = np.exp(-(k[:, None] - 1) / bright[None, :]) * tilt[:, None].astype(np.float32)
         ph = _phase(fv, n, vib=0.0018, vib_rate=5.0, vib_delay=0.5, drift=0.001, glide=(0.985, 0.03))
         dl = int(RNG.uniform(0, 0.02) * SR)
-        sig = _partials(ph, k, amps)
+        # each player saturates on their own: through one shared tanh the players' beating made low rumble
+        sig = np.tanh(_partials(ph, k, amps) * env * vel * 1.4) / 1.4
         out[dl:] += sig[: n - dl]
     breath = sosfilt(butter(2, [400, 3000], "band", fs=SR, output="sos"), RNG.standard_normal(n)).astype(np.float32)
-    out = out / voices + breath * 0.02 * np.exp(-t / 0.08)
-    return (np.tanh(out * env * vel * 1.4) / 1.4).astype(np.float32)
+    out = out / voices + breath * 0.02 * np.exp(-t / 0.08) * env * vel
+    return out.astype(np.float32)
 
 
 def braam(root, dur=3.5, vel=1.0):
@@ -212,7 +218,8 @@ def pluck(m, vel=0.7, decay=2.5, bright=1.0, pos=0.28, inharm=1.5e-4):
                 ).astype(np.float32)
     click = sosfilt(butter(2, 3000, "high", fs=SR, output="sos"), RNG.standard_normal(n)).astype(np.float32)
     out += click * 0.05 * np.exp(-t / 0.003)
-    return (out * vel * np.clip(t / 0.002, 0, 1)).astype(np.float32)
+    tail = np.clip((n / SR - t) / (0.2 * n / SR), 0, 1)        # fade the last fifth, no cut-off
+    return (out * vel * np.clip(t / 0.002, 0, 1) * tail).astype(np.float32)
 
 
 def celesta(m, vel=0.6):
@@ -221,9 +228,12 @@ def celesta(m, vel=0.6):
     n = int(2.2 * SR)
     t = _t(n)
     out = np.zeros(n, np.float32)
-    for r, a, tau in ((1, 1.0, 1.1), (2.0, 0.12, 0.5), (2.76, 0.25, 0.25), (5.40, 0.12, 0.08), (8.93, 0.05, 0.04)):
+    for r, a, tau in ((1, 1.0, 1.1), (2.0, 0.2, 0.6), (3.0, 0.08, 0.3), (2.76, 0.3, 0.25), (4.0, 0.12, 0.2),
+                      (5.40, 0.15, 0.08), (8.93, 0.06, 0.04)):
         if f0 * r < SR / 2 - 500:
-            out += (a * np.sin(2 * np.pi * f0 * r * t) * np.exp(-t / tau)).astype(np.float32)
+            out += (a * np.sin(2 * np.pi * f0 * r * t + RNG.uniform(0, 6.28)) * np.exp(-t / tau)).astype(np.float32)
+    hammer = sosfilt(butter(2, [1500, 7000], "band", fs=SR, output="sos"), RNG.standard_normal(n))
+    out += hammer * 0.25 * np.exp(-t / 0.004)
     return (out * vel * np.clip(t / 0.001, 0, 1)).astype(np.float32)
 
 
@@ -273,6 +283,8 @@ def timpani(m, vel=0.8, decay=1.6, roll=0.0):
         out += (a * np.sin(2 * np.pi * r * ph) * np.exp(-t / (decay * td))).astype(np.float32)
     mallet = sosfilt(butter(2, 900, "low", fs=SR, output="sos"), RNG.standard_normal(n)).astype(np.float32)
     out += mallet * 0.6 * vel * np.exp(-t / 0.012)
+    felt = sosfilt(butter(2, [1000, 4000], "band", fs=SR, output="sos"), RNG.standard_normal(n)).astype(np.float32)
+    out += felt * 0.25 * vel * np.exp(-t / 0.005)
     return (out * vel * np.clip(t / 0.0015, 0, 1)).astype(np.float32)
 
 
@@ -295,21 +307,21 @@ def gran_cassa(vel=0.9, f=42.0, decay=1.6):
     return taiko(vel, f, decay) * 0.9
 
 
-def snare(vel=0.7, tone=175.0):
+def snare(vel=0.7, tone=175.0, head=1.0):
     """A field drum. The batter head rings in two modes that sag in pitch; the wires under the bottom head buzz
     only while it moves, so their noise is gated by the head's own motion and coloured by a resonance around 4 kHz,
     not a flat hiss. Louder hits get relatively more wire."""
     n = int(0.45 * SR)
     t = _t(n)
     sag = 1 + 0.12 * np.exp(-t / 0.012)
-    head = (np.sin(2 * np.pi * np.cumsum(tone * sag) / SR) * np.exp(-t / 0.07)
+    hd = (np.sin(2 * np.pi * np.cumsum(tone * sag) / SR) * np.exp(-t / 0.07)
             + 0.45 * np.sin(2 * np.pi * np.cumsum(tone * 1.59 * sag) / SR) * np.exp(-t / 0.04))
     stick = sosfilt(butter(2, [800, 3000], "band", fs=SR, output="sos"), RNG.standard_normal(n)) * np.exp(-t / 0.003)
     wires = sosfilt(butter(2, [2500, 6500], "band", fs=SR, output="sos"), RNG.standard_normal(n))
     wires = sosfilt(butter(2, 8000, "low", fs=SR, output="sos"), wires)
-    gate = np.abs(head) ** 0.7 * np.clip((t - 0.002) / 0.004, 0, 1)            # the wires follow the head
+    gate = np.abs(hd) ** 0.7 * np.clip((t - 0.002) / 0.004, 0, 1)            # the wires follow the head
     wires = wires * (gate * 0.7 + 0.3 * np.exp(-t / 0.05)) * np.exp(-t / 0.09)
-    out = head * 0.75 + stick * 0.3 + wires * (0.35 + 0.35 * vel)
+    out = hd * 0.75 * head + stick * 0.3 * head + wires * (0.35 + 0.35 * vel)
     return (out * vel * np.clip(t / 0.0005, 0, 1)).astype(np.float32)
 
 
@@ -321,11 +333,11 @@ def snare_roll(dur, v0=0.2, v1=0.8):
     out = np.zeros(n, np.float32)
     for i in range(k):
         v = v0 + (v1 - v0) * (i / max(1, k - 1)) ** 1.4
-        h = snare(v * RNG.uniform(0.75, 1.0) * (0.85 if i % 2 else 1.0))
+        h = snare(v * RNG.uniform(0.75, 1.0) * (0.85 if i % 2 else 1.0), head=0.3)
         o = int((i * rate + RNG.normal(0, 0.003)) * SR)
         o = max(0, o)
         out[o:o + len(h)] += h[: n - o]
-    return out * 0.55
+    return out * 1.0
 
 
 def cymbal(vel=0.7, decay=3.0, dark=False):
@@ -336,9 +348,10 @@ def cymbal(vel=0.7, decay=3.0, dark=False):
     t = _t(n)
     out = np.zeros(n, np.float32)
     top = 7000 if dark else 12000
-    fs = np.exp(RNG.uniform(np.log(450), np.log(top), 700))
+    fs = np.exp(RNG.uniform(np.log(280), np.log(top), 700))
     for f in fs:
         a = (f / 3000) ** 0.25 * RNG.uniform(0.3, 1.0)            # a cymbal's energy sits at 3-8 kHz
+        a *= min(1.0, (f / 700) ** 2)                              # and tapers off below 700 Hz
         if f > 7000:
             a *= np.exp(-(f - 7000) / 3000)
         td = min(decay, decay * 0.6 * (f / 3000) ** -0.35) * RNG.uniform(0.6, 1.2)
@@ -396,21 +409,28 @@ def tick(vel=0.3):
     n = int(0.06 * SR)
     t = _t(n)
     out = sosfilt(butter(2, [3000, 9000], "band", fs=SR, output="sos"), RNG.standard_normal(n)) * np.exp(-t / 0.004)
-    out += np.sin(2 * np.pi * 2200 * t) * np.exp(-t / 0.01) * 0.3
+    for f, a in ((3170, 0.15), (4730, 0.1), (6900, 0.06)):         # a few short, inharmonic metal rings
+        out += np.sin(2 * np.pi * f * t + RNG.uniform(0, 6.28)) * np.exp(-t / 0.004) * a
     return (out * vel).astype(np.float32)
 
 
 def sea(dur, vel=0.3, period=7.0):
-    """A calm sea: low-passed noise in slow swells, with a little hiss as each one breaks."""
+    """A calm sea alongside: a mid-band wash (pink noise, 120 Hz .. 2.5 kHz) rising and falling with the swell, and
+    on each crest the foam: a brighter hiss with a sparse fizz of bursting bubbles. Little below 100 Hz, so it sits
+    under the music without muddying it."""
     n = int(dur * SR)
     t = _t(n)
-    w = RNG.standard_normal(n).astype(np.float32)
-    low = sosfilt(butter(4, 400, "low", fs=SR, output="sos"), w).astype(np.float32)
-    hiss = sosfilt(butter(2, [1500, 6000], "band", fs=SR, output="sos"), RNG.standard_normal(n)).astype(np.float32)
+    w = np.fft.irfft(np.fft.rfft(RNG.standard_normal(n)) / np.sqrt(np.maximum(np.arange(n // 2 + 1), 1)), n)
+    wash = sosfilt(butter(2, [120, 2500], "band", fs=SR, output="sos"), w).astype(np.float32)
+    wash /= np.abs(wash).std() + 1e-9
+    hiss = sosfilt(butter(2, [2000, 8000], "band", fs=SR, output="sos"), RNG.standard_normal(n)).astype(np.float32)
+    pops = (RNG.random(n) < 300 / SR) * RNG.uniform(0.3, 1.0, n)   # ~300 bubbles a second
+    fizz = sosfilt(butter(2, [2500, 9000], "band", fs=SR, output="sos"), pops).astype(np.float32) * 6
     ph = RNG.uniform(0, 6.28)
-    sw = 0.55 + 0.45 * np.sin(2 * np.pi * t / period + ph) * (0.8 + 0.2 * np.sin(2 * np.pi * t / (period * 2.7)))
-    br = np.clip(np.sin(2 * np.pi * t / period + ph - 0.6), 0, 1) ** 3
-    return ((low * sw * 1.0 + hiss * br * 0.12) * vel).astype(np.float32)
+    swell = 0.5 + 0.5 * np.sin(2 * np.pi * t / period + ph) * (0.8 + 0.2 * np.sin(2 * np.pi * t / (period * 2.7)))
+    crest = np.clip(np.sin(2 * np.pi * t / period + ph - 0.7), 0, 1) ** 2
+    out = wash * (0.35 + 0.65 * swell) * 0.25 + (hiss * 0.06 + fizz * 0.05) * crest
+    return (out * vel).astype(np.float32)
 
 
 # ----------------------------------------------------------------------------------------------------- the mix
