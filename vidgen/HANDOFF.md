@@ -536,6 +536,32 @@ enemy lead closer. Code: `battle.py` (gunnery, `Splash`, `Hit`), wired in `Scene
   the foam (foam is one colour), ships manoeuvring (breaks the locked layers), firing in a zoom (`--zoom` is one
   line), the camera moving within a battle clip.
 
+## The trailer (trailer.py, 2026-10-08)
+The user asked for "a short kickstarter style trailer" for maximum hype ("and inevitable disappointment when it
+never comes out"); the game will be free. Their storyboard, with my additions (cards, the caption, the stamp, our
+own Lion being the one that blows up, as at Jutland): cold open on a lone Lion, "DESIGN EVERY RIVET.", the design
+bureau flicking through nine real designs (stats, warnings and cutaways from their exports) to Lion stamped
+APPROVED, a match cut from her plan view onto the zoom clip's lead ship, the zoom out over "COMMAND THE LINE.", a
+4 v 4 battle in three framings, a cut to the forward magazines going up with "LIVE WITH THE CONSEQUENCES.", a
+whiteout into the animated end card from `stylecard.html`.
+- **Run:** render the footage (`TRAILER_CLIPS` in trailer.py lists the vidgen command lines; all at
+  `--size 1920x1080 --clean --out vidgen/out/trailer`), then `~/.venv/bin/python vidgen/trailer.py` writes
+  `vidgen/out/fleetwright_trailer.mp4`. `--still T` writes one frame of the cut; `--only sheets|end|cards` a piece.
+- **`--clean` (vidgen):** leaves off the HUD, caption, target marker and scale bar. It goes through the environment
+  (`VIDGEN_CLEAN`) because Python 3.14's forkserver workers don't inherit module globals.
+- **Footage cost at 1080p:** run four at a time at most (`--chunks 4`): six at once filled the 30 GB. The zoom and
+  the explosion took ~25 min each with three others running; a 34 s 4 v 4 battle about the same.
+- **The edit:** `Clip` reads a clip forward and blends neighbouring frames, so `ramp` can play pieces at any speed
+  (slow-mo explosion at 0.5x, the zoom's training and zoom-out at 2x). Cuts are hard except the fade in, the drop
+  into the sea and the whiteout.
+- **The match cut:** the zoom starts with the lead centred at 4 px/m and heading -12 (`ZOOM_START`), so Lion's
+  preview_rest.png (the same sprite at 10 px/m) is scaled, turned and slid there and the footage fades up under it.
+  If the zoom's start changes, change `ZOOM_START`.
+- **Type:** Bodoni Moda and IBM Plex Mono are in `vidgen/fonts` (OFL). Bodoni is set at optical size 20, not the
+  display 96: at 96 its hairlines go under a pixel and x264 eats them.
+- **Not done:** music (the cut is silent; the beats fall on cuts, so a track can be laid under it), a rendered
+  explosion inside the battle (vidgen still refuses `--explode` in a line, so it's a cut to a lone Lion).
+
 ## Known oddities
 - Masts cast long, thin, solid shadows on the sea. That's correct for a 23 m mast at 45°, but it can look heavy.
 - Coal smoke shades the deck dark around the funnels. That's intended.

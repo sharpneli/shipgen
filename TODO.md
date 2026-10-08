@@ -104,7 +104,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 ## vidgen
 - [ ] Shells and fire legible from high up (with ships firing at each other)
 - [ ] Wake at ~0.5 px/m may read too smooth (a beam); faint lengthwise streaks could come back
-- [ ] Battle extras (HANDOFF "Battle"): hit debris, near-miss deck wetting, dye stain in foam, camera moves and a zoom within a battle clip, storyboard shots
+- [ ] Battle extras (HANDOFF "Battle"): hit debris, near-miss deck wetting, dye stain in foam, camera moves and a zoom within a battle clip
 - [ ] Line of battle: explosions and sinking on any ship of a line (blasts, Pose and the wreck are per scene, lead only)
 - [ ] Line of battle: ships at different speeds or headings (hull layers cropped and moved, wakes shifted per frame)
 - [ ] Breaking in two: sinkvid's own break clips still use a stand-in flash and smoke (`vidgen.py --explode Y --sink` has the real explosion)
@@ -113,6 +113,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Mechanics resolver for magazine explosions (M, P(t), opening fail times; `magazine.F_FAST` is a stand-in)
 - [ ] Gun blast extras not done: hull reflection of the blast, sun-shadow line, polar scour-foam texture, night flash lighting and exposure adaptation
 - [ ] Explosion extras not done: fire reflection, heat haze, smoke self-shadow sweep, underwater/capsized blasts, debris hitting other ships
+- [ ] Trailer (trailer.py): music; the explosion inside the battle once a line can explode (now a cut to a lone Lion)
 - [ ] Sea (ocean.py) not done: whitecap foam for Beaufort 5+, gust patches, wave groups, ship heave/pitch/roll from the swell (research 5.2), wake foam riding the swell's displacement
 
 ## Shelved by the user

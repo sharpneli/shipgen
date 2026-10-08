@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fleetwright end card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /*
+    Fleetwright end card, 1600x900 at the top-left of the page.
+    Screenshot/record #end-card. Ship parts have ids for animating:
+    hull, barbettes, turrets, superstructure, funnels, tops, guns, masts, waterline, wake.
+  */
+  :root {
+    --night-sea: #10161B;   /* background */
+    --haze-grey: #8A9AA3;   /* ships, secondary text */
+    --bone:      #E8E4DA;   /* main text */
+    --brass:     #C9A55C;   /* the one accent */
+    --signal:    #B23A2E;   /* muzzle flashes / hits only, never text */
+    --serif: 'Bodoni Moda', 'Didot', serif;
+    --mono:  'IBM Plex Mono', ui-monospace, monospace;
+  }
+  html, body { margin: 0; background: var(--night-sea); }
+
+  #end-card {
+    width: 1600px; height: 900px; box-sizing: border-box;
+    background: var(--night-sea); color: var(--bone); font-family: var(--mono);
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .corner { position: absolute; font-size: 14px; letter-spacing: 0.2em; color: var(--haze-grey); }
+  #ship { width: 640px; height: 128px; color: var(--haze-grey); display: block; }
+  .wordmark {
+    margin: 40px 0 0 0;
+    font-family: var(--serif); font-weight: 800; font-size: 148px; line-height: 1;
+    letter-spacing: 0.1em; padding-left: 0.1em; /* balances trailing tracking */
+    color: var(--bone);
+  }
+  .subtitle-row { display: flex; align-items: center; gap: 32px; margin-top: 32px; }
+  .subtitle-row .rule { width: 140px; height: 2px; background: var(--brass); }
+  .subtitle { font-size: 26px; font-weight: 500; letter-spacing: 0.55em; padding-left: 0.55em; color: var(--brass); }
+  .release {
+    position: absolute; bottom: 56px; left: 0; right: 0; text-align: center;
+    font-size: 16px; letter-spacing: 0.3em; color: var(--haze-grey);
+  }
+</style>
+</head>
+<body>
+<section id="end-card">
+  <div class="corner" style="top: 48px; left: 64px">SHIPGEN · DESIGN No. 001</div>
+  <div class="corner" style="top: 48px; right: 64px">SHEET 1 OF 1</div>
+
+  <svg id="ship" viewBox="0 0 600 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <g fill="currentColor">
+      <polygon id="hull" points="8,70 596,63 578,92 34,92"/>
+      <g id="barbettes">
+        <rect x="410" y="57" width="24" height="10"/>
+        <rect x="134" y="57" width="24" height="13"/>
+      </g>
+      <g id="turrets">
+        <rect x="455" y="58" width="36" height="11" rx="2"/>  <!-- A -->
+        <rect x="404" y="49" width="36" height="11" rx="2"/>  <!-- B (superfiring) -->
+        <rect x="128" y="49" width="36" height="11" rx="2"/>  <!-- X (superfiring) -->
+        <rect x="78"  y="58" width="36" height="11" rx="2"/>  <!-- Y -->
+      </g>
+      <g id="superstructure">
+        <polygon points="336,64 336,40 352,40 352,32 384,32 388,64"/>
+        <rect x="190" y="46" width="30" height="20"/>
+      </g>
+      <g id="funnels">
+        <polygon points="282,64 286,22 306,22 304,64"/>
+        <polygon points="236,64 240,26 258,26 256,64"/>
+      </g>
+      <g id="tops">
+        <rect x="355" y="2"  width="16" height="9" rx="1"/>
+        <rect x="197" y="12" width="12" height="7" rx="1"/>
+      </g>
+    </g>
+    <g id="guns" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+      <line x1="490" y1="62" x2="536" y2="60"/>
+      <line x1="439" y1="53" x2="490" y2="50"/>
+      <line x1="129" y1="53" x2="84"  y2="50"/>
+      <line x1="79"  y1="62" x2="36"  y2="60"/>
+    </g>
+    <g id="masts" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <line x1="363" y1="32" x2="363" y2="11"/>
+      <line x1="363" y1="32" x2="352" y2="11"/>
+      <line x1="363" y1="32" x2="374" y2="11"/>
+      <line x1="203" y1="46" x2="203" y2="19"/>
+    </g>
+    <line id="waterline" x1="0" y1="96" x2="600" y2="96" stroke="#C9A55C" stroke-width="1.5" stroke-linecap="round"/>
+    <g id="wake" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.45">
+      <line x1="40" y1="104" x2="300" y2="104"/>
+      <line x1="90" y1="112" x2="250" y2="112"/>
+    </g>
+  </svg>
+
+  <h1 class="wordmark">FLEETWRIGHT</h1>
+
+  <div class="subtitle-row">
+    <div class="rule"></div>
+    <div class="subtitle">NAVAL BATTLES</div>
+    <div class="rule"></div>
+  </div>
+
+  <div class="release">FREE · PC · COMING AT SOME POINT [HAH, AS IF]</div>
+</section>
+</body>
+</html>

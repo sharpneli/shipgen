@@ -1726,7 +1726,9 @@ class Scene:
     def compose(self, out, scale_bar=None, hud=None):
         """The HUD, phase caption and target marker over a finished Wo x Ho frame (C_out: where the marker's ray
         starts, the line's centre). scale_bar: px per metre, to draw a scale bar. hud: an RGBA caption in place of
-        the scene's."""
+        the scene's. --clean (VIDGEN_CLEAN in the environment, so the chunk workers see it too) leaves all of it off."""
+        if os.environ.get("VIDGEN_CLEAN"):
+            return out
         hud = (self.hud if hud is None else hud).astype(np.float32) / 255
         ha = hud[..., 3:4]
         out = (out * (1 - ha) + hud[..., :3] * 255 * ha).astype(np.uint8)
@@ -2749,7 +2751,11 @@ def main():
     ap.add_argument("--swell", default=None,
                     help="swell as HS,TP,FROM: height m, period s, compass bearing it comes from (north is screen "
                          f"up; default {','.join(f'{v:g}' for v in SWELL)}; 0,10,0 for none)")
+    ap.add_argument("--clean", action="store_true",
+                    help="no HUD, caption, target marker or scale bar (footage for editing, e.g. the trailer)")
     args = ap.parse_args()
+    if args.clean:
+        os.environ["VIDGEN_CLEAN"] = "1"
     args.w, args.h = (int(v) for v in args.size.lower().split("x"))
     if args.w % 2 or args.h % 2:
         ap.error("--size must be even in both dimensions")

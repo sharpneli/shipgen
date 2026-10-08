@@ -509,8 +509,9 @@ an ffmpeg binary) besides numpy and pillow.
   7 s). Explosions are single-ship for now. `--fit F` zooms: the ship or line fills F of the frame (0.17 is a
   strategic view; the name gets `_fitF`).
 - `vidgen.py all`, `--jobs N` (default one ship per core), `--chunks N` (one ship's clip in parallel parts), `--size 1920x1080`, `--heading`, `--target`, `--seconds`, `--seed`, `--crf`, `--propellant`; `--still T` writes
-  one PNG at time T instead. About 0.35 s a frame at 720p, so a 14 s clip takes 2–3 minutes. Videos go to
-  `vidgen/out/` (git-ignored).
+  one PNG at time T instead; `--clean` leaves the HUD off. About 0.35 s a frame at 720p, so a 14 s clip takes 2–3
+  minutes. Videos go to `vidgen/out/` (git-ignored).
+- `vidgen/trailer.py` cuts the Fleetwright faux trailer from `--clean` clips (vidgen HANDOFF "The trailer").
 
 ## Conventions
 - Bow → +x. Angles run clockwise from dead ahead (90 = starboard). Arcs are `[start, end]` intervals, clockwise; `end` may exceed 360.
