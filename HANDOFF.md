@@ -427,7 +427,7 @@ commit byte-identical on every design and the legacy fleet (diff -r against a ba
   layout, crew and firecontrol no longer import hitbox, so hitbox imports layout at the top.
 - `geometry.has_barbette`: the one rule for the default-true `"barbette"` key, which was written out in 5 modules.
 - `shipdesign.interior()` builds armour geometry, hull form, subdivision and plating, hydrostatics
-  (`navarch.hydrostatics`), the propulsion train (`propulsion.link` ties it into rooms and cells) and battle stations
+  (`stability.hydrostatics`), the propulsion train (`propulsion.link` ties it into rooms and cells) and battle stations
   (`crew.assign_battle_crew`, from the layout, not the exported components). `export_hitboxes(lay, design, r, inner)`
   only serialises. `build()` makes the interior before the report, which reads the battle stations from `lay.crew`.
 - Secondary mounts are read one way (`batteries.secondary_batteries`): `count` or `per_side`, both filled in. Layout

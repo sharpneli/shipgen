@@ -224,6 +224,16 @@ def box_structure(design, L, B, D, tun):
     return dict(t=tun["hull_k"] * (L * B * D) ** tun["hull_exp"] + shell_t, shell_t=shell_t, plate_own_mm=plank)
 
 
+def structure_checks(h):
+    """Warnings on a solved hull's structure h (hull_structure)."""
+    out = []
+    if h.get("strength_t", 0.0) > h.get("min_gauge_t", float("inf")):
+        out.append(f"The hull is very long for its depth: {h['strength_t']:,.0f} t of its plating (strength "
+                   f"deck and shell {h['t_str_mm']:.0f} mm, where {h['t_min_mm']:.0f} mm would do) only "
+                   "keeps it from breaking in two. A shorter hull or an armour deck high in it would help.")
+    return out
+
+
 def validate(design):
     f = (design.get("hull") or {}).get("freeboard", 1.0)
     ok = isinstance(f, (int, float)) and f > 0

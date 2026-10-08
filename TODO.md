@@ -47,7 +47,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Calibration: carriers' full load light, PT boat heavy, T2 tanker underpowered, Duilio and Inflexible +70 % heavy (long armoured middle)
 - [ ] Unexplained weight gaps: Mikasa −19 %, Forrestal −27 %, Casablanca −22 %
 - [ ] Research a real planing power model (`navarch.planing_power`)
-- [ ] navarch GM uses its own cwp, not the hull form's; cwp doesn't know about transoms
+- [ ] stability.py GM uses its own cwp, not the hull form's; cwp doesn't know about transoms
 - [ ] Ballast hint for low light-condition GM
 - [ ] Small craft overmanned (PT boat, MTB)
 - [ ] Barbette weight doesn't match the barbette hitbox depth

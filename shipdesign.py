@@ -41,6 +41,7 @@ from hitbox import export_hitboxes
 import powerplant
 from weights import SEAWATER
 import propulsion
+import stability
 import subdivision
 from layout import LEVEL_H, block_top, own_plate_mm
 
@@ -368,7 +369,7 @@ def interior(lay, design, r):
     sub = subdivision.build(lay, design, r, ag, ag["armoured"], form)
     plating = hull_plating(lay, design, r)
     planked = subdivision.deck_plates(sub, plating, design, lay)
-    hydro = navarch.hydrostatics(form, r)
+    hydro = stability.hydrostatics(form, r)
     train = propulsion.build(lay, design, r, form, gear)
     propulsion.link(train, sub, D)
     return dict(armour=ag, form=form, subdivision=sub, plating=plating, planked=planked, hydrostatics=hydro,
