@@ -590,7 +590,7 @@ def make_turret_type(calibre_mm: float, calibre_length: float, barrels: int, kin
 
 def battery_type(b: dict, kind: str = "auto") -> tuple[str, dict]:
     """make_turret_type for a battery (a "main" or "secondary" entry), carrying its rounds_per_gun when it gives one
-    (navarch.gun_rounds). Two batteries of the same gun share the type id; each mount keeps its own type dict."""
+    (batteries.gun_rounds). Two batteries of the same gun share the type id; each mount keeps its own type dict."""
     tid, t = make_turret_type(b["calibre_mm"], b["calibre_length"], b["barrels"], kind=kind)
     if "rounds_per_gun" in b:
         t["rounds_per_gun"] = b["rounds_per_gun"]

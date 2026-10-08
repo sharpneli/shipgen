@@ -220,7 +220,7 @@ def place(lay, design, blocks):
         if len(mine) < n:
             lay.fail("beam", f"Only {len(mine)} of {n} {'AA' if bat == 'aa' else bat} directors find a roof to stand on "
                            f"({w:.1f} m across with the rangefinder).")
-    from navarch import battery_turrets, main_batteries
+    from batteries import battery_turrets, main_batteries
     if any(battery_turrets(b) for b in main_batteries(design)) and not fc["main"]["directors"]:
         lay.warnings.append("The main battery has no director: each turret fires under local control.")
 

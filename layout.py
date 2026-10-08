@@ -31,8 +31,8 @@ from geometry import (battery_type, make_torpedo_type, rrect_polygon, rrect_clam
 import ordnance
 import powerplant
 from weights import Weight
-from navarch import (battery_turrets, main_batteries, mount_weights, secondary_batteries, torpedo_weight,
-                     TUNING)
+from batteries import battery_turrets, main_batteries, mount_weights, secondary_batteries, torpedo_weight
+from navarch import TUNING
 from arcs import ARC_BEAM, ARC_CASEMATE, ARC_CROSS, mount_traverse
 from geometry import Hull, AA_CFG, has_barbette
 

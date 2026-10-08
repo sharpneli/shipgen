@@ -11,7 +11,7 @@ from geometry import rrect_polygon, block_outline, turret_shapes, turret_reach
 from geometry import AA_CFG, has_barbette
 from layout import block_base, block_role, block_top
 import ordnance
-from navarch import gun_rounds
+from batteries import gun_rounds
 import propulsion
 
 # Turret armour other than the face (the battery's armour_mm), as fractions of the face. Roughly Iowa, KGV and

@@ -15,7 +15,7 @@ from geometry import battery_type, make_torpedo_type, rotate_translate, superfir
 from geometry import turret_shapes
 from layout import _fp_circle, _fp_rect, _overlap, stepped_counts, turret_name
 from weights import Weight
-from navarch import TUNING, mount_weights, secondary_batteries, torpedo_weight
+from batteries import TUNING, mount_weights, secondary_batteries, torpedo_weight
 from geometry import AA_CFG
 
 
@@ -63,7 +63,7 @@ def add_mount(lay, mounts, kind, t_id, t, mid, x, y, base, rest, level=0, armour
     `rest` as its fixed bearing. top defaults to base + the turret's height; footprint_r to its body and ears.
     The weights: the mount ("<label> <id>"), its barbette if it stands above the deck, and its ammunition
     ("Magazine <id>", which ordnance.stow moves into its magazine). deck: the weather deck under it (m above the main
-    deck; navarch.mount_weights). extra goes into the mount record."""
+    deck; batteries.mount_weights). extra goes into the mount record."""
     th = turret_height(t) if kind != "torpedo" or t.get("fixed_tube") else 1.1
     top = base + th if top is None else top
     mounts.append(dict(id=mid, kind=kind, type=t_id, t=t, x=x, y=y, level=level, base=base, top=top,
@@ -181,7 +181,7 @@ def batteries(design):
 
 def warn_unpaired(lay, bats):
     """Warn about an odd count on a style that mounts its secondaries in pairs (warships, planing craft): per_side
-    (navarch.secondary_batteries) leaves the odd one out."""
+    (batteries.secondary_batteries) leaves the odd one out."""
     for b in bats:
         if b["count"] % 2:
             lay.warnings.append(f"secondary count {b['count']}: secondaries go in pairs on this style, so "
@@ -323,7 +323,7 @@ def place_aa(lay, aa_out, kind, count, cands, spacing=None, ignore=(), layer_of=
 def gun_groups(design):
     """The main battery as two lines: (fore spec, aft spec), each with 'count' and 'stepped' (how many
     superfire; see layout.stepped_counts)."""
-    from navarch import main_batteries
+    from batteries import main_batteries
     main = (main_batteries(design) or [{}])[0]     # the styles that line their guns up take one battery
     if not (main.get("fore", 0) + main.get("aft", 0)):
         return None, None

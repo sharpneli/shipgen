@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from decks import deck_name, deck_stack, raised_pieces
 from geometry import DECK_PITCH, cwp
+import ordnance
 import powerplant
 from propulsion import steering_span
 from weights import STEEL, Weight
@@ -253,7 +254,6 @@ def armour_geometry(design, L, T, D, geo):
     if max(sb.get("mm", 0), sb.get("deck_mm", 0), sb.get("bulkhead_mm", 0)) > 0:
         # a compact box round the steering gear, which stands low (layout.add_steering: ordnance.span over the inner
         # bottom): sides from the inner bottom to the deck over the gear, a roof on that deck, bulkheads at both ends
-        import ordnance
         b0, b1 = steering_span(L, geo)
         stack = deck_stack(design, D)
         wbox = geo.get("steering_beam")

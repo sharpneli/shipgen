@@ -13,7 +13,7 @@ lowest armour deck, so a shell or bomb fused by the armour deck bursts in the de
 """
 from __future__ import annotations
 
-from navarch import mount_weights
+from batteries import TUNING as GUNS, mount_weights
 
 T_PER_M3 = 0.6     # tonnes of ammunition per m3 of magazine (shell and powder rooms with their racks; the handling
                    # rooms and passages are in the deck space above)
@@ -54,11 +54,10 @@ def ammo_t(t):
 
 def ready_use(calibre_mm, barrels, cap=None):
     """Ready-use ammunition at a gun mount at action stations: (rounds, tonnes). A round weighs what the magazines
-    book (navarch: shell_k x calibre^3 x ammo_mult, shell and propellant)."""
-    from navarch import TUNING
+    book (batteries: shell_k x calibre^3 x ammo_mult, shell and propellant)."""
     n = barrels * max(1, round(READY_K * calibre_mm ** -READY_P))
     n = n if cap is None else min(n, cap)      # cap: the rounds the mount has in all
-    return n, n * TUNING["shell_k"] * calibre_mm ** 3 / 1000.0 * TUNING["ammo_mult"]
+    return n, n * GUNS["shell_k"] * calibre_mm ** 3 / 1000.0 * GUNS["ammo_mult"]
 
 
 def warhead_kg(diameter_mm=TORPEDO_MM):
