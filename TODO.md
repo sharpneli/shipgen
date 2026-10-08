@@ -19,6 +19,24 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Drawing: deck drawn as wood from 150 m regardless of `deck_wood_mm`; undocumented `"deck"` key
 - [ ] Drawing: tripod foremast and breakwater from 150 m, depth-charge racks under 140 m, boat deck on roofs of 60 m² or more
 
+## Code structure (review 2026-10-08; details in HANDOFF)
+- [ ] Secondary count: layout prefers `per_side`, navarch/armament prefer `count` (differ for odd counts or both given)
+- [ ] Semantics parsed from ids: block role, mount battery (`battery_of`), `"W"` wing prefix, AA calibre from `"40" in type` (3x), vidgen regexes calibre
+- [ ] Export numeric `calibre_mm`/`calibre_length` in sprite.json turret types and hitbox components
+- [ ] Normalise "one battery or a list" once after validation (about 12 copies; secondary default 25 mm armour 5x)
+- [ ] Split layout.py: shared primitives (public names) vs the warship's `build_layout` into styles/warship.py
+- [ ] Armour out of navarch into its own module (geometry, weights, materials, extents, `armour_errors`)
+- [ ] `armour_geometry` recomputed in 4 places: keep it on the solved result
+- [ ] `lay.geo` is an untyped bag of ~20 keys; Layout gains attributes after `__init__` (`getattr(lay, "crew", None)`)
+- [ ] Private `_` keys as side channels: `b["_plate_mm"]` (layout → hitbox), `spec["_clutter"]` (shipgen → render)
+- [ ] Mount rest bearing stored twice (`lay.mounts`, `lay.spec["turrets"]`), synced by `assign_arcs`; published twice too
+- [ ] Height columns and hitboxes restate the same shapes (AA `base + 2.0`, barbette `r * 0.95`, funnel rrect)
+- [ ] `finish_layout` places the search radar and computes windage
+- [ ] Split shipgen.py: SVG primitives and painter into a drawing module, legacy fleet CLI stays
+- [ ] Shared reader for the exports (hull half-width exists 4 ways in hitview, vidgen, sinking); sinking imports render
+- [ ] Arc helpers reimplemented (geometry, vidgen `in_arc`, verify, shipgen `clamp_angle`); legacy `traverse` means ± degrees
+- [ ] Small: `RAISED_ANCHORS` defined twice; validators copy the dotted-path walk; merchant/planing import helpers from carrier
+
 ## Speed
 - [ ] Extreme designs take 25–90 s: cache footprint bboxes and bucket by x in `Layout.free_at`
 

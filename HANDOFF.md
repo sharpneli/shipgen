@@ -418,6 +418,43 @@ The user asked for these to be found and listed after the aft-control one turned
 - **Depth-charge racks under 140 m** (`clutter.py`, WWII kit; README documents it). Proposal: from the design's type or an input, not length.
 - **Boat deck on roofs of 60 m² or more** (`clutter.py`, with `BOAT_ROOF_W`). Placement rather than a ship-class switch, so the least worrying; fine to keep if boats simply need that room.
 
+## Code structure review (2026-10-08)
+The user asked for a review of module boundaries: "we want things to be handled in a single place as a rule of
+thumb", and "it's good to keep the codebase clean so that future additions are easier". Done the same day, each
+commit byte-identical on every design and the legacy fleet (diff -r against a baseline, verify.py, quick fuzz):
+- Firing arcs and traverse moved from hitbox to `arcs.py` (layout reserves them, hitbox only publishes them).
+- The smoke check (`assign_smoke`, `smoke_from`) moved to firecontrol; `BLOCK_ROLES`/`block_role` to layout.
+  layout, crew and firecontrol no longer import hitbox, so hitbox imports layout at the top.
+- `geometry.has_barbette`: the one rule for the default-true `"barbette"` key, which was written out in 5 modules.
+- `shipdesign.interior()` builds armour geometry, hull form, subdivision and plating, hydrostatics
+  (`navarch.hydrostatics`), the propulsion train (`propulsion.link` ties it into rooms and cells) and battle stations
+  (`crew.assign_battle_crew`, from the layout, not the exported components). `export_hitboxes(lay, design, r, inner)`
+  only serialises. `build()` makes the interior before the report, which reads the battle stations from `lay.crew`.
+
+Still open (TODO.md "Code structure"), roughly by value:
+- **Secondary count precedence:** layout (`magazine_plan`, `place_casemates`, `build_layout`) takes
+  `per_side or count // 2`; navarch.rough_payload and armament.batteries take `count or 2 * per_side`. They disagree
+  when both are given or the count is odd. Only the first-pass weight estimate is affected on warships today.
+- **Ids carry meaning:** `block_role` regexes the block id, `battery_of` the mount id, `add_magazines` tests
+  `bat.startswith("W")`, crew and hitbox take an AA mount's calibre from `"40" in type`, vidgen regexes the turret
+  type id and `desc` for calibre and length. Store role, battery and calibre as fields; export the calibre.
+- **Battery input normalisation** is repeated in each module (`x if isinstance(x, list) else [x]`); the secondary
+  default of 25 mm armour is hard-coded in 5 places (hitbox's falls back to 25 for a list of batteries).
+- **layout.py** is the shared toolkit plus the warship's 1100-line `build_layout`; the other styles import its
+  underscore helpers (`_fp_circle`, `_fp_rect`).
+- **navarch.py** also holds armour geometry/weights/materials, the deck stack and names, gun data and the steering
+  span; `navarch.solve` imports styles, closing styles → layout → navarch → styles. `armour_errors` sits in
+  styles/base.py.
+- **Side channels:** `lay.geo` keys (plant, machinery_x, funnel_plan, bridge, holds, ...) are an undocumented contract
+  between layout, navarch, ordnance, shipdesign and hitbox. `block_plating` writes `b["_plate_mm"]` for hitbox;
+  `build_hull` writes `spec["_clutter"]` into its input for render. The rest bearing lives in `lay.mounts` and
+  `lay.spec["turrets"]` (synced by `arcs.assign_arcs`), and is published in both `render.spec` and `render.mounts`.
+- **Restated geometry:** `shipdesign.height_columns` and the hitboxes each build the AA column (`base + 2.0`), the
+  barbette circle (`r * 0.95`) and the funnel rounded rectangle.
+- **Render side:** shipgen.py is both the legacy fleet CLI and the drawing library (render imports fleet through it;
+  clutter and shadow import its SVG helpers, and shipgen ↔ clutter is a cycle). The export readers (verify, sinking,
+  hitview, vidgen) share no code: hull half-width is computed 4 ways, and sinking imports render for `composite`.
+
 ## Next steps (proposed 2026-10-02, in this order; the user hasn't confirmed the order yet)
 1. **Hull cross-section shape (done 2026-10-06).** `geometry.HullForm` gives the half-breadth at (x, z), and `hitboxes.json` exports it as `hull_form` (sampled stations, read with `geometry.table_half_width`).
    - Waterplane: the deck outline fined toward the ends (w^p, p in 1..2) to fill cwp(Cb). Below the waterline: y = hw_wl (1 − (1 − z/T)^m), with the section fullness c = m/(m+1) = cm · u^a (floor 0.35, a hollow vee), cm from Kerlen's fit, and a solved so the volume is exactly Cb·L·B·T. Above the waterline: a straight flare to the deck edge.
