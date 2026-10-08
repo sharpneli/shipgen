@@ -880,6 +880,75 @@ def angle_allowed(arcs, a):
     return any(lo <= a <= hi or lo <= a + 360.0 <= hi for lo, hi in arcs)
 
 
+class PreparedPolygon:
+    """A polygon tested many times (a layout footprint): polygons_intersect(pts, b) and point_in_polygon(x, y, pts)
+    with the same arithmetic on the same edges, each edge pts[i] -> pts[i + 1] as there, but looking only at the
+    edges in the x cells (edge crossings) or y slab (the parity test) they need, not all of them. pts must not
+    change after this is made."""
+    CELLS = 64
+
+    def __init__(self, pts):
+        self.pts = pts
+        xs, ys = [x for x, _ in pts], [y for _, y in pts]
+        self.box = (min(xs), min(ys), max(xs), max(ys))
+        n = len(pts)
+        edges = [(pts[i], pts[(i + 1) % n]) for i in range(n)]
+        k = max(1, min(self.CELLS, n // 4))
+        self.k = k
+        self.dx = (self.box[2] - self.box[0]) / k or 1.0
+        self.dy = (self.box[3] - self.box[1]) / k or 1.0
+        self.xcells = [[] for _ in range(k)]
+        self.yslabs = [[] for _ in range(k)]
+        for s, e in edges:
+            c0, c1 = self._xc(min(s[0], e[0])), self._xc(max(s[0], e[0]))
+            for c in range(c0, c1 + 1):
+                self.xcells[c].append((c0, s, e))
+            for c in range(self._yc(min(s[1], e[1])), self._yc(max(s[1], e[1])) + 1):
+                self.yslabs[c].append((s, e))
+
+    def _xc(self, x):
+        return max(0, min(self.k - 1, math.floor((x - self.box[0]) / self.dx)))
+
+    def _yc(self, y):
+        return max(0, min(self.k - 1, math.floor((y - self.box[1]) / self.dy)))
+
+    def contains(self, x, y):
+        """point_in_polygon(x, y, pts): every edge crossing the line at y lies in y's slab."""
+        inside = False
+        for (x1, y1), (x2, y2) in self.yslabs[self._yc(y)]:
+            if (y1 > y) != (y2 > y):
+                if x < x1 + (y - y1) * (x2 - x1) / (y2 - y1):
+                    inside = not inside
+        return inside
+
+    def intersects(self, b):
+        """polygons_intersect(pts, b)."""
+        a = self.pts
+        xb, yb = [x for x, _ in b], [y for _, y in b]
+        x0, x1 = max(self.box[0], min(xb)), min(self.box[2], max(xb))
+        y0, y1 = max(self.box[1], min(yb)), min(self.box[3], max(yb))
+        if x1 < x0 or y1 < y0:
+            return False
+
+        def reaches(s, e):
+            return (s[0] <= x1 or e[0] <= x1) and (s[0] >= x0 or e[0] >= x0) and \
+                (s[1] <= y1 or e[1] <= y1) and (s[1] >= y0 or e[1] >= y0)
+        eb, s = [], b[-1]
+        for e in b:
+            if reaches(s, e):
+                eb.append((s, e))
+            s = e
+        if eb:
+            c_lo = self._xc(x0)
+            for c in range(c_lo, self._xc(x1) + 1):
+                for first, p, q in self.xcells[c]:
+                    if c == max(c_lo, first) and reaches(p, q):     # each edge once, in the first cell both share
+                        for r, s in eb:
+                            if _segments_cross(p, q, r, s):
+                                return True
+        return point_in_polygon(*a[0], b) or self.contains(*b[0])
+
+
 def nearest_allowed(arcs, a):
     if not arcs or angle_allowed(arcs, a):
         return a

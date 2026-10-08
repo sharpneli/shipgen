@@ -23,7 +23,7 @@ import bisect
 import math
 
 from geometry import (battery_type, make_torpedo_type, rrect_polygon, rrect_clamped, circle_polygon,
-                      turret_shapes, turret_height, turret_reach, point_in_polygon, polygons_intersect,
+                      turret_shapes, turret_height, turret_reach, point_in_polygon, polygons_intersect, PreparedPolygon,
                       sector_polygon, superfire_step, polygon_centroid, polygon_y_span, clip_convex, simplify_polygon,
                       DECK_PITCH)
 import ordnance
@@ -109,6 +109,19 @@ def _fp_points(fp, margin=0.0):
             (fp[1] - margin, fp[4] + margin)]
 
 
+PREP_MIN = 24           # polygon footprints with this many points are tested through geometry.PreparedPolygon
+_PREP = {}              # id(footprint) -> (footprint, its PreparedPolygon); the footprint is held so its id stays its own
+
+
+def _prepared(fp):
+    hit = _PREP.get(id(fp))
+    if hit is None or hit[0] is not fp:
+        if len(_PREP) > 4096:
+            _PREP.clear()
+        hit = _PREP[id(fp)] = (fp, PreparedPolygon(fp[1]))
+    return hit[1]
+
+
 def _overlap(a, b, margin=0.0):
     if a[0] == "p" or b[0] == "p":     # polygons: a circle by its distance, rects grown by the margin
         p, o = (a, b) if a[0] == "p" else (b, a)
@@ -116,6 +129,8 @@ def _overlap(a, b, margin=0.0):
             pts = p[1]
             return point_in_polygon(o[1], o[2], pts) or min(
                 _seg_dist(o[1], o[2], *pts[i - 1], *pts[i]) for i in range(len(pts))) < o[3] + margin
+        if len(p[1]) >= PREP_MIN:
+            return _prepared(p).intersects(_fp_points(o, margin))
         return polygons_intersect(p[1], _fp_points(o, margin))
     if a[0] == "c" and b[0] == "c":
         return math.hypot(a[1] - b[1], a[2] - b[2]) < a[3] + b[3] + margin
@@ -125,6 +140,9 @@ def _overlap(a, b, margin=0.0):
     nx = min(max(c[1], r[1]), r[3])
     ny = min(max(c[2], r[2]), r[4])
     return math.hypot(c[1] - nx, c[2] - ny) < c[3] + margin
+
+
+FP_CELL = 8.0          # m: the footprint index's x cells (Layout._near)
 
 
 class Layout:
@@ -141,6 +159,7 @@ class Layout:
         self.directors = []     # fire-control directors (firecontrol.place)
         self.components = []    # exact geometry + heights (hitboxes)
         self.footprints = []    # (fp, base, top, owner_id) for collision tests
+        self._fp_index = None   # _near's x-cell index of the footprints
         self.overhangs = set()  # id() of footprints that hang over the deck and need nothing under them (stowed barrels)
         self.weights = []       # weights.Weight with x positions
         self.errors, self.warnings = [], []
@@ -169,14 +188,32 @@ class Layout:
         if need:
             self.short.add(need)
 
+    def _near(self, x0, x1):
+        """The footprints whose bounding box may reach x0 .. x1: (bbox, (fp, base, top, owner)), each once. An index
+        of x cells kept up with self.footprints as it grows (occupy), rebuilt when the list is replaced; free and
+        free_at had scanned every footprint, which grew with the square of the mounts placed."""
+        fps, idx = self.footprints, self._fp_index
+        if idx is None or idx[0] is not fps or idx[1] > len(fps):
+            idx = self._fp_index = [fps, 0, {}]
+        cells = idx[2]
+        for o in fps[idx[1]:]:
+            b = _bbox(o[0])
+            for c in range(math.floor(b[0] / FP_CELL), math.floor(b[2] / FP_CELL) + 1):
+                cells.setdefault(c, []).append((b, o))
+        idx[1] = len(fps)
+        c0 = math.floor(x0 / FP_CELL)
+        for c in range(c0, math.floor(x1 / FP_CELL) + 1):
+            for b, o in cells.get(c, ()):
+                if c == max(c0, math.floor(b[0] / FP_CELL)):     # the first cell both share: once only
+                    yield b, o
+
     def free(self, fp, margin=0.4, ignore=()):
         """Is the deck under a footprint free of everything placed, whatever its height? Raised stretches of hull
         don't count: what stands there stands on their deck (deck_z); free_at sees them."""
         x0, y0, x1, y1 = _bbox(fp)
         x0, y0, x1, y1 = x0 - margin, y0 - margin, x1 + margin, y1 + margin
         raised = {s["id"] for s in self.raised}
-        for o in self.footprints:
-            b = _bbox(o[0])
+        for b, o in self._near(x0, x1):
             if b[0] < x1 and x0 < b[2] and b[1] < y1 and y0 < b[3] and o[3] not in ignore \
                     and o[3] not in raised and _overlap(fp, o[0], margin):
                 return False
@@ -187,10 +224,9 @@ class Layout:
         overlaps it? (free() ignores heights.)"""
         x0, y0, x1, y1 = _bbox(fp)
         x0, y0, x1, y1 = x0 - margin, y0 - margin, x1 + margin, y1 + margin
-        for o in self.footprints:
+        for b, o in self._near(x0, x1):
             if o[2] <= base + 1e-6 or o[1] >= top - 1e-6 or o[3] in ignore:
                 continue
-            b = _bbox(o[0])
             if b[0] < x1 and x0 < b[2] and b[1] < y1 and y0 < b[3] and _overlap(fp, o[0], margin):
                 return False
         return True
