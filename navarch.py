@@ -5,9 +5,16 @@ The player never enters tonnage. Displacement is whatever the ship needs to carr
 machinery, fuel, armour and armament. Some of those depend on displacement themselves
 (power ~ displacement^2/3, hull depth ~ draught), so solve() iterates to a fixed point.
 
-All constants live in TUNING so the game designer can rebalance without touching the code.
-The model is calibrated loosely against WWII ships (see calibrate() at the bottom). Treat it as
-plausible game physics, not a design tool.
+This module is the solver and the power model only. Each weight comes from the module that owns its subject, and
+each keeps its own constants in its own TUNING:
+    hullweight   hull structure (plate model, girder, deck stack and inner bottom)
+    armour       armour geometry, weights, materials, input checks and warnings
+    batteries    guns, mounts, magazines' loads, torpedoes, AA; the battery readers
+    powerplant   machinery weight and fuel rate
+    styles/      style-specific structure and payload (Style.structure_weights, payload_weights)
+    stability    GM, roll, wind heel, trim, hydrostatics and their warnings, once the weights are settled
+TUNING here holds the hull form, power, misc and limit constants; a style overrides them with Style.tuning().
+Calibrated loosely against real ships (calibrate.py). Treat it as plausible game physics, not a design tool.
 
 Units: metres, tonnes (metric), knots, shp, mm of armour.
 """

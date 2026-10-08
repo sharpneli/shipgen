@@ -443,9 +443,21 @@ Still open (TODO.md "Code structure"), roughly by value:
   default of 25 mm armour is hard-coded in 5 places (hitbox's falls back to 25 for a list of batteries).
 - **layout.py** is the shared toolkit plus the warship's 1100-line `build_layout`; the other styles import its
   underscore helpers (`_fp_circle`, `_fp_rect`).
-- **navarch.py** also holds armour geometry/weights/materials, the deck stack and names, gun data and the steering
-  span; `navarch.solve` imports styles, closing styles → layout → navarch → styles. `armour_errors` sits in
-  styles/base.py.
+- **navarch.py split by concern (done 2026-10-08, five commits 566dbd8..f9d9804, each byte-identical).** The user
+  asked for changes to stay local, so that a task needn't read all the code. navarch is now the size solver and
+  power model only (822 → 244 lines); each subject owns its inputs' checks, geometry, weights, constants
+  (its own `TUNING`) and warnings:
+  `armour.py` (geometry, weights, materials, `armour_errors` from styles/base, `armour_checks` from solve),
+  `batteries.py` (battery readers, gun/mount/torpedo/AA weights, rounds per gun, `rough_armament`),
+  `hullweight.py` (+ `hull_structure`, `box_structure`, `structure_checks`), `stability.py` (GM, roll, wind heel,
+  trim, hydrostatics, their checks), `decks.py` (deck stack and names), `weights.py` (`Weight`, `STEEL`,
+  `SEAWATER`). `cwp` moved to geometry, the steering gear span to propulsion. No re-exports from navarch, so
+  every import names the owner. The function-level lazy imports between them are gone (ordnance and armour
+  import at the top); `navarch.solve` still imports styles inside the function.
+  - Rule for new work: a new armour piece touches armour.py (and the hitbox/subdivision export only if it is a
+    new kind); a new gun/battery input touches batteries.py; a new stability check stability.py. Keep it so.
+  - Still open: `armour_geometry` is computed in 4 places (keep it on the result); battery normalisation (list or
+    object, the secondary's 25 mm default) is still repeated outside batteries.py.
 - **Side channels:** `lay.geo` keys (plant, machinery_x, funnel_plan, bridge, holds, ...) are an undocumented contract
   between layout, navarch, ordnance, shipdesign and hitbox. `block_plating` writes `b["_plate_mm"]` for hitbox;
   `build_hull` writes `spec["_clutter"]` into its input for render. The rest bearing lives in `lay.mounts` and

@@ -22,7 +22,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 ## Code structure (review 2026-10-08; details in HANDOFF)
 - [ ] Semantics parsed from ids: block role, mount battery (`battery_of`), `"W"` wing prefix, AA calibre from `"40" in type` (3x), vidgen regexes calibre
 - [ ] Export numeric `calibre_mm`/`calibre_length` in sprite.json turret types and hitbox components
-- [ ] Normalise "one battery or a list" once after validation (about 12 copies; secondary default 25 mm armour 5x)
+- [ ] Normalise "one battery or a list" once, in batteries.py (about 12 copies elsewhere; secondary default 25 mm armour 5x)
 - [ ] Split layout.py: shared primitives (public names) vs the warship's `build_layout` into styles/warship.py
 - [ ] `armour_geometry` recomputed in 4 places: keep it on the solved result
 - [ ] `lay.geo` is an untyped bag of ~20 keys; Layout gains attributes after `__init__` (`getattr(lay, "crew", None)`)

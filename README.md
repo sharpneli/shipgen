@@ -21,8 +21,13 @@ design JSON (player input: counts, calibres, armour, speed, look)
    ▼  DESIGN SIDE: standard library only, no drawing          (about 1-30 ms per ship)
    shipdesign.py  validate(design) -> errors;  build(design) -> ship (plain, JSON-serialisable dict)
    ├─ styles/      the design style: warship, carrier, merchant, planing (limits, tuning, layout, extra weights)
-   ├─ navarch.py   weights → displacement, draught, power, fuel, GM, trim   (iterates to a fixed point)
+   ├─ navarch.py   the size solver: sums every weight → displacement, draught, power, fuel (iterates to a fixed point)
    ├─ hullweight.py  hull structure from plate area × thickness, construction tech and the hull girder
+   ├─ armour.py    armour inputs, geometry (one source for weights, cells and hitboxes), weights, materials
+   ├─ batteries.py battery readers; gun, mount, magazine-load, torpedo and AA weights
+   ├─ stability.py GM, roll, wind heel, trim, hydrostatics and their warnings
+   ├─ decks.py     the deck stack: deck heights, names, raised stretches
+   ├─ weights.py   the Weight record and densities every module books with
    ├─ layout.py    warship layout + shared layout primitives; balances CG over CB by shifting the arrangement
    ├─ armament.py  style-neutral gun, torpedo and AA placement; every style books its mounts with add_mount
    ├─ ordnance.py  magazines for every style: ammunition (and a carrier's bombs and avgas) stowed low
@@ -535,7 +540,8 @@ The sun is dynamic, so the game casts the shadows. `shadow.py`'s docstring has t
 - The lighter rim on the upper-left edges of blocks and funnels is still baked in. It's a highlight, not a shadow.
 
 ## Tuning
-- `navarch.TUNING`: the weight and power constants.
+- `navarch.TUNING`: the hull form, power and limit constants; `armour.TUNING`, `batteries.TUNING` and the
+  constants at the top of `hullweight.py` and `stability.py` hold their own subject's.
 - `hullweight.py`: the hull-structure constants (fitted in `research/hull-weight-model.md`; `research/hull_weight_ref.py` is the reference implementation).
 - `layout.py`: the clearances (bow_pref/min, st_pref/min), turret spacing, bridge size and AA spacing.
 - Each style's `tuning()` overrides `TUNING` for its designs: the volume-law hull weight (planing craft), freeboard, outfit fraction, hull CG height, the draught limit, and so on.
