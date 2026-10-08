@@ -277,8 +277,10 @@ class BreakTimeline:
     interface is Timeline's, plus a pose per piece."""
     V_REF, RATE_MAX = 0.8, 20.0      # m/s of end movement that plays in real time; the most the clip speeds up
 
-    def __init__(self, hb, rep, where, cut=None, seed=1):
-        if cut is not None:
+    def __init__(self, hb, rep, where, cut=None, seed=1, zone=None, why=None):
+        if zone is not None:        # vidgen's magazine explosion: the cut and the torn zone are the exploded rooms
+            x = cut
+        elif cut is not None:
             x, zone, why = sinking.cut_point(hb, cut)
         else:
             x, zone, why = sinking.break_points(hb)[where]
@@ -324,11 +326,12 @@ class BreakTimeline:
         self.cell_piece = np.concatenate([np.full(len(p.ids), k, np.int8) for k, p in enumerate(brk.pieces)])
         self.breach = []
         self.cut = Cut(x, hb, seed)
+        self.glide = None       # clip time -> metres the pieces still coast ahead (vidgen: the way she had on)
 
     def _i(self, t):
         return float(np.interp(t, self.clip, np.arange(len(self.clip))))
 
-    def poses(self, t):
+    def _poses(self, t):
         if t <= HIT_S:
             return [tuple(float(v) for v in p) for p in self.P[0]]
         if t >= self.t_last:
@@ -346,6 +349,13 @@ class BreakTimeline:
 
     def pose(self, t, k=0):
         return self.poses(t)[k]
+
+    def poses(self, t):
+        out = self._poses(t)
+        if self.glide is None:
+            return out
+        g = self.glide(t)          # along the ship's own x, which is the heading
+        return [p[:5] + (p[5] + g, p[6]) for p in out]
 
     def game_time(self, t):
         if t <= HIT_S:
@@ -373,13 +383,16 @@ class Ship3D:
     walls down every height step (outward normals) and, apart, a coarser bottom from hull_form, which only takes
     part in the waterline cut and the crossing foam (a plunge never shows it)."""
 
-    def __init__(self, src, hb, sp, ppm, cut=None):
+    def __init__(self, src, hb, sp, ppm, cut=None, bearing=None, skip=()):
         S = sp["scale_px_per_m"]
         tp = {t: str(src / v["file"]) for t, v in sp["turret_types"].items()}
-        img = render.composite(str(src / "hull.png"), tp, sp, lambda m: m["rest_deg"])
+        # vidgen hands over the turrets as they're trained, without the gunhouses its explosion threw
+        sp = dict(sp, mounts=[m for m in sp["mounts"] if m["id"] not in skip])
+        ang = (lambda m: bearing.get(m["id"], m["rest_deg"])) if bearing else (lambda m: m["rest_deg"])
+        img = render.composite(str(src / "hull.png"), tp, sp, ang)
         hmap = np.asarray(Image.open(src / "height.png").convert("L"), np.float32) * sp["shadow"]["height_step_m"]
         for m in sp["mounts"]:
-            t = Image.open(tp[m["type"]]).convert("RGBA").rotate(-m["rest_deg"], resample=Image.BICUBIC)
+            t = Image.open(tp[m["type"]]).convert("RGBA").rotate(-ang(m), resample=Image.BICUBIC)
             lay = Image.new("L", (hmap.shape[1], hmap.shape[0]), 0)
             lay.paste(t.getchannel("A"), (round(m["px"][0] - t.width / 2), round(m["px"][1] - t.height / 2)))
             hmap = np.where(np.asarray(lay) > 128, np.maximum(hmap, m["top_m"]), hmap)
@@ -523,9 +536,13 @@ def rotate_normals(n, pose, heading):
 
 # ---------------------------------------------------------------- the scene
 class SinkScene:
-    def __init__(self, src: Path, W, H, fps, heading, end, seed, cut_x=None):
+    def __init__(self, src: Path, W, H, fps, heading, end, seed, cut_x=None, host=None):
+        """host: set when vidgen's explosion clip draws this break (vidgen --explode ... --sink): a dict with its
+        scale s, ship centre C, the cut and torn zone, the turrets' bearings and the thrown mounts. Then vidgen owns
+        the sea, the camera, the smoke and the HUD, and the blast is its magazine explosion."""
         import json
         self.src, self.W, self.H, self.fps, self.heading = src, W, H, fps, heading
+        self.host = host
         self.rng = np.random.default_rng(seed)
         self.sprite = json.loads((src / "sprite.json").read_text())
         self.hb = json.loads((src / "hitboxes.json").read_text())
@@ -538,8 +555,17 @@ class SinkScene:
         S0 = self.sprite["scale_px_per_m"]
         self.s = s = min(S0, 0.72 * W / (self.L * ch + self.B * sh), 0.55 * H / (self.L * sh + self.B * ch))
         self.C = np.array([W / 2, H / 2], np.float32)    # float32: a float64 centre promoted every to_px
+        # the camera's offset from the ship's position at the break, world metres (vidgen's camera follows the
+        # ship as it coasts to a stop); the foam canvases are panned by it in whole pixels
+        self.cam, self.cam_px = np.zeros(2, np.float32), (0, 0)
+        self.cam_of = None
         t0 = time.perf_counter()
-        if end.startswith("break"):
+        if host:
+            self.s = s = host["s"]
+            self.C = np.asarray(host["C"], np.float32)
+            self.tl = BreakTimeline(self.hb, self.report, "mid", host["cut"], seed, host["zone"], host["why"])
+            self.ship = Ship3D(src, self.hb, self.sprite, 2 * s, self.tl.cut, host["bearing"], host["skip"])
+        elif end.startswith("break"):
             self.tl = BreakTimeline(self.hb, self.report, end.split("-", 1)[1] if "-" in end else "mid", cut_x, seed)
             self.ship = Ship3D(src, self.hb, self.sprite, 2 * s, self.tl.cut)
         else:
@@ -547,7 +573,7 @@ class SinkScene:
             self.ship = Ship3D(src, self.hb, self.sprite, 2 * s)
         self.broken = self.tl.n > 1
         self.setup_s = time.perf_counter() - t0
-        self.water = V.Water(self.rng, W, H, s, self.C)
+        self.water = None if host else V.Water(self.rng, W, H, s, self.C)
         self.dens = V.Density(W, H)
         self.fb = self.hb["vertical"]["freeboard"]
 
@@ -626,9 +652,10 @@ class SinkScene:
         self.zcell_prev = None
         self.Zsprev, self.Bprev = self._sim_pts(0.0)[:2]
         self.fbox = None          # the box the foam canvases have been written in (it only grows)
-        self.hud = self._hud()
-        hb_ = nonzero_box(self.hud[..., 3] > 0)
-        self.hud_box = (hb_[1], hb_[0], self.hud[hb_[1]:hb_[3], hb_[0]:hb_[2]].astype(np.float32) / 255)
+        if not host:
+            self.hud = self._hud()
+            hb_ = nonzero_box(self.hud[..., 3] > 0)
+            self.hud_box = (hb_[1], hb_[0], self.hud[hb_[1]:hb_[3], hb_[0]:hb_[2]].astype(np.float32) / 255)
 
     # ----- setup helpers
     def _tile(self, lu, lv, n=512):
@@ -684,7 +711,28 @@ class SinkScene:
 
     # ----- geometry per frame
     def to_px(self, X, Y):
-        return X * self.s + self.C[0], Y * self.s + self.C[1]
+        return (X - self.cam[0]) * self.s + self.C[0], (Y - self.cam[1]) * self.s + self.C[1]
+
+    def _set_cam(self, t):
+        """Move the camera to cam_of(t) and pan the foam canvases (screen-sized, anchored to the water) by the whole
+        pixels it moved; the sub-pixel rest is under half a pixel of drift."""
+        if self.cam_of is None:
+            return
+        self.cam = np.asarray(self.cam_of(t), np.float32)
+        px = (int(round(float(self.cam[0]) * self.s)), int(round(float(self.cam[1]) * self.s)))
+        dx, dy = px[0] - self.cam_px[0], px[1] - self.cam_px[1]
+        self.cam_px = px
+        if (dx or dy) and self.fbox is not None:
+            for a in (self.fresh, self.resid):
+                sh = np.zeros_like(a)
+                H, W = a.shape
+                sh[max(0, -dy):min(H, H - dy), max(0, -dx):min(W, W - dx)] = \
+                    a[max(0, dy):min(H, H + dy), max(0, dx):min(W, W + dx)]
+                a[:] = sh
+            b = self.fbox
+            self.fbox = (max(0, b[0] - dx), max(0, b[1] - dy), min(self.W, b[2] - dx), min(self.H, b[3] - dy))
+            if self.fbox[2] <= self.fbox[0] or self.fbox[3] <= self.fbox[1]:
+                self.fbox = None
 
     def tf(self, x, y, z, pc, poses):
         """transform() with each point in its piece's pose."""
@@ -724,6 +772,7 @@ class SinkScene:
     # ----- simulation step
     def step(self, dt):
         t = self.t + dt
+        self._set_cam(t)
         Zs, BZ, Xs, Ys, BX, BY, pose = self._sim_pts(t)
         s = self.s
         rng = self.rng
@@ -828,7 +877,10 @@ class SinkScene:
         # the hit
         if not self.hit_done and t >= HIT_S and self.broken:
             self.hit_done = True
-            self._blast(t)
+            if self.host:        # vidgen's magazine explosion is the blast; the torn ends burn from here
+                self.blast_t, self.blast_xy = t, self.world_pt(self.blast_pt, t, 0)[:2]
+            else:
+                self._blast(t)
         if not self.hit_done and t >= HIT_S:
             self.hit_done = True
             hx, hy, _ = self.world_pt(self.breach_pt, t)
@@ -900,7 +952,7 @@ class SinkScene:
                 v += d / r[:, None] * sp[:, None]
             self.debris = self.debris + v * dt
         # funnels: smoke while they're out, a steam burst as cold water reaches the boilers
-        for fn in self.funnels:
+        for fn in self.funnels if not self.host or t >= HIT_S else ():   # vidgen's own until the break
             c, r, top, quenched = fn
             fx, fy, fz = self.world_pt((c[0], c[1], top), t)
             if fz > 1.0:
@@ -928,7 +980,8 @@ class SinkScene:
     # the state a frame is drawn from: the sim steps in one process, frames are drawn in a pool of workers that
     # each hold the same scene (built from the same seed). Copies, as the step changes the foam arrays in place
     # and the pool pickles a snapshot later, on its own thread.
-    SNAP = ("t", "t_gone", "boils", "rings", "puddles", "debris", "debris_c", "fbox", "p_gone", "blast_t", "blast_xy")
+    SNAP = ("t", "t_gone", "boils", "rings", "puddles", "debris", "debris_c", "fbox", "p_gone", "blast_t", "blast_xy",
+            "cam", "cam_px")
 
     def snapshot(self, fresh=None, resid=None):
         """The frame's state. With fresh and resid (shared-memory arrays), the foam canvases are copied there and
@@ -1164,9 +1217,11 @@ class SinkScene:
         up = CZ > 0
         CX, CY, CZ = CX[up], CY[up], CZ[up]
         s2 = 2 * self.s
-        px, py = (X * self.s + self.C[0]) * 2, (Y * self.s + self.C[1]) * 2
-        cgx = (CX * self.s + self.C[0] - CZ * (self.s / TAN_E) * SUN[0]) * 2
-        cgy = (CY * self.s + self.C[1] - CZ * (self.s / TAN_E) * SUN[1]) * 2
+        px, py = self.to_px(X, Y)
+        px, py = px * 2, py * 2
+        cgx, cgy = self.to_px(CX, CY)
+        cgx = (cgx - CZ * (self.s / TAN_E) * SUN[0]) * 2
+        cgy = (cgy - CZ * (self.s / TAN_E) * SUN[1]) * 2
         lo_x, hi_x = float(px.min()), float(px.max())
         lo_y, hi_y = float(py.min()), float(py.max())
         if len(CZ):
@@ -1295,42 +1350,57 @@ class SinkScene:
         px, py = self.to_px(ps.d["x"], ps.d["y"])
         return self.dens.render(px + offset[0], py + offset[1], ps.radius() * self.s, ps.opacity())
 
-    def render(self):
-        t, W, H, s = self.t, self.W, self.H, self.s
+    def surface(self, t):
+        """The water's share of a frame: the boils' and rings' slopes on the half-res grid, the oil, and the boils'
+        foam and churn. vidgen's explosion clip calls this (and the draw_ layers) for its own frame."""
         bd_h, churn_h, eta_h, bb = self.boil_fields(t)
         eta_h = self.ring_eta(t, eta_h)
         gy, gx = np.gradient(eta_h)
-        hx, hy = gx * (s / 2), gy * (s / 2)          # half-res pixels are 2 / s metres
+        hx, hy = gx * (self.s / 2), gy * (self.s / 2)          # half-res pixels are 2 / s metres
         lim = 0.3 / np.maximum(np.hypot(hx, hy), 0.3)
         oil, ob = self.oil_thickness(t)
-        wake = None
+        slick = None
         if ob:
             o = np.s_[ob[1]:ob[3], ob[0]:ob[2]]
-            slick = np.zeros((H, W), np.float32)
+            slick = np.zeros((self.H, self.W), np.float32)
             slick[o] = smooth(np.log10(np.maximum(oil[o], 1e-9)), -7.6, -6.6)
-            oily_o = smooth(oil[o] * 1e6, 50, 600)
-            wake = (0.0, 0.0, 0.85 * slick)
-        frame = self.water.shade((0.0, 0.0), t, wake, half=(hx * lim, hy * lim))
-        if ob:
-            frame[o] = self.oil_colour(frame[o] * (1 - 0.10 * slick[o])[..., None], oil[o], o)
+        return types.SimpleNamespace(half=(hx * lim, hy * lim), oil=oil, ob=ob, slick=slick, bd_h=bd_h,
+                                     churn_h=churn_h, bb=bb)
 
-        hl = self.hull_layers(t)
-        if hl is not None:
-            x0, y0, sub_pm, sub_a, shw, top_pm, top_a = hl
-            h_, w_ = sub_a.shape
-            win = frame[y0:y0 + h_, x0:x0 + w_]
-            h_, w_ = win.shape[:2]
+    def draw_oil(self, frame, sf):
+        if sf.ob:
+            ob = sf.ob
+            o = np.s_[ob[1]:ob[3], ob[0]:ob[2]]
+            frame[o] = self.oil_colour(frame[o] * (1 - 0.10 * sf.slick[o])[..., None], sf.oil[o], o)
+
+    def draw_hull(self, frame, hl, top):
+        """The hull layers from hull_layers: under water (top False), or the shadow on the surface and the hull
+        above it (top True)."""
+        if hl is None:
+            return
+        x0, y0, sub_pm, sub_a, shw, top_pm, top_a = hl
+        h_, w_ = sub_a.shape
+        win = frame[y0:y0 + h_, x0:x0 + w_]
+        h_, w_ = win.shape[:2]
+        if not top:
             win *= 1 - sub_a[:h_, :w_, None]
             win += sub_pm[:h_, :w_]
+            return
+        win *= (1 - SHADE * shw[:h_, :w_])[..., None]
+        win *= 1 - top_a[:h_, :w_, None]
+        win += top_pm[:h_, :w_]
 
-        # foam, vidgen's lace: boils churn the water like the propulsor wash, the crossing and collar foam is the
-        # wake's fresh foam, the residual its half-opacity residual. Worked out only over the box the foam covers.
+    def draw_foam(self, frame, t, sf):
+        """vidgen's lace: boils churn the water like the propulsor wash, the crossing and collar foam is the wake's
+        fresh foam, the residual its half-opacity residual. Worked out only over the box the foam covers."""
+        H, W = self.H, self.W
+        bb, ob = sf.bb, sf.ob
         bd = np.zeros((H, W), np.float32)
         if bb:
             i0, j0, i1, j1 = bb
             fb = np.s_[2 * j0:2 * j1, 2 * i0:2 * i1]
-            bd[fb] = upscale(bd_h[j0:j1, i0:i1], 2 * (i1 - i0), 2 * (j1 - j0))
-            churn = upscale(churn_h[j0:j1, i0:i1], 2 * (i1 - i0), 2 * (j1 - j0))
+            bd[fb] = upscale(sf.bd_h[j0:j1, i0:i1], 2 * (i1 - i0), 2 * (j1 - j0))
+            churn = upscale(sf.churn_h[j0:j1, i0:i1], 2 * (i1 - i0), 2 * (j1 - j0))
             frame[fb] += (CHURN - frame[fb]) * np.clip(churn * 0.8, 0, 0.7)[..., None]
         box = nonzero_box(np.zeros((1, 1), bool), self.fbox)
         if bb:
@@ -1342,20 +1412,20 @@ class SinkScene:
             fm = np.maximum(np.maximum(lace(bd[f], tb, "wash"), lace(self.fresh[f], ta, "fresh")),
                             V.LACE_RESID * lace(np.clip(self.resid[f], 0, 1), tb, "resid"))
             if ob:
+                o = np.s_[ob[1]:ob[3], ob[0]:ob[2]]
                 oily = np.zeros((H, W), np.float32)
-                oily[o] = oily_o
+                oily[o] = smooth(sf.oil[o] * 1e6, 50, 600)
                 oily = oily[f][..., None]
                 fm *= 1 - 0.3 * oily[..., 0]
                 foam_c = FOAM * (1 - oily) + np.float32([0.50, 0.41, 0.30]) * oily
             else:
                 foam_c = FOAM
             frame[f] += (foam_c - frame[f]) * fm[..., None]
-        if len(self.spray):
-            sp = upscale(self.field(self.spray), W, H) * self.water.foam_noise
-            frame += (FOAM - frame) * np.clip(1 - np.exp(-1.6 * sp), 0, 0.95)[..., None]
 
-        # debris: small pale bits
+    def draw_debris(self, frame):
+        """Small pale bits."""
         if len(self.debris):
+            H, W = frame.shape[:2]
             px, py = self.to_px(self.debris[:, 0], self.debris[:, 1])
             ix, iy = px.astype(int), py.astype(int)
             ok = (ix >= 0) & (ix < W - 2) & (iy >= 0) & (iy < H - 2)
@@ -1363,12 +1433,20 @@ class SinkScene:
             for ox, oy in ((0, 0), (1, 0), (0, 1)):
                 frame[iy[ok] + oy, ix[ok] + ox] = col * (1.0 if ox == oy == 0 else 0.85)
 
-        # shadow on the surface, then the hull above it
-        if hl is not None:
-            win = frame[y0:y0 + h_, x0:x0 + w_]
-            win *= (1 - SHADE * shw[:h_, :w_])[..., None]
-            win *= 1 - top_a[:h_, :w_, None]
-            win += top_pm[:h_, :w_]
+    def render(self):
+        t, W, H, s = self.t, self.W, self.H, self.s
+        sf = self.surface(t)
+        frame = self.water.shade((0.0, 0.0), t, None if sf.slick is None else (0.0, 0.0, 0.85 * sf.slick),
+                                 half=sf.half)
+        self.draw_oil(frame, sf)
+        hl = self.hull_layers(t)
+        self.draw_hull(frame, hl, False)
+        self.draw_foam(frame, t, sf)
+        if len(self.spray):
+            sp = upscale(self.field(self.spray), W, H) * self.water.foam_noise
+            frame += (FOAM - frame) * np.clip(1 - np.exp(-1.6 * sp), 0, 0.95)[..., None]
+        self.draw_debris(frame)
+        self.draw_hull(frame, hl, True)
 
         # smoke and steam, with their shadows (vidgen's recipe)
         sd = SUN
@@ -1417,7 +1495,7 @@ class SinkScene:
     def _glow(self, frame, t):
         """The break's flash, then the fires on the torn ends while they're out of the water: added light."""
         spots = []
-        if self.blast_t is not None and t - self.blast_t < 3.0:
+        if self.blast_t is not None and t - self.blast_t < 3.0 and not self.host:
             a = t - self.blast_t
             R = (0.3 + 0.6 * (1 - math.exp(-a / 0.25))) * self.B
             spots.append((*self.blast_xy, R, 1.3 * math.exp(-a / 0.25) + 0.15 * math.exp(-a / 1.2)))

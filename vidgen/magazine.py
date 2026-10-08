@@ -454,17 +454,22 @@ class Blast:
             loc = np.c_[s["centre"][0] + rng.normal(0, max(10.0 * sk, L), n), rng.normal(0, s["B"] / 4, n),
                         np.full(n, s["deck_z"])]
             vel = np.c_[rng.normal(0, 2, n), rng.normal(0, 2, n), rng.uniform(8, 20, n)]
-            self.p.add(pos=self._w3(pose, loc), vel=vel, r=(10 + 6 * rng.random(n)) * max(sk, 0.4), m=2.5 * sk,
-                       temp=0.75, heat=0.35,
-                       life=1e9, kind=0, tcool=0.8)
+            pos, up = pose.deck(loc)     # a broken wreck carries its fires, and they go out where it's gone under
+            if up.any():
+                n = int(up.sum())
+                self.p.add(pos=pos[up], vel=vel[up], r=(10 + 6 * rng.random(n)) * max(sk, 0.4), m=2.5 * sk,
+                           temp=0.75, heat=0.35,
+                           life=1e9, kind=0, tcool=0.8)
         if s["steam"] is not None and a < 12:
             k = int(rng.poisson(0.6 / 0.05 * dt))
             if k:
                 loc = np.c_[s["steam"][0] + rng.normal(0, 0.3 * s["B"], k), rng.normal(0, 0.2 * s["B"], k),
                             np.full(k, s["deck_z"] + 3)]
+                pos, up = pose.deck(loc)
+                pos[~up] = pos[~up] * [1, 1, 0]      # under water: the steam boils up at the surface
                 # DEPARTURE: the puffs sized by the ship's beam (the reference's 9 m on its 31 m ship), not fixed
-                self.p.add(pos=self._w3(pose, loc), vel=np.c_[rng.normal(0, 2, k), rng.normal(0, 2, k),
-                                                              rng.uniform(15, 30, k)],
+                self.p.add(pos=pos, vel=np.c_[rng.normal(0, 2, k), rng.normal(0, 2, k),
+                                              rng.uniform(15, 30, k)],
                            r=0.29 * s["B"], m=1.2 * (s["B"] / 31) ** 2, temp=0.0, heat=0.3, life=1e9, kind=1,
                            tcool=1)
         return 3e5 * env

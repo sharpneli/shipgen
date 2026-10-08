@@ -133,12 +133,12 @@ SHELL_SMEAR = 0.5         # the speed smear behind a shell, in frames of its (sl
 # the blast on the water (muzzle.Blast): ripple amplitude 1 + BLAST_FROST frost - BLAST_LEAD lead (research 3.2).
 # DEPARTURE: the research's 2.5 made the frost glitter like whitecaps here (vidgen's ripples carry the sun glint);
 # the silvery look comes mostly from the sheen instead
-BLAST_FROST = 0.55
+BLAST_FROST = 0.8
 BLAST_LEAD = 0.7
 TAU_FROST_VIS = muzzle.TAU_FROST
 BLAST_FOAM = 0.6          # scour foam's density drawn (DEPARTURE: at full, the jet's lobe was a field of confetti)
-BLAST_SHEEN = 0.25        # the frost's silvery sky sheen, at full frost
-BLAST_DARK = 0.15         # how much the leading edge darkens the sea
+BLAST_SHEEN = 0.35        # the frost's silvery sky sheen, at full frost
+BLAST_DARK = 0.22         # how much the leading edge darkens the sea
 # the secondary fireball as a temperature field (Scene._fireball; DEPARTURES there)
 FIREBALL_CORE = 0.05      # the core's temperature over the emitter's
 FIREBALL_FALL = 0.25      # temperature lost toward the edge (q = 1): luminance falls ~100x there
@@ -155,6 +155,7 @@ EXPLODE_TAIL = 40.0       # the clip runs this long past the main event (the cap
 EXPLODE_FIT = 0.34        # the ship's share of the frame width in an explosion clip, so the column and cap fit
 EXPLODE_CY = 0.68         # and its height on screen: the column rises up the screen above it
 STOP_TAU = 12.0           # s: the ship loses way after the main event (until the sinking clip takes over)
+BREAK_STOP_TAU = 4.0      # s: with --sink, the halves coast to a stop this fast (an open section is a huge drag)
 # vertical effects are drawn in the research's oblique "3/4" projection (3.1): height above the source lifts a
 # puff up the screen by K_OBL z', with the soft compression z' = H_C (1 - e^(-z/H_C)), while ships and water stay
 # top-down and shadows use the true height. DEPARTURE: z is measured from the source's height (the deck), not the
@@ -469,6 +470,18 @@ class Pose:
         R = np.array([[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]])
         return (np.asarray(w, float) - self.sc.pos) @ R
 
+    def deck(self, local3):
+        """Ship-local (n, 3) points on the ship -> world (n, 3), and whether each is still above water: after a
+        break the wreck's pieces carry them."""
+        local3 = np.atleast_2d(np.asarray(local3, float))
+        sc = self.sc
+        if not sc.broken():
+            return np.c_[self.world(local3[:, :2]), local3[:, 2]], np.ones(len(local3), bool)
+        wr = sc.wreck
+        x, y, z = (local3[:, i].astype(np.float32) for i in range(3))
+        X, Y, Z = wr.tf(x, y, z, wr.tl.label(x, y, z), wr.tl.poses(wr.t))
+        return np.c_[X + sc.pos_b[0], Y + sc.pos_b[1], Z], Z > 0.5
+
     def on_hull(self, w):
         w = np.atleast_2d(w)
         x, y = self.sc.scr(w[:, 0], w[:, 1])
@@ -482,7 +495,7 @@ class Pose:
 
 class Scene:
     def __init__(self, src: Path, W, H, fps, heading, target, seed, seconds=None, propellant=None, explode=None,
-                 tier="blast", explode_at=None, sea=None):
+                 tier="blast", explode_at=None, sea=None, sink=False):
         self.src, self.W, self.H, self.fps = src, W, H, fps
         self.rng = np.random.default_rng(seed)
         self.sprite = json.loads((src / "sprite.json").read_text())
@@ -515,8 +528,11 @@ class Scene:
         self.duration = seconds or (self.t_fire + FIRE_S if self.has_guns else 10.0)
         self.v0 = self.speed
         self.blasts, self.t_stop, self.t_hit = [], None, None
+        self.wreck = None
         if explode:
             self._explode(explode, tier, explode_at, seed, seconds)
+            if sink:
+                self._wreck(seed, seconds)
 
         self.water = Water(self.rng, W, H, s, self.C, **(sea or {}))
         self.dens = Density(W, H)
@@ -936,6 +952,34 @@ class Scene:
         k = np.where(inside, 0.5 * lf * np.exp(-dist / lf), 0.0)
         return k[:, None] * d[None, :]
 
+    def _wreck(self, seed, seconds):
+        """--sink: the explosion breaks her in two (sinkvid's break, shipgen's sinking.Break) at the main event. The
+        cut runs through the middle of the exploded magazines, which are the torn zone. From the main event on,
+        sinkvid's scene draws the ship (its 3D hull, turrets as trained, the thrown gunhouses gone) and the
+        surface (crossing foam, boils, rings, oil, wreckage) under vidgen's sea, smoke, fire and camera. Its clock
+        starts sinkvid.HIT_S before the break so the hit lands on the main event."""
+        import sinkvid
+        specs = [b.s for b in self.blasts]
+        x0, x1 = min(sp["span"][0] for sp in specs), max(sp["span"][1] for sp in specs)
+        self.t_break = specs[0]["t_main"]
+        host = dict(s=self.s, C=self.C, cut=0.5 * (x0 + x1), zone=(x0, x1), why=" and ".join(sp["id"] for sp in specs),
+                    bearing={mt.id: self.bearing(mt, self.t_break) for mt in self.mounts},
+                    skip={sp["mount"] for sp in specs if sp.get("mount")})
+        wr = self.wreck = sinkvid.SinkScene(self.src, self.W, self.H, self.fps, self.heading, "break", seed, host=host)
+        self.t_sink0 = self.t_break - sinkvid.HIT_S
+        # she coasts on with the way she had, along her heading; the camera follows, as before the break. Her speed
+        # is steady until the main event, so where she is then is known up front
+        hit, v, tau, h = sinkvid.HIT_S, self.v0, BREAK_STOP_TAU, unit(self.heading)
+        self.glide = lambda ts: v * tau * (1 - math.exp(-max(0.0, ts - hit) / tau))     # on the wreck's clock
+        wr.tl.glide = self.glide
+        wr.cam_of = lambda ts: h * self.glide(ts)
+        self.pos_b = h * v * (self.t_break + WARM_S)
+        if not seconds:
+            self.duration = max(self.duration, self.t_sink0 + wr.tl.t_last + 4 + sinkvid.TAIL_S)
+
+    def broken(self):
+        return self.wreck is not None and self.t >= self.t_break
+
     def wake_k(self):
         """How much of the baked wake is left as the ship loses way after a magazine explosion: the bake is steady,
         so it's faded with the speed (DEPARTURE from any wake model; until the sinking clip takes over)."""
@@ -953,17 +997,27 @@ class Scene:
                        life=rng.uniform(0.3, 0.7, 4), r0=0.3 * size, r1=0.8 * size, a0=0.25)
 
     def step(self, dt):
-        if self.blasts and self.t_stop is not None and self.t > self.t_stop:
-            self.speed = self.v0 * math.exp(-(self.t - self.t_stop) / STOP_TAU)
+        if self.wreck is not None and self.t + dt > self.t_break:
+            self.t += dt
+            self.speed = self.v0 * math.exp(-(self.t - self.t_break) / BREAK_STOP_TAU)
             self.vel = unit(self.heading) * self.speed
-        self.pos = self.pos + self.vel * dt
-        self.t += dt
+            self.pos = self.pos_b + unit(self.heading) * self.glide(self.t - self.t_sink0)
+        else:
+            if self.blasts and self.t_stop is not None and self.t > self.t_stop:
+                self.speed = self.v0 * math.exp(-(self.t - self.t_stop) / STOP_TAU)
+                self.vel = unit(self.heading) * self.speed
+            self.pos = self.pos + self.vel * dt
+            self.t += dt
+        if self.wreck is not None:
+            while self.wreck.t < self.t - self.t_sink0 - 1e-6:
+                self.wreck.step(dt)
         for b in self.blasts:
             b.step(self.t, dt, self.pose)
             for xy, size in b.new_splashes:
                 self.splash(xy, size)
-        self.spawn_spray(dt)
-        self.spawn_smoke(dt)
+        if not self.broken():         # after the break the wreck makes the funnel smoke, and nothing cuts the sea
+            self.spawn_spray(dt)
+            self.spawn_smoke(dt)
         while self.next_ev < len(self.events) and self.events[self.next_ev][0] <= self.t:
             _, mt, i = self.events[self.next_ev]
             self.fire(mt, i)
@@ -1017,7 +1071,17 @@ class Scene:
         W, H, s = self.W, self.H, self.s
         wk = self.wake_k()
         rough, bfoam = self._gun_blast_water()
-        if wk < 1:      # the ship losing way after a magazine explosion: the steady wake fades with its speed
+        wr = self.wreck if self.broken() else None
+        if wr is not None:      # the broken wreck: its boils' and rings' slopes and the oil's calm join the sea's
+            sf = wr.surface(wr.t)
+            calm = self.wake_calm * wk if sf.slick is None else np.maximum(self.wake_calm * wk, 0.85 * sf.slick)
+            frame = self.water.shade(self.pos, self.t, (self.wake_hx * wk, self.wake_hy * wk, calm), half=sf.half,
+                                     rough=rough)
+            wash, fresh, resid = self.wake_wash * wk, self.wake_fresh * wk, self.wake_resid * wk
+            wr.draw_oil(frame, sf)
+            hl = wr.hull_layers(wr.t)
+            wr.draw_hull(frame, hl, False)
+        elif wk < 1:      # the ship losing way after a magazine explosion: the steady wake fades with its speed
             frame = self.water.shade(self.pos, self.t, (self.wake_hx * wk, self.wake_hy * wk, self.wake_calm * wk),
                                      rough=rough)
             wash, fresh, resid = self.wake_wash * wk, self.wake_fresh * wk, self.wake_resid * wk
@@ -1038,18 +1102,26 @@ class Scene:
         if self.blasts:
             self._shock(frame, f, tc)
         frame += (FOAM - frame) * f[..., None]
+        if wr is not None:
+            wr.draw_foam(frame, wr.t, sf)
         foam = upscale(self.field(self.foam) + self.field(self.spray), W, H) * self.water.foam_noise
         frame += (FOAM - frame) * np.clip(1 - np.exp(-1.6 * foam), 0, 0.95)[..., None]
 
-        # hull, then static and turret shadows on everything below the turrets
-        a = self.hull_alpha[..., None]
-        frame = frame * (1 - a) + self.hull[..., :3].astype(np.float32) / 255 * a
-        if self.blasts:
-            self._scorch(frame)
-        shade = self.hull_shadow.copy()
+        # hull, then static and turret shadows on everything below the turrets (the wreck: its own hull, shadow
+        # and wreckage)
+        if wr is not None:
+            wr.draw_debris(frame)
+            wr.draw_hull(frame, hl, True)
+            shade = np.zeros((H, W), np.float32)
+        else:
+            a = self.hull_alpha[..., None]
+            frame = frame * (1 - a) + self.hull[..., :3].astype(np.float32) / 255 * a
+            if self.blasts:
+                self._scorch(frame)
+            shade = self.hull_shadow.copy()
         rots = []
         gone = {b.s["mount"] for b in self.blasts if b.thrown}
-        for mt in self.mounts:
+        for mt in self.mounts if wr is None else ():
             if mt.id in gone:
                 continue
             ang = self.heading + self.bearing(mt, self.t)
@@ -1108,6 +1180,8 @@ class Scene:
         if self.blasts:
             self._solids(frame, tau, flying)
             self._fire(frame)
+        if wr is not None:      # the fires on the torn ends
+            wr._glow(frame, wr.t)
         # the flashes over the smoke (research 7.6: the fireball is in front of its own smoke), and the shells over
         # the flashes: on the slowed clock they're still inside the fireball they really outran, so they show as
         # silhouettes against it, as in high-speed photographs of a shell leaving the muzzle
@@ -1131,14 +1205,15 @@ class Scene:
 
     def _gun_blast_water(self):
         """The guns' blasts on the sea (muzzle.Blast, muzzle_blast_water-vfx.md 3.2), worked out at quarter
-        resolution (they're smooth; the lace texture brings the foam's detail) in a window per event: the ripple multiplier 1 + 2.5 frost - 0.7 lead (full-frame; the leading edge lays
-        the ripples down, the frost behind it roughens them toward silver) and the scour foam's density. Where two
-        fronts are both passing, the frost adds up by half (the bright seam in the Iowa photo)."""
+        resolution (they're smooth; the lace texture brings the foam's detail) in a window per event: the ripple
+        multiplier 1 + BLAST_FROST frost - BLAST_LEAD lead (full-frame; the leading edge lays the ripples down, the
+        frost behind it roughens them toward silver) and the scour foam's density. Overlapping blasts take the strongest of each. DEPARTURE: no bright seam where two fronts
+        cross (the Iowa photo's): gated by the thin leading edge, it drew hard pale arcs."""
         if not self.gun_blasts:
             return None, None
         mx, my = self.water.mx[0, 2::4], self.water.my[2::4, 0]
         hh, hw = len(my), len(mx)
-        r_max = r_sum = g_max = g_sum = fo = None
+        r_max = g_max = fo = None
         band_min = 6.0 / self.s
         for b in self.gun_blasts:
             tt = self.t - b.t0
@@ -1155,21 +1230,18 @@ class Scene:
             if x0 >= x1 or y0 >= y1:
                 continue
             if r_max is None:
-                r_max, r_sum, g_max, g_sum, fo = (np.zeros((hh, hw), np.float32) for _ in range(5))
+                r_max, g_max, fo = (np.zeros((hh, hw), np.float32) for _ in range(3))
             X = (mx[x0:x1] - np.float32(cx))[None, :]
             Y = (my[y0:y1] - np.float32(cy))[:, None]
             rg, ld, fm = b.fields(X, Y, self.t, band_min)
             win = (slice(y0, y1), slice(x0, x1))
             np.maximum(r_max[win], rg, out=r_max[win])
-            r_sum[win] += rg
             np.maximum(g_max[win], ld, out=g_max[win])
-            g_sum[win] += ld
             np.maximum(fo[win], fm, out=fo[win])
         if r_max is None:
             return None, None
-        frost = r_max + 0.5 * (r_sum - r_max) * np.clip(g_sum / 0.1, 0, 1)
-        k = np.maximum(1 + BLAST_FROST * frost - BLAST_LEAD * g_max, 0.15)
-        sheen = BLAST_SHEEN * np.minimum(frost, 1.3) - BLAST_DARK * g_max
+        k = np.maximum(1 + BLAST_FROST * r_max - BLAST_LEAD * g_max, 0.15)
+        sheen = BLAST_SHEEN * r_max - BLAST_DARK * g_max
         return ((upscale(k, self.W, self.H), upscale(sheen, self.W, self.H)),
                 (upscale(fo, self.W, self.H) if fo.any() else None))
 
@@ -1296,6 +1368,8 @@ class Scene:
                 base = self.heading + self.bearing(mt, self.t)
                 im = mt.img
                 if fl["landed"] is not None:
+                    if self.broken():
+                        continue
                     loc, z, ang = fl["landed"]
                     c = self.to_screen(loc)
                     arr = np.asarray(im.rotate(-(base + ang), resample=Image.BICUBIC, expand=True))
@@ -1479,6 +1553,17 @@ class Scene:
                 w.append(np.full(RING_BLOBS, RING_VIS * GUN_SMOKE_VIS * rg["A"] / RING_BLOBS / (2 * math.pi * sig * sig)))
                 h.append(np.full(RING_BLOBS, rg["z"]))
                 cols.append(np.broadcast_to(cc.astype(np.float32), (RING_BLOBS, 3)))
+        if self.wreck is not None:   # the wreck's funnel smoke, the torn ends' fire smoke and the boilers' steam
+            wr = self.wreck
+            fk = 1.3 * (1.6 if self.coal else 1.0)      # sinkvid puffs are a little thinner than vidgen's funnels
+            for ps, c, k in ((wr.smoke, SMOKE_COAL if self.coal else SMOKE_OIL, 1.4 * fk), (wr.blast, SMOKE_SOOT, 1.4),
+                             (wr.steam, STEAM, 1.0)):
+                if not len(ps):
+                    continue
+                x, y = self.scr(ps.d["x"] + self.pos_b[0], ps.d["y"] + self.pos_b[1])
+                px.append(x), py.append(y), r.append(ps.radius() * self.s), w.append(k * ps.opacity())
+                h.append(ps.d["h"] + 4)
+                cols.append(np.broadcast_to(np.array(c, np.float32), (len(ps), 3)))
         shx, shy = list(px), list(py)    # where each blob's shadow is cast from (explosion puffs are drawn lifted)
         B = getattr(self, "_blobs", None)
         if B and B["n"]:
@@ -1713,6 +1798,8 @@ class Scene:
             phase = "Firing"
         if self.t_hit is not None and t >= self.t_hit:
             phase = "Hit" if t < self.t_hit + magazine.HIT_LEAD else "Magazine explosion"
+        if self.broken() and t >= self.t_break + 6:
+            phase = self.wreck._break_phase()
         m = self.H // 36
         d.text((m, m), phase, font=self.font_small, fill=(235, 240, 242, 220))
         if self.has_guns and t >= REST_S - 0.5:
@@ -1745,7 +1832,7 @@ def make(src: Path, out: Path, args, still=None, frames=None):
     rendered in parallel: the scene is rebuilt from the seed and stepped to frame a, and drawing never touches the
     sim, so every chunk sees the same scene)."""
     sc = Scene(src, args.w, args.h, args.fps, args.heading, args.target, args.seed, args.seconds, args.propellant,
-               args.explode, args.tier, args.explode_at, sea_args(args))
+               args.explode, args.tier, args.explode_at, sea_args(args), args.sink)
     if not args.quiet:
         i = sc.wake_info
         print(f"  {src.name} wake: Fr_L {i['FrL']:.2f}, Zb {i['Zb']:.1f} m, solve {i['solve'][0]}x{i['solve'][1]}, "
@@ -1794,7 +1881,7 @@ def make_chunked(src: Path, out: Path, args, chunks):
     import subprocess
     import imageio_ffmpeg
     sc = Scene(src, args.w, args.h, args.fps, args.heading, args.target, args.seed, args.seconds, args.propellant,
-               args.explode, args.tier, args.explode_at, sea_args(args))
+               args.explode, args.tier, args.explode_at, sea_args(args), args.sink)
     n = int(round(sc.duration * args.fps))
     for b in sc.blasts:
         sp = b.s
@@ -1856,6 +1943,9 @@ def main():
     ap.add_argument("--tier", choices=("blast", "column"), default="blast",
                     help="blast: fireball, gunhouse thrown (tier 3); column: the roof lifts and the barbette vents a "
                          "flame column, the ship fights on (tier 1)")
+    ap.add_argument("--sink", action="store_true",
+                    help="with --explode (blast): the explosion breaks her in two at the magazines and both halves "
+                         "sink (sinkvid's break). Writes <id>_explode_<mag>_sink.mp4")
     ap.add_argument("--explode-at", type=float, default=None,
                     help=f"time of the hit, s (default: {EXPLODE_AFTER:g} s after the first salvo)")
     ap.add_argument("--beaufort", type=float, default=None,
@@ -1879,6 +1969,9 @@ def main():
         args.explode = [m.strip() for m in args.explode.split(",") if m.strip()]
         tag = "_explode_" + "_".join(re.sub(r"\W+", "", m.replace("Magazine", "")) for m in args.explode)
         tag += "_column" if args.tier == "column" else ""
+        tag += "_sink" if args.sink and args.tier == "blast" else ""
+    if args.sink and (not args.explode or args.tier != "blast"):
+        ap.error("--sink needs --explode with --tier blast")
     todo = []
     for src in srcs:
         if not (src / "sprite.json").exists():

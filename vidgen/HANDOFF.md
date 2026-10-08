@@ -173,8 +173,10 @@ time, and drops it when the shell has landed or left and the smoke is thin (peak
   their energy, so lam grows as N^(1/3) (Bismarck's twin 380: 25 m, the visible edge 250 m ahead, ~90 m abeam). It
   has Fansler's directivity, so the disc is offset outboard along the bore, and the arrival time comes from the
   Rankine-Hugoniot LUT. The far field is the sea's roughness, not a height field: the ripple amplitude goes as
-  `1 + 0.55 frost - 0.7 lead`, plus a signed sheen (frost toward the sky's silver at `BLAST_SHEEN` 0.25, the leading
-  edge darkened by `BLAST_DARK` 0.15; user, 2026-10-07: the first 0.8, 0.35, 0.22 were "a bit too much"). Near field: scour foam `(1.3 - r/lam')^1.5` plus the jet's lobe along the
+  `1 + 0.8 frost - 0.7 lead`, plus a signed sheen (frost toward the sky's silver at `BLAST_SHEEN` 0.35, the leading
+  edge darkened by `BLAST_DARK` 0.22). User, 2026-10-07, found these "a bit too much" and they went to 0.55, 0.25, 0.15;
+  2026-10-08 the culprit turned out to be the Iowa photo's bright seam (frost summed by half where fronts cross,
+  gated by the thin leading edge): it drew hard pale arcs. The seam is gone and the first values are back. Near field: scour foam `(1.3 - r/lam')^1.5` plus the jet's lobe along the
   bore's ground track for low fire, drawn as the wake's fresh lace at `BLAST_FOAM` 0.6. Spray particles come by
   lam^2, weighted by `exp(-(h/1.5 lam)^2)`. Worked out at quarter res in a window per event. Departures:
   - **Mach stem:** lam x 2^(1/3) over water (`muzzle_blast_waves.md` 0.7), faded smoothly by elevation
@@ -219,8 +221,8 @@ time, and drops it when the shell has landed or left and the smoke is thin (peak
 
 ## Magazine explosions (magazine.py, 2026-10-07)
 The user asked for the research's effect (`magazine_explosion.md`, prototype `magazine_explosion_ref.py`), with the
-smoke in the same broad look as the funnel and gun smoke where it's thin. It's the effect only: the stern breaking
-off and the sinking (from `sinking.py`) come later. `vidgen.py <id> --explode Y` (a magazine room id or a mount it
+smoke in the same broad look as the funnel and gun smoke where it's thin. `--sink` adds the break and the sinking (below,
+"Explosion, break and sinking in one clip"). `vidgen.py <id> --explode Y` (a magazine room id or a mount it
 serves; `Y,X` sends a second one 0.3–0.8 s later, tier 4) writes `out/<id>_explode_Y.mp4`; `--tier column` is tier 1
 (Lion: the roof lifts, the barbette vents a flame column, the ship fights on); `--explode-at T` times the hit
 (default 4 s after the first salvo).
@@ -371,6 +373,26 @@ demo"); sinkvid only draws it.
   afloat have lain still and taken under 0.5 t/s for 120 s (judged over 30 s windows: a step's flows chatter in and
   out of a cell). That's honest to the model. If total loss should be certain, raise `BREAK_LEAK` or lower
   `BULKHEAD_HEAD` in sinking.py.
+
+### Explosion, break and sinking in one clip (2026-10-08)
+The user asked for one "magnum opus" clip: Invincible's magazine explosion followed by the ship breaking in two and
+sinking. `vidgen.py invincible --explode W1S,W1P --sink` writes `out/invincible_explode_W1S_W1P_sink.mp4`
+(`--sink` needs `--explode` at `--tier blast`). vidgen owns the clip; sinkvid only draws the wreck for it
+(`SinkScene(host=...)`, `Scene._wreck`).
+- **Where:** the cut is the middle of the exploded magazines and the torn zone is their span (-19.1..4.0 m on
+  Invincible). With that, both halves sink at sinking.py's defaults; a plain mid break left the bow afloat.
+- **When:** the break lands on the main event (sinkvid's clock starts `HIT_S` before it). Before that it's the old
+  explosion clip, byte for byte. On Invincible: break at 12.5 s, the bow (capsizing, keel up) gone ~88 s, the stern
+  ~135 s; 173 s long.
+- **Hand-over at the break:** sinkvid's 3D hull takes over with the turrets as trained and the thrown gunhouses
+  gone (`Ship3D` `bearing`/`skip`). vidgen keeps the sea, camera, smoke, fire and HUD: sinkvid's boils, rings and
+  oil calm join the sea's slopes; its funnel smoke, fire smoke and steam go into vidgen's smoke blobs; its stand-in
+  blast isn't drawn. The halves coast to a stop along the heading over `BREAK_STOP_TAU` 4 s (an open section is a
+  huge drag; my pick), and the camera follows (`BreakTimeline.glide`, `SinkScene.cam`). The magazine's stem fires
+  and steam ride the wreck via `Pose.deck` and go out once their spot is under water (the steam then boils up at
+  the surface). Landed gunhouses vanish at the break.
+- sinkvid's render was split into `surface`/`draw_oil`/`draw_hull`/`draw_foam`/`draw_debris` for this; its own
+  clips are byte-identical (destroyer break-mid stills).
 
 ## Known oddities
 - Masts cast long, thin, solid shadows on the sea. That's correct for a 23 m mast at 45°, but it can look heavy.

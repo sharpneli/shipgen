@@ -102,7 +102,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Missiles, helicopters and electronics for Cold War ships
 
 ## vidgen
-- [ ] Breaking in two: put magazine.py's real explosion in sinkvid's break clips (sinkvid has a stand-in flash and smoke)
+- [ ] Breaking in two: sinkvid's own break clips still use a stand-in flash and smoke (`vidgen.py --explode Y --sink` has the real explosion)
 - [ ] Breaking in two: shipgen should export weight extents (`sinking.weight_curve` spreads point weights by guessed spans)
 - [ ] Breaking in two: shallow water (pieces grounding with ends out, Invincible-style)
 - [ ] Mechanics resolver for magazine explosions (M, P(t), opening fail times; `magazine.F_FAST` is a stand-in)
