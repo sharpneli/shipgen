@@ -31,7 +31,7 @@ from geometry import (battery_type, make_torpedo_type, rrect_polygon, rrect_clam
 import ordnance
 import powerplant
 from navarch import Weight, battery_turrets, main_batteries, mount_weights, torpedo_weight, TUNING
-from hitbox import ARC_BEAM, ARC_CROSS
+from arcs import ARC_BEAM, ARC_CASEMATE, ARC_CROSS, mount_traverse
 from geometry import Hull, AA_CFG
 
 LEVEL_H = DECK_PITCH  # height of one superstructure level, metres: one deck (geometry.DECK_PITCH)
@@ -194,9 +194,8 @@ class Layout:
 
     def reserve_sweep(self, m):
         """A main turret claims the area its barrels sweep: its firing arcs plus the turn from its stowed
-        bearing, the way it turns (hitbox.mount_traverse, exported as traverse_deg), out to the muzzles.
+        bearing, the way it turns (arcs.mount_traverse, exported as traverse_deg), out to the muzzles.
         Anything placed later that stands taller than the guns must keep out (see clear())."""
-        from hitbox import mount_traverse
         intervals = [mount_traverse(m)]
         R = turret_reach(m["t"]) + 0.5
         polys = []
@@ -417,7 +416,6 @@ def raised_lift(lay, m):
     RAISED_CLEAR over that deck, as a superfiring turret's clear the roof below. Arcs stay fixed (hitbox)."""
     if not lay.raised:
         return 0.0
-    from hitbox import mount_traverse
     axis = m["base"] + 0.55 * (m["top"] - m["base"])
     lo, hi = mount_traverse(m)
     sweep = None
@@ -996,7 +994,6 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
     enough apart for an upper gun between each pair, else closer."""
     import armament     # armament imports layout
     from geometry import CASEMATE_SHIELD
-    from hitbox import ARC_CASEMATE
     bats = []
     for sec in secs:
         n = sec.get("per_side", sec.get("count", 0) // 2)
@@ -2324,7 +2321,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
             main_mount(g, turret_name("QPRS", k), x, 0.0, stow, arc_role="beam", midships=True)
         # wing turrets fire bow to stern on their own side, and stow fore-and-aft (the edge of that arc) toward
         # the nearer end: an echelon pair's forward turret forward and its aft one aft. Cross-deck turrets also
-        # fire across the deck, training over through that end (hitbox.cross_turn)
+        # fire across the deck, training over through that end (arcs.cross_turn)
         for k, (g, y_g, pair) in enumerate(wings):
             for x, side in pair:
                 fwd = (x == pair[0][0]) if g.echelon else x >= mach_c

@@ -34,7 +34,8 @@ import hullweight
 import navarch
 import styles
 from geometry import AA_CFG, rrect_polygon, block_outline
-from hitbox import assign_arcs, assign_smoke, export_hitboxes
+from arcs import assign_arcs
+from hitbox import assign_smoke, export_hitboxes
 import powerplant
 from layout import LEVEL_H, block_top
 
