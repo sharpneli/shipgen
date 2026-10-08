@@ -168,9 +168,11 @@ def braam(root, dur=3.5, vel=1.0):
 
 
 # ------------------------------------------------------------------------------------------------------- choir
-VOWELS = {"a": [(800, 6, 0.25), (1150, 3, 0.25), (2900, 1.2, 0.2)],
-          "o": [(450, 6, 0.25), (800, 3, 0.25), (2830, 0.6, 0.2)],
-          "u": [(325, 6, 0.25), (700, 1.5, 0.3), (2530, 0.3, 0.2)]}
+# formants: (Hz, gain, width in octaves). Broad and moderate: narrow, tall peaks made any note whose fundamental
+# sat on one (A4 on the "o" at 450 Hz) jump 12 dB out of a chord
+VOWELS = {"a": [(800, 3, 0.4), (1150, 1.5, 0.4), (2900, 0.8, 0.3)],
+          "o": [(450, 3, 0.4), (800, 1.5, 0.4), (2830, 0.4, 0.3)],
+          "u": [(325, 3, 0.4), (700, 0.8, 0.4), (2530, 0.2, 0.3)]}
 
 
 def choir(m, dur, vel=0.6, vowel="o", attack=0.6, release=1.0, voices=6):
@@ -183,6 +185,7 @@ def choir(m, dur, vel=0.6, vowel="o", attack=0.6, release=1.0, voices=6):
         P = int(min(50, (SR / 2 - 500) / fv))
         k = np.arange(1, P + 1)
         amps = (1 / k ** 1.2) * _body(k * fv, VOWELS[vowel], lo=90, hi=3500)
+        amps *= 1.9 / np.sqrt((amps ** 2).sum())           # every pitch at the same energy, whatever the vowel
         ph = _phase(fv, n, vib=0.006, vib_rate=RNG.uniform(4.5, 5.8), vib_delay=0.3, drift=0.002)
         out += _partials(ph, k, amps)
     t = _t(n)

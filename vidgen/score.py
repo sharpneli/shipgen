@@ -196,7 +196,7 @@ class Score:
 
     def spic(self, m, t, vel=0.7, part="vc", bright=1.0):
         if self.on(t, 1):
-            self.put("strings", S.spiccato(m, vel, bright=bright), t, PAN[part])
+            self.put("strings", S.spiccato(m, vel, bright=bright), t, PAN[part], gain=2.0)
 
 
 # ------------------------------------------------------------------------------------------------ the composition
@@ -260,7 +260,7 @@ def montage(s):
         for j in range(4):
             tj = M(i + j / 4)
             s.harp(arp[j] + (12 if x > 0.5 else 0), tj, 0.42 + 0.2 * x)
-            s.drum(S.tick(0.22 if j == 0 else 0.12), tj, -0.3 if j % 2 else 0.3, bus="perc", send=0.1)
+            s.drum(S.tick(0.22 if j == 0 else 0.12), tj, -0.3 if j % 2 else 0.3, gain=6.0, bus="perc", send=0.1)
             if i >= 3 and j % 2 == 0:
                 s.cel(arp[j] + 24, tj, 0.25 + 0.15 * x)
         for j in (0, 2):                                            # eighths in the violas
@@ -271,7 +271,7 @@ def montage(s):
         tj = G(j / 4)
         s.harp([nm("D5"), nm("A5"), nm("D6"), nm("F6")][j % 4], tj, 0.62)
         s.cel([nm("D6"), nm("A6")][j % 2], tj, 0.38)
-        s.drum(S.tick(0.25 if j % 4 == 0 else 0.14), tj, -0.3 if j % 2 else 0.3, send=0.1)
+        s.drum(S.tick(0.25 if j % 4 == 0 else 0.14), tj, -0.3 if j % 2 else 0.3, gain=6.0, send=0.1)
         if j % 2 == 0:
             s.spic(nm("D3") + (7 if j % 4 else 0), tj, 0.75, "vla")
     s.put("strings", S.pizz(nm("D2"), 0.95), t0, PAN["cb"])
@@ -321,7 +321,7 @@ def theme_zoom(s):
         ups = nms(up)
         pat = [nm(b) + 12, ups[1], ups[2], ups[3], ups[2] + 12, ups[3], ups[2], ups[1]]
         for j, m in enumerate(pat):
-            s.harp(m, G(k0 + 4 * i + j / 2), 0.36 + 0.12 * x)
+            s.harp(m, G(k0 + 4 * i + j / 2), 0.19 + 0.07 * x)
         if i >= 3:
             s.choir([u for u in ups[1:]], t0, d + 0.1, 0.18 + 0.12 * (i - 3), "o", attack=0.8)
     # the theme: violins (with violas below from bar 4), up the octave and with horns from bar 5
@@ -387,7 +387,7 @@ def battle(s):
         t0 = G(7 + b)
         t1 = G(7 + b + d) if b < 28 else G(38)
         s.str_("vln1", nm(n) + 0, t0, t1 - t0 + 0.04, 0.78, attack=0.12, release=0.35, voices=5)
-        s.str_("vln2", nm(n) - 12, t0, t1 - t0 + 0.04, 0.6, attack=0.12, release=0.35)
+        s.str_("vln2", nm(n) - 12, t0, t1 - t0 + 0.04, 0.32, attack=0.12, release=0.35)
         s.hn(nm(n) - 12, t0, t1 - t0 + 0.02, 0.85, attack=0.06, release=0.3)
     s.timp(nm("A2"), G(35), 0.85, roll=G(38) - G(35) - 0.04)
     s.drum(S.snare_roll(G(38) - G(35.5), 0.15, 0.75), G(35.5), PAN["snare"])
@@ -429,9 +429,9 @@ def battle(s):
         s.choir(ups[1:], t0, t1 - t0 + 0.05, 0.22 + 0.25 * x, "a", attack=0.4, release=0.4)
         # drums
         for j, v in TAIKO.items():
-            s.drum(S.taiko(v * (0.8 + 0.2 * x)), G(k + j / 4), 0.0, 0.85)
-        s.timp(root + 12 if root + 12 <= nm("A2") else root, t0, 0.8 + 0.15 * x)
-        s.timp(nm("A2") if root != nm("A1") else nm("E2"), G(k + 2), 0.6 + 0.15 * x)
+            s.drum(S.taiko(v * (0.8 + 0.2 * x)), G(k + j / 4), 0.0, 1.05)
+        s.timp(root + 12 if root + 12 <= nm("A2") else root, t0, 0.42 + 0.08 * x)
+        s.timp(nm("A2") if root != nm("A1") else nm("E2"), G(k + 2), 0.32 + 0.08 * x)
         if i < 4:
             for j in (4, 12):
                 s.drum(S.snare(0.55 + 0.1 * x), G(k + j / 4), PAN["snare"])
