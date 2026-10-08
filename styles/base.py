@@ -266,7 +266,7 @@ class Style:
         return []
 
     def strength_deck(self, design, D):
-        """A strength deck above the main deck (navarch.hull_structure): dict(h, decks, plates) or None."""
+        """A strength deck above the main deck (hullweight.hull_structure): dict(h, decks, plates) or None."""
         return None
 
     def structure_weights(self, design, L, B, T, D, geo, tun) -> list:

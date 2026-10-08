@@ -238,7 +238,7 @@ class Carrier(Style):
         out = []
         if dp["kind"] != "none":
             fdx = (dp["x0"] + dp["x1"]) / 2
-            # a closed hangar's flight deck is the hull's strength deck (navarch.hull_structure), whose plating the
+            # a closed hangar's flight deck is the hull's strength deck (hullweight.hull_structure), whose plating the
             # hull already weighs: here only the rest (the beams that span the hangar, the overhang). Its sides are
             # the hull's shell; the hangar's own structure (gallery deck, pillars, fire curtains) stays.
             fd_t = dp["fd_area"] * tun["flight_deck_t_per_m2"]

@@ -299,7 +299,7 @@ def plant_report(lay, r):
 
 
 def hull_report(design, r):
-    """The hull structure (navarch.hull_structure) and its girder amidships, for the damage model: the girder
+    """The hull structure (hullweight.hull_structure) and its girder amidships, for the damage model: the girder
     holds while its moment of inertia (plating plus armour decks; losing either takes its part away) stays above
     required_m4."""
     h = r.hull

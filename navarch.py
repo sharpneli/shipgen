@@ -18,8 +18,7 @@ from dataclasses import dataclass, field
 
 from armour import armour_checks, armour_geometry, armour_weights
 from batteries import rough_armament
-from decks import MIN_TIER
-from geometry import DECK_PITCH, cwp
+from geometry import cwp
 import hullweight
 import powerplant
 from weights import SEAWATER, Weight
@@ -28,7 +27,7 @@ OVERLOAD_TB = 3.0  # solve() gives up once the draught passes this x beam and st
 
 TUNING = dict(
     hull_k=0.112,           # styles with hull_model "box" (planing craft): structure = hull_k * (L*B*D)^hull_exp;
-    hull_exp=1.0,           # the rest weigh their plating (hull_structure)
+    hull_exp=1.0,           # the rest weigh their plating (hullweight.hull_structure)
     freeboard_a=0.018,      # design freeboard = a*L + b
     freeboard_b=1.5,
     admiralty_a=111.0,      # admiralty coefficient C = a * Fn^-b * (form corrections)
@@ -147,15 +146,10 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         items: list[Weight] = []
         arm = armour_geometry(design, L, T, D, geo)
         if tun.get("hull_model") == "box":
-            # a box-model hull (planing craft) has no plate model: its own gauge is the style's (plate_own_mm)
-            plank = tun.get("plate_own_mm", 0.0)
-            shell_t = hullweight.extra_plate_t(2 * hullweight.SHELL_SIDE * D * L,
-                                               hullweight.plating(design)["shell_mm"], plank)
-            hull = dict(t=tun["hull_k"] * (L * B * D) ** tun["hull_exp"] + shell_t, shell_t=shell_t,
-                        plate_own_mm=plank)
+            hull = hullweight.box_structure(design, L, B, D, tun)
         else:
-            hull = hull_structure(design, L, B, cb, D, disp, arm, style.strength_deck(design, D),
-                                  geo.get("raised", ()))
+            hull = hullweight.hull_structure(design, L, B, cb, D, disp, arm, style.strength_deck(design, D),
+                                             geo.get("raised", ()))
         z_frac = tun.get("hull_z_frac", 0.58) * (hull.get("depth_m", D) / D)
         items.append(Weight("Hull structure", "hull", hull["t"], x=-0.01 * L, z_rel=("frac", z_frac)))
         shp = power_required(disp, V, L, B, cb, tun)
@@ -342,53 +336,6 @@ def hydrostatics(form, res):
                 kb=round(kb - D, 2), gm_t=round(res.gm_full, 3), gm_l=round(gm_l, 1),
                 i_t_m4=round(i_t), i_l_m4=round(i_l), tpc_t=round(SEAWATER * area / 100, 2),
                 mct_tm=round(disp * gm_l / (100 * L), 1))
-
-
-STACK_DECK = 0.6       # a level of the deck stack weighs this much of a full internal deck: many are platforms and
-                       # flats (fitted so the stack reproduces the hull-weight research's calibration)
-INNER_BOTTOM_T = (4000.0, 10000.0)  # full displacement (t) over which the inner bottom's weight comes in: escorts
-                                    # are calibrated without one, cruisers and capital ships with one
-
-
-GIRDER_MID = 0.2       # x L each side of amidships: raised hull over this midbody works in the girder (the classification
-                       # societies' 0.4 L midship region), by its mean height over it
-
-
-def raised_girder_h(raised, L):
-    """The mean height of raised stretches of hull (dicts x0, x1, levels) over the midbody, |x| <= GIRDER_MID L:
-    what they deepen the girder by. A long forecastle reaching well aft of amidships counts fully, a short one
-    near the bow not at all, and it phases in smoothly as the break moves (the size search needs no steps)."""
-    a, b = -GIRDER_MID * L, GIRDER_MID * L
-    tot = 0.0
-    for s in raised:   # raised_profile's stretches don't overlap
-        tot += max(0.0, min(b, s["x1"]) - max(a, s["x0"])) * s["levels"] * DECK_PITCH
-    return tot / (b - a)
-
-
-def hull_structure(design, L, B, cb, D, full, arm, above=None, raised=()):
-    """The hull's structure weight and girder (hullweight.weight). Internal decks come from the deck stack's depth
-    and the inner bottom from the displacement, both smoothly (a step would make the solver and the size search
-    jump); the armour-deck plates over amidships (arm: armour_geometry) count in the girder.
-    above: the style's strength deck above the main deck (Style.strength_deck: a closed hangar's flight deck),
-    dict(h, decks, plates), or None. The hull's sides then run up to it, the decks between count as full internal
-    decks, and the plates on it count in the girder; the transverse bulkheads still stop at the main deck.
-    raised: raised stretches of hull (lay.raised): over the midbody they deepen the girder (raised_girder_h)."""
-    n_int = STACK_DECK * max(0.0, (D - powerplant.double_bottom(D) - MIN_TIER) / DECK_PITCH)
-    lo, hi = INNER_BOTTOM_T
-    inner = min(1.0, max(0.0, (full - lo) / (hi - lo)))
-    plates = [(d["mm"], d["z"]) for d in arm["decks"] if d["x0"] <= 0.0 <= d["x1"]]
-    depth = D
-    if above:
-        depth, n_int, plates = D + above["h"], n_int + above["decks"], plates + above["plates"]
-    rh = raised_girder_h(raised, L) if raised else 0.0
-    # side armour stands in for the shell's extra plating (hull.plating.shell_mm) where it covers the side
-    side_arm = sum((s["x1"] - s["x0"]) * (s["top"] - s["bottom"]) for s in arm["strakes"] if s["kind"] != "box")
-    if arm["belt_mm"] > 0:
-        side_arm += (arm["x1"] - arm["x0"]) * (arm["belt_top"] - arm["belt_bottom"])
-    out = hullweight.weight(L, B, depth, cb, full, hullweight.construction(design), n_int, inner, plates,
-                            bulkhead_depth=D, girder_depth=depth + rh if rh else None,
-                            shell_mm=hullweight.plating(design)["shell_mm"], armoured_side_m2=2 * max(0.0, side_arm))
-    return {**out, "depth_m": depth}
 
 
 def rough_payload(design, D):

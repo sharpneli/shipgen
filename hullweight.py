@@ -9,9 +9,15 @@ second part: a higher-yield steel raises the allowable girder stress; welding in
 straps) is a flat factor on everything. Continuous armour decks over amidships are part of the girder and stand
 in for strength plating.
 
+hull_structure (and box_structure for a planing craft) applies this to a ship: its deck stack, inner bottom,
+raised stretches, armour decks in the girder and armoured side; navarch.solve calls it every iteration.
 Standard library only (design side). Units: m, m^2, mm of plate, MPa, kN m, t.
 """
 import math
+
+from decks import MIN_TIER
+from geometry import DECK_PITCH
+import powerplant
 
 RHO = 7.85e-3          # t per m^2 per mm of steel plate
 RHO_WOOD = 0.7e-3      # t per m^2 per mm of deck planking (teak, fastenings and caulking)
@@ -161,6 +167,61 @@ def weight(L, B, D, cb, full, c, n_int, double_bottom, armour_decks=(), bulkhead
                 t_min_mm=t_min,
                 t_str_mm=t_str, stress_mpa=sig, i_req_m4=i_req, i_armour_m4=i_arm,
                 i_plating_m4=max(t_str, t_min) * z_per_mm * G / 2)
+
+
+STACK_DECK = 0.6       # a level of the deck stack weighs this much of a full internal deck: many are platforms and
+                       # flats (fitted so the stack reproduces the hull-weight research's calibration)
+INNER_BOTTOM_T = (4000.0, 10000.0)  # full displacement (t) over which the inner bottom's weight comes in: escorts
+                                    # are calibrated without one, cruisers and capital ships with one
+
+
+GIRDER_MID = 0.2       # x L each side of amidships: raised hull over this midbody works in the girder (the classification
+                       # societies' 0.4 L midship region), by its mean height over it
+
+
+def raised_girder_h(raised, L):
+    """The mean height of raised stretches of hull (dicts x0, x1, levels) over the midbody, |x| <= GIRDER_MID L:
+    what they deepen the girder by. A long forecastle reaching well aft of amidships counts fully, a short one
+    near the bow not at all, and it phases in smoothly as the break moves (the size search needs no steps)."""
+    a, b = -GIRDER_MID * L, GIRDER_MID * L
+    tot = 0.0
+    for s in raised:   # raised_profile's stretches don't overlap
+        tot += max(0.0, min(b, s["x1"]) - max(a, s["x0"])) * s["levels"] * DECK_PITCH
+    return tot / (b - a)
+
+
+def hull_structure(design, L, B, cb, D, full, arm, above=None, raised=()):
+    """The hull's structure weight and girder (weight). Internal decks come from the deck stack's depth
+    and the inner bottom from the displacement, both smoothly (a step would make the solver and the size search
+    jump); the armour-deck plates over amidships (arm: armour.armour_geometry) count in the girder.
+    above: the style's strength deck above the main deck (Style.strength_deck: a closed hangar's flight deck),
+    dict(h, decks, plates), or None. The hull's sides then run up to it, the decks between count as full internal
+    decks, and the plates on it count in the girder; the transverse bulkheads still stop at the main deck.
+    raised: raised stretches of hull (lay.raised): over the midbody they deepen the girder (raised_girder_h)."""
+    n_int = STACK_DECK * max(0.0, (D - powerplant.double_bottom(D) - MIN_TIER) / DECK_PITCH)
+    lo, hi = INNER_BOTTOM_T
+    inner = min(1.0, max(0.0, (full - lo) / (hi - lo)))
+    plates = [(d["mm"], d["z"]) for d in arm["decks"] if d["x0"] <= 0.0 <= d["x1"]]
+    depth = D
+    if above:
+        depth, n_int, plates = D + above["h"], n_int + above["decks"], plates + above["plates"]
+    rh = raised_girder_h(raised, L) if raised else 0.0
+    # side armour stands in for the shell's extra plating (hull.plating.shell_mm) where it covers the side
+    side_arm = sum((s["x1"] - s["x0"]) * (s["top"] - s["bottom"]) for s in arm["strakes"] if s["kind"] != "box")
+    if arm["belt_mm"] > 0:
+        side_arm += (arm["x1"] - arm["x0"]) * (arm["belt_top"] - arm["belt_bottom"])
+    out = weight(L, B, depth, cb, full, construction(design), n_int, inner, plates, bulkhead_depth=D,
+                 girder_depth=depth + rh if rh else None, shell_mm=plating(design)["shell_mm"],
+                 armoured_side_m2=2 * max(0.0, side_arm))
+    return {**out, "depth_m": depth}
+
+
+def box_structure(design, L, B, D, tun):
+    """A box-model hull (tun hull_model "box": planing craft) has no plate model: structure = hull_k (L B D)^hull_exp
+    plus the shell's extra plating; its own gauge is the style's (plate_own_mm)."""
+    plank = tun.get("plate_own_mm", 0.0)
+    shell_t = extra_plate_t(2 * SHELL_SIDE * D * L, plating(design)["shell_mm"], plank)
+    return dict(t=tun["hull_k"] * (L * B * D) ** tun["hull_exp"] + shell_t, shell_t=shell_t, plate_own_mm=plank)
 
 
 def validate(design):
