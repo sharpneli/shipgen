@@ -33,6 +33,7 @@ import powerplant
 from weights import Weight
 from batteries import battery_turrets, main_batteries, mount_weights, secondary_batteries, torpedo_weight
 from navarch import TUNING
+from geo import Geo
 from arcs import ARC_BEAM, ARC_CASEMATE, ARC_CROSS, mount_traverse
 from geometry import Hull, AA_CFG, has_barbette
 
@@ -146,7 +147,7 @@ class Layout:
         self.weights = []       # weights.Weight with x positions
         self.errors, self.warnings = [], []
         self.spec = {}
-        self.geo = {}
+        self.geo = Geo()        # layout facts for the physics and the later passes (geo.Geo)
         self.shift_range = (0.0, 0.0)
         self.compartments = []
         self.decks = []         # raised decks and flight decks: dict(id, kind, points, base, top)
@@ -343,7 +344,7 @@ def add_raised(lay, design, rid, x0, x1, levels=1, breaks=None):
     h = levels * LEVEL_H
     pts = hull.points(inset=RAISED_INSET, x_min=x0, x_max=x1)
     lay.raised.append(dict(id=rid, x0=x0, x1=x1, levels=levels))
-    lay.geo["raised"] = lay.raised      # for hullweight: the girder (raised_girder_h) and armour on raised decks
+    lay.geo.raised = lay.raised      # for hullweight: the girder (raised_girder_h) and armour on raised decks
     lay.decks.append(dict(id=rid, kind="deck", points=pts, base=0.0, top=h))
     lay.occupy(_fp_poly(pts), 0.0, h, rid)
     area, xc = polygon_centroid(pts)
@@ -556,7 +557,7 @@ def add_magazines(lay, mounts, inner_hw, groups=None):
     machinery block's magazine segments: groups = {"fore"|"aft": (x0, x1)}. Each battery's forward pairs fill the
     fore group as planned."""
     groups = groups or {}
-    plan = lay.geo.get("plant") or {}
+    plan = lay.geo.plant or {}
     ghw = plan["width"] / 2 if plan.get("wing_m") else min(inner_hw, plan.get("width", 2 * inner_hw) / 2)
     zones, batteries = [], {}
     for m in mounts:
@@ -591,7 +592,7 @@ def plan_machinery(lay, design, res, hull, x=0.0):
     wing bunkers on each side; up, from the inner bottom to the lowest armour deck over the citadel (the main deck
     without deck armour). Fuel the
     wing bunkers and double bottom can't take goes into end bunkers or tanks, which lengthen the block. Stores the
-    plan in lay.geo["plant"] and returns the block's length (powerplant.segments)."""
+    plan in lay.geo.plant and returns the block's length (powerplant.segments)."""
     from decks import deck_stack
     from armour import armour_geometry
     p = res.plant
@@ -617,7 +618,7 @@ def plan_machinery(lay, design, res, hull, x=0.0):
     if not sp["fits"]:
         lay.fail("beam", f"The plant's units are {sp['unit'][1]:.1f} m wide, but the machinery space is only "
                          f"{max(w, 0.0):.1f} m across. Use more shafts (smaller units) or less side protection.")
-    lay.geo["plant"] = dict(fuel=p["tech"]["fuel"], space=sp, segments=segs, wing_t=wing_t, wing_m=wing, end_m=end,
+    lay.geo.plant = dict(fuel=p["tech"]["fuel"], space=sp, segments=segs, wing_t=wing_t, wing_m=wing, end_m=end,
                             width=w, height=h, inner_bottom=db, top=top, armoured=armoured, deck_mm=ag["roof_mm"],
                             tds=tds, decks=[z for _, z in deck_stack(design, D)])
     return sum(seg_l for _, seg_l in segs)
@@ -635,9 +636,9 @@ def stack_machinery(segs, x_front):
 def add_machinery_rooms(lay, placed, inner_hw, depth):
     """Compartments for the placed machinery segments [(kind, x0, x1)]: boiler rooms, engine rooms and bunkers
     (each cut into rooms no longer than about 0.07 L), wing bunkers beside the machinery, and the casing over a
-    plant that stands taller than its space. Sets lay.geo machinery (the block's span), machinery_x and
-    machinery_rooms."""
-    plan = lay.geo["plant"]
+    plant that stands taller than its space. Sets lay.geo machinery (the block's span) and
+    machinery_x."""
+    plan = lay.geo.plant
     fuel = plan["fuel"]
     names = {"boiler": "Boiler room", "engine": "Engine room", "bunker": "Bunker"}
     count = {k: 0 for k in names}
@@ -679,9 +680,8 @@ def add_machinery_rooms(lay, placed, inner_hw, depth):
                 area = 2 * ((c["x1"] - c["x0"]) + c["w"]) * (c["top"] - c["base"]) + (c["x1"] - c["x0"]) * c["w"]
                 lay.weights.append(Weight(c["id"], "armour", area * plan["deck_mm"] / 1000 * 7.85,
                                           x=(c["x0"] + c["x1"]) / 2, z_rel=("deck", (c["base"] + c["top"]) / 2)))
-    lay.geo["machinery"] = (x0, x1)
-    lay.geo["machinery_x"] = (x0 + x1) / 2
-    lay.geo["machinery_rooms"] = [(r["kind"], r["id"], r["x0"], r["x1"]) for r in rooms]
+    lay.geo.machinery = (x0, x1)
+    lay.geo.machinery_x = (x0 + x1) / 2
     for f in lay.funnels_planned:     # each funnel's uptakes lead from the boiler rooms of its segment
         f["serves"] = seg_rooms.get(f.get("seg"), [])
 
@@ -723,7 +723,7 @@ def plan_funnels(lay, design, res, beam, top, groups=None):
     """Funnel count and size for the planned machinery (plan_machinery), with funnel tops `top` above the main
     deck: powerplant.funnel_plan over the boiler groups (default: the plan's boiler segments), and at least the
     design's "funnels". Returns (count, width, length)."""
-    plant = lay.geo["plant"]
+    plant = lay.geo.plant
     if groups is None:
         groups = [seg_l for kind, seg_l in plant["segments"] if kind == "boiler"]
     stack = res.depth - plant["inner_bottom"] - 1.0 + top
@@ -731,17 +731,17 @@ def plan_funnels(lay, design, res, beam, top, groups=None):
     if design.get("funnels") and design["funnels"] > sum(fp["counts"]):    # the player may add more, not fewer
         fp = powerplant.funnel_plan(res.plant, res.power_shp, groups, beam, stack,
                                     extra=design["funnels"] - sum(fp["counts"]))
-    lay.geo["funnel_plan"] = fp
+    lay.geo.funnel_plan = fp
     if fp.get("needed"):
         lay.warnings.append(f"The plant's gas needs {fp['needed']:,} funnels; it gets {sum(fp['counts'])}, with the gas "
                             f"at {fp['velocity']:.0f} m/s.")
-    lay.geo["smoke_reach"] = powerplant.smoke_reach(res.plant, res.power_shp)   # directors keep out of it
+    lay.geo.smoke_reach = powerplant.smoke_reach(res.plant, res.power_shp)   # directors keep out of it
     return sum(fp["counts"]), fp["width"], fp["length"]
 
 
 def boiler_seg(lay):
     """Index of the plan's (first, largest) boiler segment, or its engines for an engines-only plant."""
-    segs = lay.geo["plant"]["segments"]
+    segs = lay.geo.plant["segments"]
     best = max(range(len(segs)), key=lambda i: (segs[i][0] == "boiler", segs[i][0] == "engine", segs[i][1]))
     return best
 
@@ -750,9 +750,9 @@ def funnel_seg(lay, i):
     """The machinery segment funnel i serves where the funnels stand together (merchants, carriers): the boiler
     groups in turn, forward first, as many funnels each as the funnel plan gives them (boiler_seg for an
     engines-only plant)."""
-    segs = lay.geo["plant"]["segments"]
+    segs = lay.geo.plant["segments"]
     boilers = [k for k, (kind, _) in enumerate(segs) if kind == "boiler"]
-    counts = lay.geo["funnel_plan"]["counts"]
+    counts = lay.geo.funnel_plan["counts"]
     if not boilers or len(counts) != len(boilers):
         return boiler_seg(lay)
     for si, n in zip(boilers, counts):
@@ -766,7 +766,7 @@ def add_funnel_weights(lay, f, top, served_x, depth):
     """Weights of funnel f (dict: x, l, w, z0) standing to `top` above the main deck, and of its uptakes from the
     boilers it serves (centred at served_x) up to the deck, with armoured gratings where they pierce an armoured
     deck. Records the funnel for add_machinery_rooms."""
-    plant = lay.geo["plant"]
+    plant = lay.geo.plant
     sp = plant["space"]
     z0 = f.get("z0", 0.0)
     vert = max(1.0, depth - (plant["inner_bottom"] + sp["unit"][2])) + z0
@@ -775,7 +775,7 @@ def add_funnel_weights(lay, f, top, served_x, depth):
     lay.weights.append(Weight(f["id"], "superstructure", w_f, x=f["x"], z_rel=("deck", (z0 + top) / 2)))
     lay.weights.append(Weight(f"Uptakes {f['id']}", "machinery", w_u, x=(f["x"] + served_x) / 2,
                               z_rel=("deck", z0 - vert / 2)))
-    fp = lay.geo.get("funnel_plan")
+    fp = lay.geo.funnel_plan
     if plant["armoured"] and fp:
         lay.weights.append(Weight(f"Gratings {f['id']}", "armour", 0.6 * fp["area"] / max(1, sum(fp["counts"])),
                                   x=served_x, z_rel=("deck", plant["top"] - depth)))
@@ -877,8 +877,8 @@ from propulsion import STEERING     # the steering gear: from 0.03 to 0.08 L for
 
 
 def set_citadel(lay, x0, x1):
-    """The citadel: the stretch the vital spaces, belt and citadel armour decks cover (lay.geo["citadel"])."""
-    lay.geo["citadel"] = (x0, x1)
+    """The citadel: the stretch the vital spaces, belt and citadel armour decks cover (lay.geo.citadel)."""
+    lay.geo.citadel = (x0, x1)
 
 
 def add_steering(lay, x0=None, x1=None, half_width=None, name="Steering gear"):
@@ -887,12 +887,12 @@ def add_steering(lay, x0=None, x1=None, half_width=None, name="Steering gear"):
     L, B = lay.hull.L, lay.hull.B
     x0 = -L / 2 + STEERING[0] * L if x0 is None else x0
     x1 = -L / 2 + STEERING[1] * L if x1 is None else x1
-    base, top = ordnance.span(lay.geo["plant"])
+    base, top = ordnance.span(lay.geo.plant)
     room = dict(id=name, kind="steering", x0=x0, x1=x1, base=base, top=top,
                 half_width=STEERING[2] * B if half_width is None else half_width)
     lay.compartments.append(room)
-    lay.geo["steering"] = (x0, x1)      # for the armour (propulsion.steering_span) and the propulsion train
-    lay.geo["steering_beam"] = 2 * sum(lay.hull.half_width(x0 + (x1 - x0) * (k + 0.5) / 8) for k in range(8)) / 8
+    lay.geo.steering = (x0, x1)      # for the armour (Geo.steering_span) and the propulsion train
+    lay.geo.steering_beam = 2 * sum(lay.hull.half_width(x0 + (x1 - x0) * (k + 0.5) / 8) for k in range(8)) / 8
     return room
 
 
@@ -928,7 +928,7 @@ def finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts,
     lay.mounts, lay.blocks, lay.funnels, lay.aa, lay.fun_top = mounts, blocks, funnels, aa_out, fun_top
     import firecontrol
     firecontrol.search_radar(lay, design, blocks, masts, fun_top)
-    lay.geo["windage"] = lateral_profile(lay, blocks, funnels, masts, mounts, aa_out, fun_top)
+    lay.geo.windage = lateral_profile(lay, blocks, funnels, masts, mounts, aa_out, fun_top)
     return lay
 
 
@@ -1065,7 +1065,7 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
     xs = [0.5 * k for k in range(int(-hull.L), int(hull.L) + 1)]
     elig = [x for x in xs if hull.half_width(x) >= CASEMATE_BEAM * B / 2]
     # centred on the hull's full-width part, moved with the arrangement's balancing shift
-    c = ((min(elig) + max(elig)) / 2 if elig else 0.0) + lay.geo.get("shift", 0.0)
+    c = ((min(elig) + max(elig)) / 2 if elig else 0.0) + lay.geo.shift
     xs.sort(key=lambda x: abs(x - c))
     ok_cache = {}
 
@@ -1740,7 +1740,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         return y if g.reach == g_ref.reach else y + g_ref.reach - g.reach
 
     plan_machinery(lay, design, res, hull)
-    plant = lay.geo["plant"]
+    plant = lay.geo.plant
     lb = clamp(0.05 * L + 2, 7, 18)                 # bridge length
     la = 0.045 * L + 2 if aft_control(design) else 0.0     # aft control position length (0: none)
     # the bridge tower: base levels from level 2, the navigating bridge, then each level up to
@@ -1770,7 +1770,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
             f"The bridge (level {nb}, its deck {LEVEL_H * (nb - 1):.1f} m above the main deck) cannot see over "
             f"turret {turret_name('ABC', fwd_tier)}'s roof ({fwd_roof:.1f} m): superstructure.tower_levels "
             f"{nb_need} or more lifts it clear.")
-    lay.geo["bridge"] = dict(level=nb, floor=LEVEL_H * (nb - 1), need=nb_need, tower=n_tower,
+    lay.geo.bridge = dict(level=nb, floor=LEVEL_H * (nb - 1), need=nb_need, tower=n_tower,
                              turret_roof=fwd_roof)
     hood = firecontrol.HOOD_H if firecontrol.spec(design)["main"]["directors"] else 0.0
     secs = [{**b, "prefix": battery_prefix(k)} for k, b in enumerate(secondary_batteries(design))]
@@ -1861,7 +1861,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         fun_top = max(fun_top, STACK_NATURAL - below)
     groups = [s[1] for s in segs if s[0] == "boiler"]
     nfun, fw, fl = plan_funnels(lay, design, res, B, fun_top, groups)
-    fplan = lay.geo["funnel_plan"]
+    fplan = lay.geo.funnel_plan
     fw = min(fw, 0.3 * B)
     # a midships turret's slot among the funnels: barrels stowed along the centreline one way, and on the other
     # side enough room that its neighbour stays out of the beam arcs
@@ -2138,7 +2138,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     lay.shift_range = (lo, hi)
     shift = clamp(shift, lo, hi)
     fore, aft, mid_fwd, mid_aft = arrangement(bow_c, st_c, shift)
-    lay.geo["shift"] = shift
+    lay.geo.shift = shift
 
     # ---------------- middle: bridge, deckhouse, funnels, aft control ----------------
     bx1 = mid_fwd
@@ -2242,8 +2242,8 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     f_seg = [si if si is not None else next((k for k, s in enumerate(segs) if s[0] == "engine"), 0) for si in f_seg]
     plant_placed = [p_ for p_ in mach_placed if p_[0] != "magazine"]     # the block less its magazines
     mach_c = (min(p_[1] for p_ in plant_placed) + max(p_[2] for p_ in plant_placed)) / 2
-    lay.geo["machinery"] = (min(p_[1] for p_ in plant_placed), max(p_[2] for p_ in plant_placed))
-    lay.geo["machinery_x"] = mach_c
+    lay.geo.machinery = (min(p_[1] for p_ in plant_placed), max(p_[2] for p_ in plant_placed))
+    lay.geo.machinery_x = mach_c
     # ---------------- raised stretches of hull (hull.raised) ----------------
     # Each rises its decks between two anchors, bow to stern: the bow, the features, the stern. It covers both anchors
     # and all between, its breaks just beyond them (no funnels: the next feature toward the other anchor; a stretch

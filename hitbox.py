@@ -150,7 +150,7 @@ def export_hitboxes(lay, design, res, inner):
                           y=round(ct["y"], 3), r=round(ct["r"], 3), base=0.0, top=round(ct["top"], 2),
                           armour_mm=ag["belt_mm"]))
         with_material(comps[-1], armour_material(design, "conning_tower"))
-    plan = lay.geo.get("plant")
+    plan = lay.geo.plant
     for f in lay.funnels:
         pts = rrect_polygon(f["x"] - f["l"] / 2, f["y"] - f["w"] / 2, f["x"] + f["l"] / 2, f["y"] + f["w"] / 2,
                             f["w"] / 2, f["w"] / 2)

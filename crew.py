@@ -171,8 +171,7 @@ TAKEN = ("magazine", "boiler_room", "engine_room", "bunker", "hold", "cargo_tank
 def crew_space(lay, design, res):
     """The ship's empty volume, m3: the hull from the inner bottom to the main deck, less the spaces the machinery,
     magazines, bunkers, holds, tanks, steering gear and torpedo protection take, with the raised stretches of hull
-    (forecastle, poop), plus the superstructure (blocks; the style may add more, lay.geo upper_volume_m3, e.g. a
-    carrier's galleries)."""
+    (forecastle, poop), plus the superstructure (blocks)."""
     import powerplant
     from layout import LEVEL_H
     from layout import block_role
@@ -182,7 +181,7 @@ def crew_space(lay, design, res):
     cb = design["hull"]["block_coefficient"]
     D, T = res.depth, res.draught
     db = powerplant.double_bottom(D)
-    plan = lay.geo.get("plant") or {}
+    plan = lay.geo.plant or {}
     low = (plan.get("top", D) if plan.get("armoured") else D) - db      # default compartment height
     hull_v = L * B * (T * cb + max(0.0, D - T) * cwp(cb)) - db * L * B * cwp(cb) * 0.9
     # raised stretches of hull (forecastle, poop) are hull: the subdivision quarters men in their cells
@@ -194,13 +193,12 @@ def crew_space(lay, design, res):
         h = (c["top"] - c["base"]) if "top" in c and "base" in c else (D - db if c["kind"] in ("hold", "cargo_tank")
                                                                        else low)
         taken += (c["x1"] - c["x0"]) * 2 * c["half_width"] * h
-    cit = lay.geo.get("citadel")
+    cit = lay.geo.citadel
     if plan.get("tds") and cit:
         taken += 2 * plan["tds"] * (cit[1] - cit[0]) * low
     rooms = {b["id"]: b.get("area", (b["x1"] - b["x0"]) * b["w"]) * LEVEL_H * 0.9 for b in lay.blocks if b["kind"] != "director"
              and block_role(b["id"]) not in ("hangar", "director", "casemate")}
     sup = sum(rooms.values())
-    sup += lay.geo.get("upper_volume_m3", 0.0)
     free = max(0.0, hull_v - taken) + raised + sup
     return dict(hull_m3=hull_v + raised, taken_m3=taken, superstructure_m3=sup, free_m3=free, usable_m3=USABLE * free,
                 hull_usable_m3=USABLE * (max(0.0, hull_v - taken) + raised), blocks_m3=rooms)
@@ -272,7 +270,7 @@ def apply(lay, design, res, style):
     # weights: crew and effects between decks (those quartered up top at their blocks' mid-height), provisions low,
     # water in the double bottom (or above it)
     from layout import block_base
-    x_mid = lay.geo.get("machinery_x", 0.0)
+    x_mid = lay.geo.machinery_mid(lay.hull.L)
     by_id = {b["id"]: b for b in lay.blocks}
     for bid, m in up_blocks.items():
         b = by_id[bid]

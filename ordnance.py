@@ -31,7 +31,7 @@ TORPEDO_MM = 533                     # every torpedo tube is 533 mm (geometry.ma
 def span(plan, need_h=None, tiers=TIERS):
     """(base, top) above the main deck of a room standing on the inner bottom, top on a deck of the stack and never
     above the plan's roof (the lowest armour deck): the lowest deck need_h above the inner bottom, else the
-    tiers-th deck up. At least one deck space. plan is layout's lay.geo["plant"]."""
+    tiers-th deck up. At least one deck space. plan is layout's lay.geo.plant."""
     D, ib, roof = plan["decks"][0], plan["inner_bottom"], plan["top"]
     ups = sorted(z for z in plan["decks"] if ib + 1e-6 < z <= roof + 1e-6) or [roof]
     if need_h is None:
@@ -92,7 +92,7 @@ def stow(lay, mounts, zones):
     roof); its rooms share its length by volume, forward first. Adds the compartments (with "tonnes", and "mount"
     or "mounts"), sets each mount's "magazine", and moves its "Magazine <id>" weight to its room. Returns
     {room id: (x0, x1, base, top)}."""
-    plan = lay.geo["plant"]
+    plan = lay.geo.plant
     by_id = {m["id"]: m for m in mounts}
     ammo = {w.name: w for w in lay.weights if w.name.startswith("Magazine ")}
     out = {}

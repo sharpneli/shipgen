@@ -218,7 +218,7 @@ def spread_ends(design, lay, r, iterations=6):
     fits beside the funnels: the middle's length need doesn't count everything standing there). The citadel then
     covers the end groups and machinery and no more, and the heavy middle stays compact. Returns the balanced
     (layout, result, design) with the largest such spread found (bisected), else the ones given."""
-    shift = lay.geo.get("shift", 0.0)
+    shift = lay.geo.shift
 
     def outcome(s):
         l_ = lay_out(design, r, shift, s)
@@ -259,7 +259,7 @@ def balance(design, iterations=6, spread=0.0):
     for _ in range(iterations + 4):
         lay = lay_out(design, r, shift, spread)
         r = navarch.solve(design, lay.weights, lay.geo)
-        shift = lay.geo["shift"]
+        shift = lay.geo.shift
         moment = sum(w.w * (w.x - r.lcb) for w in r.weights)
         movable = sum(w.w for w in r.weights if w.group not in ("hull", "misc"))
         if best is None or abs(moment) < best[0]:
@@ -282,9 +282,9 @@ def balance(design, iterations=6, spread=0.0):
 
 def plant_report(lay, r):
     """The plant's static numbers for the game (powerplant.published) and how it sits in the hull."""
-    plan = lay.geo.get("plant") or {}
+    plan = lay.geo.plant or {}
     sp = plan.get("space", {})
-    fp = lay.geo.get("funnel_plan") or {}
+    fp = lay.geo.funnel_plan or {}
     extra = dict(
         machinery_length_m=round(sum(seg_l for _, seg_l in plan.get("segments", [])), 1),
         boiler_rooms=sum(1 for c in lay.compartments if c["kind"] == "boiler_room"),
@@ -332,14 +332,14 @@ def report_dict(design, lay, r, sized):
                 gale_heel_condition=r.wind["condition"], deck_edge_deg=round(r.wind["deck_edge_deg"], 1),
                 deck_edge_wind_kn=round(r.wind["deck_edge_wind_kn"]))),
             trim_m=round(r.trim_m, 2), lcg_m=round(r.lcg, 2), lcb_m=round(r.lcb, 2),
-            layout_shift_m=round(lay.geo["shift"], 2),
+            layout_shift_m=round(lay.geo.shift, 2),
             **styles.get(design).results(sized, lay, r),
         ),
         plant=plant_report(lay, r),
         hull=hull_report(design, r),
         crew=lay.crew,
         fire_control=firecontrol.report(lay, r.freeboard),
-        **({"bridge": bridge_report(lay, r.freeboard)} if "bridge" in lay.geo else {}),
+        **({"bridge": bridge_report(lay, r.freeboard)} if lay.geo.bridge is not None else {}),
         weight_groups_t={k: round(v) for k, v in sorted(r.groups.items(), key=lambda kv: -kv[1])},
         weights=[dict(name=w.name, group=w.group, t=round(w.w, 1), x=round(w.x, 2), z=round(w.z, 2))
                  for w in r.weights],
@@ -382,7 +382,7 @@ def bridge_report(lay, deck_m):
     """The navigating bridge's view (warships): its level, eye height above the waterline and horizon, and whether it
     sees over the highest forward turret. The tower's height (superstructure.tower_levels) trades this and the
     directors' horizons against topweight and windage (gm_*, gale_heel_deg, windage_m2)."""
-    b = lay.geo["bridge"]
+    b = lay.geo.bridge
     eye = deck_m + b["floor"] + BRIDGE_EYE
     return dict(level=b["level"], tower_levels=b["tower"], eye_height_m=round(eye, 2),
                 horizon_km=round(firecontrol.horizon_km(eye), 1), sees_over_turrets=b["level"] >= b["need"],

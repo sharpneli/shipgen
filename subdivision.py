@@ -180,8 +180,8 @@ def build(lay, design, res, ag, armoured, form):
     D, T = res.depth, res.draught
     cb = design["hull"]["block_coefficient"]
     planing = design.get("style") == "planing"
-    plan = lay.geo.get("plant") or {}
-    mach = lay.geo.get("machinery")
+    plan = lay.geo.plant or {}
+    mach = lay.geo.machinery
     wl = -(D - T)
     rz = lambda z: z - D
 
@@ -212,8 +212,8 @@ def build(lay, design, res, ag, armoured, form):
     cit = None
     if armoured:
         cit = (ag["x0"], ag["x1"], "armoured" if ag["bulkhead_mm"] > 0 else "citadel")
-    elif lay.geo.get("citadel") and design.get("style", "warship") in ("warship", "carrier"):
-        cit = (*lay.geo["citadel"], "citadel")
+    elif lay.geo.citadel and design.get("style", "warship") in ("warship", "carrier"):
+        cit = (*lay.geo.citadel, "citadel")
     st = stations(L, rooms, cit, min(MIN_SECTION_MAX_M, max(MIN_SECTION_M, MIN_SECTION * L)), max(MAX_SECTION_M, MAX_SECTION * L),
                   [x for s in lay.raised for x in (s["x0"], s["x1"])], [b["x"] for b in ag["end_bulkheads"]])
     # each armoured station's armour: the nearest citadel end or other armoured bulkhead

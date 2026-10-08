@@ -43,10 +43,10 @@ SHAFT_ABOVE_IB = 1.2    # a shaft's centre over the inner bottom at its engine
 SHAFT_R = 0.3           # shaft radius (the hitbox), m
 
 
-def steering_span(L, geo=None):
-    """The steering gear's stretch (x0, x1): the layout's (geo["steering"], layout.add_steering) or the rule's
-    (STEERING)."""
-    return (geo or {}).get("steering") or (-L / 2 + STEERING[0] * L, -L / 2 + STEERING[1] * L)
+def steering_span(L):
+    """The steering gear's stretch (x0, x1) by the rule (STEERING); layout.add_steering places it, and
+    Geo.steering_span gives the layout's when there is one."""
+    return (-L / 2 + STEERING[0] * L, -L / 2 + STEERING[1] * L)
 
 
 def spread(n, y_out):
@@ -61,8 +61,8 @@ def spread(n, y_out):
 
 def _engine_rooms(lay):
     rooms = [(c["x0"], c["x1"], c["id"]) for c in lay.compartments if c["kind"] == "engine_room"]
-    if not rooms and lay.geo.get("machinery"):
-        x0, x1 = lay.geo["machinery"]
+    if not rooms and lay.geo.machinery:
+        x0, x1 = lay.geo.machinery
         rooms = [(x0, x1, None)]
     return sorted(rooms, key=lambda r: -r[1])     # forward first
 
@@ -81,7 +81,7 @@ def gear(lay, design, res):
     dp = max(DP_MIN, (DP_K_PLANING if planing else DP_K) * mw ** 0.4)
     if not planing:
         dp = min(dp, DP_T * T)
-    st0, st1 = lay.geo.get("steering") or (-L / 2 + 0.03 * L, -L / 2 + 0.08 * L)
+    st0, st1 = lay.geo.steering_span(L)
     x_r = st0 + STOCK_AT * (st1 - st0)
 
     # rudders, behind the innermost propellers
@@ -106,7 +106,7 @@ def gear(lay, design, res):
     pairs = n // 2
     groups = pairs + n % 2          # the outer pair first, forward ... the centre shaft (or inner pair) last, aft
     shafts, props = [], []
-    mach = lay.geo.get("machinery")
+    mach = lay.geo.machinery
     for k, (y, rank) in enumerate(shaft_ys):
         sid, pid = f"Shaft {k + 1}", f"Propeller {k + 1}"
         g = pairs - rank
@@ -128,7 +128,7 @@ def build(lay, design, res, form, gr=None):
     keel (hitbox.export_hitboxes turns them into components), and the steering gear's room id. gr: gear(), when the
     hull form was built round it."""
     gr = gr or gear(lay, design, res)
-    mach = lay.geo.get("machinery")
+    mach = lay.geo.machinery
     shafts, alleys = [], []
     for k, sh in enumerate(gr["shafts"]):
         (xs, y, zs), (xp, _, z_p) = sh["p0"], sh["p1"]

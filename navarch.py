@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 
 from armour import armour_checks, armour_geometry, armour_weights
 from batteries import rough_armament
+from geo import Geo
 import hullweight
 import powerplant
 import stability
@@ -125,12 +126,12 @@ def design_freeboard(L, tun=TUNING):
 # ---------------------------------------------------------------------------
 # solver
 # ---------------------------------------------------------------------------
-def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = None) -> Result:
+def solve(design: dict, placed: list[Weight] | None = None, geo: Geo | None = None) -> Result:
     """
     design : player input (see designs/*.json)
     placed : weights with x positions supplied by the layout (armament, armour, superstructure).
              If None, a rough estimate is used (first pass, before anything is laid out).
-    geo    : layout facts: machinery x, citadel span, ...
+    geo    : layout facts (geo.Geo: machinery x, citadel span, ...); None before a layout exists
     The design's style (styles/) adds its own tuning, structure (counted in standard displacement)
     and payload (cargo, aircraft, aviation fuel).
     """
@@ -143,7 +144,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
     cb = design["hull"]["block_coefficient"]
     V = design["speed_kn"]
     rng = design.get("range_nm", 6000)
-    geo = geo or {}
+    geo = Geo() if geo is None else geo
     res = Result()
 
     disp = 200.0 * L * B * cb * 0.04  # initial guess
@@ -157,12 +158,12 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
             hull = hullweight.box_structure(design, L, B, D, tun)
         else:
             hull = hullweight.hull_structure(design, L, B, cb, D, disp, arm, style.strength_deck(design, D),
-                                             geo.get("raised", ()))
+                                             geo.raised)
         z_frac = tun.get("hull_z_frac", 0.58) * (hull.get("depth_m", D) / D)
         items.append(Weight("Hull structure", "hull", hull["t"], x=-0.01 * L, z_rel=("frac", z_frac)))
         shp = power_required(disp, V, L, B, cb, tun)
         items.append(Weight("Machinery", "machinery", powerplant.rated(plant, shp)["weight_t"],
-                            x=geo.get("machinery_x", -0.02 * L), z_rel=("frac", 0.32)))
+                            x=geo.machinery_mid(L), z_rel=("frac", 0.32)))
         if placed is None:
             items += rough_payload(design, D) + style.rough_payload(design, D)
         else:
@@ -184,7 +185,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         shp_c = power_required(disp, vc, L, B, cb, tun)
         fuel = powerplant.fuel_rate(plant, shp, shp_c) * (rng / vc) / 1000.0
         std_load, full_load = style.payload_weights(design, L, D, geo, tun, dict(
-            items=items, fuel=fuel, fuel_x=geo.get("machinery_x", -0.02 * L), lcb=tun["lcb_frac"] * L))
+            items=items, fuel=fuel, fuel_x=geo.machinery_mid(L), lcb=tun["lcb_frac"] * L))
         std += sum(w.w for w in std_load)
         full = std + fuel + sum(w.w for w in full_load)
         if abs(full - disp) < 0.5:
@@ -203,7 +204,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
                           "armament.")
 
     items += std_load
-    items.append(Weight("Fuel", "fuel", fuel, x=geo.get("machinery_x", -0.02 * L), z_rel=("frac", 0.18)))
+    items.append(Weight("Fuel", "fuel", fuel, x=geo.machinery_mid(L), z_rel=("frac", 0.18)))
     items += full_load
     for w in items:
         kind, v = w.z_rel
@@ -222,7 +223,7 @@ def solve(design: dict, placed: list[Weight] | None = None, geo: dict | None = N
         groups[w.group] = groups.get(w.group, 0.0) + w.w
     res.groups = groups
 
-    stability.evaluate(res, L, B, cb, tun, geo.get("windage"))
+    stability.evaluate(res, L, B, cb, tun, geo.windage)
 
     # --- checks ---
     TB = res.draught / B

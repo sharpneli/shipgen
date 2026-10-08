@@ -278,10 +278,10 @@ class Carrier(Style):
             return [], []
         hx0, hx1, _ = dp["hangar"]
         return ([Weight("Air group", "aviation", n * m, x=(hx0 + hx1) / 2, z_rel=("deck", max(dp["fd_h"] - 3, 2))),
-                 Weight("Aviation ordnance", "aviation", ORDNANCE_K * n * m, x=geo.get("magazine_x", 0.2 * L),
-                        z_rel=("deck", geo["magazine_z"]) if "magazine_z" in geo else ("frac", 0.25))],
-                [Weight("Aviation fuel", "fuel", AVGAS_K * n * m, x=geo.get("avgas_x", -0.25 * L),
-                        z_rel=("deck", geo["avgas_z"]) if "avgas_z" in geo else ("frac", 0.15))])
+                 Weight("Aviation ordnance", "aviation", ORDNANCE_K * n * m, x=geo.magazine[0] if geo.magazine else 0.2 * L,
+                        z_rel=("deck", geo.magazine[1]) if geo.magazine else ("frac", 0.25))],
+                [Weight("Aviation fuel", "fuel", AVGAS_K * n * m, x=geo.avgas[0] if geo.avgas else -0.25 * L,
+                        z_rel=("deck", geo.avgas[1]) if geo.avgas else ("frac", 0.15))])
 
     def crew_extra(self, design):
         av = aviation(design)
@@ -317,7 +317,7 @@ def _common(design, shp, shift):
     lay.hull = hull
     lay.shift_range = (-0.04 * hull.L, 0.04 * hull.L)
     shift = clamp(shift, *lay.shift_range)
-    lay.geo["shift"] = shift
+    lay.geo.shift = shift
     return lay, hs, hull, shift
 
 
@@ -335,14 +335,14 @@ def _machinery(lay, design, res, hull, mc):
     if L_mach > 0.5 * hull.L:
         lay.fail("length", f"The machinery needs {L_mach:.0f} m, more than half the hull. Use less power or a more "
                            "compact plant.")
-    lay.geo["machinery"] = (mc - L_mach / 2, mc + L_mach / 2)
-    lay.geo["machinery_x"] = mc
+    lay.geo.machinery = (mc - L_mach / 2, mc + L_mach / 2)
+    lay.geo.machinery_x = mc
     return L_mach
 
 
 def _machinery_rooms(lay, hull, res):
-    m0, m1 = lay.geo["machinery"]
-    add_machinery_rooms(lay, stack_machinery(lay.geo["plant"]["segments"], m1), 0.8 * hull.B / 2, res.depth)
+    m0, m1 = lay.geo.machinery
+    add_machinery_rooms(lay, stack_machinery(lay.geo.plant["segments"], m1), 0.8 * hull.B / 2, res.depth)
 
 
 ORDNANCE_K = 0.6    # aviation ordnance (bombs, torpedoes, rockets), tonnes per tonne of air group
@@ -367,10 +367,12 @@ def _compartments(lay, design, hull, mach, hangar, mounts, extra=()):
                     dict(id="Gun magazines", mounts=ordnance.guns(mounts))]),
         dict(x0=cit[0], x1=m0, half_width=inner_hw,
              rooms=[dict(id="Aviation fuel", kind="fuel_tank", tonnes=AVGAS_K * air_t, t_per_m3=AVGAS_T_PER_M3)])])
-    for key, rid in (("magazine", "Aviation magazines"), ("avgas", "Aviation fuel")):
-        if rid in st:
-            x0, x1, base, top = st[rid]
-            lay.geo[f"{key}_x"], lay.geo[f"{key}_z"] = (x0 + x1) / 2, (base + top) / 2
+    if "Aviation magazines" in st:
+        x0, x1, base, top = st["Aviation magazines"]
+        lay.geo.magazine = (x0 + x1) / 2, (base + top) / 2
+    if "Aviation fuel" in st:
+        x0, x1, base, top = st["Aviation fuel"]
+        lay.geo.avgas = (x0 + x1) / 2, (base + top) / 2
     lay.compartments += [
         dict(id="Hangar", kind="hangar", x0=hx0, x1=hx1, half_width=hhw, base=0.0,
              top=2 * LEVEL_H if av["flight_deck"] == "none" else HANGAR_H * av["hangar_decks"]),
@@ -504,7 +506,7 @@ def _flight_deck_layout(design, res, shift):
 
     # ---------------- machinery and compartments ----------------
     _machinery_rooms(lay, hull, res)
-    _compartments(lay, design, hull, lay.geo["machinery"], dp["hangar"], mounts)
+    _compartments(lay, design, hull, lay.geo.machinery, dp["hangar"], mounts)
     return finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top,
                    flight_deck=fd, sponsons=sponsons, boats=[])
 
@@ -609,7 +611,7 @@ def _seaplane_layout(design, res, shift):
             break
 
     _machinery_rooms(lay, hull, res)
-    _compartments(lay, design, hull, lay.geo["machinery"], (hx0, hx1, hhw), mounts)
+    _compartments(lay, design, hull, lay.geo.machinery, (hx0, hx1, hhw), mounts)
     return finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts, aa_out, fun_top,
                    fittings=fittings, cranes=cranes, boats=boats,
                    bollards=[L / 2 - 0.05 * L, -L / 2 + 0.06 * L], chain_x=L / 2 - 0.06 * L, hawse_back=0.03 * L + 1.0)

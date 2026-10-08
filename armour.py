@@ -15,7 +15,6 @@ from decks import deck_name, deck_stack, raised_pieces
 from geometry import DECK_PITCH, cwp
 import ordnance
 import powerplant
-from propulsion import steering_span
 from weights import STEEL, Weight
 
 TUNING = dict(
@@ -176,7 +175,7 @@ def armour_geometry(design, L, T, D, geo):
                          tapering to tip_mm at its far end
                   upper  armour.upper_belt: from the top of the belt below it up to armour.upper_belt.to_deck,
                          over its extent (one strake per stretch: the citadel, fore and aft)
-                  box    armour.steering_box: the sides of a separate box round the steering gear (steering_span),
+                  box    armour.steering_box: the sides of a separate box round the steering gear (Geo.steering_span),
                          from the inner bottom (the gear stands low) up to its roof, the deck over the gear
       bulkheads the citadel's transverse bulkheads (armour.bulkhead_mm, 0.6 of the belt if not given) close the
                 belts' ends, from the top of the main or upper belt over the citadel down to 0.4 belt heights
@@ -186,13 +185,13 @@ def armour_geometry(design, L, T, D, geo):
                 bulkheads' lower edge up to the belt's top, and the steering box's two ends
                 (steering_box.bulkhead_mm), as tall as its sides. The box's roof is a deck plate (extent
                 "steering") on the deck over the steering gear (ordnance.span, as layout.add_steering stands it). The
-                box's roof and bulkheads span the hull's width there (geo["steering_beam"]; the beam without one).
+                box's roof and bulkheads span the hull's width there (geo.steering_beam; the beam without one).
       materials armour.materials, by part (armour_material): belt_material, bulkhead_material, roof_material,
                 and material on each deck plate and strake. Strings only, for the game's ballistics."""
     a = design.get("armour") or {}
     belt = a.get("belt_mm", 0)
-    x0, x1 = geo.get("citadel", (-0.3 * L, 0.3 * L))
-    raised = geo.get("raised", ())
+    x0, x1 = geo.citadel_span(L)
+    raised = geo.raised
     decks = []
     for d in armour_decks(design, D, raised):
         if d["mm"] <= 0:
@@ -253,9 +252,9 @@ def armour_geometry(design, L, T, D, geo):
     if max(sb.get("mm", 0), sb.get("deck_mm", 0), sb.get("bulkhead_mm", 0)) > 0:
         # a compact box round the steering gear, which stands low (layout.add_steering: ordnance.span over the inner
         # bottom): sides from the inner bottom to the deck over the gear, a roof on that deck, bulkheads at both ends
-        b0, b1 = steering_span(L, geo)
+        b0, b1 = geo.steering_span(L)
         stack = deck_stack(design, D)
-        wbox = geo.get("steering_beam")
+        wbox = geo.steering_beam
         rz_ = ordnance.span(dict(decks=[z for _, z in stack], inner_bottom=powerplant.double_bottom(D),
                                  top=roof["z"] if roof else D))[1] + D
         n = min(stack, key=lambda v: abs(v[1] - rz_))[0]
@@ -350,7 +349,7 @@ def armour_checks(design, res, geo):
     """Warnings on the solved ship's armour (res: navarch.Result, with its armour geometry): an armour deck the hull
     is too shallow for, a belt too shallow under the waterline, an upper belt with no height."""
     out = []
-    for d in armour_decks(design, res.depth, geo.get("raised", ())):
+    for d in armour_decks(design, res.depth, geo.raised):
         if d["asked"] != d["deck"]:
             out.append(f"The hull has no {deck_name(d['asked']).lower()} ({res.depth:.1f} m deep): its "
                        f"{d['mm']} mm deck armour lies on the {deck_name(d['deck']).lower()}.")

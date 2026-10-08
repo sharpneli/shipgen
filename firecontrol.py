@@ -187,7 +187,7 @@ def place(lay, design, blocks):
         def smoky(x, y, z0):    # out of the funnels' smoke first (assign_smoke), at the same height
             return bool(smoke_from(lay.funnels_planned, max((f.get("top", 0.0) for f in lay.funnels_planned),
                                                             default=0.0),
-                                   lay.geo.get("smoke_reach", 0.0), x + hl, z0 + LEVEL_H, y, w))
+                                   lay.geo.smoke_reach, x + hl, z0 + LEVEL_H, y, w))
 
         # the superstructure's roofs, then the raised stretches' decks (a level-1 roof of the hull) for any left
         for spots in (roof_spots(blocks, l, w), roof_spots(raised_roofs(lay), l, w)):

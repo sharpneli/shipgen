@@ -136,7 +136,7 @@ class Merchant(Style):
 
     def payload_weights(self, design, L, D, geo, tun, ctx):
         cg = cargo(design)
-        holds = geo.get("holds") or [(-0.3 * L, 0.3 * L)]
+        holds = geo.holds or [(-0.3 * L, 0.3 * L)]
         if not cg["deadweight_t"]:
             return [], []
         loads = stow(cg["deadweight_t"], holds, ctx)
@@ -150,11 +150,11 @@ class Merchant(Style):
     def results(self, design, lay, r):
         cg, m = cargo(design), machinery(design)
         return dict(cargo_t=round(cg["deadweight_t"]), deadweight_t=round(r.full - r.std),
-                    cargo_kind=cg["kind"], holds=len(lay.geo.get("holds", [])), machinery_position=m["position"])
+                    cargo_kind=cg["kind"], holds=len(lay.geo.holds or []), machinery_position=m["position"])
 
     def summary(self, design, lay, r):
         cg, m = cargo(design), machinery(design)
-        return [f"cargo: {cg['deadweight_t']:,.0f} t {cg['kind']} in {len(lay.geo.get('holds', []))} "
+        return [f"cargo: {cg['deadweight_t']:,.0f} t {cg['kind']} in {len(lay.geo.holds or [])} "
                 f"{'tanks' if cg['kind'] == 'tanker' else 'holds'}   deadweight {r.full - r.std:,.0f} t   "
                 f"machinery {m['position']}"]
 
@@ -171,7 +171,7 @@ def _layout(design, res, shift):
     aft_engines = mach["position"] == "aft"
     lay.shift_range = (-0.05 * L, 0.05 * L)
     shift = clamp(shift, *lay.shift_range)
-    lay.geo["shift"] = shift
+    lay.geo.shift = shift
     armour = design.get("armour") or {}
     L_mach = plan_machinery(lay, design, res, hull, -0.38 * L if aft_engines else 0.0)
 
@@ -234,8 +234,8 @@ def _layout(design, res, shift):
             boats.append(dict(x=x, y=s * boat_y, l=bl_, w=0.3 * bl_, top=RAISED_H + LEVEL_H + 1.5))
             lay.occupy(_fp_rect(x - bl_ / 2, s * boat_y - 0.15 * bl_, x + bl_ / 2, s * boat_y + 0.15 * bl_),
                        RAISED_H + LEVEL_H, RAISED_H + LEVEL_H + 1.5, f"Boat{len(boats)}")
-    lay.geo["machinery"] = (mx - L_mach / 2, mx + L_mach / 2)
-    lay.geo["machinery_x"] = mx
+    lay.geo.machinery = (mx - L_mach / 2, mx + L_mach / 2)
+    lay.geo.machinery_x = mx
 
     # ---------------- guns: "ends" on the poop and forecastle, "sides" along the bulwarks ----------------
     # (fitted before the cargo gear, which makes way)
@@ -313,14 +313,13 @@ def _layout(design, res, shift):
     elif cg["deadweight_t"]:
         vol = hold_volume(hull, holds, depth)
         need = cg["deadweight_t"] * STOWAGE[cg["kind"]]
-        lay.geo["hold_volume"] = vol
         if vol < need:
             lay.fail("length", f"The {'tanks' if tanker else 'holds'} take about {vol:,.0f} m3, but "
                                f"{cg['deadweight_t']:,.0f} t of cargo needs about {need:,.0f} m3. Carry less cargo.")
     hatch_t = sum(h["l"] * h["w"] for h in hatches) * 0.12
     if hatch_t:
         lay.weights.append(Weight("Hatch covers", "superstructure", hatch_t, x=0.0, z_rel=("deck", 1.0)))
-    lay.geo["holds"] = holds
+    lay.geo.holds = holds
 
     # ---------------- torpedo mounts and AA ----------------
 
@@ -344,11 +343,11 @@ def _layout(design, res, shift):
 
     # ---------------- compartments ----------------
     inner_hw = 0.85 * B / 2
-    m0, m1 = lay.geo["machinery"]
+    m0, m1 = lay.geo.machinery
     for i, (h0, h1) in enumerate(holds):
         lay.compartments.append(dict(id=f"{'Tank' if tanker else 'Hold'} {i + 1}",
                                      kind="cargo_tank" if tanker else "hold", x0=h0, x1=h1, half_width=inner_hw))
-    add_machinery_rooms(lay, stack_machinery(lay.geo["plant"]["segments"], m1), inner_hw, depth)
+    add_machinery_rooms(lay, stack_machinery(lay.geo.plant["segments"], m1), inner_hw, depth)
     steer = add_steering(lay)
     # the guns' magazine aft, just forward of the steering gear, low on the inner bottom (ordnance.stow)
     guns = ordnance.guns(mounts)
@@ -356,7 +355,7 @@ def _layout(design, res, shift):
         mx0 = steer["x1"]
         mw = min(inner_hw, 0.5 * B / 2)
         ordnance.stow(lay, mounts, [dict(x0=mx0, x1=mx0 + ordnance.zone_length(
-            ordnance.booked_m3(lay, guns), 2 * mw, lay.geo["plant"]), half_width=mw,
+            ordnance.booked_m3(lay, guns), 2 * mw, lay.geo.plant), half_width=mw,
             rooms=[dict(id="Gun magazine", mounts=guns)])])
     set_citadel(lay, m0, m1)
 

@@ -85,7 +85,7 @@ def _layout(design, res, shift):
     L, B = hull.L, hull.B
     lay.shift_range = (-0.04 * L, 0.04 * L)
     shift = clamp(shift, *lay.shift_range)
-    lay.geo["shift"] = shift
+    lay.geo.shift = shift
 
     # charthouse with the open bridge at its after end, a short radar mast
     blocks = []
@@ -98,8 +98,8 @@ def _layout(design, res, shift):
     L_mach = plan_machinery(lay, design, res, hull, (m0 + m1) / 2)
     if L_mach > m1 - m0:
         lay.fail("length", f"The engines need {L_mach:.1f} m, but the engine room has {m1 - m0:.1f} m.")
-    lay.geo["machinery"] = (m0, m1)
-    lay.geo["machinery_x"] = (m0 + m1) / 2
+    lay.geo.machinery = (m0, m1)
+    lay.geo.machinery_x = (m0 + m1) / 2
     set_citadel(lay, m0, m1)
 
     mounts, turret_types = [], {}
@@ -173,7 +173,7 @@ def _layout(design, res, shift):
     if guns:
         lx1, lw = L / 2 - 0.08 * L, 0.5 * inner_hw
         ordnance.stow(lay, mounts, [dict(x0=lx1 - ordnance.zone_length(ordnance.booked_m3(lay, guns), 2 * lw,
-                                                                       lay.geo["plant"], tiers=1, least=0.5),
+                                                                       lay.geo.plant, tiers=1, least=0.5),
                                          x1=lx1, half_width=lw, rooms=[dict(id="Ammunition locker", mounts=guns)])])
     # no bollards: a small craft's cleats are too small to draw
     return finish_layout(lay, design, hs, mounts, turret_types, blocks, [], masts, aa_out, 0.0,
