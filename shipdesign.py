@@ -410,7 +410,7 @@ def height_columns(lay, deck_m):
         items.append(dict(top=deck_m + block_top(b), shape="polygon", points=pts))
     for a in lay.aa:
         items.append(dict(top=deck_m + a["base"] + 2.0, shape="circle", cx=a["x"], cy=a["y"],
-                          r=AA_CFG[a["type"]][0] * 0.8))
+                          r=AA_CFG[a["type"]].r * 0.8))
     for bt in lay.spec.get("boats", []):
         items.append(dict(top=deck_m + bt.get("top", LEVEL_H + 1.5), shape="ellipse", cx=bt["x"], cy=bt["y"],
                           rx=bt["l"] / 2, ry=bt["w"] / 2))

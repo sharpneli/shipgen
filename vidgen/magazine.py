@@ -14,7 +14,6 @@ positions are +x bow, +y starboard, z up from the water.
 from __future__ import annotations
 
 import math
-import re
 
 import numpy as np
 
@@ -88,15 +87,14 @@ def fire_rgb(T):
     return np.stack([np.interp(K, muzzle._RGB_T, muzzle._RGB[:, i]) for i in range(3)], -1)
 
 
-def gun_of(type_id):
-    """(bore m, calibre length) from a turret type id such as 't2x380L52'."""
-    m = re.search(r"x([\d.]+)(?:L(\d+))?", type_id or "")
-    return (float(m.group(1)) / 1000, float(m.group(2) or 45)) if m else (0.15, 45.0)
+def gun_of(comp):
+    """(bore m, calibre length) of a mount's hitbox component (its calibre_mm and calibre_length)."""
+    return comp.get("calibre_mm", 150.0) / 1000, comp.get("calibre_length", 45.0)
 
 
-def propellant_share(type_id):
+def propellant_share(comp):
     """The propellant's share of a round's weight: muzzle.py's charge fit against its shell fit (380/52: 23 %)."""
-    d, L = gun_of(type_id)
+    d, L = gun_of(comp)
     charge = muzzle.Gun(d, L).charge
     return charge / (charge + 14000.0 * d ** 3)
 
@@ -154,7 +152,7 @@ def plan(hit, mounts, mag_ids, tier, t_hit, freeboard, rng):
                              + ", ".join(r["id"] for r in hit["rooms"] if r["kind"] == "magazine"))
         room = rooms[rid]
         served = [room["mount"]] if room.get("mount") else list(room.get("mounts", []))
-        share = np.mean([propellant_share(comps.get(m, {}).get("type")) for m in served]) if served else 0.23
+        share = np.mean([propellant_share(comps.get(m, {})) for m in served]) if served else 0.23
         M = room["tonnes"] * 1000 * share * F_FAST
         x0, x1 = room["x0"], room["x1"]
         xc = 0.5 * (x0 + x1)
@@ -182,7 +180,7 @@ def plan(hit, mounts, mag_ids, tier, t_hit, freeboard, rng):
                 # gun ports: along the barrels, horizontal but for the guns' elevation (research 2.5)
                 x = mt["pos"][0] + p[0] * ca - p[1] * sa
                 y = mt["pos"][1] + p[0] * sa + p[1] * ca
-                d_eq = 2.5 * gun_of(comps.get(m, {}).get("type"))[0]
+                d_eq = 2.5 * gun_of(comps.get(m, {}))[0]
                 ops.append(dict(pos=(x, y, hz), dir=(ca * math.cos(mt["el"]), sa * math.cos(mt["el"]),
                                                      math.sin(mt["el"]) + 0.05),
                                 d=d_eq, t_fail=t0 + T_PORTS + 0.02 * j, Lmax=90.0))

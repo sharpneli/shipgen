@@ -15,7 +15,7 @@ from geometry import battery_type, make_torpedo_type, rotate_translate, superfir
 from geometry import turret_shapes
 from layout import _fp_circle, _fp_rect, _overlap, stepped_counts, turret_name
 from weights import Weight
-from batteries import TUNING, mount_weights, secondary_batteries, torpedo_weight
+from batteries import TUNING, battery_prefix, mount_weights, secondary_batteries, torpedo_weight
 from geometry import AA_CFG
 
 
@@ -92,10 +92,11 @@ def add_mount(lay, mounts, kind, t_id, t, mid, x, y, base, rest, level=0, armour
 
 
 def gun_line(lay, mounts, turret_types, gun, kind, names, x_start, step_dir, y, rest, deck_h,
-             raise_inner=False, armour_mm=0.0, depth=10.0, label="Main", ignore=()):
+             raise_inner=False, armour_mm=0.0, depth=10.0, label="Main", ignore=(), battery=None):
     """n mounts in a line from x_start (the edge of the first mount) in direction step_dir (+1 forward,
     -1 aft). deck_h(x) gives the deck height under a mount. Each further mount superfires over the one
-    before it; with raise_inner the first one is the highest instead (guns stepping down away from an island)."""
+    before it; with raise_inner the first one is the highest instead (guns stepping down away from an island).
+    battery: the secondary battery the mounts belong to (batteries.battery_prefix)."""
     n = gun["count"]
     if not n:
         return
@@ -121,7 +122,7 @@ def gun_line(lay, mounts, turret_types, gun, kind, names, x_start, step_dir, y, 
             continue
         stow = (rest + 180) % 360     # flush: stowed pointing away from the stepped turret ahead of it
         add_mount(lay, mounts, kind, t_id, t, mid, x, y, base, stow if flush else rest, level=level,
-                  armour_mm=armour_mm, depth=depth)
+                  armour_mm=armour_mm, depth=depth, **({"battery": battery} if battery else {}))
         if flush:
             mounts[-1]["arc_role"] = "beam"
 
@@ -132,7 +133,8 @@ def side_pairs(lay, mounts, turret_types, kind, t_id, t, per_side, cands, prefix
     preference, mirrored to -y; or (x, y, base, y_port) when the sides differ (an angled flight deck).
     A candidate is used when both sides are free and it keeps pitch from the others already placed. Guns stow
     fore-and-aft (stow_bearing), so their barrels must be free too, and a mount keeps its barrels' length from the
-    next one in the direction they point; torpedo mounts stow on the beam."""
+    next one in the direction they point; torpedo mounts stow on the beam. Secondaries belong to battery prefix
+    (batteries.battery_prefix)."""
     if not per_side:
         return 0
     turret_types[t_id] = t
@@ -162,7 +164,8 @@ def side_pairs(lay, mounts, turret_types, kind, t_id, t, per_side, cands, prefix
             mid = f"{prefix}{k}{'S' if side > 0 else 'P'}"
             if guns:
                 add_mount(lay, mounts, kind, t_id, t, mid, x, yy, base, stow_bearing(x, side, 90.0),
-                          armour_mm=armour_mm, depth=depth, side_mount=True)
+                          armour_mm=armour_mm, depth=depth, side_mount=True,
+                          **({"battery": prefix} if kind == "secondary" else {}))
             else:
                 add_mount(lay, mounts, kind, t_id, t, mid, x, yy, base, 90 * side, armour_mm=armour_mm, depth=depth)
         placed.append(x)
@@ -195,7 +198,7 @@ def place_batteries(lay, mounts, turret_types, design, end_lines, side_slots, de
     cursor = [ln[0] for ln in end_lines]
     for k, b in enumerate(batteries(design)):
         first = len(mounts)
-        prefix = "S" if k == 0 else "S" + "BCDEFG"[k - 1]
+        prefix = battery_prefix(k)
         t_id, t = gun_type(b)
         turret_types[t_id] = t
         n_end = b["count"] if b["where"] == "ends" else b["count"] % 2
@@ -210,7 +213,7 @@ def place_batteries(lay, mounts, turret_types, design, end_lines, side_slots, de
                 continue
             gun_line(lay, mounts, turret_types, {**b, "count": n, "flat": True}, "secondary",
                      [f"{prefix}{made + j + 1}" for j in range(n)], cursor[i], d, y, rest, deck_h,
-                     armour_mm=b["armour_mm"], depth=depth, label="Secondary", ignore=ign)
+                     armour_mm=b["armour_mm"], depth=depth, label="Secondary", ignore=ign, battery=prefix)
             cursor[i] += d * (2 * body_reach(t) + (n - 1) * (2.2 * t["r"] + 3.0) + 1.0)
             made += n
         if n_side:
@@ -258,9 +261,9 @@ def place_aa(lay, aa_out, kind, count, cands, spacing=None, ignore=(), layer_of=
     the leftover). A slot must be free of what's placed at its height (ignore: ids to disregard, or a function of the
     slot's base giving them) and clear of the guns' sweeps. A mount above the main deck stands in a tub (AA_TUB_T, weighed with it). layer_of(base):
     the sprite layer ("base" by default)."""
-    rr = AA_CFG[kind][0]
+    rr = AA_CFG[kind].r
     spacing = spacing if spacing is not None else (3.0 if kind == "quad40" else 2.2)
-    aa_fps = [_fp_circle(a["x"], a["y"], AA_CFG[a["type"]][0]) for a in aa_out]   # spaced from each other
+    aa_fps = [_fp_circle(a["x"], a["y"], AA_CFG[a["type"]].r) for a in aa_out]   # spaced from each other
 
     def single(c):
         return c[1] == 0 or (len(c) > 3 and c[3] is None)

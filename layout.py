@@ -20,9 +20,7 @@ the renderer spec, the hitboxes and the weight model.
 from __future__ import annotations
 
 import bisect
-import functools
 import math
-import re
 
 from geometry import (battery_type, make_torpedo_type, rrect_polygon, rrect_clamped, circle_polygon,
                       turret_shapes, turret_height, turret_reach, point_in_polygon, polygons_intersect,
@@ -31,7 +29,7 @@ from geometry import (battery_type, make_torpedo_type, rrect_polygon, rrect_clam
 import ordnance
 import powerplant
 from weights import Weight
-from batteries import battery_turrets, main_batteries, mount_weights, secondary_batteries, torpedo_weight
+from batteries import battery_prefix, battery_turrets, main_batteries, mount_weights, secondary_batteries, torpedo_weight
 from navarch import TUNING
 from geo import Geo
 from arcs import ARC_BEAM, ARC_CASEMATE, ARC_CROSS, mount_traverse
@@ -281,17 +279,22 @@ def _sector_dist(sec, px, py):
 
 
 def add_block(lay, blocks, bid, x0, x1, w, level, rf, rb, y=0.0, z0=0.0, layer=None, kind="superstructure",
-              t_per_m2=None, points=None):
+              t_per_m2=None, points=None, role="deckhouse", office=False):
     """Superstructure block standing on z0 (metres above the main deck): footprint, weight, record.
     Blocks above the main deck go on the upper sprite layer. points: an outline polygon instead of the rounded
-    rectangle; x0, x1, y and w then become its bounding box, and rf, rb are 0 (its corners are sharp)."""
+    rectangle; x0, x1, y and w then become its bounding box, and rf, rb are 0 (its corners are sharp).
+    role: what the block is for (BLOCK_ROLES); office: offices and cabins under a control position (a bridge or
+    aft control's base levels), which need no view."""
+    assert role in BLOCK_ROLES, role
     if points:
         points = [(round(px, 3), round(py, 3)) for px, py in points]
         x0, x1 = min(p[0] for p in points), max(p[0] for p in points)
         y0, y1 = min(p[1] for p in points), max(p[1] for p in points)
         y, w, rf, rb = (y0 + y1) / 2, y1 - y0, 0.0, 0.0
     rf_, rb_ = rrect_clamped(x0, y - w / 2, x1, y + w / 2, rf, rb)
-    b = dict(id=bid, kind=kind, x0=x0, x1=x1, y=y, w=w, level=level, rf=rf_, rb=rb_)
+    b = dict(id=bid, kind=kind, role=role, x0=x0, x1=x1, y=y, w=w, level=level, rf=rf_, rb=rb_)
+    if office:
+        b["office"] = True
     if points:
         area, xc = polygon_centroid(points)
         b.update(points=[list(p) for p in points], area=round(area, 2))
@@ -325,7 +328,7 @@ def block_plating(lay, b):
     from geometry import block_outline
     own = hullweight.SUP_PLATE_K * own_plate_mm(lay)
     mm = max(own, lay.sup_plate[0])
-    if block_role(b["id"]) in ("bridge", "aft_control"):
+    if b["role"] in ("bridge", "aft_control"):
         mm = max(mm, lay.sup_plate[1])
     b["_plate_mm"] = round(mm, 1)
     pts = block_outline(b)
@@ -529,12 +532,6 @@ AA_SINGLE_PEN = 0.1
 AA_DECK_PEN = 0.3        # on the bare deck edge: only once the roofs are full (no one-off pedestals, user 2026-10-05)
 
 
-def battery_of(mid):
-    """A grouped mount's battery: its id less the number and side ("SB3P" -> "SB", "W1S" -> "W1")."""
-    pre, num = re.match(r"^([A-Z]+?)(\d+)[SP]$", mid).groups()
-    return pre + num if pre == "W" else pre
-
-
 def magazine_plan(design, wings=()):
     """The magazines grouped fore and aft of the machinery (warships): the secondaries' (deck and casemate) and
     the abreast wing turrets'. Each battery sends the forward half of its pairs (rounded up) to the fore group;
@@ -569,15 +566,15 @@ def add_magazines(lay, mounts, inner_hw, groups=None):
         if m["kind"] not in ("main", "secondary"):
             continue
         if groups and (m["kind"] == "secondary" or (m.get("wing") and not m.get("echelon"))):
-            batteries.setdefault(battery_of(m["id"]), []).append(m)
+            batteries.setdefault(m["battery"], []).append(m)
             continue
         zones.append(ordnance.own_zone(m, inner_hw))
     rooms = {"fore": [], "aft": []}
     for bat, ms in batteries.items():
         pairs = sorted({m["x"] for m in ms}, reverse=True)
-        n_fore = len(pairs) if not bat.startswith("W") else 0
-        if bat.startswith("W"):            # wing pair k stands at the fore end of the middle for even k
-            n_fore = len(pairs) if int(bat[1:]) % 2 == 1 else 0
+        n_fore = len(pairs)
+        if ms[0].get("wing"):           # a wing pair: to the end of the middle it stands at
+            n_fore = len(pairs) if ms[0]["magazine_end"] == "fore" else 0
         elif "fore" in groups and "aft" in groups:
             n_fore = (len(pairs) + 1) // 2
         n_fore = len(pairs) if "aft" not in groups else 0 if "fore" not in groups else n_fore
@@ -822,22 +819,9 @@ def block_top(b):
     return b.get("z0", 0.0) + LEVEL_H * b["level"]
 
 
-# What a superstructure block is for, by its id with any trailing number and side letter removed.
-BLOCK_ROLES = {
-    "Bridge": "bridge", "Bridge upper": "bridge", "Bridge base": "bridge", "Charthouse": "bridge",
-    "Main director": "director", "Aft director": "director", "Director": "director",
-    "Secondary director": "director", "AA director": "director",
-    "Tower": "bridge", "Island tower": "island",
-    "Aft control": "aft_control", "Aft control upper": "aft_control", "Aft control base": "aft_control",
-    "Island": "island", "Island upper": "island",
-    "Hangar": "hangar", "Hangar roof": "hangar",
-    "Casemate housing": "casemate",
-}
-
-
-def block_role(bid):
-    """A superstructure block's role (BLOCK_ROLES); anything else is a deckhouse."""
-    return BLOCK_ROLES.get(re.sub(r"\s*\d+[SP]?$", "", bid), "deckhouse")
+# What a superstructure block is for (add_block's role): its hitbox role, and the rules that read it (plating,
+# smoke, crew)
+BLOCK_ROLES = ("deckhouse", "bridge", "aft_control", "director", "island", "hangar", "casemate")
 
 
 # Warship and carrier planform. The main deck fills more of its L x B box than the waterplane (geometry.cwp), since
@@ -923,7 +907,7 @@ def finish_layout(lay, design, hs, mounts, turret_types, blocks, funnels, masts,
         length=lay.hull.L, beam=lay.hull.B, bow=hs["bow"], stern=hs["stern"], deck=deck,
         turret_types=turret_types,
         turrets=[dict(id=m["id"], type=m["type"], x=m["x"], y=m["y"], z=m["z"], rest=m["rest"]) for m in mounts],
-        superstructure=[{k: v for k, v in b.items() if k not in ("id", "kind") and not k.startswith("_")}
+        superstructure=[{k: v for k, v in b.items() if k not in ("id", "kind", "role", "office") and not k.startswith("_")}
                         for b in blocks],
         funnels=[{k: v for k, v in f_.items() if k not in ("id", "seg", "serves")} for f_ in funnels],
         masts=masts, aa=[{k: v for k, v in a.items() if k not in ("id", "base")} for a in aa_out],
@@ -970,7 +954,7 @@ def lateral_profile(lay, blocks, funnels, masts, mounts, aa, fun_top):
         r = m["t"]["r"]
         add(m["x"] - r, m["x"] + r, 0.0, m["top"])
     for a in aa:
-        r = AA_CFG[a["type"]][0]
+        r = AA_CFG[a["type"]].r
         add(a["x"] - r, a["x"] + r, a["base"], a["base"] + 2.0)
     area = mom = 0.0
     for spans in cols.values():      # per column: the union of its spans (overlaps count once)
@@ -996,11 +980,6 @@ def clamp(v, lo, hi):
 def turret_name(letters, i):
     """A, B, C, then A4, A5, ... (letters[0] plus the turret's number in its group)."""
     return letters[i] if i < len(letters) else f"{letters[0]}{i + 1}"
-
-
-def battery_prefix(k):
-    """Mount id prefix of the k-th secondary battery: S, SB, SC, ..."""
-    return "S" if k == 0 else f"S{chr(ord('A') + k)}" if k < 26 else f"S{k + 1}-"
 
 
 def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
@@ -1155,7 +1134,7 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
             for side in (1, -1):
                 mid = f"{sec['prefix']}{i + 1}{'S' if side > 0 else 'P'}"
                 armament.add_mount(lay, mounts, "secondary", t_id, t, mid, x, side * yo, base,
-                                   armament.stow_bearing(x, side, ARC_CASEMATE), armour_mm=arm, depth=depth, top=top, footprint_r=CASEMATE_SHIELD * rc,
+                                   armament.stow_bearing(x, side, ARC_CASEMATE), battery=sec["prefix"], armour_mm=arm, depth=depth, top=top, footprint_r=CASEMATE_SHIELD * rc,
                                    casemate=True, material=sec.get("material"))
     # housings close together (no lower shield between them) join into one gallery, its outer face the innermost
     galleries.sort()
@@ -1169,7 +1148,7 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
     for k, (x0, x1, yo, d) in enumerate(merged):
         for side in (1, -1):
             add_block(lay, blocks, f"Casemate housing {k + 1}{'S' if side > 0 else 'P'}", x0, x1, d, 1,
-                      0.3, 0.3, y=side * (yo - d / 2))
+                      0.3, 0.3, y=side * (yo - d / 2), role="casemate")
 
 
 def stepped_counts(main):
@@ -1472,14 +1451,14 @@ def bevel_outline(pts, keep=(), flush=(), inner=None):
 
 
 def add_level(lay, blocks, bid, level, x0, x1, w, support=None, keep=(), ignore=(),
-              notches=(), joins=(None, None), bevel=None):
+              notches=(), joins=(None, None), bevel=None, role="deckhouse", office=False):
     """One superstructure level as a block, shaped by level_outline (support: the polygon it stands on, the deck band
     by default), bevelled (bevel_outline) and narrowed at its notches (notch_outline). Returns the block, or None if
     nothing of it stands on its support. A notched block keeps its convex outline (_support) for the level above to
     stand on, and its notches (_notches) for that level to keep. joins: (aft, fwd) blocks an end butts flush
     against: that end stays flat at x0 / x1, doesn't keep clear of the block, and where it is wider than the block's
     face falls back to the side in a shoulder (shoulder_outline) instead of a bevel. bevel: the corner cut
-    (bevel_outline's inner). A level wholly inside the raised hull under it (at or below its lowest deck there, its
+    (bevel_outline's inner). role, office: add_block's. A level wholly inside the raised hull under it (at or below its lowest deck there, its
     ends allowed a break's 0.75 m overhang) is left out: the hull already is that level."""
     if level <= lay.deck_levels((x0 + x1) / 2, max(0.0, (x1 - x0) / 2 - 0.75))[0]:
         return None
@@ -1497,7 +1476,7 @@ def add_level(lay, blocks, bid, level, x0, x1, w, support=None, keep=(), ignore=
     convex = pts
     if notches:
         pts = notch_outline(pts, notches)
-    b = add_block(lay, blocks, bid, x0, x1, w, level, 0.0, 0.0, points=pts)
+    b = add_block(lay, blocks, bid, x0, x1, w, level, 0.0, 0.0, points=pts, role=role, office=office)
     if notches:
         b["_support"], b["_notches"] = [list(p) for p in convex], list(notches)
     return b
@@ -1661,7 +1640,7 @@ def add_deckhouse_levels(lay, blocks, n, x0, x1, base_blocks, dh_w, through=()):
         # what a level's end may butt flush against: the bridge tower's and aft control's blocks at its level,
         # across the centreline, within DH_JOIN
         towers = [t for t in blocks if abs(block_base(t) - base) < 1e-6 and t.get("kind") == "superstructure"
-                  and not t["id"].startswith("Deckhouse") and abs(t["y"]) < t["w"] / 2]
+                  and t["role"] != "deckhouse" and abs(t["y"]) < t["w"] / 2]
         for a, b in pieces:     # each run a level (add_level) on the block it stands on
             j_aft = next((t for t in towers if a - DH_JOIN <= t["x1"] <= a + 1e-6), None)
             j_fwd = next((t for t in towers if b - 1e-6 <= t["x0"] <= b + DH_JOIN), None)
@@ -2350,13 +2329,13 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
             for x, side in pair:
                 fwd = (x == pair[0][0]) if g.echelon else x >= mach_c
                 main_mount(g, f"W{k + 1}{'S' if side > 0 else 'P'}", x, side * y_g, 0 if fwd else 180, wing=True,
+                           battery=f"W{k + 1}", magazine_end="fore" if x >= mach_c else "aft",
                            **({"echelon": True} if g.echelon else {}), **({"cross_deck": True} if g.cross else {}))
 
     # ---------------- superstructure, kept out of the guns' sweeps ----------------
     # every level keeps clear of the end groups' turrets (level_outline): all but wing and midships turrets
     lay.end_mounts = [m for m in mounts if m["kind"] == "main" and not (m.get("wing") or m.get("midships"))]
     blocks = []
-    block = functools.partial(add_block, lay, blocks)      # the shared add_block, on this ship's list
 
     # the bridge tower steps aft, and the aft control forward, until no turret's barrels can reach them
     tower_top = LEVEL_H * n_tower + hood
@@ -2381,16 +2360,16 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         x1 = bx1 - 0.25 * (lb - l)
         return x1 - l, x1, w2 * fw
 
-    def stack(bid, k, x0_, x1_, w_, below):
+    def stack(bid, k, x0_, x1_, w_, below, role="bridge", office=False):
         """One level of a tower standing on the level below (below: its block, or None for the deck band). Upper
         levels never grow past their core, so a tower keeps its setbacks."""
-        b_ = add_level(lay, blocks, bid, k, x0_, x1_, w_, support=below and below["points"])
+        b_ = add_level(lay, blocks, bid, k, x0_, x1_, w_, support=below and below["points"], role=role, office=office)
         return b_ or below
 
     below = None
     for k in range(2, nb):
         x0_, x1_, w_ = tower_fp(k)
-        below = stack(f"Bridge base {k}", k, x0_, x1_, w_, below)
+        below = stack(f"Bridge base {k}", k, x0_, x1_, w_, below, office=True)
     tower_foot = blocks[0] if blocks else None
     tx0, tx1, _ = tower_fp(nb - 1) if nb > 2 else (bx0, bx1, w2)
     tl = tx1 - tx0
@@ -2420,9 +2399,9 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     if la:
         below = None
         for k in range(2, na_lvl):     # base levels under it, as under the bridge
-            below = stack(f"Aft control base {k}", k, ax0, ax0 + la, 0.28 * B, below)
-        below = stack("Aft control", na_lvl, ax0, ax0 + la, 0.28 * B, below)
-        stack("Aft control upper", na_lvl + 1, ax0 + 0.25 * la, ax0 + 0.75 * la, 0.17 * B, below)
+            below = stack(f"Aft control base {k}", k, ax0, ax0 + la, 0.28 * B, below, "aft_control", True)
+        below = stack("Aft control", na_lvl, ax0, ax0 + la, 0.28 * B, below, "aft_control")
+        stack("Aft control upper", na_lvl + 1, ax0 + 0.25 * la, ax0 + 0.75 * la, 0.17 * B, below, "aft_control")
 
     # each boiler group's funnels are trunked aft, toward the boundary with what lies aft of the boilers (the
     # engine rooms), so the funnels don't all crowd the forward end of the machinery: the group's middle goes to the
@@ -2584,7 +2563,8 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
                 armament.add_mount(lay, mounts, "secondary", ts_id, ts, mid, sx, side * y_s, sec_base(sx),
                                    armament.stow_bearing(sx, side, 90.0), armour_mm=sec["armour_mm"],
                                    depth=depth, top=sec_base(sx) + ths, footprint_r=rs_reach,
-                                   material=sec.get("material"), deck=lay.deck_z(sx, rs_reach), side_mount=True)
+                                   material=sec.get("material"), deck=lay.deck_z(sx, rs_reach), side_mount=True,
+                                   battery=pre)
         if raised and sxs:     # level 1 under them, where no raised stretch already is
             y_s = max(y_at(sx) for sx in sxs)
             riders += [(sx - rs_reach - DH_INSET, sx + rs_reach + DH_INSET, y_s + rs_reach + DH_INSET) for sx in sxs
@@ -2593,7 +2573,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
 
     # ---------------- casemates: guns in the hull side, below the main deck ----------------
     place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth)
-    housings = [b for b in blocks if b["id"].startswith("Casemate housing")]
+    housings = [b for b in blocks if b["role"] == "casemate"]
     # level 1 fills the deck between the housings, out to their inner faces: one battery deck with them
     riders += [(b["x0"], b["x1"], abs(b["y"]) - b["w"] / 2) for b in housings]
 
@@ -2605,7 +2585,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     # A ship without riders keeps level 1 under its towers, the guns on the main deck around them.
     dh = dict(x0=bx0 - 3.0, x1=bx1 + 1.0)       # under the bridge
     dh_w = 0.62 * B
-    pieces = []      # (id, x0, x1, w)
+    pieces = []      # (id, x0, x1, w, role)
     aft_on = False   # the aft control stands on the riders' piece
     if riders:
         rx0, rx1 = min(r_[0] for r_ in riders), max(r_[1] for r_ in riders)
@@ -2623,11 +2603,11 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         if la and deck_free(ax0 + la, rx0):
             rx0, aft_on = min(rx0, ax0), True
         hw_max = max(hull.half_width(rx0 + (rx1 - rx0) * k / 20) for k in range(21))
-        pieces.append(("Deckhouse", rx0, rx1, min(rw, 2 * (hw_max - DH_INSET))))   # sides follow the deck edge
+        pieces.append(("Deckhouse", rx0, rx1, min(rw, 2 * (hw_max - DH_INSET)), "deckhouse"))   # sides follow the deck edge
     if dh:
-        pieces.append(("Deckhouse-2" if pieces else "Deckhouse", dh["x0"], dh["x1"], dh_w))
+        pieces.append(("Deckhouse-2" if pieces else "Deckhouse", dh["x0"], dh["x1"], dh_w, "deckhouse"))
     if la and not aft_on:
-        pieces.append(("Aft control base 1", ax0, ax0 + la, 0.28 * B))
+        pieces.append(("Aft control base 1", ax0, ax0 + la, 0.28 * B, "aft_control"))
 
     def dh_rect(x0, x1):     # the widest the piece can get (the hull's)
         hw = min(hull.half_width(x0), hull.half_width(x1)) - 0.6
@@ -2638,7 +2618,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
     # its roof) is left out
     raised_ids = [s_["id"] for s_ in lay.raised]
     cut = []
-    for pid, x0_, x1_, w_ in pieces:
+    for pid, x0_, x1_, w_, role in pieces:
         runs = [[x0_, x1_]]
         for s_ in lay.raised:
             runs = [q for a_, b_ in runs for q in ([a_, min(b_, s_["x0"])], [max(a_, s_["x1"]), b_]) if q[1] > q[0]]
@@ -2646,9 +2626,9 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
                 if b_ - a_ >= DH_SLIVER or (a_, b_) == (x0_, x1_) or any(
                     o[1] >= LEVEL_H - 0.01 and a_ <= (_bbox(o[0])[0] + _bbox(o[0])[2]) / 2 <= b_ and o[3] not in
                     raised_ids and id(o[0]) not in lay.overhangs for o in lay.footprints)]
-        cut += [(pid + (f" part {k + 1}" if k else ""), a_, b_, w_) for k, (a_, b_) in enumerate(runs[::-1])]
+        cut += [(pid + (f" part {k + 1}" if k else ""), a_, b_, w_, role) for k, (a_, b_) in enumerate(runs[::-1])]
     level1 = []
-    for pid, x0_, x1_, w_ in cut:
+    for pid, x0_, x1_, w_, role in cut:
         # trim the ends out of low turrets' sweeps
         while not lay.clear(dh_rect(x0_, x1_), LEVEL_H) and x1_ - x0_ > 4:
             if lay.clear(dh_rect(x0_, (x0_ + x1_) / 2), LEVEL_H):
@@ -2661,13 +2641,14 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         keep = [_bbox(o[0]) for o in lay.footprints if o[1] >= LEVEL_H - 0.01 and id(o[0]) not in lay.overhangs
                 and x0_ <= (_bbox(o[0])[0] + _bbox(o[0])[2]) / 2 <= x1_]
         b_ = add_level(lay, blocks, pid, 1, x0_, x1_, w_, keep=keep,
-                       ignore=[f["id"] for f in funnels] + [h["id"] for h in housings] + raised_ids)
+                       ignore=[f["id"] for f in funnels] + [h["id"] for h in housings] + raised_ids,
+                       role=role, office=role == "aft_control")
         if b_:
             blocks.insert(0, blocks.pop())  # draw level 1 first, under the towers
             level1.append(b_)
-    dh_blocks = [b_ for b_ in level1 if b_["id"].startswith("Deckhouse")]
+    dh_blocks = [b_ for b_ in level1 if b_["role"] == "deckhouse"]
     dh_ids = tuple(b_["id"] for b_ in dh_blocks)
-    dh_w = next((w_ for pid, _, _, w_ in pieces if pid == "Deckhouse"), dh_w)
+    dh_w = next((w_ for _, _, _, w_, role in pieces if role == "deckhouse"), dh_w)
 
     # ---------------- torpedo mounts ----------------
     if ntp:
@@ -2749,7 +2730,7 @@ def build_layout(design: dict, res, shift: float = 0.0, spread: float = 0.0) -> 
         resort (no pedestals of their own: AA goes high only where the superstructure is); nearest amidships first
         within each. Pairs come before single mounts on a roof's centreline, and
         a single leftover mount goes on the centreline at the stern."""
-        rr = AA_CFG[kind][0]
+        rr = AA_CFG[kind].r
         scored = []
         for x, y, z0, pair in roof_spots(blocks, 2 * rr, 2 * rr):
             lvl = round(z0 / LEVEL_H)

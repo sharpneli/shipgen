@@ -98,13 +98,18 @@ def secondary_batteries(design):
     of one). Each gives its mounts as "count" (total) or "per_side" (validation rejects both); both come back filled
     in: count = 2 x per_side, or per_side = count // 2 (a style that mounts its secondaries in pairs leaves an odd one
     out, with a warning: armament.warn_unpaired), and armour_mm (SECONDARY_ARMOUR_MM if not given). Batteries without
-    mounts stay, so list positions name them (layout.battery_prefix)."""
+    mounts stay, so list positions name them (battery_prefix)."""
     out = []
     for b in as_list(design.get("secondary")):
         n = b["count"] if "count" in b else 2 * b.get("per_side", 0)
         out.append({**b, "count": n, "per_side": b.get("per_side", n // 2),
                     "armour_mm": b.get("armour_mm", SECONDARY_ARMOUR_MM)})
     return out
+
+
+def battery_prefix(k):
+    """The k-th secondary battery's name: its mounts' "battery" and id prefix: S, SB, SC, ..."""
+    return "S" if k == 0 else f"S{chr(ord('A') + k)}" if k < 26 else f"S{k + 1}-"
 
 
 def battery_turrets(b):

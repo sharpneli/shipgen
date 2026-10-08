@@ -122,8 +122,8 @@ def complement(lay, res, extra=None, deck_k=0.8, officer_fraction=None, hotel_fr
             torps += torpedo_crew(t)
         else:
             guns += gun_crew(t["calibre_mm"], t["barrels"])
-    for a in lay.aa:
-        guns += gun_crew(40.0 if "40" in a["type"] else 20.0, AA_CFG[a["type"]][1])
+    for cfg in (AA_CFG[a["type"]] for a in lay.aa):
+        guns += gun_crew(cfg.calibre_mm, cfg.barrels)
     deps = dict(engineering=res.plant_rated.get("crew", 0), weapons=round(guns + torps),
                 deck_and_command=round(deck_crew(res.std, deck_k)))
     deps.update(extra or {})
@@ -174,7 +174,6 @@ def crew_space(lay, design, res):
     (forecastle, poop), plus the superstructure (blocks)."""
     import powerplant
     from layout import LEVEL_H
-    from layout import block_role
     from geometry import cwp
     hull = lay.hull
     L, B = hull.L, hull.B
@@ -197,7 +196,7 @@ def crew_space(lay, design, res):
     if plan.get("tds") and cit:
         taken += 2 * plan["tds"] * (cit[1] - cit[0]) * low
     rooms = {b["id"]: b.get("area", (b["x1"] - b["x0"]) * b["w"]) * LEVEL_H * 0.9 for b in lay.blocks if b["kind"] != "director"
-             and block_role(b["id"]) not in ("hangar", "director", "casemate")}
+             and b["role"] not in ("hangar", "director", "casemate")}
     sup = sum(rooms.values())
     free = max(0.0, hull_v - taken) + raised + sup
     return dict(hull_m3=hull_v + raised, taken_m3=taken, superstructure_m3=sup, free_m3=free, usable_m3=USABLE * free,
@@ -319,7 +318,6 @@ def battle_stations(lay, sub):
     superstructure). Returns dict(components={(kind, id): men}, rooms={id: men}, summary={station: men}); components
     are keyed by kind too, since ids may repeat across kinds (a carrier's Hangar block and hangar bay)."""
     from geometry import AA_CFG, block_outline, has_barbette, polygon_centroid
-    from layout import block_role
     from layout import block_base, block_top
     c = lay.crew or {}
     deps = dict(c.get("departments") or {})
@@ -344,7 +342,8 @@ def battle_stations(lay, sub):
         need[(m["kind"], m["id"])] = (torpedo_crew(t) if m["kind"] == "torpedo"
                                       else gun_crew(t["calibre_mm"], t["barrels"]))
     for a in lay.aa:
-        need[("aa", a["id"])] = gun_crew(40.0 if "40" in a["type"] else 20.0, AA_CFG[a["type"]][1])
+        cfg = AA_CFG[a["type"]]
+        need[("aa", a["id"])] = gun_crew(cfg.calibre_mm, cfg.barrels)
     for (kind, k), men in spread(deps.get("weapons", 0), need).items():
         below = round(HANDLING * men) if kind != "aa" and k in barbettes else 0
         put(on_comp, {(kind, k): men - below}, "aa" if kind == "aa" else "torpedoes" if kind == "torpedo" else "guns")
@@ -358,11 +357,12 @@ def battle_stations(lay, sub):
     else:
         rest += deps.get("engineering", 0)
     # command, directors, steering
-    vol = {}
+    vol, roles = {}, {}
     for b in lay.blocks:
         area = abs(polygon_centroid(block_outline(b))[0])
         vol[("superstructure", b["id"])] = area * (block_top(b) - block_base(b))
-    role = lambda k: block_role(k[1])
+        roles[("superstructure", b["id"])] = b["role"]
+    role = roles.get
     bridge = {k: v for k, v in vol.items() if role(k) in ("bridge", "island")}
     aft = {k: v for k, v in vol.items() if role(k) == "aft_control"}
     if not bridge:

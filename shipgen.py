@@ -145,7 +145,7 @@ class Painter:
         kind = a.get("type", "quad40")
         x, y, d = a["x"], a["y"], a.get("dir", 0)
         cfg = AA_CFG[kind]
-        r, n, ln, bw, sp = cfg
+        r, n, ln, bw, sp = cfg.r, cfg.barrels, cfg.barrel_len, cfg.barrel_w, cfg.spacing
         p = self.p
         s = [f'<g transform="translate({f(x)},{f(y)}) rotate({f(d)})">',
              f'<circle r="{f(r)}" fill="{p["tub"]}" {self.stroke()}/>',

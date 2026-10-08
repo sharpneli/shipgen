@@ -404,16 +404,17 @@ def _flight_deck_layout(design, res, shift):
     yi = hw - wi / 2 - 0.3
     blocks, funnels = [], []
     ix0, ix1 = xi - li / 2, xi + li / 2
-    add_block(lay, blocks, "Island", ix0, ix1, wi, 1, 1.5, 1.0, y=yi, z0=fd_h)
+    add_block(lay, blocks, "Island", ix0, ix1, wi, 1, 1.5, 1.0, y=yi, z0=fd_h, role="island")
     fwd0 = ix0 + nfun * (fl + 1.0) + 1.0          # the tower stands ahead of the funnel(s)
-    add_block(lay, blocks, "Island upper", fwd0, ix1 - 0.5, 0.85 * wi, 2, 1.2, 0.8, y=yi, z0=fd_h)
-    add_block(lay, blocks, "Bridge", fwd0 + 0.2 * (ix1 - fwd0), ix1 - 0.3, 0.9 * wi, 3, 0.4 * wi, 0.6, y=yi, z0=fd_h)
+    add_block(lay, blocks, "Island upper", fwd0, ix1 - 0.5, 0.85 * wi, 2, 1.2, 0.8, y=yi, z0=fd_h, role="island")
+    add_block(lay, blocks, "Bridge", fwd0 + 0.2 * (ix1 - fwd0), ix1 - 0.3, 0.9 * wi, 3, 0.4 * wi, 0.6, y=yi, z0=fd_h,
+              role="bridge")
     top_level = tower_levels(design, 4 if L >= 200 else 3)    # the old built-in rule as the default
     for k in range(4, top_level + 1):     # the island's tower narrows as it rises
         f = min(0.12, 0.03 * (k - 4))
         add_block(lay, blocks, f"Island tower {k}", fwd0 + (0.4 + f) * (ix1 - fwd0),
                   max(fwd0 + (0.4 + f) * (ix1 - fwd0) + 3.0, ix1 - (0.25 + f) * (ix1 - fwd0)),
-                  max(3.0, 0.45 * wi * 0.9 ** (k - 4)), k, 0.2 * wi, 0.2 * wi, y=yi, z0=fd_h)
+                  max(3.0, 0.45 * wi * 0.9 ** (k - 4)), k, 0.2 * wi, 0.2 * wi, y=yi, z0=fd_h, role="island")
     fun_top = fd_h + LEVEL_H * min(top_level, 4) + 3.0
     for i in range(nfun):
         fx = ix0 + 1.0 + (i + 0.5) * (fl + 1.0)
@@ -485,14 +486,14 @@ def _flight_deck_layout(design, res, shift):
     aa_out = []
     aa_req = design.get("aa") or {}
     for kind, count in (("quad40", aa_req.get("heavy", 0)), ("single20", aa_req.get("light", 0))):
-        rr = AA_CFG[kind][0]      # tubs on the island's roofs first (Essex), then sponsons along the deck edges
+        rr = AA_CFG[kind].r         # tubs on the island's roofs first (Essex), then sponsons along the deck edges
         island = [(x, y, z0, None) for x, y, z0, pair in sorted(roof_spots(blocks, 2 * rr, 2 * rr),
                                                                 key=lambda s: (s[2], abs(s[0] - xi))) if not pair]
         armament.place_aa(lay, aa_out, kind, count, island + sponson_slots(rr, fd_h - 2.4),
                           layer_of=lambda base: "upper" if base > fd_h + 0.01 else "base")
     sponsons = []
     for it in [m for m in mounts if m["base"] < fd_h - 0.5] + aa_out:
-        reach = AA_CFG[it["type"]][0] if "dir" in it else (
+        reach = AA_CFG[it["type"]].r if "dir" in it else (
             armament.body_reach(it["t"]) if it["kind"] != "torpedo" else it["t"]["barrel_len"] / 2 + 0.3)
         pe, se = _edges(dp, it["x"])
         side = 1 if it["y"] > 0 else -1
@@ -523,8 +524,8 @@ def _seaplane_layout(design, res, shift):
     blocks, funnels, mounts, turret_types = [], [], [], {}
     hx0, hx1, hhw = dp["hangar"]
     hx0, hx1 = hx0 + shift, hx1 + shift
-    add_block(lay, blocks, "Hangar", hx0, hx1, 2 * hhw, 1, 1.0, 0.5)
-    add_block(lay, blocks, "Hangar roof", hx0, hx1, 2 * hhw, 2, 1.0, 0.5)
+    add_block(lay, blocks, "Hangar", hx0, hx1, 2 * hhw, 1, 1.0, 0.5, role="hangar")
+    add_block(lay, blocks, "Hangar roof", hx0, hx1, 2 * hhw, 2, 1.0, 0.5, role="hangar")
     hangar_ids = ("Hangar", "Hangar roof")
     roof = 2 * LEVEL_H
 
@@ -533,14 +534,15 @@ def _seaplane_layout(design, res, shift):
     lb = clamp(0.07 * L, 7, 16)
     bx0 = bx1 - lb
     wb = clamp(0.5 * B, 4.5, 12)
-    add_block(lay, blocks, "Bridge base", bx0, bx1, wb, 1, 0.3 * wb, 1.0)
-    add_block(lay, blocks, "Bridge", bx0 + 0.15 * lb, bx1, 0.85 * wb, 2, 0.4 * wb, 1.0)
-    add_block(lay, blocks, "Bridge upper", bx0 + 0.35 * lb, bx1 - 0.05 * lb, 0.7 * wb, 3, 0.3 * wb, 0.8)
+    add_block(lay, blocks, "Bridge base", bx0, bx1, wb, 1, 0.3 * wb, 1.0, role="bridge", office=True)
+    add_block(lay, blocks, "Bridge", bx0 + 0.15 * lb, bx1, 0.85 * wb, 2, 0.4 * wb, 1.0, role="bridge")
+    add_block(lay, blocks, "Bridge upper", bx0 + 0.35 * lb, bx1 - 0.05 * lb, 0.7 * wb, 3, 0.3 * wb, 0.8, role="bridge")
     n_tower = tower_levels(design, 3)
     for k in range(4, n_tower + 1):      # a taller tower narrows as it rises
         f, tw = min(0.12, 0.03 * (k - 4)), max(3.0, 0.5 * wb * 0.9 ** (k - 4))
         add_block(lay, blocks, f"Tower {k}", bx0 + (0.45 + f) * lb, max(bx0 + (0.45 + f) * lb + 3.0,
-                                                                      bx1 - (0.15 + f) * lb), tw, k, 0.5 * tw, 0.5 * tw)
+                                                                      bx1 - (0.15 + f) * lb), tw, k, 0.5 * tw, 0.5 * tw,
+                  role="bridge")
     fun_top = LEVEL_H * min(n_tower, 4) + 3.0
     mc = (hx1 + bx0) / 2
     _machinery(lay, design, res, hull, mc)
@@ -594,7 +596,7 @@ def _seaplane_layout(design, res, shift):
     aa_out = []
     aa_req = design.get("aa") or {}
     for kind, count in (("quad40", aa_req.get("heavy", 0)), ("single20", aa_req.get("light", 0))):
-        rr = AA_CFG[kind][0]
+        rr = AA_CFG[kind].r
         cands = [(hx0 + v * (hx1 - hx0), hhw - rr - 0.3, roof) for v in _vdc(24)]
         cands += [(x, hull.half_width(x) - rr - 0.5, 0.0) for x in xs]
         armament.place_aa(lay, aa_out, kind, count, cands, ignore=hangar_ids)

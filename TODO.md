@@ -20,8 +20,8 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Drawing: tripod foremast and breakwater from 150 m, depth-charge racks under 140 m, boat deck on roofs of 60 m² or more
 
 ## Code structure (review 2026-10-08; details in HANDOFF)
-- [ ] Semantics parsed from ids: block role, mount battery (`battery_of`), `"W"` wing prefix, AA calibre from `"40" in type` (3x), vidgen regexes calibre
-- [ ] Export numeric `calibre_mm`/`calibre_length` in sprite.json turret types and hitbox components
+- [ ] Ammunition weights found by name: `ordnance.stow` takes the `"Magazine <mount id>"` weights (a field on the Weight, or the mount holding its weight)
+- [ ] Legacy fleet turret types (`fleet.TURRET_TYPES`) carry no calibre; the fleet's manifest has none to export
 - [ ] `armament.side_pairs` defaults torpedo mounts to 25.0 mm armour (carriers, merchants): torpedo mount armour isn't an input
 - [ ] Split layout.py: shared primitives (public names) vs the warship's `build_layout` into styles/warship.py
 - [ ] `Geo.plant` is still a nested dict (~14 keys, read in 9 modules): its own dataclass

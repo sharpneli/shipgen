@@ -91,7 +91,7 @@ def _layout(design, res, shift):
     blocks = []
     cx0, cx1 = 0.0 + shift, 0.22 * L + shift
     wc = 0.42 * B
-    add_block(lay, blocks, "Charthouse", cx0, cx1, wc, 1, 0.45 * wc, 0.2)
+    add_block(lay, blocks, "Charthouse", cx0, cx1, wc, 1, 0.45 * wc, 0.2, role="bridge")
     masts = [dict(x=cx0 + 0.25 * (cx1 - cx0), yard=min(0.5 * B, 2.4), tripod=False, top=LEVEL_H + 3.5)]
 
     m0, m1 = -0.42 * L, -0.08 * L
@@ -135,7 +135,7 @@ def _layout(design, res, shift):
     aa_out = []
     aa_req = design.get("aa") or {}
     for kind, count in (("quad40", aa_req.get("heavy", 0)), ("single20", aa_req.get("light", 0))):
-        rr = AA_CFG[kind][0]
+        rr = AA_CFG[kind].r
         cands = [(cx0 - rr - 0.3, rr + 0.15, 0.2), (cx0 - rr - 0.3, 0.0, 0.2)]
         cands += [(x, hull.half_width(x) - rr - 0.3, 0.2) for x in xs] + [(x, 0.0, 0.2) for x in xs]
         armament.place_aa(lay, aa_out, kind, count, cands, spacing=0.6)

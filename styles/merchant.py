@@ -197,15 +197,15 @@ def _layout(design, res, shift):
     wh = min(0.62 * B, 2 * (hw_mid - 1.5))
     house_ids = []
 
-    def house(bid, x0, x1, w, level, rf, rb, z0=RAISED_H):
+    def house(bid, x0, x1, w, level, rf, rb, z0=RAISED_H, role="deckhouse"):
         house_ids.append(bid)
-        return add_block(lay, blocks, bid, x0, x1, w, level, rf, rb, z0=z0)
+        return add_block(lay, blocks, bid, x0, x1, w, level, rf, rb, z0=z0, role=role)
 
     house("House", bx0 + 0.08 * bd_len, bx1 - 0.06 * bd_len, wh, 1, 1.2, 1.0)
     if not aft_engines:
         house("Boat deck house", bx0 + 0.25 * bd_len, bx1 - 0.08 * bd_len, 0.5 * B, 2, 1.0, 0.8)
     house("Bridge", bx1 - 0.3 * bd_len, bx1 - 0.08 * bd_len, min(0.92 * B, 2 * (hw_mid - 0.4)), 3 if not aft_engines else 2,
-          0.6, 0.6)
+          0.6, 0.6, role="bridge")
     fun_top = RAISED_H + LEVEL_H * 3 + 2.0
     if aft_engines:
         ex0, ex1 = -L / 2 + 0.03 * L, -L / 2 + poop_len - 1.0
@@ -334,7 +334,7 @@ def _layout(design, res, shift):
     aa_out = []
     aa_req = design.get("aa") or {}
     for kind, count in (("quad40", aa_req.get("heavy", 0)), ("single20", aa_req.get("light", 0))):
-        rr = AA_CFG[kind][0]
+        rr = AA_CFG[kind].r
         roof = RAISED_H + LEVEL_H
         cands = [(bx1 - 0.12 * bd_len, min(0.46 * B, hw_mid - 0.4) - rr - 0.2, RAISED_H + LEVEL_H * 2),
                  (bx0 + 0.1 * bd_len, wh / 2 - rr - 0.3, roof)]

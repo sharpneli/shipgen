@@ -21,7 +21,7 @@ import clutter
 import hitview
 import looks
 import shadow
-from geometry import nearest_allowed, rotate_translate
+from geometry import gun_of, nearest_allowed, rotate_translate
 from shipgen import build_hull, build_turret, render, DEFAULT_PALETTE
 
 Image.MAX_IMAGE_PIXELS = None   # our own output: a 1 km ship makes very large sheets
@@ -121,7 +121,8 @@ def render_ship(ship, out_dir, S, mips=0, look=None, previews=True):
                png.replace(".png", ".svg"))
         turret_pngs[tid] = png
         w, h = Image.open(png).size
-        tmeta[tid] = dict(file=f"turrets/{tid}.png", size_px=[w, h], pivot_px=[w / 2, h / 2], desc=t["desc"])
+        tmeta[tid] = dict(file=f"turrets/{tid}.png", size_px=[w, h], pivot_px=[w / 2, h / 2], desc=t["desc"],
+                          **gun_of(t))
 
     hull_svg, vb, mounts, hull = build_hull(spec, S, align, shadows=False)
     hull_p = os.path.join(out_dir, "hull.png")

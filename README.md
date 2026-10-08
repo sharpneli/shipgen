@@ -401,9 +401,10 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
     - The steering box's roof is a deck plate with `extent` `steering`.
   - `components`:
     - Turrets: `local` body/parts/barrels polygons (rotate them by the turret angle, then add x, y), `broadphase_r`, `arcs_deg`, `traverse_deg`, `rest_deg`, base/top heights.
+      - The gun, as numbers: `calibre_mm` and `calibre_length` (torpedo mounts: `calibre_mm` 533 only). AA mounts carry them too (40 mm/56, 20 mm/70: `geometry.AA_CFG`). Read these rather than parsing the `type` id, which rounds the calibre.
       - `armour_mm` is the face. `armour` splits it into `face`/`side`/`rear`/`roof` (`hitbox.TURRET_*` ratios).
       - Gun mounts link to their `barbette` (a component) and their `magazine` (a room). The barbette links back with `mount` and reaches down to the main armour deck (the belt top without deck armour, the second deck on an unarmoured ship). A mount on a sponson or a flight deck has only a 1 m pedestal on its platform.
-    - Superstructure: polygons with heights and a `role`: `bridge`, `director`, `aft_control`, `island`, `hangar`, `casemate` or `deckhouse` (`layout.BLOCK_ROLES`). A control position in a funnel's smoke lists those funnels in `smoke`. Rounded-rectangle blocks also give their parameters in `rrect`. Blocks with their own outline (the warship's superstructure levels, bevelled, and the directors: hood and rangefinder arms, or a round tub) give only `points`.
+    - Superstructure: polygons with heights and a `role`: `bridge`, `director`, `aft_control`, `island`, `hangar`, `casemate` or `deckhouse` (`layout.BLOCK_ROLES`; each style gives it when it adds the block, never from the id). A control position in a funnel's smoke lists those funnels in `smoke`. Rounded-rectangle blocks also give their parameters in `rrect`. Blocks with their own outline (the warship's superstructure levels, bevelled, and the directors: hood and rangefinder arms, or a round tub) give only `points`.
     - Funnels: polygons with heights. `boiler_rooms` lists the rooms each one serves. An `uptake` component runs from the top of the boilers up to the funnel's base, with the same footprint and links.
     - `casing`: over machinery taller than its space, from the bounding deck up, with `armour_mm`.
     - `conning_tower`: a circle inside the bridge's front on warships with a belt, armoured like the belt. It isn't drawn.
@@ -456,7 +457,7 @@ The player never enters tonnage or positions. The allowed ranges are `styles.bas
         - `tds` (`Torpedo protection 7 S`) in a citadel wing cell
         - `stores` in a tier at least half under water
         - `accommodation` (`Quarters 7`) above that.
-- `sprite.json`: layers, origin_px, mount px positions, rest angles, arcs and z order.
+- `sprite.json`: layers, origin_px, mount px positions, rest angles, arcs and z order. Each of `turret_types` gives its image, `desc` (a label), and its gun as `calibre_mm` and `calibre_length`, as in the hitboxes.
 - `hull.png` (everything that doesn't rotate) and `turrets/*.png`, each with an SVG alongside. Level 0 is `--scale` px/m (default 10). No shadows are baked in.
 - `height.png`: greyscale height map on the same canvas. Grey × `height_step_m` (0.25) = metres above the waterline, and 0 = sea. Its mips use a 2×2 max filter, not an average, so a tall column never shrinks.
 - `<layer>_mips.png` sits next to each layer PNG (`hull`, `height`, `turrets/<type>`) and packs level 0 plus every lower level into one image of 1.5W × H. Level 0 is on the left. Level 1 sits to its right at the top, and each next level goes alternately below and to the right of the previous one.

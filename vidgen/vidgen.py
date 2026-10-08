@@ -740,13 +740,13 @@ class Ship:
             im = Image.open(self.src / t["file"]).convert("RGBA")
             if k < 1:
                 im = im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)
-            types[tid] = (im, t.get("desc", tid))
+            types[tid] = (im, t)
         self.mounts = []
         for m in sorted(self.sprite["mounts"], key=lambda m: m["z"]):
             mt = Mount()
             mt.ship = self
             mt.id, mt.kind, mt.type = m["id"], m["kind"], m["type"]
-            mt.img, desc = types[m["type"]]
+            mt.img, tt = types[m["type"]]
             mt.pos_m = np.array(m["pos_m"], float)
             mt.screen = self.to_screen(mt.pos_m)
             mt.top_m = m["top_m"]
@@ -765,15 +765,12 @@ class Ship:
             mt.rest = unwrap(m["rest_deg"], mt.trav)
             if mt.rest is None:      # README promises the traverse holds the rest bearing; be permissive anyway
                 mt.rest = m["rest_deg"]
-            # calibres can be fractional ("1 x 164.7mm/45"); the type id rounds them ("t1x165L45")
-            nums = re.search(r"(\d+)\s*x\s*([\d.]+)\s*mm", desc) or re.search(r"(\d+)x(\d+)", mt.type)
-            mt.calibre = float(nums.group(2)) if nums else 100.0
+            mt.calibre = float(tt.get("calibre_mm", 100.0))
             # a main battery is one gun: several batteries (pre-dreadnought mixed calibres) each fire their own
-            # salvos. The type id names the gun and its barrels; batteries differing only in barrels share a beat
-            gun = re.search(r"x([\d.]+)(?:L(\d+))?", mt.type)
-            mt.gun = (gun.group(1), gun.group(2)) if gun else (mt.calibre, None)
+            # salvos. Batteries differing only in barrels share a beat
+            mt.gun = (mt.calibre, float(tt.get("calibre_length", 45.0)))
             # the flash, smoke and shell model of this gun (muzzle.py); the bore is a little under the roof
-            mt.fx = muzzle.Gun(mt.calibre / 1000, float(mt.gun[1] or 45), self.propellant)
+            mt.fx = muzzle.Gun(mt.calibre / 1000, mt.gun[1], self.propellant)
             mt.fxD = muzzle.derive(mt.fx, RH)
             mt.el = muzzle.elevation(mt.fxD["v0"], TARGET_RANGE_M)
             mt.muzzle_h = max(self.freeboard, mt.top_m - 1.5)

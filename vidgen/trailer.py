@@ -133,16 +133,15 @@ class Design:
                           disp=r["standard_displacement_t"], speed=inp.get("speed_kn", 0), power=r["power_shp"],
                           range=inp.get("range_nm", 0), crew=r["crew"])
         self.type = TYPES.get(inp.get("type"), inp.get("type", ""))
-        guns = Counter()
+        guns, calib = Counter(), {}
         tt = self.sprite["turret_types"]
         for m in self.sprite["mounts"]:
-            desc = tt[m["type"]]["desc"]                       # "2 x 343mm/45"
-            n, cal = desc.split(" x ")
+            t = tt[m["type"]]
+            n, cal = t["desc"].split(" x ")                    # "2 x 343mm/45"
             guns[(m["kind"] == "main", cal)] += int(n)
-        def calib(c):
-            return float(c.split("mm")[0])
+            calib[cal] = t.get("calibre_mm", 0.0)
         self.arm = [f"{n} × {c.replace('mm', ' mm')}" for (main, c), n in
-                    sorted(guns.items(), key=lambda kv: (not kv[0][0], -calib(kv[0][1])))]
+                    sorted(guns.items(), key=lambda kv: (not kv[0][0], -calib[kv[0][1]]))]
         self.note = (self.report["warnings"] or ["None. Suspicious."])[0]
 
         prev = Image.open(d / "preview_rest.png").convert("RGBA")

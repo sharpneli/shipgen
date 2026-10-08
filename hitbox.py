@@ -8,8 +8,8 @@ what a hit does is the game's business.
 from __future__ import annotations
 
 from geometry import rrect_polygon, block_outline, turret_shapes, turret_reach
-from geometry import AA_CFG, has_barbette
-from layout import block_base, block_role, block_top
+from geometry import AA_CFG, gun_of, has_barbette
+from layout import block_base, block_top
 import ordnance
 from batteries import gun_rounds
 import propulsion
@@ -83,7 +83,7 @@ def export_hitboxes(lay, design, res, inner):
         sh = turret_shapes(t)
         arm = m.get("armour_mm", 0)       # every gun mount has its own (armament.add_mount)
         comps.append(dict(
-            id=m["id"], kind=m["kind"], type=m["type"], x=round(m["x"], 3), y=round(m["y"], 3),
+            id=m["id"], kind=m["kind"], type=m["type"], **gun_of(t), x=round(m["x"], 3), y=round(m["y"], 3),
             base=round(m["base"], 2), top=round(m["top"], 2), armour_mm=arm,
             broadphase_r=round(max(t["r"], turret_reach({**t, "barrel_len": 0})), 3),
             rotating=m.get("fixed") is None, rest_deg=m["rest"], arcs_deg=m["arcs"],
@@ -129,7 +129,7 @@ def export_hitboxes(lay, design, res, inner):
         rr = {} if b.get("points") else dict(rrect=dict(
             x0=round(b["x0"], 3), x1=round(b["x1"], 3), y0=round(b["y"] - b["w"] / 2, 3),
             y1=round(b["y"] + b["w"] / 2, 3), rf=round(b["rf"], 3), rb=round(b["rb"], 3)))
-        comps.append(dict(id=b["id"], kind="superstructure", role=block_role(b["id"]), shape="polygon",
+        comps.append(dict(id=b["id"], kind="superstructure", role=b["role"], shape="polygon",
                           points=[[round(x, 3), round(y, 3)] for x, y in pts], **rr,
                           base=round(block_base(b), 2), top=round(block_top(b), 2)))
         d = directors.get(b["id"])
@@ -180,9 +180,11 @@ def export_hitboxes(lay, design, res, inner):
         if dk["id"] in inner["planked"]:    # its deck planking (subdivision.deck_plates)
             comps[-1]["wood_mm"] = inner["plating"]["deck_wood_mm"]
     for a in lay.aa:
-        n, w = ordnance.ready_use(40.0 if "40" in a["type"] else 20.0, AA_CFG[a["type"]][1])
-        comps.append(dict(id=a["id"], kind="aa", type=a["type"], shape="circle", x=round(a["x"], 3),
-                          y=round(a["y"], 3), r=AA_CFG[a["type"]][0], base=a["base"], top=a["base"] + 2.0,
+        cfg = AA_CFG[a["type"]]
+        n, w = ordnance.ready_use(cfg.calibre_mm, cfg.barrels)
+        comps.append(dict(id=a["id"], kind="aa", type=a["type"], calibre_mm=cfg.calibre_mm,
+                          calibre_length=cfg.calibre_length, shape="circle", x=round(a["x"], 3),
+                          y=round(a["y"], 3), r=cfg.r, base=a["base"], top=a["base"] + 2.0,
                           ready_rounds=n, ready_t=round(w, 2)))
     for c in lay.compartments:     # a carrier's hangar stands above the hangar deck, outside the subdivision
         if c["kind"] == "hangar":

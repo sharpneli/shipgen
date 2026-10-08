@@ -32,7 +32,6 @@ needs for GM, and the heel in a beam wind.
 from __future__ import annotations
 
 import math
-import re
 
 BATTERIES = ("main", "secondary", "aa")
 FIELDS = ("directors", "rangefinder_m", "armour_mm", "radar_t", "computer_t")
@@ -102,7 +101,6 @@ def horizon_km(eye_m):
 
 
 CONTROL_ROLES = ("bridge", "director", "aft_control")
-BASE_BLOCKS = ("Bridge base", "Aft control base")   # offices and cabins under a control position: no view needed
 
 
 def assign_smoke(lay, res):
@@ -110,13 +108,13 @@ def assign_smoke(lay, res):
     standing aft of a funnel, closer than its smoke reach (powerplant.smoke_reach) and lower than the funnel top
     plus 0.3 x the distance. Sets lay.smoke {block id: [funnel ids]} and warns about each."""
     import powerplant
-    from layout import block_role, block_top
+    from layout import block_top
     lay.smoke = {}
     if not lay.funnels:
         return
     reach = powerplant.smoke_reach(res.plant, res.power_shp)
     for b in lay.blocks:
-        if block_role(b["id"]) not in CONTROL_ROLES or re.sub(r"\s*\d+$", "", b["id"]) in BASE_BLOCKS:
+        if b["role"] not in CONTROL_ROLES or b.get("office"):     # offices and cabins need no view
             continue
         hit = smoke_from(lay.funnels, lay.fun_top, reach, b["x1"], block_top(b), b["y"], b["w"])
         if hit:
@@ -169,7 +167,7 @@ def place(lay, design, blocks):
                 bid = f"{LABEL[bat]} {unit}" + (("S" if y > 0 else "P") if pair else "")
             pts = director_parts(x, y, l, w, d["rangefinder_m"])["outline"]   # what is drawn is what is hit
             b = add_block(lay, blocks, bid, x - hl, x + hl, w, 1, 0.0, 0.0, y=y, z0=z0, kind="director",
-                          t_per_m2=0.0, points=pts)
+                          t_per_m2=0.0, points=pts, role="director")
             # what the painter needs to draw it as a director, not a block (shipgen.Painter.director); on: the
             # level of the roof it stands on, for its colour
             b["director"] = dict(battery=bat, rangefinder_m=d["rangefinder_m"], radar=d["radar_t"] > 0,

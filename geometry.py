@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import functools
 import math
+from typing import NamedTuple
 
 
 # ---------------------------------------------------------------------------
@@ -156,11 +157,21 @@ def point_in_polygon(x, y, pts):
     return inside
 
 
-# AA mounts: (tub radius, barrels, barrel length, barrel width, barrel spacing) in metres.
-# The tub radius is also the AA hitbox radius.
-AA_CFG = {"quad40": (2.0, 4, 2.8, 0.17, 0.42),
-          "twin40": (1.5, 2, 2.6, 0.17, 0.5),
-          "single20": (0.75, 1, 1.7, 0.12, 0.0)}
+# AA mounts: tub radius, barrels, barrel length, barrel width and barrel spacing in metres, and the gun (Bofors
+# 40 mm/56, Oerlikon 20 mm/70). The tub radius is also the AA hitbox radius.
+class AAMount(NamedTuple):
+    r: float
+    barrels: int
+    barrel_len: float
+    barrel_w: float
+    spacing: float
+    calibre_mm: float
+    calibre_length: float
+
+
+AA_CFG = {"quad40": AAMount(2.0, 4, 2.8, 0.17, 0.42, 40.0, 56.0),
+          "twin40": AAMount(1.5, 2, 2.6, 0.17, 0.5, 40.0, 56.0),
+          "single20": AAMount(0.75, 1, 1.7, 0.12, 0.0, 20.0, 70.0)}
 
 
 # ---------------------------------------------------------------------------
@@ -569,6 +580,15 @@ def table_half_width(table, x, z):
 # ---------------------------------------------------------------------------
 # turret types generated from gun parameters
 # ---------------------------------------------------------------------------
+GUN_KEYS = ("calibre_mm", "calibre_length")   # what a turret type exports of its gun (a torpedo type: its calibre)
+
+
+def gun_of(t: dict) -> dict:
+    """The gun of turret type t, as exported (sprite.json turret types, hitbox mounts): calibre_mm and
+    calibre_length, those it has (a torpedo type has a calibre only)."""
+    return {k: t[k] for k in GUN_KEYS if k in t}
+
+
 def make_turret_type(calibre_mm: float, calibre_length: float, barrels: int, kind: str = "auto") -> tuple[str, dict]:
     """Size a turret from its guns. Returns (type_id, type_dict) usable by the renderer."""
     cal = calibre_mm / 1000.0
@@ -601,10 +621,11 @@ def make_torpedo_type(tubes: int, fixed: bool = False) -> tuple[str, dict]:
     if fixed:   # fixed deck tubes (MTBs): aimed by steering the boat; the body is the cradle
         return f"tube{tubes}x533", dict(desc=f"{tubes} x 533mm fixed torpedo tube{'s' if tubes > 1 else ''}",
                                         shape="tube", r=0.55, barrels=tubes, barrel_len=7.2, barrel_w=0.55,
-                                        spacing=0.75, centered=True, barbette=False, fixed_tube=True)
+                                        spacing=0.75, centered=True, barbette=False, fixed_tube=True,
+                                        calibre_mm=533.0)
     return f"torp{tubes}x533", dict(desc=f"{tubes} x 533mm torpedo tubes", shape="torp", r=1.9,
                                      barrels=tubes, barrel_len=7.6, barrel_w=0.55, spacing=0.66,
-                                     centered=True, barbette=False)
+                                     centered=True, barbette=False, calibre_mm=533.0)
 
 
 BARREL_ROOT = {"bb": 0.5, "dp": 0.3, "open": -0.3, "casemate": 0.0}
