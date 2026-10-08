@@ -391,7 +391,7 @@ def battle(s):
         s.hn(nm(n) - 12, t0, t1 - t0 + 0.02, 0.85, attack=0.06, release=0.3)
     s.timp(nm("A2"), G(35), 0.85, roll=G(38) - G(35) - 0.04)
     s.drum(S.snare_roll(G(38) - G(35.5), 0.15, 0.75), G(35.5), PAN["snare"])
-    s.drum(S.riser(G(38) - G(34), 300, 3000, 0.25), G(34), 0.0, bus="fx")
+    s.drum(S.riser(G(38) - G(34), 300, 3000, 0.12), G(34), 0.0, bus="fx")
     # the anticipation on the cut to the wide shot (beat 38): D minor, tied over into the battle
     ta = G(38)
     s.drum(S.taiko(1.0), ta, 0.0, 1.0)
@@ -459,7 +459,7 @@ def battle(s):
     s.drum(S.snare_roll(G(63) - G(55) - 0.03, 0.2, 0.95), G(55), PAN["snare"])
     s.timp(nm("A2"), G(61), 0.95, roll=G(63) - G(61) - 0.03)
     s.drum(S.reverse_cymbal(G(63) - G(59), 0.75), G(59), PAN["cym"], bus="fx")
-    s.drum(S.riser(G(63) - G(57), 250, 4000, 0.3), G(57), 0.0, bus="fx")
+    s.drum(S.riser(G(63) - G(57), 250, 4000, 0.15), G(57), 0.0, bus="fx")
 
 
 def explosion(s):
@@ -485,7 +485,7 @@ def explosion(s):
     s.choir(nms("D3 A3"), sm0, 4.0, 0.3, "u", attack=1.5, release=1.5)
     s.str_("cb", nm("D2"), sm0, 4.3, 0.35, attack=1.5, release=1.2)
     s.drum(S.reverse_cymbal(fire - 54.0, 0.5), 54.0, PAN["cym"], bus="fx")
-    s.drum(S.riser(fire - 54.0, 120, 900, 0.2), 54.0, 0.0, bus="fx")
+    s.drum(S.riser(fire - 54.0, 120, 900, 0.1), 54.0, 0.0, bus="fx")
     # the fireball
     s.put("brass", S.braam(nm("D2"), 2.6, 1.0), fire, 0.0, 0.9)
     s.drum(S.gran_cassa(1.0, 38, 2.2), fire, 0.0, 1.0)
@@ -505,7 +505,7 @@ def explosion(s):
         s.chord_str(nms(up), t0, d * q + 0.05, 0.28, parts=["vc", "vla", "vln2"], attack=0.4, release=0.6)
     # into the white
     s.drum(S.reverse_cymbal(1.6, 0.6), T["end"] - 1.6, PAN["cym"], bus="fx")
-    s.drum(S.riser(1.6, 400, 6000, 0.22), T["end"] - 1.6, 0.0, bus="fx")
+    s.drum(S.riser(1.6, 400, 6000, 0.11), T["end"] - 1.6, 0.0, bus="fx")
     s.drum(S.sea(T["end"] - sm0, 0.25), sm0, bus="sea")
 
 

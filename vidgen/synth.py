@@ -292,14 +292,21 @@ def gran_cassa(vel=0.9, f=42.0, decay=1.6):
     return taiko(vel, f, decay) * 0.9
 
 
-def snare(vel=0.7, tone=190.0):
-    """A field drum: a short tonal hit with the snares' rattle on it."""
-    n = int(0.5 * SR)
+def snare(vel=0.7, tone=175.0):
+    """A field drum. The batter head rings in two modes that sag in pitch; the wires under the bottom head buzz
+    only while it moves, so their noise is gated by the head's own motion and coloured by a resonance around 4 kHz,
+    not a flat hiss. Louder hits get relatively more wire."""
+    n = int(0.45 * SR)
     t = _t(n)
-    body = (np.sin(2 * np.pi * tone * t) * np.exp(-t / 0.06) + 0.5 * np.sin(2 * np.pi * tone * 1.7 * t)
-            * np.exp(-t / 0.035))
-    rattle = sosfilt(butter(2, [1800, 9000], "band", fs=SR, output="sos"), RNG.standard_normal(n))
-    out = body * 0.6 + rattle * 0.8 * np.exp(-t / 0.13)
+    sag = 1 + 0.12 * np.exp(-t / 0.012)
+    head = (np.sin(2 * np.pi * np.cumsum(tone * sag) / SR) * np.exp(-t / 0.07)
+            + 0.45 * np.sin(2 * np.pi * np.cumsum(tone * 1.59 * sag) / SR) * np.exp(-t / 0.04))
+    stick = sosfilt(butter(2, [800, 3000], "band", fs=SR, output="sos"), RNG.standard_normal(n)) * np.exp(-t / 0.003)
+    wires = sosfilt(butter(2, [2500, 6500], "band", fs=SR, output="sos"), RNG.standard_normal(n))
+    wires = sosfilt(butter(2, 8000, "low", fs=SR, output="sos"), wires)
+    gate = np.abs(head) ** 0.7 * np.clip((t - 0.002) / 0.004, 0, 1)            # the wires follow the head
+    wires = wires * (gate * 0.7 + 0.3 * np.exp(-t / 0.05)) * np.exp(-t / 0.09)
+    out = head * 0.75 + stick * 0.3 + wires * (0.35 + 0.35 * vel)
     return (out * vel * np.clip(t / 0.0005, 0, 1)).astype(np.float32)
 
 
@@ -319,18 +326,29 @@ def snare_roll(dur, v0=0.2, v1=0.8):
 
 
 def cymbal(vel=0.7, decay=3.0, dark=False):
-    """A suspended cymbal crash: dense inharmonic metal over hiss."""
+    """A suspended cymbal: a few hundred inharmonic plate modes (log-spread 250 Hz .. 11 kHz), the higher ones dying
+    faster, each wobbling a little so it shimmers; a short stick tick on top. Noise is only a trace, so it reads
+    as metal rather than hiss. dark: the top rolled off (a larger, lower cymbal)."""
     n = int(decay * 1.5 * SR)
     t = _t(n)
-    noise = RNG.standard_normal(n).astype(np.float32)
-    hp = sosfilt(butter(2, 2500 if dark else 4000, "high", fs=SR, output="sos"), noise).astype(np.float32)
-    lo = sosfilt(butter(2, [400, 2500], "band", fs=SR, output="sos"), noise).astype(np.float32)
-    metal = np.zeros(n, np.float32)
-    for f in RNG.uniform(300, 9000, 40):
-        metal += np.sin(2 * np.pi * f * t + RNG.uniform(0, 6.28)).astype(np.float32) * 0.03
-    out = (hp * 0.8 + lo * 0.35 + metal) * np.exp(-t / decay) * (1 - 0.6 * np.exp(-t / 0.08))
-    out += hp * 1.5 * np.exp(-t / 0.01)
-    return (out * vel * 0.5).astype(np.float32)
+    out = np.zeros(n, np.float32)
+    top = 7000 if dark else 12000
+    fs = np.exp(RNG.uniform(np.log(450), np.log(top), 700))
+    for f in fs:
+        a = (f / 3000) ** 0.25 * RNG.uniform(0.3, 1.0)            # a cymbal's energy sits at 3-8 kHz
+        if f > 7000:
+            a *= np.exp(-(f - 7000) / 3000)
+        td = min(decay, decay * 0.6 * (f / 3000) ** -0.35) * RNG.uniform(0.6, 1.2)
+        wob = 1 + 0.25 * np.sin(2 * np.pi * RNG.uniform(2, 7) * t + RNG.uniform(0, 6.28))
+        out += (a * wob * np.sin(2 * np.pi * f * t + RNG.uniform(0, 6.28)) * np.exp(-t / td)).astype(np.float32)
+    out /= np.sqrt(len(fs))
+    # the bloom: a crash gets brighter for a moment after the stick lands as the plate's energy spreads upward
+    out *= (1 - 0.5 * np.exp(-t / 0.03))
+    tickn = sosfilt(butter(2, [3000, 8000], "band", fs=SR, output="sos"), RNG.standard_normal(n))
+    out += tickn * 0.4 * np.exp(-t / 0.006)
+    hiss = sosfilt(butter(2, 5000, "high", fs=SR, output="sos"), RNG.standard_normal(n))
+    out += hiss * 0.12 * np.exp(-t / (decay * 0.25))
+    return (out * vel * 0.6 * np.clip(t / 0.001, 0, 1)).astype(np.float32)
 
 
 def reverse_cymbal(dur, vel=0.7):
