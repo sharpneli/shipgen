@@ -24,7 +24,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Export numeric `calibre_mm`/`calibre_length` in sprite.json turret types and hitbox components
 - [ ] `armament.side_pairs` defaults torpedo mounts to 25.0 mm armour (carriers, merchants): torpedo mount armour isn't an input
 - [ ] Split layout.py: shared primitives (public names) vs the warship's `build_layout` into styles/warship.py
-- [ ] **Next session:** `lay.geo` → a `Geo` dataclass (plan in HANDOFF): dead keys, disagreeing defaults, f-string keys; Layout attributes added after `__init__`
+- [ ] `Geo.plant` is still a nested dict (~14 keys, read in 9 modules): its own dataclass
 - [ ] Private `_` keys as side channels: `b["_plate_mm"]` (layout → hitbox), `spec["_clutter"]` (shipgen → render)
 - [ ] Mount rest bearing stored twice (`lay.mounts`, `lay.spec["turrets"]`), synced by `assign_arcs`; published twice too
 - [ ] Height columns and hitboxes restate the same shapes (AA `base + 2.0`, barbette `r * 0.95`, funnel rrect)
