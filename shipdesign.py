@@ -33,7 +33,7 @@ import firecontrol
 import hullweight
 import navarch
 import styles
-from geometry import AA_CFG, rrect_polygon, block_outline
+from geometry import AA_CFG, has_barbette, rrect_polygon, block_outline
 from arcs import assign_arcs
 from firecontrol import assign_smoke
 from hitbox import export_hitboxes
@@ -370,7 +370,7 @@ def height_columns(lay, deck_m):
         items.append(dict(top=deck_m + cr["top"], shape="circle", cx=cr["x"], cy=cr["y"], r=cr.get("r", 1.2)))
     for m in lay.mounts:   # barbettes of raised mounts stand above the deck
         t = m["t"]
-        if t.get("barbette", True) and m["base"] > 0.5:
+        if has_barbette(t) and m["base"] > 0.5:
             items.append(dict(top=deck_m + m["base"], shape="circle", cx=m["x"], cy=m["y"], r=t["r"] * 0.95))
     for b in lay.blocks:
         pts = block_outline(b)

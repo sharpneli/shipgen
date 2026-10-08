@@ -32,7 +32,7 @@ import ordnance
 import powerplant
 from navarch import Weight, battery_turrets, main_batteries, mount_weights, torpedo_weight, TUNING
 from arcs import ARC_BEAM, ARC_CASEMATE, ARC_CROSS, mount_traverse
-from geometry import Hull, AA_CFG
+from geometry import Hull, AA_CFG, has_barbette
 
 LEVEL_H = DECK_PITCH  # height of one superstructure level, metres: one deck (geometry.DECK_PITCH)
 CASEMATE_BEAM = 0.7    # casemates stand where the hull is at least this fraction of its full beam
@@ -1022,7 +1022,7 @@ def place_casemates(lay, mounts, turret_types, blocks, secs, hull, depth):
         return
     bats.sort(key=lambda bt: bt[4])     # the lower tier first (a stable sort keeps the list order within a tier)
     B = hull.B
-    barbettes = [m for m in mounts if m["kind"] == "main" and m["t"].get("barbette", True)]
+    barbettes = [m for m in mounts if m["kind"] == "main" and has_barbette(m["t"])]
 
     def lower_ok(x, rc):
         hw = hull.half_width(x)

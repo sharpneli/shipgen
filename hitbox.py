@@ -8,7 +8,7 @@ what a hit does is the game's business.
 from __future__ import annotations
 
 from geometry import rrect_polygon, block_outline, turret_shapes, turret_reach
-from geometry import AA_CFG, HullForm
+from geometry import AA_CFG, HullForm, has_barbette
 from layout import block_base, block_role, block_top, own_plate_mm
 import ordnance
 from navarch import gun_rounds
@@ -211,7 +211,7 @@ def export_hitboxes(lay, design, res):
             comps[-1]["magazine"] = m["magazine"]
         if m.get("casemate"):   # in the hull side, below the main deck
             comps[-1]["mount"] = "casemate"
-        if t.get("barbette", True):
+        if has_barbette(t):
             # from the main armour deck up to the turret, for a mount standing in the hull; a mount on a sponson or a
             # flight deck has only a pedestal on its platform
             in_hull = abs(m["y"]) + 0.95 * t["r"] <= lay.hull.half_width(m["x"]) and m["base"] < fd_base

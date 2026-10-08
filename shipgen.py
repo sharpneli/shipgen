@@ -38,7 +38,7 @@ from fleet import FLEET, TURRET_TYPES
 from looks import DEFAULT_PALETTE
 import clutter
 from geometry import turret_shapes, turret_reach, barrel_shown, BARREL_ROOT, CASEMATE_SHIELD, rrect_polygon, Hull, AA_CFG, point_in_polygon, \
-    director_parts
+    director_parts, has_barbette
 
 PAD_M = 3.0  # empty margin around each hull sprite, metres
 
@@ -830,7 +830,7 @@ def build_hull(spec, scale, align=2, shadows=True):
     mounts = expand(spec.get("turrets"), hull)
     for m in mounts:
         t = turret_types(spec)[m["type"]]
-        if t.get("barbette", True):
+        if has_barbette(t):
             low.append(P.barbette(m["x"], m["y"] if "y" in m else 0, t["r"] * t.get("barbette_k", 0.95)))
 
     # --- tall stuff ----------------------------------------------------------

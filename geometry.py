@@ -614,6 +614,12 @@ CASEMATE_SHIELD = 0.55  # a casemate gun's round port shield, in units of its ca
 BARREL_SHOWN = {"bb": 0.8, "dp": 0.8, "casemate": 0.5}
 
 
+def has_barbette(t: dict) -> bool:
+    """Does a mount of turret type t stand on a barbette? Turrets do; open mounts, casemates and torpedo tubes
+    don't (make_turret_type sets "barbette": False on them)."""
+    return t.get("barbette", True)
+
+
 def barrel_shown(t: dict) -> float:
     """The drawn and hitbox length of a gun's barrels, from their root (BARREL_SHOWN)."""
     return t["barrel_len"] * BARREL_SHOWN.get(t.get("shape", "bb"), 1.0)
