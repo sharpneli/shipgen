@@ -9,7 +9,7 @@ size search never runs it.
             collision bulkhead. Stations closer than MIN_SECTION merge (the more important one stays), and gaps
             longer than MAX_SECTION fill in, except inside one room. Numbered from the bow.
   tiers     between the decks, keel up: the inner bottom (not on planing craft), then the deck stack every
-            navarch.DECK_PITCH up to the main deck (navarch.deck_stack), then the decks of raised stretches of hull
+            geometry.DECK_PITCH up to the main deck (decks.deck_stack), then the decks of raised stretches of hull
             (lay.raised: forecastle, poop), which exist only over their spans. Armour decks (armour.decks) lie on
             the stack. Each tier is named after the deck it stands on: "bottom", "hold", then ..., "third",
             "second" under the main deck, "main" and "raised deck 1", ... above it. A tier the waterline crosses
@@ -93,11 +93,11 @@ def raised_spans(raised, k):
 
 def decks(design, D, ag, raised=()):
     """The decks, keel up, as heights above the main deck: [dict(id, kind, z, armour_mm?, x0?, x1?, plates?)]. The
-    keel, the inner bottom (not on planing craft), then the deck stack (navarch.deck_stack) up to the main deck. An
+    keel, the inner bottom (not on planing craft), then the deck stack (decks.deck_stack) up to the main deck. An
     armoured deck carries its armour (navarch.armour_geometry) and the stretch it covers; a deck armoured over
     several stretches (the citadel and its ends) lists them as plates [dict(armour_mm, x0, x1)]. Above the main
     deck, the decks of raised stretches (raised: lay.raised), each with the spans where it exists."""
-    from navarch import deck_stack, deck_name
+    from decks import deck_stack, deck_name
     from powerplant import double_bottom
     out = [dict(id="Keel", kind="keel", z=-D)]
     if design.get("style") != "planing":

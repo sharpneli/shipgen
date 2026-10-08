@@ -202,7 +202,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
 
 - **Deck stack and armour decks (done 2026-10-03).** The user wanted magazines low in the ship, with living space above them, and several armour decks.
   - The user's decisions:
-    - The deck pitch is a constant (`navarch.DECK_PITCH`, 2.6 m), not a design knob.
+    - The deck pitch is a constant (`geometry.DECK_PITCH`, 2.6 m), not a design knob.
     - Armour decks are an explicit list in every design, top down: `armour.decks = [{"deck": n, "mm", "extent": "citadel" | "full"}]`. Deck 0 is the main deck. `deck_mm` is now a validation error. Every design file was converted to the stack deck nearest its old armour deck. That's deck 1 on most ships, and the fleet carrier 2, the supercarrier 3, Gangut 7. Unarmoured designs got `"decks": []`.
     - Superstructure levels stay out of the grid, maybe for good ("not that interesting").
   - Rules (README "Design input"):
@@ -348,7 +348,7 @@ doesn't: the decisions behind the current design, how to work safely here, and w
     - Deckhouse levels exist for warships only; merchants (crew in the midships house) and carriers could take them.
     - The light condition's GM can get low (destroyer with 3 levels: 0.3 m) and only warns at 0; a ballast hint could come later.
 
-- **Raised decks (done 2026-10-05, six commits, eea205e..).** One deck pitch for everything (`geometry.DECK_PITCH`; `layout.LEVEL_H` and `navarch.DECK_PITCH` are it). Levels count from the main deck, so a one-deck raised stretch is level 1 where it stands.
+- **Raised decks (done 2026-10-05, six commits, eea205e..).** One deck pitch for everything (`geometry.DECK_PITCH`; `layout.LEVEL_H` and `geometry.DECK_PITCH` are it). Levels count from the main deck, so a one-deck raised stretch is level 1 where it stands.
   - `Layout.raised` / `deck_level(x, r)` / `deck_levels` / `deck_z`; `layout.add_raised` (footprint seen by `free_at`, not by `free`; weighed by `hullweight.raised_t`); `raised_profile` and `raised_names` (Forecastle n, Poop n). The merchant's three islands use it (2.4 → 2.6 m, now weighed).
   - Subdivision: raised decks and tiers that exist only over their spans, breaks as stations (`BREAK_PRIORITY`), cells clipped to the span; `vertical.raised` in hitboxes; the raised `deck` components are gone. Crew space counts raised stretches as hull.
   - Warship layout: turrets on their deck with a superfire step over the turret below, lifted until their guns clear a higher raised deck they sweep (`raised_lift`, `RAISED_CLEAR` 1.1 m); `stands_on: "deckhouse"` means level 1's roof height (no deckhouse under it over a forecastle); upper casemates over a raised stretch go in its side; funnels don't trunk across a break; main turret placement now runs after the plan arithmetic.

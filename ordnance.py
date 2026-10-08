@@ -8,7 +8,7 @@ rooms. A style only says where they may go: zones, each a box on the inner botto
 holds and what goes in each (mounts, extra tonnes). stow() sizes the zone's height to its contents, splits its
 length between the rooms by volume, links each mount to its magazine and moves the ammunition weights there.
 
-Everything stands on the inner bottom, its top on a deck of the stack (navarch.deck_stack) and never above the
+Everything stands on the inner bottom, its top on a deck of the stack (decks.deck_stack) and never above the
 lowest armour deck, so a shell or bomb fused by the armour deck bursts in the decks above it.
 """
 from __future__ import annotations

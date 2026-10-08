@@ -591,7 +591,8 @@ def plan_machinery(lay, design, res, hull, x=0.0):
     without deck armour). Fuel the
     wing bunkers and double bottom can't take goes into end bunkers or tanks, which lengthen the block. Stores the
     plan in lay.geo["plant"] and returns the block's length (powerplant.segments)."""
-    from navarch import armour_geometry, deck_stack
+    from decks import deck_stack
+    from navarch import armour_geometry
     p = res.plant
     armour = design.get("armour") or {}
     D, T = res.depth, res.draught
@@ -871,7 +872,7 @@ def hull_spec(design):
     return dict(length=h["length"], beam=h["beam"], **planform(h["block_coefficient"], h["length"] * h["beam"]))
 
 
-from navarch import STEERING     # the steering gear: from 0.03 to 0.08 L forward of the stern, 0.25 B each side
+from propulsion import STEERING     # the steering gear: from 0.03 to 0.08 L forward of the stern, 0.25 B each side
 
 
 def set_citadel(lay, x0, x1):
@@ -889,7 +890,7 @@ def add_steering(lay, x0=None, x1=None, half_width=None, name="Steering gear"):
     room = dict(id=name, kind="steering", x0=x0, x1=x1, base=base, top=top,
                 half_width=STEERING[2] * B if half_width is None else half_width)
     lay.compartments.append(room)
-    lay.geo["steering"] = (x0, x1)      # for the armour (navarch.steering_span) and the propulsion train
+    lay.geo["steering"] = (x0, x1)      # for the armour (propulsion.steering_span) and the propulsion train
     lay.geo["steering_beam"] = 2 * sum(lay.hull.half_width(x0 + (x1 - x0) * (k + 0.5) / 8) for k in range(8)) / 8
     return room
 

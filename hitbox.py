@@ -59,7 +59,9 @@ def export_hitboxes(lay, design, res, inner):
     """hitboxes.json. Heights are metres above the main deck; res (navarch.Result) places the keel, the
     waterline and the armour. inner: the ship's interior (shipdesign.interior): armour, hull form, subdivision,
     plating, hydrostatics, propulsion and battle stations."""
-    from navarch import armour_material, deck_name, DECK_PITCH
+    from decks import deck_name
+    from geometry import DECK_PITCH
+    from navarch import armour_material
     D, T = res.depth, res.draught
     rz = lambda z: round(z - D, 2)        # metres above the keel -> above the main deck
     ag = inner["armour"]

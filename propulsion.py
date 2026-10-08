@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import math
 
+STEERING = (0.03, 0.08, 0.25)   # the steering gear: from 0.03 to 0.08 L forward of the stern, 0.25 B each side
 SHAFT_Y = 0.28          # the outermost shafts, x B off the centreline
 STAGGER = 0.05          # each pair of propellers further out, x L further forward
 DP_K = 1.2              # propeller diameter (m) per MW per shaft ** 0.4
@@ -40,6 +41,12 @@ STOCK_AT = 0.2          # the stock, this far along the steering gear from its a
 ALLEY_W, ALLEY_H = 2.4, 2.6
 SHAFT_ABOVE_IB = 1.2    # a shaft's centre over the inner bottom at its engine
 SHAFT_R = 0.3           # shaft radius (the hitbox), m
+
+
+def steering_span(L, geo=None):
+    """The steering gear's stretch (x0, x1): the layout's (geo["steering"], layout.add_steering) or the rule's
+    (STEERING)."""
+    return (geo or {}).get("steering") or (-L / 2 + STEERING[0] * L, -L / 2 + STEERING[1] * L)
 
 
 def spread(n, y_out):
