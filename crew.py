@@ -307,7 +307,7 @@ DIRECTOR_K = 2           # a director's crew: 2 + its rangefinder's base in metr
 STEERING_PARTY = 2       # men in the steering gear room
 
 
-def battle_stations(lay, sub, comps):
+def battle_stations(lay, sub):
     """Where the complement stands at battle stations, for the game's casualty model (the quarters are empty then;
     crew weights stay lumped). Every man is placed once, so the counts add up to the complement:
       weapons     over the mounts (AA and torpedoes too) by their crews (gun_crew, torpedo_crew); a turret in the
@@ -320,14 +320,14 @@ def battle_stations(lay, sub, comps):
     A place a ship lacks passes its men on to the next (to the repair parties last; with no free rooms, to the
     superstructure). Returns dict(components={(kind, id): men}, rooms={id: men}, summary={station: men}); components
     are keyed by kind too, since ids may repeat across kinds (a carrier's Hangar block and hangar bay)."""
-    from geometry import AA_CFG, block_outline, polygon_centroid
+    from geometry import AA_CFG, block_outline, has_barbette, polygon_centroid
     from layout import block_role
     from layout import block_base, block_top
     c = getattr(lay, "crew", None) or {}
     deps = dict(c.get("departments") or {})
     if not deps:
         return dict(components={}, rooms={}, summary={})
-    keys = {(x["kind"], x["id"]) for x in comps}
+    barbettes = {m["id"] for m in lay.mounts if has_barbette(m["t"])}
     on_comp, on_room, summary = {}, {}, {}
 
     def put(where, men, station):
@@ -348,7 +348,7 @@ def battle_stations(lay, sub, comps):
     for a in lay.aa:
         need[("aa", a["id"])] = gun_crew(40.0 if "40" in a["type"] else 20.0, AA_CFG[a["type"]][1])
     for (kind, k), men in spread(deps.get("weapons", 0), need).items():
-        below = round(HANDLING * men) if ("barbette", f"{k} barbette") in keys else 0
+        below = round(HANDLING * men) if kind != "aa" and k in barbettes else 0
         put(on_comp, {(kind, k): men - below}, "aa" if kind == "aa" else "torpedoes" if kind == "torpedo" else "guns")
         put(on_comp, {("barbette", f"{k} barbette"): below}, "handling")
     rest = sum(n for d, n in deps.items() if d not in ("weapons", "engineering"))
@@ -387,8 +387,8 @@ def battle_stations(lay, sub, comps):
     # an air group: in the hangar, else on the flight deck
     air = take(deps.get("air_group", 0), rest)
     if air:
-        bays = ({k: 1.0 for k in keys if k[0] == "hangar_bay"}
-                or {k: 1.0 for k in keys if k[0] == "flight_deck"})
+        bays = ({("hangar_bay", c["id"]): 1.0 for c in lay.compartments if c["kind"] == "hangar"}
+                or {("flight_deck", dk["id"]): 1.0 for dk in lay.decks if dk["kind"] == "flight_deck"})
         if bays:
             put(on_comp, spread(air, bays), "air")
             rest -= air
@@ -401,3 +401,21 @@ def battle_stations(lay, sub, comps):
         put(on_comp, spread(rest, {k: v for k, v in vol.items() if role(k) != "director"} or vol),
             "repair")
     return dict(components=on_comp, rooms=on_room, summary=summary)
+
+
+def assign_battle_crew(lay, sub):
+    """battle_crew on the rooms and cells where the complement stands at battle stations (battle_stations; a room's
+    men are spread over the cells it owns by volume), and its summary in the report's crew (battle_stations).
+    Returns the men on the components: {(kind, id): men}, for the hitboxes."""
+    st = battle_stations(lay, sub)
+    cells = {c["id"]: c for c in sub["cells"]}
+    for r in sub["rooms"]:
+        men = st["rooms"].get(r["id"])
+        if men:
+            r["battle_crew"] = men
+            own = {cid: cells[cid]["volume_m3"] for cid in r["cells"] if cells[cid]["room"] == r["id"]}
+            for cid, m in spread(men, own).items():
+                cells[cid]["battle_crew"] = m
+    if getattr(lay, "crew", None) is not None and st["summary"]:
+        lay.crew["battle_stations"] = st["summary"]
+    return st["components"]

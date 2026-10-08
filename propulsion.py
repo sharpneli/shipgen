@@ -1,7 +1,7 @@
 """
 propulsion — the propulsion train for the hitboxes: shafts, shaft alleys, propellers and rudders.
 
-Design side, standard library only. Built once per ship from the finished layout (hitbox.export_hitboxes), like the
+Design side, standard library only. Built once per ship from the finished layout (shipdesign.interior), like the
 subdivision; the size search never runs it, and nothing here is weighed (the plant's weight includes its shafting,
 and the hull's its rudders and stern gear). It gives the game the weak spots aft: a jammed rudder, a wrecked shaft
 or propeller, a flooded shaft alley.
@@ -118,7 +118,8 @@ def gear(lay, design, res):
 
 def build(lay, design, res, form, gr=None):
     """The propulsion train: dict(shafts, propellers, rudders, alleys), each a list of dicts with heights above the
-    keel (hitbox.export_hitboxes turns them into components). gr: gear(), when the hull form was built round it."""
+    keel (hitbox.export_hitboxes turns them into components), and the steering gear's room id. gr: gear(), when the
+    hull form was built round it."""
     gr = gr or gear(lay, design, res)
     mach = lay.geo.get("machinery")
     shafts, alleys = [], []
@@ -140,5 +141,35 @@ def build(lay, design, res, form, gr=None):
             alleys.append(dict(id=f"Shaft alley {k + 1}", shaft=sh["id"], x0=exit_x, x1=a0, y=y,
                                base=max(gr["ib"], min(zt) - ALLEY_H / 2), top=max(zt) + ALLEY_H / 2))
             shafts[-1]["alley"] = alleys[-1]["id"]
+    steering = next((c["id"] for c in lay.compartments if c["kind"] == "steering"), None)
     return dict(shafts=shafts, propellers=gr["propellers"], rudders=gr["rudders"], alleys=alleys,
-                rated_mw_per_shaft=gr["rated_mw_per_shaft"])
+                rated_mw_per_shaft=gr["rated_mw_per_shaft"], steering=steering)
+
+
+def link(tr, sub, D):
+    """Link the train (build) into the subdivision: each engine room lists its shafts, the steering gear its rudders,
+    and every cell a shaft or alley passes through lists it in "through". D: the hull's depth (the subdivision's
+    heights are above the main deck, the train's above the keel)."""
+    rooms = {r["id"]: r for r in sub["rooms"]}
+    for sh in tr["shafts"]:
+        if sh["engine_room"] in rooms:
+            rooms[sh["engine_room"]].setdefault("shafts", []).append(sh["id"])
+    if tr["steering"] in rooms:
+        rooms[tr["steering"]]["rudders"] = [rd["id"] for rd in tr["rudders"]]
+    for c in sub["cells"]:
+        inside = lambda x, y, zz: (c["x0"] <= x < c["x1"] and c["y0"] <= y < c["y1"] and c["base"] <= zz < c["top"])
+        for sh in tr["shafts"]:
+            (x0, y, z0), (x1, _, z1) = sh["p0"], sh["p1"]
+            if not (c["y0"] <= y < c["y1"] and c["x0"] < x0 and c["x1"] > sh["exit_x"]):
+                continue
+            n = max(2, int((x0 - sh["exit_x"]) / 0.5))
+            if any(inside(x, y, z0 + (z1 - z0) * (x0 - x) / (x0 - x1) - D)
+                   for x in (x0 - (x0 - sh["exit_x"]) * k / n for k in range(n + 1))):
+                c.setdefault("through", []).append(sh["id"])
+        for a in tr["alleys"]:
+            hw = ALLEY_W / 2
+            if (min(c["x1"], a["x1"]) - max(c["x0"], a["x0"]) > 0.05 and
+                    min(c["y1"], a["y"] + hw) - max(c["y0"], a["y"] - hw) > 0.05 and
+                    min(c["top"], a["top"] - D) - max(c["base"], a["base"] - D) > 0.05):
+                c.setdefault("through", []).append(a["id"])
+

@@ -33,12 +33,14 @@ import firecontrol
 import hullweight
 import navarch
 import styles
-from geometry import AA_CFG, has_barbette, rrect_polygon, block_outline
+from geometry import AA_CFG, HullForm, has_barbette, rrect_polygon, block_outline
 from arcs import assign_arcs
 from firecontrol import assign_smoke
 from hitbox import export_hitboxes
 import powerplant
-from layout import LEVEL_H, block_top
+import propulsion
+import subdivision
+from layout import LEVEL_H, block_top, own_plate_mm
 
 MAST_ABOVE_FUNNEL = 6.0   # mast tops sit this far above the funnel tops
 
@@ -342,6 +344,35 @@ def report_dict(design, lay, r, sized):
     )
 
 
+def hull_plating(lay, design, res):
+    """The unarmoured plating (hullweight.plates): the hull's from its structure, the superstructure's from the
+    design (superstructure.plating_mm, control_mm) over the structure's own gauge."""
+    sup = design.get("superstructure") or {}
+    hp = hullweight.plating(design)
+    h = res.hull if "t_min_mm" in res.hull else {**res.hull, "plate_own_mm": own_plate_mm(lay)}
+    return hullweight.plates(h, lay.hull.L, hp["shell_mm"], hp["material"], sup.get("plating_mm", 0.0),
+                             sup.get("control_mm", 0.0), hp["deck_wood_mm"])
+
+
+def interior(lay, design, r):
+    """What the solved, laid-out ship is inside, beyond the layout: its armour (navarch.armour_geometry), hull form
+    (round the stern gear), subdivision with its plating, hydrostatics, propulsion train linked into the
+    subdivision, and battle stations (which also go in the report's crew). export_hitboxes publishes it."""
+    D, T = r.depth, r.draught
+    ag = navarch.armour_geometry(design, lay.hull.L, T, D, lay.geo)
+    cb = design["hull"]["block_coefficient"]
+    gear = propulsion.gear(lay, design, r)        # the stern's lines make room for it
+    form = HullForm(lay.hull, cb, navarch.cwp(cb), T, D, navarch.froude(design["speed_kn"], lay.hull.L), gear, r.lcb)
+    sub = subdivision.build(lay, design, r, ag, ag["armoured"], form)
+    plating = hull_plating(lay, design, r)
+    planked = subdivision.deck_plates(sub, plating, design, lay)
+    hydro = navarch.hydrostatics(form, r)
+    train = propulsion.build(lay, design, r, form, gear)
+    propulsion.link(train, sub, D)
+    return dict(armour=ag, form=form, subdivision=sub, plating=plating, planked=planked, hydrostatics=hydro,
+                propulsion=train, battle_crew=crew.assign_battle_crew(lay, sub))
+
+
 BRIDGE_EYE = 1.7   # m: the officer of the watch's eye over the bridge deck
 
 
@@ -399,7 +430,8 @@ def build(design, hint=None):
     to the search's half-percent tolerance."""
     lay, r, sized = solve(design, hint=hint)
     deck_m = max(r.freeboard, 0.1)    # an unsolvable design can come out with no freeboard at all
-    hitboxes = export_hitboxes(lay, sized, r)
+    inner = interior(lay, sized, r)   # before the report: it adds the battle stations to the crew
+    hitboxes = export_hitboxes(lay, sized, r, inner)
     return dict(
         design=design,
         report=report_dict(design, lay, r, sized),

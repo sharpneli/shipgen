@@ -1,7 +1,7 @@
 """
 subdivision — the hull below the main deck as a grid of watertight cells, and the rooms that own them.
 
-Design side, standard library only. Built once per ship from the finished layout (hitbox.export_hitboxes); the
+Design side, standard library only. Built once per ship from the finished layout (shipdesign.interior); the
 size search never runs it.
 
   sections  the hull between transverse bulkheads (stations). The stations snap to what matters: the ends of
@@ -520,3 +520,32 @@ def build(lay, design, res, ag, armoured, form):
         cells=[rnd(c) for c in cells],
         rooms=sorted(room_out.values(), key=lambda r: -r["x1"]),
     )
+
+
+def deck_plates(sub, plating, design, lay):
+    """plate_mm on the subdivision's decks and unarmoured bulkheads: the main deck is the strength deck (thicker over
+    the middle: plate_end_mm toward the ends), the inner bottom and raised decks at the hull's own gauge, the other
+    decks and the watertight bulkheads lighter. A torpedo bulkhead gives the protection's plating, all its
+    bulkheads together. Deck planking (wood_mm) lies on the weather deck: the flight deck when there is one, else
+    the main and raised decks. Returns the ids of the layout's decks (lay.decks: a flight deck) that take it."""
+    from navarch import TUNING
+    tds = (design.get("armour") or {}).get("tds_m", 0.0) or 0.0
+    for d in sub["decks"]:
+        if d["kind"] == "inner_bottom":
+            d["plate_mm"] = plating["inner_bottom_mm"]
+        elif d["kind"] == "main":
+            d["plate_mm"], d["plate_end_mm"] = plating["strength_deck_mm"], plating["strength_deck_end_mm"]
+        elif d["kind"] == "raised":     # a raised stretch's weather deck, at the hull's own gauge
+            d["plate_mm"] = plating["strength_deck_end_mm"]
+        else:
+            d["plate_mm"] = plating["deck_mm"]
+    wood = plating["deck_wood_mm"]
+    planked = [dk["id"] for dk in lay.decks if dk["kind"] == "flight_deck"] if wood else []
+    if wood and not planked:
+        for d in sub["decks"]:
+            if d["kind"] in ("main", "raised"):
+                d["wood_mm"] = wood
+    for b in sub["bulkheads"]:
+        b["plate_mm"] = (round(TUNING["tds_mm_per_m"] * tds, 1) if b.get("kind") == "tds"
+                         else plating["bulkhead_mm"])
+    return planked

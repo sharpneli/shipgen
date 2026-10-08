@@ -411,6 +411,24 @@ def wind_heel(L, B, D, cb, full, std, gm_full, gm_light, windage):
     return out
 
 
+def hydrostatics(form, res):
+    """The full-load hydrostatics a game needs to settle, trim and heel a flooded ship by added weight: sinkage
+    = w / (100 tpc_t) m, trim = w (x - lcf) / (100 mct_tm) cm (+ down by the bow), heel = w y / (Δ gm_t) rad.
+    Heights above the main deck. gm_t is the report's (navarch's estimate); gm_l comes from the hull form's
+    waterplane with navarch's kb and kg."""
+    L, D, T, disp = form.hull.L, res.depth, res.draught, res.full
+    area, lcf, i_l, i_t = form.waterplane()
+    vol = disp / SEAWATER
+    kg = sum(w.w * w.z for w in res.weights) / sum(w.w for w in res.weights)
+    kb = 0.53 * T
+    gm_l = kb + i_l / vol - kg
+    return dict(displacement_t=round(disp), volume_m3=round(vol), waterplane_m2=round(area, 1),
+                lcf=round(lcf, 3), lcg=round(res.lcg, 3), lcb=round(res.lcb, 3), kg=round(kg - D, 2),
+                kb=round(kb - D, 2), gm_t=round(res.gm_full, 3), gm_l=round(gm_l, 1),
+                i_t_m4=round(i_t), i_l_m4=round(i_l), tpc_t=round(SEAWATER * area / 100, 2),
+                mct_tm=round(disp * gm_l / (100 * L), 1))
+
+
 STACK_DECK = 0.6       # a level of the deck stack weighs this much of a full internal deck: many are platforms and
                        # flats (fitted so the stack reproduces the hull-weight research's calibration)
 INNER_BOTTOM_T = (4000.0, 10000.0)  # full displacement (t) over which the inner bottom's weight comes in: escorts

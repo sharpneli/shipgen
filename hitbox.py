@@ -8,12 +8,11 @@ what a hit does is the game's business.
 from __future__ import annotations
 
 from geometry import rrect_polygon, block_outline, turret_shapes, turret_reach
-from geometry import AA_CFG, HullForm, has_barbette
-from layout import block_base, block_role, block_top, own_plate_mm
+from geometry import AA_CFG, has_barbette
+from layout import block_base, block_role, block_top
 import ordnance
 from navarch import gun_rounds
 import propulsion
-import subdivision
 
 # Turret armour other than the face (the battery's armour_mm), as fractions of the face. Roughly Iowa, KGV and
 # Bismarck: sides 0.56-0.69, rear 0.5-0.9, roof 0.4-0.43.
@@ -21,17 +20,15 @@ TURRET_SIDE, TURRET_REAR, TURRET_ROOF = 0.55, 0.5, 0.4
 BARBETTE = 0.8   # barbette armour, fraction of the turret face (as navarch weighs it)
 
 
-def propulsion_components(lay, design, res, form, sub, gear=None):
+def propulsion_components(tr, D):
     """The propulsion train (propulsion.build) as components: shafts (segments from the engine room to the
-    propeller), shaft alleys, propellers and rudders, linked both ways to the engine rooms and the steering gear.
-    The cells they pass through list them in "through"."""
-    D = res.depth
-    tr = propulsion.build(lay, design, res, form, gear)
+    propeller), shaft alleys, propellers and rudders, linked to the engine rooms and the steering gear (the rooms
+    link back: propulsion.link)."""
     z = lambda v: round(v - D, 2)
     rect = lambda x0, x1, y, hw: [[round(x0, 3), round(y - hw, 3)], [round(x1, 3), round(y - hw, 3)],
                                   [round(x1, 3), round(y + hw, 3)], [round(x0, 3), round(y + hw, 3)]]
     out = []
-    steering = next((c["id"] for c in lay.compartments if c["kind"] == "steering"), None)
+    steering = tr["steering"]
     for sh in tr["shafts"]:
         (x0, y, z0), (x1, _, z1) = sh["p0"], sh["p1"]
         out.append(dict(id=sh["id"], kind="shaft", shape="segment", position=sh["position"],
@@ -55,118 +52,17 @@ def propulsion_components(lay, design, res, form, sub, gear=None):
         out.append(dict(id=rd["id"], kind="rudder", shape="polygon", x=round(rd["x"], 3), y=round(rd["y"], 3),
                         area_m2=round(rd["area_m2"], 1), points=rect(rd["x0"], rd["x1"], rd["y"], rd["thick"] / 2),
                         base=z(rd["base"]), top=z(rd["top"]), **({"steering": steering} if steering else {})))
-    # the links back, and the cells each shaft and alley passes through
-    rooms = {r["id"]: r for r in sub["rooms"]}
-    for sh in tr["shafts"]:
-        if sh["engine_room"] in rooms:
-            rooms[sh["engine_room"]].setdefault("shafts", []).append(sh["id"])
-    if steering in rooms:
-        rooms[steering]["rudders"] = [rd["id"] for rd in tr["rudders"]]
-    for c in sub["cells"]:
-        inside = lambda x, y, zz: (c["x0"] <= x < c["x1"] and c["y0"] <= y < c["y1"] and c["base"] <= zz < c["top"])
-        for sh in tr["shafts"]:
-            (x0, y, z0), (x1, _, z1) = sh["p0"], sh["p1"]
-            if not (c["y0"] <= y < c["y1"] and c["x0"] < x0 and c["x1"] > sh["exit_x"]):
-                continue
-            n = max(2, int((x0 - sh["exit_x"]) / 0.5))
-            if any(inside(x, y, z0 + (z1 - z0) * (x0 - x) / (x0 - x1) - D)
-                   for x in (x0 - (x0 - sh["exit_x"]) * k / n for k in range(n + 1))):
-                c.setdefault("through", []).append(sh["id"])
-        for a in tr["alleys"]:
-            hw = propulsion.ALLEY_W / 2
-            if (min(c["x1"], a["x1"]) - max(c["x0"], a["x0"]) > 0.05 and
-                    min(c["y1"], a["y"] + hw) - max(c["y0"], a["y"] - hw) > 0.05 and
-                    min(c["top"], a["top"] - D) - max(c["base"], a["base"] - D) > 0.05):
-                c.setdefault("through", []).append(a["id"])
     return out
 
 
-def hydrostatics(form, res):
-    """The full-load hydrostatics a game needs to settle, trim and heel a flooded ship by added weight: sinkage
-    = w / (100 tpc_t) m, trim = w (x - lcf) / (100 mct_tm) cm (+ down by the bow), heel = w y / (Δ gm_t) rad.
-    Heights above the main deck. gm_t is the report's (navarch's estimate); gm_l comes from the hull form's
-    waterplane with navarch's kb and kg."""
-    from navarch import SEAWATER
-    L, D, T, disp = form.hull.L, res.depth, res.draught, res.full
-    area, lcf, i_l, i_t = form.waterplane()
-    vol = disp / SEAWATER
-    kg = sum(w.w * w.z for w in res.weights) / sum(w.w for w in res.weights)
-    kb = 0.53 * T
-    gm_l = kb + i_l / vol - kg
-    return dict(displacement_t=round(disp), volume_m3=round(vol), waterplane_m2=round(area, 1),
-                lcf=round(lcf, 3), lcg=round(res.lcg, 3), lcb=round(res.lcb, 3), kg=round(kg - D, 2),
-                kb=round(kb - D, 2), gm_t=round(res.gm_full, 3), gm_l=round(gm_l, 1),
-                i_t_m4=round(i_t), i_l_m4=round(i_l), tpc_t=round(SEAWATER * area / 100, 2),
-                mct_tm=round(disp * gm_l / (100 * L), 1))
-
-
-def hull_plating(lay, design, res):
-    """The unarmoured plating (hullweight.plates): the hull's from its structure, the superstructure's from the
-    design (superstructure.plating_mm, control_mm) over the structure's own gauge."""
-    import hullweight
-    sup = design.get("superstructure") or {}
-    hp = hullweight.plating(design)
-    h = res.hull if "t_min_mm" in res.hull else {**res.hull, "plate_own_mm": own_plate_mm(lay)}
-    return hullweight.plates(h, lay.hull.L, hp["shell_mm"], hp["material"], sup.get("plating_mm", 0.0),
-                             sup.get("control_mm", 0.0), hp["deck_wood_mm"])
-
-
-def deck_plates(sub, plating, design, comps):
-    """plate_mm on the subdivision's decks and unarmoured bulkheads: the main deck is the strength deck (thicker over
-    the middle: plate_end_mm toward the ends), the inner bottom and raised decks at the hull's own gauge, the other
-    decks and the watertight bulkheads lighter. A torpedo bulkhead gives the protection's plating, all its
-    bulkheads together. Deck planking (wood_mm) lies on the weather deck: the flight deck when there is one, else
-    the main and raised decks."""
-    from navarch import TUNING
-    tds = (design.get("armour") or {}).get("tds_m", 0.0) or 0.0
-    for d in sub["decks"]:
-        if d["kind"] == "inner_bottom":
-            d["plate_mm"] = plating["inner_bottom_mm"]
-        elif d["kind"] == "main":
-            d["plate_mm"], d["plate_end_mm"] = plating["strength_deck_mm"], plating["strength_deck_end_mm"]
-        elif d["kind"] == "raised":     # a raised stretch's weather deck, at the hull's own gauge
-            d["plate_mm"] = plating["strength_deck_end_mm"]
-        else:
-            d["plate_mm"] = plating["deck_mm"]
-    wood = plating["deck_wood_mm"]
-    if wood:
-        weather = [c for c in comps if c["kind"] == "flight_deck"] or [
-            d for d in sub["decks"] if d["kind"] in ("main", "raised")]
-        for d in weather:
-            d["wood_mm"] = wood
-    for b in sub["bulkheads"]:
-        b["plate_mm"] = (round(TUNING["tds_mm_per_m"] * tds, 1) if b.get("kind") == "tds"
-                         else plating["bulkhead_mm"])
-
-
-def battle_crew(lay, sub, comps):
-    """battle_crew on the components, rooms and cells where the complement stands at battle stations
-    (crew.battle_stations; a room's men are spread over the cells it owns by volume), and its summary in the
-    report's crew (battle_stations)."""
-    import crew
-    st = crew.battle_stations(lay, sub, comps)
-    for x in comps:
-        if st["components"].get((x["kind"], x["id"])):
-            x["battle_crew"] = st["components"][(x["kind"], x["id"])]
-    cells = {c["id"]: c for c in sub["cells"]}
-    for r in sub["rooms"]:
-        men = st["rooms"].get(r["id"])
-        if men:
-            r["battle_crew"] = men
-            own = {cid: cells[cid]["volume_m3"] for cid in r["cells"] if cells[cid]["room"] == r["id"]}
-            for cid, m in crew.spread(men, own).items():
-                cells[cid]["battle_crew"] = m
-    if getattr(lay, "crew", None) is not None and st["summary"]:
-        lay.crew["battle_stations"] = st["summary"]
-
-
-def export_hitboxes(lay, design, res):
+def export_hitboxes(lay, design, res, inner):
     """hitboxes.json. Heights are metres above the main deck; res (navarch.Result) places the keel, the
-    waterline and the armour."""
-    from navarch import armour_geometry, armour_material, cwp, deck_name, froude, DECK_PITCH
+    waterline and the armour. inner: the ship's interior (shipdesign.interior): armour, hull form, subdivision,
+    plating, hydrostatics, propulsion and battle stations."""
+    from navarch import armour_material, deck_name, DECK_PITCH
     D, T = res.depth, res.draught
     rz = lambda z: round(z - D, 2)        # metres above the keel -> above the main deck
-    ag = armour_geometry(design, lay.hull.L, T, D, lay.geo)
+    ag = inner["armour"]
     armoured = ag["armoured"]
     armour = design.get("armour", {})
     # barbettes reach the main armour deck (the belt top without deck armour; the second deck, never under the
@@ -281,6 +177,8 @@ def export_hitboxes(lay, design, res):
         if dk["kind"] == "flight_deck" and fd_mm:
             comps[-1]["armour_mm"] = fd_mm
             with_material(comps[-1], armour_material(design, "flight_deck"))
+        if dk["id"] in inner["planked"]:    # its deck planking (subdivision.deck_plates)
+            comps[-1]["wood_mm"] = inner["plating"]["deck_wood_mm"]
     for a in lay.aa:
         n, w = ordnance.ready_use(40.0 if "40" in a["type"] else 20.0, AA_CFG[a["type"]][1])
         comps.append(dict(id=a["id"], kind="aa", type=a["type"], shape="circle", x=round(a["x"], 3),
@@ -292,15 +190,11 @@ def export_hitboxes(lay, design, res):
             comps.append(dict(id=c["id"], kind="hangar_bay", shape="polygon",
                               points=[[round(x, 3), round(y, 3)] for x, y in pts], base=round(c["base"], 2),
                               top=round(c["top"], 2)))
-    cb = design["hull"]["block_coefficient"]
-    gear = propulsion.gear(lay, design, res)        # the stern's lines make room for it
-    form = HullForm(lay.hull, cb, cwp(cb), T, D, froude(design["speed_kn"], lay.hull.L), gear, res.lcb)
-    sub = subdivision.build(lay, design, res, ag, armoured, form)
-    plating = hull_plating(lay, design, res)
-    deck_plates(sub, plating, design, comps)
-    hydro = hydrostatics(form, res)
-    comps += propulsion_components(lay, design, res, form, sub, gear)
-    battle_crew(lay, sub, comps)
+    comps += propulsion_components(inner["propulsion"], D)
+    for x in comps:     # where the complement stands at battle stations (crew.assign_battle_crew)
+        if inner["battle_crew"].get((x["kind"], x["id"])):
+            x["battle_crew"] = inner["battle_crew"][(x["kind"], x["id"])]
+    form, sub = inner["form"], inner["subdivision"]
     arm_out = {}
     if ag["belt_mm"] > 0:
         arm_out["belt"] = with_material(dict(thickness_mm=ag["belt_mm"], x0=round(ag["x0"], 3), x1=round(ag["x1"], 3),
@@ -341,12 +235,12 @@ def export_hitboxes(lay, design, res):
                                           top=round(st["levels"] * DECK_PITCH, 2)) for st in lay.raised]}
                          if lay.raised else {})),
         hull=[[round(x, 3), round(y, 3)] for x, y in lay.hull.points()],
-        hydrostatics=hydro,
+        hydrostatics=inner["hydrostatics"],
         hull_form=dict(midship_coefficient=round(form.cm, 3), waterplane_coefficient=round(form.cwp, 3),
                        stations=[dict(x=round(s["x"], 3), z=[round(z - D, 2) for z in s["z"]],
                                       y=[round(y, 3) for y in s["y"]]) for s in form.table()]),
         armour=arm_out,
-        plating=plating,
+        plating=inner["plating"],
         components=comps,
         **sub,
     )
