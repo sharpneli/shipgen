@@ -466,9 +466,29 @@ Still open (TODO.md "Code structure"), roughly by value:
     Q-ship moved 102.5 → 103 m: its first rough estimate had assumed 25 mm guns. Planing craft ignored a
     secondary's `armour_mm` (always 25.0); they now use it.
 - **Side channels:** `lay.geo` keys (plant, machinery_x, funnel_plan, bridge, holds, ...) are an undocumented contract
-  between layout, navarch, ordnance, shipdesign and hitbox. `block_plating` writes `b["_plate_mm"]` for hitbox;
+  between layout, navarch, ordnance, shipdesign and hitbox (details and the agreed next step below). `block_plating` writes `b["_plate_mm"]` for hitbox;
   `build_hull` writes `spec["_clutter"]` into its input for render. The rest bearing lives in `lay.mounts` and
   `lay.spec["turrets"]` (synced by `arcs.assign_arcs`), and is published in both `render.spec` and `render.mounts`.
+- **`lay.geo`, the next step (surveyed 2026-10-08; the user wants it done next session).** A plain dict of ~20
+  keys, written by layout.py and each style, read by 9 modules; `navarch.solve(design, weights, geo)` and
+  `armour.armour_geometry(..., geo)` take it as input. Found:
+  - Keys and writers: citadel, steering, steering_beam, raised, windage, funnel_plan, smoke_reach, bridge,
+    machinery_rooms (layout only); plant (layout.add_plant: a nested dict of ~12 keys read in 9 modules);
+    machinery, machinery_x, shift (layout and every style, 4-5 writers each); holds, hold_volume (merchant);
+    magazine_x/_z, avgas_x/_z (carrier, written as `lay.geo[f"{key}_x"]`, so a grep finds only the reader).
+  - Dead keys: `machinery_rooms` (layout.py add_machinery_rooms) and `hold_volume` (merchant) are never read.
+  - Defaults that disagree, used before a layout exists: `machinery_x` is −0.02 L in navarch, 0.0 in crew;
+    propulsion.gear restates the steering span (0.03–0.08 L) instead of calling `propulsion.steering_span`;
+    the citadel's (±0.3 L) lives in armour_geometry.
+  - Nothing checks that a style sets what the physics needs: a missing key silently takes the reader's fallback,
+    and a typo makes a new key or reads a default.
+  - The same on `Layout`: `crew`, `smoke`, `directors`, `end_mounts`, `_deck_band` are added after `__init__`,
+    so readers use `getattr(lay, "crew", None)`.
+  - **Plan:** a `Geo` dataclass in layout.py, one documented typed field per fact, the before-layout defaults in
+    one place (navarch, crew, armour, propulsion use them); attribute writes so a typo fails; dead keys deleted;
+    the carrier's f-string keys become named fields; `Layout.__init__` declares crew/smoke/directors/end_mounts.
+    `plant` as its own dataclass is a later, separate step. Mechanical, ~60 sites, a few commits, each
+    byte-identical except the deliberate default fixes (check whether crew's machinery_x default ever applies).
 - **Restated geometry:** `shipdesign.height_columns` and the hitboxes each build the AA column (`base + 2.0`), the
   barbette circle (`r * 0.95`) and the funnel rounded rectangle.
 - **Render side:** shipgen.py is both the legacy fleet CLI and the drawing library (render imports fleet through it;
