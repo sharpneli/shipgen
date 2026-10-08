@@ -429,11 +429,40 @@ of a massive battleline shooting broadside for those Jutland feelings"); ships s
 - **Squadron and strategic views (2026-10-08):** the user wants the look "majority of the time one is looking at
   squadron level", and a strategic one with the squadron at a sixth of the screen. `lion+lion+lion+tiger_1914
   --size 1920x1080 --fire 20` and the same with `--fit 0.1667` (`--fit`: the share of the frame the line fills).
-  At 0.17 (~0.13 px/m at 1080p) the sea's swell reads as fine diagonal streaks and the wake as a thin line; nothing
+  At 0.17 (~0.25 px/m at 1080p) the sea's swell reads as fine diagonal streaks and the wake as a thin line; nothing
   is tuned for that scale yet.
 - **Next (user's order):** more ships and the line's look; then ships firing at each other (range compression on
   screen, shells landing, splashes and hits need research first); then explosions and sinking on any ship.
   Different speeds or headings would break the locked layers: hulls cropped to their box and wakes shifted per frame.
+
+## Long zoom (2026-10-08)
+The user wants the effects "clear" from high up instead of blobs, with smooth zooming in mind (a zoom demo comes
+later), built up on one ship firing: `vidgen.py lion --size 1920x1080 --scale 0.25 --fire 20` (`--scale` is px/m,
+in place of `--fit`; 0.25 is the strategic view's scale). Their criteria: the smoke sim stays the objective
+reference for visibility, but it may be drawn differently from higher up; the gun flashes inside the smoke are
+loved and must stay. Every change is a smooth function of the scale `s`, never a switch (a zoom would pop at it).
+- **Why it was blobby:** `Density` drew a blob smaller than its finest blur at that blur and at full peak, so
+  sub-pixel particles swelled (the stem spray was a white disc wider than the bow, gun smoke clumps 10x their
+  area); it ran at half resolution; blob sizes snapped to powers of two; smoke lighting was per pixel, so at 0.25
+  every puff clipped into a lit and a dark half.
+- **`Density(conserve=True)`** (vidgen's scene; sinkvid's own clips keep the old mode): each blob keeps its integral
+  `PEAK w 2 pi (SIG r)^2` (1.07, 0.84: the old buckets' measured average, so close-ups look as before), split
+  between the two nearest blur levels in log sigma, at full resolution, each level blurred only in the window its
+  blobs reach. It's faster than the old half-res one (5-16 ms against 84 for 3000 blobs at 1080p). The gun smoke's
+  1 px radius floors are gone; the explosion's fire and debris read the grid's `res`.
+- **Smoke lighting in metres:** `LIGHT_BLUR_M`, `LIGHT_SLOPE` from the half-res pixel tuning at `S_REF` 4 px/m
+  (Bismarck at 720p). Explosion clips (~2.5 px/m) light their relief about 1.6x softer than before; the Invincible
+  still looked the same to me.
+- **Drawn by zoom (looks, not visibility):** gun smoke at `GUN_SMOKE_VIS (S_REF/s)^0.5` of the research (0.28 at
+  0.25 px/m): a puff is the sign she's firing when the ship is 7 px wide. Funnel smoke is a `Plume`: puffs live
+  80-100 s, grow by the old rate plus `PLUME_SPREAD` 1 m/s (Pasquill D, sigma_y ~ 0.07 x), peak falling as 1/r^2,
+  and fade as `e^(-age/fade)`, fade 8 s close up rising as `(S_REF/s)^0.83` to ~80 s at 0.25. Kept whole the
+  soot laid a black slab astern close up; faded fast there was no trail from high up. It's pre-warmed analytically
+  along the track with its own rng (`Ship.prewarm_smoke`), so clips start with the trail.
+- **Fireball:** the temperature field and the analytic splat crossfade over 1.5-3 px across (was a switch at 2 px).
+- **Not done yet:** the sea's swell streaks and the wake at long zoom; flash visibility and bloom at long zoom;
+  shell and blast-on-water legibility; the zoom itself (static layers, the wake warp and turret sprites are baked
+  at one scale, so a zoom needs them per frame or a mip chain).
 
 ## Known oddities
 - Masts cast long, thin, solid shadows on the sea. That's correct for a 23 m mast at 45°, but it can look heavy.

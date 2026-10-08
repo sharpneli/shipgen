@@ -129,6 +129,10 @@ SMOKE_COAL = (0.16, 0.15, 0.15)
 SMOKE_OIL = (0.36, 0.36, 0.37)
 SMOKE_MAX = 0.9           # densest smoke still lets a little through, funnel and gun alike
 GUN_SMOKE_VIS = 0.07      # gun smoke's drawn optical depth against the research's (the look, not visibility)
+# zoomed out, a puff is a few pixels beside a ship a few pixels wide, and the puff is what says she's firing: its
+# drawn share rises smoothly toward the research's as (S_REF / s)^GUN_SMOKE_ZOOM (never past it). Close up the
+# deck must show through; that's the only reason for the cut
+GUN_SMOKE_ZOOM = 0.5
 SUB_PUFFS = 14            # clumps a shot's smoke puff is drawn as
 SUB_SIGMA = 0.45          # each clump's spread against the puff's
 RING_BLOBS = 10           # blobs a smoke ring is drawn as
@@ -196,6 +200,22 @@ FIRE_STIR = 0.14          # +- share of the fire's temperature the noise stirs (
 FIRE_NOISE_M = 22.0       # m: the stirring noise's feature size
 SPARK = muzzle.bb_rgb(1800) / float(muzzle.bb_rgb(1800) @ muzzle.LUM)
 DEBRIS = np.array([0.06, 0.055, 0.05], np.float32)
+
+# smoke's relief lighting in metres, so it doesn't change with the zoom: tuned on half-res pixels at S_REF px/m
+# (Bismarck at 720p), a blur of 2 pixels and a light of 1 - 2 slope per pixel
+S_REF = 4.0
+LIGHT_BLUR_M = 4.0 / S_REF
+LIGHT_SLOPE = 2.0 / S_REF
+
+PLUME_LIFE = (80.0, 100.0)    # s: funnel smoke puffs' lives (Plume)
+PLUME_GROW_S = 7.0
+PLUME_SPREAD = 1.0        # m/s
+# the soot's drawn share falls as e^(-age / fade), fade = PLUME_FADE_S (S_REF / s)^PLUME_FADE_ZOOM (8 s close up,
+# ~80 s at 0.25 px/m). A look, like GUN_SMOKE_VIS: kept whole, the funnels' output (tuned for puffs gone in 7 s)
+# laid a black slab over the sea astern close up, while from high up the long trail is what shows her course and
+# the wind. The game's visibility should keep the soot whole
+PLUME_FADE_S = 8.0
+PLUME_FADE_ZOOM = 0.83
 
 BUCKETS = [1, 2, 4, 8, 16, 32, 64]   # blur radii (half-res px) the particle splats are sorted into
 PAD = 3 * BUCKETS[-1]            # density buffers extend this far past the frame so off-screen blobs bleed in
@@ -363,17 +383,63 @@ class Particles:
         return d["a0"] * np.clip(d["age"] / fade_in, 0, 1) * (1 - u) ** 1.5
 
 
-class Density:
-    """Splats soft blobs into a half-resolution buffer: each blob lands in the blur bucket nearest its radius."""
+class Plume(Particles):
+    fade_s = 8.0          # the scene sets it by its zoom (plume_fade)
 
-    def __init__(self, W, H):
-        self.hw, self.hh = W // 2, H // 2
+    """Funnel smoke as a plume that keeps its soot: each puff's radius grows as r^2 = r0^2 + (r1^2 - r0^2) a /
+    PLUME_GROW_S (eddy diffusion; the old puffs reached r1 at about that age) and keeps growing, and its peak falls
+    as 1/r^2, so its optical depth is kept while it spreads (less a fade drawn by zoom, PLUME_FADE_S). Further out the spread is linear in age, PLUME_SPREAD m/s
+    (Pasquill class D: sigma_y ~ 0.07 x, x the ~15 m/s she makes through the air), so the plume opens into a fan; it fades out only over its long life. A plume then
+    trails downwind for a kilometre or so, as coal smoke did (the old puffs simply faded within 5-9 s, a short dark
+    lump over the ship from high up). Near the funnels it's drawn about as before."""
+
+    def _r2(self):
+        d = self.d
+        return d["r0"] ** 2 + (d["r1"] ** 2 - d["r0"] ** 2) * d["age"] / PLUME_GROW_S + (PLUME_SPREAD * d["age"]) ** 2
+
+    def radius(self):
+        return np.sqrt(self._r2())
+
+    def opacity(self, fade_in=0.08):
+        d = self.d
+        u = np.clip(d["age"] / d["life"], 0, 1)
+        r2 = self._r2()
+        r2_1 = d["r0"] ** 2 + (d["r1"] ** 2 - d["r0"] ** 2) / PLUME_GROW_S      # at 1 s, where the peak was a0
+        return (d["a0"] * np.clip(d["age"] / fade_in, 0, 1) * np.minimum(1.0, r2_1 / r2)
+                * np.exp(-d["age"] / self.fade_s) * (1 - u) ** 1.5)
+
+
+class Density:
+    """Splats soft blobs into a buffer `res` full-res px per cell (2: half resolution).
+
+    The default (sinkvid's own clips) is the original look: each blob lands in the blur bucket nearest its radius and
+    keeps its peak w. Scenes that zoom out (vidgen, `conserve=True`) need blobs to keep their optical depth at any
+    scale instead, so a blob's integral PEAK w 2 pi sigma^2 (sigma = SIG r_px: on average what the buckets drew,
+    measured) is what's kept:
+      - a blob smaller than the finest blur is drawn at that blur and proportionally fainter, not swollen at full
+        strength (spray off the stem drew as a disc wider than the bow from high up);
+      - a blob between two blurs is split between them in log sigma, so its drawn size grows smoothly with the
+        zoom and its age instead of doubling at a bucket edge;
+      - each blur level is worked out only in the window its blobs reach, so a full-res buffer costs about what
+        the half-res one did."""
+    SIG = 1.07            # the drawn sigma against the radius passed, and the peak against w, as the buckets
+    PEAK = 0.84           # drew them on average (so a zoomed-in scene keeps its look)
+
+    def __init__(self, W, H, res=2, conserve=False):
+        self.res, self.conserve = res, conserve
+        self.hw, self.hh = W // res, H // res
         self.shape = (self.hh + 2 * PAD, self.hw + 2 * PAD)
+        # blur levels in buffer cells: level 0 is the buffer's own grid at radius 1; level k >= 1 is a grid f = 2^(k-1)
+        # coarser at radius 2. sigma^2 = r(r+1) for three box passes
+        self.levels = [(1, 1)] + [(2 ** (k - 1), 2) for k in range(1, 8 if res == 1 else 7)]
+        self.lsig = np.log([f * math.sqrt(r * (r + 1)) for f, r in self.levels])
 
     def render(self, px, py, r_px, w):
-        """px, py: full-res screen px; r_px: full-res radius; w: peak opacity. Returns the half-res field.
-        A bucket of blur radius R is splatted into a grid f = R/2 times coarser and blurred there with radius 2,
-        then upsampled: the big soft buckets cost no more than the small ones."""
+        """px, py: full-res screen px; r_px: full-res radius; w: peak opacity. Returns the field at the buffer's
+        resolution. A bucket of blur radius R is splatted into a grid f = R/2 times coarser and blurred there with
+        radius 2, then upsampled: the big soft buckets cost no more than the small ones."""
+        if self.conserve:
+            return self._render_conserve(px, py, r_px, w)
         out = np.zeros(self.shape, np.float32)
         if len(px) == 0:
             return out[PAD:-PAD, PAD:-PAD]
@@ -402,8 +468,56 @@ class Density:
             out += blurred
         return out[PAD:-PAD, PAD:-PAD]
 
+    def _render_conserve(self, px, py, r_px, w):
+        g = self.res
+        out = np.zeros((self.hh, self.hw), np.float32)
+        if len(px) == 0:
+            return out
+        px, py, r_px, w = (np.asarray(a, np.float32) for a in (px, py, r_px, w))
+        sig = np.maximum(self.SIG * r_px / g, 1e-3)              # in buffer cells
+        mass = w * (self.PEAK * 2 * math.pi) * sig * sig         # the blob's integral, kept at every level
+        x, y = (px + 0.5) / g - 0.5, (py + 0.5) / g - 0.5        # buffer cell coordinates
+        L = self.lsig
+        k = np.clip(np.searchsorted(L, np.log(sig)) - 1, 0, len(L) - 2)
+        t = np.clip((np.log(sig) - L[k]) / (L[k + 1] - L[k]), 0, 1).astype(np.float32)
+        for lv, (f, r) in enumerate(self.levels):
+            share = np.where(k == lv, 1 - t, 0) + np.where(k + 1 == lv, t, 0)
+            reach = 3 * r + 2
+            # blobs that can touch the buffer from this level
+            mx = (x + 0.5) / f - 0.5
+            my = (y + 0.5) / f - 0.5
+            gw, gh = -(-self.hw // f), -(-self.hh // f)
+            m = (share > 0) & (w != 0) & (mx > -reach) & (my > -reach) & (mx < gw + reach) & (my < gh + reach)
+            if not m.any():
+                continue
+            mx, my, mm = mx[m], my[m], (mass[m] * share[m]) / (f * f)
+            i0 = max(int(math.floor(mx.min())) - reach, -reach)
+            j0 = max(int(math.floor(my.min())) - reach, -reach)
+            i1 = min(int(math.floor(mx.max())) + reach + 2, gw + reach)
+            j1 = min(int(math.floor(my.max())) + reach + 2, gh + reach)
+            nw, nh = i1 - i0, j1 - j0
+            ix, iy = np.floor(mx).astype(int), np.floor(my).astype(int)
+            fx, fy = mx - ix, my - iy
+            ix -= i0
+            iy -= j0
+            buf = np.zeros(nh * nw, np.float32)
+            for ox, oy, ww in ((0, 0, (1 - fx) * (1 - fy)), (1, 0, fx * (1 - fy)),
+                               (0, 1, (1 - fx) * fy), (1, 1, fx * fy)):
+                buf += np.bincount((iy + oy) * nw + ix + ox, mm * ww, nh * nw).astype(np.float32)
+            blurred = box_blur(buf.reshape(nh, nw), r)
+            if f > 1:
+                blurred = np.asarray(Image.fromarray(blurred, "F").resize((nw * f, nh * f), Image.BILINEAR))
+            X0, Y0 = i0 * f, j0 * f
+            a0, b0 = max(0, X0), max(0, Y0)
+            a1, b1 = min(self.hw, X0 + blurred.shape[1]), min(self.hh, Y0 + blurred.shape[0])
+            if a0 < a1 and b0 < b1:
+                out[b0:b1, a0:a1] += blurred[b0 - Y0:b1 - Y0, a0 - X0:a1 - X0]
+        return out
+
 
 def upscale(a, W, H):
+    if a.shape == (H, W):
+        return a.astype(np.float32)
     return np.array(Image.fromarray(a.astype(np.float32), "F").resize((W, H), Image.BILINEAR))
 
 
@@ -755,16 +869,41 @@ class Ship:
             p = c + rng.normal(0, r * 0.25, (n, 2))
             w = self.world_of(p)
             v = np.tile(sc.vel * 0.6, (n, 1)) + rng.normal(0, 0.6, (n, 2))
-            sc.smoke.add(x=w[:, 0], y=w[:, 1], vx=v[:, 0], vy=v[:, 1], life=rng.uniform(5, 9, n),
+            sc.smoke.add(x=w[:, 0], y=w[:, 1], vx=v[:, 0], vy=v[:, 1], life=rng.uniform(*PLUME_LIFE, n),
                          r0=r * 0.6, r1=r * 1.6 + 3, a0=rng.uniform(0.15, 0.3, n) * (1.6 if self.coal else 1.0),
                          h=top, coal=float(self.coal))
+
+    def prewarm_smoke(self, t0, t1, rng):
+        """The plume as it would be at t1 had she steamed since t0 (both before the clip, t1 the warm-up's start,
+        when she's at sc.pos): puffs made along her track, each carried analytically (its velocity relaxing to the
+        wind with the particles' tau). Its own rng, so everything else in a clip draws the same numbers."""
+        sc = self.sc
+        tau = sc.smoke.tau
+        for c, r, top in self.funnels:
+            n = int(rng.poisson((t1 - t0) * (10 + 2 * r)))
+            if not n:
+                continue
+            ts = rng.uniform(t0, t1, n)
+            age = (t1 - ts)[:, None]
+            p = c + rng.normal(0, r * 0.25, (n, 2))
+            w = self.world_of(p) + sc.vel[None, :] * (ts - t1)[:, None]
+            v0 = np.tile(sc.vel * 0.6, (n, 1)) + rng.normal(0, 0.6, (n, 2))
+            k = np.exp(-age / tau)
+            xy = w + WIND[None, :] * age + (v0 - WIND[None, :]) * tau * (1 - k)
+            v = WIND[None, :] + (v0 - WIND[None, :]) * k
+            life = rng.uniform(*PLUME_LIFE, n)
+            keep = age[:, 0] < life
+            sc.smoke.add(x=xy[keep, 0], y=xy[keep, 1], vx=v[keep, 0], vy=v[keep, 1], age=age[keep, 0],
+                         life=life[keep], r0=r * 0.6, r1=r * 1.6 + 3,
+                         a0=rng.uniform(0.15, 0.3, n)[keep] * (1.6 if self.coal else 1.0), h=top, coal=float(self.coal))
 
 
 class Scene:
     def __init__(self, srcs, W, H, fps, heading, target, seed, seconds=None, propellant=None, explode=None,
                  tier="blast", explode_at=None, sea=None, sink=False, spacing=LINE_SPACING, fire_s=FIRE_S,
-                 fit=None):
-        """srcs: one exported ship, or a list: a line of battle, the first leading."""
+                 fit=None, scale=None):
+        """srcs: one exported ship, or a list: a line of battle, the first leading. scale: px per metre, in place
+        of fitting the ship or line to the frame (never above the sprites' own scale)."""
         srcs = [srcs] if isinstance(srcs, (str, Path)) else list(srcs)
         if explode and len(srcs) > 1:
             raise ValueError("magazine explosions are for one ship for now")
@@ -799,7 +938,8 @@ class Scene:
         Lm, Bm = fore - aft, max(sh.B for sh in self.ships)
         ch, sh_ = abs(math.cos(math.radians(heading))), abs(math.sin(math.radians(heading)))
         fit = (fit, fit) if fit else (EXPLODE_FIT, EXPLODE_FIT) if explode else (0.80, 0.62)
-        self.s = s = min(S0, fit[0] * W / (Lm * ch + Bm * sh_), fit[1] * H / (Lm * sh_ + Bm * ch))
+        self.s = s = min(S0, scale) if scale else min(S0, fit[0] * W / (Lm * ch + Bm * sh_),
+                                                      fit[1] * H / (Lm * sh_ + Bm * ch))
         # the line sits a little ahead of centre so the wake has room
         self.C = np.array([W / 2, H / 2]) + unit(heading) * (0.07 * W)
         # an explosion clip's camera pans (Scene.cam): the scene is drawn on a bigger canvas with the ship fixed at
@@ -832,11 +972,13 @@ class Scene:
                 self._wreck(seed, seconds)
 
         self.water = Water(self.rng, W, H, s, self.C, **(sea or {}))
-        self.dens = Density(W, H)
+        self.dens = Density(W, H, res=1, conserve=True)   # full res, blobs keep their optical depth at any zoom
+        self.smoke_vis = min(1.0, GUN_SMOKE_VIS * (S_REF / s) ** GUN_SMOKE_ZOOM)
         self._wake()
         self.foam = Particles((0, 0), 2.5)       # water at rest; the push from the hull dies away
         self.spray = Particles((0, 0), 0.6)      # thrown off the stem, falls back within a second
-        self.smoke = Particles(WIND, 1.2)
+        self.smoke = Plume(WIND, 1.2)
+        self.smoke.fade_s = PLUME_FADE_S * (S_REF / s) ** PLUME_FADE_ZOOM
         self.shots = []                           # muzzle.Shot: flash, smoke puff and shell, all analytic in time
         self.gun_blasts = []                      # muzzle.Blast: each mount's salvo on the water
         self.fish = []                            # torpedoes [x, y, vx, vy, t0]
@@ -847,6 +989,9 @@ class Scene:
         self.clump_w = crng.dirichlet(np.full(CLUMPS, 2.0), 997).astype(np.float32)
         self.clump_spin = crng.uniform(-0.3, 0.3, 997).astype(np.float32)
         self.t = -WARM_S
+        prng = np.random.default_rng(seed + 7919)
+        for sh in self.ships:
+            sh.prewarm_smoke(-WARM_S - PLUME_LIFE[1], -WARM_S, prng)
         self.hud = self._hud()
 
     # ----- setup
@@ -1332,15 +1477,20 @@ class Scene:
         self._shells(frame, shadow=True)
         if tau.any():
             sd = unit(SUN_AZ)
-            gy, gx = np.gradient(box_blur(np.log1p(tau), 2))
+            # the relief is in metres, so a puff is lit the same at any zoom: blurred over LIGHT_BLUR_M, its slope
+            # per metre (tuned per half-res pixel at S_REF: a pixel's slope was LIGHT_SLOPE of it)
+            g = self.dens.res
+            kz = s / g                     # buffer cells per metre
+            gy, gx = np.gradient(box_blur(np.log1p(tau), int(round(LIGHT_BLUR_M * kz))))
+            gk = 2.0 * LIGHT_SLOPE * kz
             if self._tau_ex is None:
-                light = np.clip(1.0 - 2.0 * (gx * sd[0] + gy * sd[1]), 0.6, 1.25)
+                light = np.clip(1.0 - gk * (gx * sd[0] + gy * sd[1]), 0.6, 1.25)
             else:
                 # explosion smoke is far thicker than funnel smoke, so its clumps are lit as a coarser relief too
                 # (the 6-way flipbooks' stand-in, research 3.4); thin smoke and the funnels' look are unchanged
-                ey, ex = np.gradient(box_blur(np.log1p(self._tau_ex), 4))
+                ey, ex = np.gradient(box_blur(np.log1p(self._tau_ex), int(round(2 * LIGHT_BLUR_M * kz))))
                 share = np.clip(self._tau_ex / np.maximum(tau, 1e-6), 0, 1)
-                light = np.clip(1.0 - 2.0 * (gx * sd[0] + gy * sd[1]) - EX_RELIEF * (ex * sd[0] + ey * sd[1]),
+                light = np.clip(1.0 - gk * (gx * sd[0] + gy * sd[1]) - EX_RELIEF * LIGHT_SLOPE * kz * (ex * sd[0] + ey * sd[1]),
                                 0.6 - 0.25 * share, 1.25 + 0.2 * share)
             c = col / np.maximum(tau, 1e-6)[..., None] * light[..., None]
             c = np.stack([upscale(c[..., i], W, H) for i in range(3)], -1)
@@ -1578,7 +1728,8 @@ class Scene:
         """Debris pieces as small dark discs and the airborne gunhouses, dimmed where smoke stands in front."""
         B = self._blobs
         H, W = frame.shape[:2]
-        tf = lambda x, y: float(tau[min(max(int(y / 2), 0), tau.shape[0] - 1), min(max(int(x / 2), 0), tau.shape[1] - 1)])
+        g = self.dens.res
+        tf = lambda x, y: float(tau[min(max(int(y / g), 0), tau.shape[0] - 1), min(max(int(x / g), 0), tau.shape[1] - 1)])
         for arr, x0, y0 in flying:
             vis = math.exp(-0.5 * tf(x0 + arr.shape[1] / 2, y0 + arr.shape[0] / 2))
             a = arr.copy()
@@ -1629,9 +1780,10 @@ class Scene:
         if not len(xs):
             return
         y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
-        # noise in world metres, half-res grid; rises at ~8 m/s and turns over (two tiles crossfaded) every ~3 s
-        hh = np.arange(y0, y1, dtype=np.float32) * 2 + 1
-        ww = np.arange(x0, x1, dtype=np.float32) * 2 + 1
+        # noise in world metres, on the density grid; rises at ~8 m/s and turns over (two tiles crossfaded) every ~3 s
+        gr = self.dens.res
+        hh = (np.arange(y0, y1, dtype=np.float32) + 0.5) * gr
+        ww = (np.arange(x0, x1, dtype=np.float32) + 0.5) * gr
         X = (ww[None, :] - self.C[0]) / self.s + np.float32(self.pos[0])
         Y = (hh[:, None] - self.C[1]) / self.s + np.float32(self.pos[1]) + np.float32(8.0 * self.t)
         n = self.edge_noise.shape[0]
@@ -1649,13 +1801,13 @@ class Scene:
         if Lq is not None:
             F += Lq[y0:y1, x0:x1, None] * SPARK
         Wf, Hf = self.W, self.H
-        M = 30
+        M = 60 // gr
         hy0, hx0 = max(0, y0 - M), max(0, x0 - M)
         hy1, hx1 = min(tau.shape[0], y1 + M), min(tau.shape[1], x1 + M)
         Fh = np.zeros((hy1 - hy0, hx1 - hx0, 3), np.float32)
         Fh[y0 - hy0:y1 - hy0, x0 - hx0:x1 - hx0] = F
-        Ff = np.stack([upscale(Fh[..., i], 2 * (hx1 - hx0), 2 * (hy1 - hy0)) for i in range(3)], -1)
-        bx0, by0 = 2 * hx0, 2 * hy0
+        Ff = np.stack([upscale(Fh[..., i], gr * (hx1 - hx0), gr * (hy1 - hy0)) for i in range(3)], -1)
+        bx0, by0 = gr * hx0, gr * hy0
         Ff = np.ascontiguousarray(Ff[:Hf - by0, :Wf - bx0])
         self._glow(frame, Ff, bx0, by0)
 
@@ -1711,8 +1863,8 @@ class Scene:
             c = (root[None, :] + (p["xy"] - root)[None, :] * shot.sub_f[:, None] + shot.sub_off * p["sh"]
                  + shot.sub_vel * p["age"])
             x, y = self.scr(c[:, 0], c[:, 1])
-            px.append(x), py.append(y), r.append(np.full(k, max(sig * self.s, 1.0)))
-            w.append(GUN_SMOKE_VIS * p["A"] * shot.sub_w / (2 * math.pi * sig * sig))
+            px.append(x), py.append(y), r.append(np.full(k, sig * self.s))
+            w.append(self.smoke_vis * p["A"] * shot.sub_w / (2 * math.pi * sig * sig))
             h.append(np.full(k, p["z"]))
             # warm near the muzzle for NC powders, fading over about 5 s (research 7.4); water fog is white
             tint = SMOKE_NEUTRAL + (shot.D["tint"] - SMOKE_NEUTRAL) * math.exp(-p["age"] / 5.0)
@@ -1727,10 +1879,10 @@ class Scene:
                 n = np.array([-shot.hdir[1], shot.hdir[0]])
                 c = (rg["xy"][None, :] + n[None, :] * (rg["R"] * np.cos(ph))[:, None]
                      + shot.hdir[None, :] * (rg["R"] * math.sin(shot.el) * np.sin(ph))[:, None])
-                sig = max(RING_CORE * rg["R"], 0.5 / self.s)
+                sig = RING_CORE * rg["R"]
                 x, y = self.scr(c[:, 0], c[:, 1])
-                px.append(x), py.append(y), r.append(np.full(RING_BLOBS, max(sig * self.s, 1.0)))
-                w.append(np.full(RING_BLOBS, RING_VIS * GUN_SMOKE_VIS * rg["A"] / RING_BLOBS / (2 * math.pi * sig * sig)))
+                px.append(x), py.append(y), r.append(np.full(RING_BLOBS, sig * self.s))
+                w.append(np.full(RING_BLOBS, RING_VIS * self.smoke_vis * rg["A"] / RING_BLOBS / (2 * math.pi * sig * sig)))
                 h.append(np.full(RING_BLOBS, rg["z"]))
                 cols.append(np.broadcast_to(cc.astype(np.float32), (RING_BLOBS, 3)))
         if self.wreck is not None:   # the wreck's funnel smoke, the torn ends' fire smoke and the boilers' steam
@@ -1855,8 +2007,11 @@ class Scene:
             su = max(e["a"] * math.cos(shot.el) / 1.5, 0.6 / s)
             sv = max(e["b"] / 1.5, 0.6 / s)
             cx, cy = self.scr(e["c"][0], e["c"][1])
-            fire = e["kind"] == "secondary" and FIREBALL_R * min(e["b"], e["a"] * math.cos(shot.el)) * s >= 2.0
-            ext = (FIREBALL_R * 1.5 * max(e["a"] * math.cos(shot.el), e["b"]) if fire else 3.5 * 1.3 * max(su, sv)) * s
+            # the fireball field fades in over 1.5-3 px across, the analytic splat out (no switch for a zoom to pop at)
+            fire = (smoothstep((FIREBALL_R * min(e["b"], e["a"] * math.cos(shot.el)) * s - 1.5) / 1.5)
+                    if e["kind"] == "secondary" else 0.0)
+            ext = max(FIREBALL_R * 1.5 * max(e["a"] * math.cos(shot.el), e["b"]) if fire > 0 else 0.0,
+                      3.5 * 1.3 * max(su, sv)) * s
             wins.append((shot, I, e, ts, su, sv, cx, cy, ext, fire))
         M = 60                                           # bloom reach (box blur r=17, 3 passes)
         bx0 = max(0, int(min(w[6] - w[8] for w in wins)) - M)
@@ -1875,14 +2030,15 @@ class Scene:
             dy = (np.arange(y0, y1, dtype=np.float32)[:, None] + 0.5 - np.float32(cy)) / s
             ca, sa = math.cos(shot.az), math.sin(shot.az)
             u, v = dx * ca + dy * sa, -dx * sa + dy * ca
-            if fire:
+            if fire > 0:
                 L, rgb = self._fireball(shot, e, ts, u, v)
-                F[y0 - by0:y1 - by0, x0 - bx0:x1 - bx0] += (L * np.float32(I / e["I"] / L_BG * EXPOSE))[..., None] * rgb
+                F[y0 - by0:y1 - by0, x0 - bx0:x1 - bx0] += (L * np.float32(fire * I / e["I"] / L_BG * EXPOSE))[..., None] * rgb
+            if fire >= 1:
                 continue
             # a fireball under a couple of pixels (or the primary and intermediate flashes): the analytic splat
             w = np.exp(-0.5 * ((u / su) ** 2 + (v / sv) ** 2))
             area = 2 * math.pi * su * sv
-            Lpx = w * np.float32(I / area / L_BG * EXPOSE)
+            Lpx = w * np.float32((1 - fire) * I / area / L_BG * EXPOSE)
             rgb = e["rgb"] / max(float(e["rgb"] @ muzzle.LUM), 1e-3)
             F[y0 - by0:y1 - by0, x0 - bx0:x1 - bx0] += Lpx[..., None] * rgb.astype(np.float32)
         self._glow(frame, F, bx0, by0)
@@ -2013,7 +2169,7 @@ def make(src, out: Path, args, still=None, frames=None):
     sim, so every chunk sees the same scene)."""
     sc = Scene(src, args.w, args.h, args.fps, args.heading, args.target, args.seed, args.seconds, args.propellant,
                args.explode, args.tier, args.explode_at, sea_args(args), args.sink, args.spacing, args.fire,
-               args.fit)
+               args.fit, args.scale)
     if not args.quiet:
         i = sc.wake_info
         print(f"  {sc.src.name} wake: Fr_L {i['FrL']:.2f}, Zb {i['Zb']:.1f} m, solve {i['solve'][0]}x{i['solve'][1]}, "
@@ -2137,6 +2293,9 @@ def main():
     ap.add_argument("--fit", type=float, default=None,
                     help="zoom: the share of the frame the ship or line fills, across and down (default 0.8 x 0.62; "
                          f"{EXPLODE_FIT:g} in explosion clips); 0.17 is a strategic view")
+    ap.add_argument("--scale", type=float, default=None,
+                    help="zoom as px per metre, in place of --fit (the strategic view of a four-ship line at "
+                         "1920x1080 is about 0.25)")
     ap.add_argument("--spacing", type=float, default=LINE_SPACING,
                     help=f"a line's distance between ships, centre to centre, m (default {LINE_SPACING:g}, ~2 cables)")
     ap.add_argument("--beaufort", type=float, default=None,
@@ -2166,6 +2325,8 @@ def main():
         tag += "_sink" if args.sink and args.tier == "blast" else ""
     if args.fit:
         tag += f"_fit{args.fit:g}"
+    if args.scale:
+        tag += f"_s{args.scale:g}"
     if args.sink and (not args.explode or args.tier != "blast"):
         ap.error("--sink needs --explode with --tier blast")
     if args.explode and any(len(g) > 1 for g in srcs):
