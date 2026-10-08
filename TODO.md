@@ -102,6 +102,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Missiles, helicopters and electronics for Cold War ships
 
 ## vidgen
+- [ ] Long-zoom effects (next session, user 2026-10-08): tune the sea, wake and smoke for the strategic view (`--fit 0.17`: swell reads as streaks, wake a thin line, smoke one blob per ship)
 - [ ] Line of battle: ships firing at each other (range compression, shells landing on target, splashes and hits; research first)
 - [ ] Line of battle: explosions and sinking on any ship of a line (blasts, Pose and the wreck are per scene, lead only)
 - [ ] Line of battle: ships at different speeds or headings (hull layers cropped and moved, wakes shifted per frame)
