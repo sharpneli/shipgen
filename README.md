@@ -503,6 +503,10 @@ an ffmpeg binary) besides numpy and pillow.
   a flame column from the barbette instead. Writes `<id>_explode_<mag>.mp4`. `--sink` (with the blast tier) then breaks
   her in two at the exploded magazines and sinks both halves (`sinking.Break` via `sinkvid.py`), in the same clip:
   `<id>_explode_<mag>_sink.mp4`.
+- A line of battle: ids joined by `+` (`invincible+invincible`) steam in line ahead in one clip, the first leading,
+  `--spacing` m apart centre to centre (default 366, about two cables), at the slowest ship's speed. All train on
+  one bearing and fire on their own beats. Writes `<id>+<id>.mp4`. `--fire S` sets how long the guns fire (default
+  7 s). Explosions are single-ship for now.
 - `vidgen.py all`, `--jobs N` (default one ship per core), `--chunks N` (one ship's clip in parallel parts), `--size 1920x1080`, `--heading`, `--target`, `--seconds`, `--seed`, `--crf`, `--propellant`; `--still T` writes
   one PNG at time T instead. About 0.35 s a frame at 720p, so a 14 s clip takes 2–3 minutes. Videos go to
   `vidgen/out/` (git-ignored).

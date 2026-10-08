@@ -403,6 +403,33 @@ sinking. `vidgen.py invincible --explode W1S,W1P --sink` writes `out/invincible_
 - sinkvid's render was split into `surface`/`draw_oil`/`draw_hull`/`draw_foam`/`draw_debris` for this; its own
   clips are byte-identical (destroyer break-mid stills).
 
+## Line of battle (2026-10-08)
+The user asked for several ships in one clip, starting with two of the same side in a line of battle ("the vibes
+of a massive battleline shooting broadside for those Jutland feelings"); ships shooting at each other come later.
+`vidgen.py invincible+invincible --fire 20` writes `out/invincible+invincible.mp4`.
+- **Code:** `Ship` holds one ship's design files, layers, mounts and firing schedule, funnels, baked wake, spray and
+  smoke spawning. `Scene` holds the sea, smoke, shots, blasts, camera and HUD, plus everything for the explosion
+  and the wreck, which reads the lead (`--explode` with a line is refused for now). Particles gained a `coal` field
+  so each ship's funnel smoke keeps its colour.
+- **Geometry (my picks):** line ahead on one course at the slowest ship's speed, `--spacing` 366 m centre to centre
+  (about two cables, close order), the lead first. The line's middle sits where a lone ship's centre did, and the
+  line is fitted to the frame like a lone ship (80 % x 62 %): two Invincibles come out at ~1.8 px/m against ~5 alone.
+  All ships share the target bearing (`auto_target` over all mounts); for a target at battle range the lines of
+  sight are near enough parallel.
+- **The locked-layer trick holds:** with one velocity every ship stands still on screen, so hulls (each pixel from
+  the ship covering it most), height maps (max) and so the shadows, and the wakes (slopes summed, foam densities
+  maxed) are merged once at setup. A frame costs about what a lone ship's does; each extra ship adds one wake bake
+  (~0.5 s). Followers steam through the leader's wake, as they did.
+- **Firing:** each ship trains and fires on its own schedule. Ships after the lead open `LINE_LAG` 0.3–1.5 s after
+  they're on target, so sister ships don't flash in lockstep. `--fire S` (default `FIRE_S` 7) sets the firing phase.
+- **Byte-identical for one ship:** checked on stills (Bismarck, Kongo `--target 300`, Connecticut, destroyer,
+  Invincible `--explode`, and `--sink` at 40 s). A trap found on the way: a numpy float64 scale (from the line's
+  arithmetic) promoted wake.bake's float32 fields and changed the wake slightly; the line geometry is kept in plain
+  floats.
+- **Next (user's order):** more ships and the line's look; then ships firing at each other (range compression on
+  screen, shells landing, splashes and hits need research first); then explosions and sinking on any ship.
+  Different speeds or headings would break the locked layers: hulls cropped to their box and wakes shifted per frame.
+
 ## Known oddities
 - Masts cast long, thin, solid shadows on the sea. That's correct for a 23 m mast at 45°, but it can look heavy.
 - Coal smoke shades the deck dark around the funnels. That's intended.

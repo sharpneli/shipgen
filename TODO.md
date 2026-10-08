@@ -102,6 +102,9 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Missiles, helicopters and electronics for Cold War ships
 
 ## vidgen
+- [ ] Line of battle: ships firing at each other (range compression, shells landing on target, splashes and hits; research first)
+- [ ] Line of battle: explosions and sinking on any ship of a line (blasts, Pose and the wreck are per scene, lead only)
+- [ ] Line of battle: ships at different speeds or headings (hull layers cropped and moved, wakes shifted per frame)
 - [ ] Breaking in two: sinkvid's own break clips still use a stand-in flash and smoke (`vidgen.py --explode Y --sink` has the real explosion)
 - [ ] Breaking in two: shipgen should export weight extents (`sinking.weight_curve` spreads point weights by guessed spans)
 - [ ] Breaking in two: shallow water (pieces grounding with ends out, Invincible-style)

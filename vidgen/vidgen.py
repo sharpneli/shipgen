@@ -29,6 +29,10 @@ Shadows follow README "Shadows": the height map is marched toward the sun (shado
 implementation), and turret shadows are the turret sprites in black, offset by (top_m - deck_m) / tan(elevation)
 and kept where the height map is below top_m.
 
+Several ids joined by '+' are a line of battle in one clip (Ship per ship, Scene for the shared sea, smoke and
+camera): line ahead on one course and speed, so every ship stands still on screen and their hulls, height maps,
+shadows and wakes are merged once into the scene's layers.
+
 Everything is drawing; nothing here feeds back into the design. Particle and wave numbers are tuned by eye.
 
     ~/.venv/bin/python vidgen/vidgen.py bismarck                  # -> vidgen/out/bismarck.mp4
@@ -37,6 +41,7 @@ Everything is drawing; nothing here feeds back into the design. Particle and wav
     ~/.venv/bin/python vidgen/vidgen.py bismarck --explode Y             # -> vidgen/out/bismarck_explode_Y.mp4
     ~/.venv/bin/python vidgen/vidgen.py bismarck --explode B --tier column
     ~/.venv/bin/python vidgen/vidgen.py bismarck --beaufort 5 --swell 2,12,270   # rougher sea, westerly swell
+    ~/.venv/bin/python vidgen/vidgen.py invincible+invincible --fire 20  # a line of battle -> invincible+invincible.mp4
 
 Needs numpy, pillow and imageio-ffmpeg (pip install imageio-ffmpeg; it bundles an ffmpeg binary).
 """
@@ -76,6 +81,11 @@ FIRE_S = 7.0              # firing phase
 WARM_S = 10.0             # particles simulated before frame 0, so the wake and smoke already trail
 # training rates in degrees per second: faster than real (2-4 deg/s for big turrets) to keep the clip short
 TRAIN_RATE = {"main": 30.0, "secondary": 40.0, "torpedo": 30.0}
+# a line of battle (several ships in one clip): ships in line ahead, centre to centre about two cables (400 yd, the
+# usual close order), on one course at the slowest ship's speed. Each ship after the lead opens fire a random
+# moment after it's on target, so sister ships don't flash in lockstep
+LINE_SPACING = 366.0
+LINE_LAG = (0.3, 1.5)
 
 SUN_AZ = 225.0            # screen bearing toward the sun (clockwise from +x screen): upper left
 SUN_EL = 45.0
@@ -311,7 +321,7 @@ def font(size):
 # ---------------------------------------------------------------- particles
 class Particles:
     """World-space particles (metres). Each relaxes its velocity toward `drift` with time constant tau."""
-    FIELDS = ("x", "y", "vx", "vy", "age", "life", "r0", "r1", "a0", "h")
+    FIELDS = ("x", "y", "vx", "vy", "age", "life", "r0", "r1", "a0", "h", "coal")
 
     def __init__(self, drift, tau):
         self.d = {k: np.zeros(0, np.float32) for k in self.FIELDS}
@@ -508,101 +518,48 @@ class Pose:
         return out
 
 
-class Scene:
-    def __init__(self, src: Path, W, H, fps, heading, target, seed, seconds=None, propellant=None, explode=None,
-                 tier="blast", explode_at=None, sea=None, sink=False):
-        self.src, self.W, self.H, self.fps = src, W, H, fps
-        self.rng = np.random.default_rng(seed)
+class Ship:
+    """One ship of the scene: its exported design, its layers on the scene's canvas, its mounts and firing schedule,
+    its funnels and its baked wake. The ships of a line steam on one course at one speed, so each stands still on
+    screen at its own anchor C: the scene's centre plus its station `off` (metres along the heading)."""
+
+    def __init__(self, src: Path, propellant=None):
+        self.src = src
         self.sprite = json.loads((src / "sprite.json").read_text())
         self.hit = json.loads((src / "hitboxes.json").read_text())
         self.report = json.loads((src / "report.json").read_text())
+        self.name = self.sprite.get("name", self.sprite["id"])
         navy = self.report["inputs"].get("look", {}).get("navy")
         self.propellant = propellant or NAVY_PROPELLANT.get(navy, "single_base")
         res = self.report["results"]
-        self.heading = heading
-        if target is None:
-            target = auto_target(self.sprite["mounts"])
-        self.target_bearing = target % 360.0
-        self.speed = float(self.report["inputs"].get("speed_kn", 20)) * KN
-        self.vel = unit(heading) * self.speed
+        self.L, self.B = res["length_m"], res["beam_m"]
+        self.speed_kn = float(self.report["inputs"].get("speed_kn", 20))
         self.deck_m = self.sprite["shadow"]["deck_m"]
         self.freeboard = self.hit["vertical"].get("freeboard", self.deck_m)
+        self.off = 0.0
 
-        # scale: fit the ship's canvas (rotated) into 80% x 62% of the frame, never above the sprites' own scale
-        S0 = self.sprite["scale_px_per_m"]
-        Lm, Bm = res["length_m"], res["beam_m"]
-        ch, sh = abs(math.cos(math.radians(heading))), abs(math.sin(math.radians(heading)))
-        fit = (EXPLODE_FIT, EXPLODE_FIT) if explode else (0.80, 0.62)
-        self.s = s = min(S0, fit[0] * W / (Lm * ch + Bm * sh), fit[1] * H / (Lm * sh + Bm * ch))
-        # the ship sits a little ahead of centre so the wake has room
-        self.C = np.array([W / 2, H / 2]) + unit(heading) * (0.07 * W)
-        # an explosion clip's camera pans (Scene.cam): the scene is drawn on a bigger canvas with the ship fixed at
-        # C there, and each frame is the output window cut from it where the camera puts the ship on screen
-        self.Wo, self.Ho = W, H
-        self.frames_at = None
-        if explode:
-            keys = [CAM_GUNS, CAM_BLAST] + ([CAM_SINK] if sink else [])
-            P = np.array([(k[0] * W, k[1] * H) for k in keys])
-            lo, hi = P.min(0), P.max(0)
-            self.C = hi + CAM_MARGIN
-            self.W, self.H = W, H = [int(math.ceil(v)) for v in hi - lo + (W, H) + 2 * CAM_MARGIN]
-            self.frames_at = P
+    def place(self, sc):
+        """Its anchor on the scene's canvas, once the scene's scale and centre are set."""
+        self.sc = sc
+        self.C = sc.C + unit(sc.heading) * (self.off * sc.s)
 
-        self._static_layers(S0)
-        self._mounts(S0, self.target_bearing)
-        self._funnels()
-        self.duration = seconds or (self.t_fire + FIRE_S if self.has_guns else 10.0)
-        self.v0 = self.speed
-        self.blasts, self.t_stop, self.t_hit = [], None, None
-        self.wreck = None
-        if explode:
-            self._explode(explode, tier, explode_at, seed, seconds)
-            if sink:
-                self._wreck(seed, seconds)
+    @property
+    def pos(self):
+        """Its centre in world metres."""
+        return self.sc.pos + unit(self.sc.heading) * self.off
 
-        self.water = Water(self.rng, W, H, s, self.C, **(sea or {}))
-        self.dens = Density(W, H)
-        self._wake()
-        self.foam = Particles((0, 0), 2.5)       # water at rest; the push from the hull dies away
-        self.spray = Particles((0, 0), 0.6)      # thrown off the stem, falls back within a second
-        self.smoke = Particles(WIND, 1.2)
-        self.shots = []                           # muzzle.Shot: flash, smoke puff and shell, all analytic in time
-        self.gun_blasts = []                      # muzzle.Blast: each mount's salvo on the water
-        self.fish = []                            # torpedoes [x, y, vx, vy, t0]
-        self.edge_noise = self._noise_tile(128, 0.05)
-        # explosion puffs' clumps (_blast_blobs): offsets in the puff's spread, shares, and a slow turn, by seed
-        crng = np.random.default_rng(997)
-        self.clump_off = (crng.normal(0, CLUMP_SPREAD, (997, CLUMPS, 2))).astype(np.float32)
-        self.clump_w = crng.dirichlet(np.full(CLUMPS, 2.0), 997).astype(np.float32)
-        self.clump_spin = crng.uniform(-0.3, 0.3, 997).astype(np.float32)
-        self.pos = np.zeros(2)
-        self.t = -WARM_S
-        self.hud = self._hud()
-
-    # ----- setup
     def to_screen(self, m):
         """Ship-local metres (+x bow, +y starboard) -> screen px."""
-        return self.C + rot(np.asarray(m, float), self.heading) * self.s
+        return self.C + rot(np.asarray(m, float), self.sc.heading) * self.sc.s
 
     def world_of(self, m):
         """Ship-local metres (one point or an (n, 2) array) -> world metres."""
-        return self.pos + self.dir_of(m)
+        return self.pos + self.sc.dir_of(m)
 
-    def dir_of(self, m):
-        """Rotate ship-local vectors (one or (n, 2)) into world axes."""
-        a = math.radians(self.heading)
-        R = np.array([[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]])
-        return np.asarray(m, float) @ R.T
-
-    def _affine(self, im, origin, resample):
-        h = math.radians(self.heading)
-        c, sn = math.cos(h), math.sin(h)
-        Cx, Cy = self.C
-        data = (c, sn, origin[0] - c * Cx - sn * Cy, -sn, c, origin[1] + sn * Cx - c * Cy)
-        return im.transform((self.W, self.H), Image.AFFINE, data, resample=resample)
-
-    def _static_layers(self, S0):
-        k = self.s / S0
+    def layers(self, S0):
+        """Its hull sprite (RGBA) and height map (PIL "L") on the scene's canvas."""
+        sc = self.sc
+        k = sc.s / S0
         hull = Image.open(self.src / self.sprite["layers"]["hull"]).convert("RGBA")
         height = Image.open(self.src / self.sprite["shadow"]["height_map"]).convert("L")
         size = (max(1, round(hull.width * k)), max(1, round(hull.height * k)))
@@ -610,14 +567,14 @@ class Scene:
         if k < 1:
             hull = hull.resize(size, Image.LANCZOS)
             height = height.resize(size, Image.BOX)
-        self.hull = np.asarray(self._affine(hull, origin, Image.BICUBIC))
-        hs = self._affine(height, origin, Image.BILINEAR)
-        self.Hs = np.asarray(hs, np.float32) * HEIGHT_STEP_M
-        self.hull_alpha = self.hull[..., 3].astype(np.float32) / 255
-        self.hull_shadow = np.asarray(shadow_mask(hs, self.s, SUN_AZ, SUN_EL), np.float32) / 255
+        return np.asarray(sc._affine(hull, origin, Image.BICUBIC, self.C)), sc._affine(height, origin, Image.BILINEAR,
+                                                                                         self.C)
 
-    def _mounts(self, S0, target):
-        k = self.s / S0
+    def build_mounts(self, S0, target, lag=0.0):
+        """Its mounts, trained on the target bearing, and its firing schedule (self.events), opening `lag` s after
+        the last mount is on target."""
+        sc = self.sc
+        k = sc.s / S0
         comps = {c["id"]: c for c in self.hit["components"]}
         types = {}
         for tid, t in self.sprite["turret_types"].items():
@@ -628,6 +585,7 @@ class Scene:
         self.mounts = []
         for m in sorted(self.sprite["mounts"], key=lambda m: m["z"]):
             mt = Mount()
+            mt.ship = self
             mt.id, mt.kind, mt.type = m["id"], m["kind"], m["type"]
             mt.img, desc = types[m["type"]]
             mt.pos_m = np.array(m["pos_m"], float)
@@ -637,11 +595,11 @@ class Scene:
             # measured from the deck the mount stands on (a low percentile of the height map around it, sea left
             # out), not the main deck: a raised forecastle turret would otherwise cast too long
             px, py = int(round(mt.screen[0])), int(round(mt.screen[1]))
-            Hh, Hw = self.Hs.shape
+            Hh, Hw = sc.Hs.shape
             inside = 0 <= px < Hw and 0 <= py < Hh
-            mt.base_h = min(float(self.Hs[py, px]), mt.top_m) if inside else self.deck_m
+            mt.base_h = min(float(sc.Hs[py, px]), mt.top_m) if inside else self.deck_m
             r = max(2, int(mt.img.width * 0.35))
-            patch = self.Hs[max(0, py - r):py + r, max(0, px - r):px + r]
+            patch = sc.Hs[max(0, py - r):py + r, max(0, px - r):px + r]
             patch = patch[patch > 0.3]
             mt.recv_h = min(float(np.percentile(patch, 20)), mt.base_h) if patch.size else self.deck_m
             mt.trav = m["traverse_deg"]
@@ -682,12 +640,12 @@ class Scene:
             self.mounts.append(mt)
         bearing = [mt for mt in self.mounts if mt.aim is not None]
         self.has_guns = bool(bearing)
-        self.t_fire = max((mt.train[1] for mt in bearing), default=REST_S) + SETTLE_S
+        self.t_fire = max((mt.train[1] for mt in bearing), default=REST_S) + SETTLE_S + lag
         # firing schedule: each main battery in full salvos on its own beat (bigger guns load slower), secondaries
         # rippling on their own beat, torpedoes once. The biggest battery opens fire; the others follow within half
         # a second, so mixed batteries don't all flash on one frame
         ev = []
-        rng = self.rng
+        rng = sc.rng
         salvo, first = {}, {}
         mains = sorted({(mt.calibre, mt.gun) for mt in bearing if mt.kind == "main"}, key=lambda g: -g[0])
         for i, (cal, gun) in enumerate(mains):
@@ -700,17 +658,246 @@ class Scene:
                     ev.append((self.t_fire + 1.0 + 0.3 * i + rng.uniform(0, 0.1), mt, i))
             elif mt.kind == "main":
                 t = first[mt.gun]
-                while t < self.t_fire + FIRE_S - 0.5:
+                while t < self.t_fire + sc.fire_s - 0.5:
                     for i in range(n):
                         ev.append((t + rng.uniform(0, 0.12) + 0.04 * i, mt, i))
                     t += salvo[mt.gun]
             else:
                 period = 0.7 + mt.calibre / 180
                 t = self.t_fire + 0.3 + rng.uniform(0, period)
-                while t < self.t_fire + FIRE_S - 0.3:
+                while t < self.t_fire + sc.fire_s - 0.3:
                     for i in range(n):
                         ev.append((t + 0.05 * i, mt, i))
                     t += period * rng.uniform(0.85, 1.15)
+        self.events = ev
+
+    def build_funnels(self):
+        plant = self.report.get("plant", {})
+        fuel = str(plant.get("fuel", "oil"))
+        self.coal = "coal" in fuel
+        self.funnels = []
+        for c in self.hit["components"]:
+            if c["kind"] != "funnel":
+                continue
+            p = np.array(c["points"])
+            area = 0.5 * abs(np.dot(p[:, 0], np.roll(p[:, 1], 1)) - np.dot(p[:, 1], np.roll(p[:, 0], 1)))
+            r = math.sqrt(max(area, 1.0) / math.pi)
+            self.funnels.append((p.mean(axis=0), r, c["top"] + self.freeboard))
+
+    def bake_wake(self):
+        """Bake its steady wake (wake.py) over the whole canvas and warp it there: (slopes x, y in screen axes,
+        fresh, residual and wash foam densities)."""
+        sc = self.sc
+        res, style = self.report["results"], self.report["inputs"].get("style")
+        deck = np.array(self.hit["hull"]["points"] if isinstance(self.hit["hull"], dict) else self.hit["hull"])
+        L, B = res["length_m"], res["beam_m"]
+        self.wl = wl = wake.waterline(deck, style, L)
+        self.stem = np.array([deck[:, 0].max(), 0.0])
+        W, H, s = sc.W, sc.H, sc.s
+        h = math.radians(sc.heading)
+        c, sn = math.cos(h), math.sin(h)
+        # every pixel in this ship's local metres: the scene's, less its station along the heading
+        lx = sc.lx - np.float32(self.off)
+        pad = 4 / s + 5
+        extent = (float(lx.min()) - pad, float(lx.max()) + pad,
+                  float(max(-sc.ly.min(), sc.ly.max())) + pad)
+        dx = max(1.5 / s, L / 400)
+        shafts = int(self.report.get("plant", {}).get("shafts", 2) or 2)
+        wash = (2.0 if style == "planing" else 1.0) * (0.85 + 0.075 * min(shafts, 4))
+        bk = wake.bake(wl, B, res.get("draught_m", self.deck_m), sc.speed, extent, dx,
+                       cb=res.get("block_coefficient", 0.55), wash=wash)
+        self.wake_info = bk.info
+        gx, gy = bk.gx, bk.gy
+        k = 1 / (s * bk.dx)
+        data = (c * k, sn * k, (-c * self.C[0] - sn * self.C[1]) * k - bk.x0 / bk.dx + 0.5,   # + 0.5: PIL samples
+                -sn * k, c * k, (sn * self.C[0] - c * self.C[1]) * k - bk.y0 / bk.dx + 0.5)  # at pixel centres
+
+        def warp(a):
+            return np.asarray(Image.fromarray(np.ascontiguousarray(a, np.float32), "F").transform(
+                (W, H), Image.AFFINE, data, resample=Image.BILINEAR))
+        gain = 1.0                       # wake.md suggests 2-3x; the swell here already carries the light
+        sx, sy = warp(gx) * gain, warp(gy) * gain
+        hx, hy = c * sx - sn * sy, sn * sx + c * sy                     # ship axes -> screen axes
+        lim = 0.3 / np.maximum(np.hypot(hx, hy), 0.3)                    # the linear field's steepest bits are a glare
+        self.spray_rate = sc.speed * max(0.0, bk.info["Zb"] - 1.0) * 4
+        return hx * lim, hy * lim, warp(bk.fresh), warp(bk.resid), warp(bk.wash)
+
+    def spawn_spray(self, dt):
+        """Spray thrown off the stem when the bow wave stands high (wake.md 3.2 item 5); the wake itself is baked."""
+        sc = self.sc
+        rng = sc.rng
+        n = int(rng.poisson(dt * self.spray_rate))
+        if not n:
+            return
+        B = self.report["results"]["beam_m"]
+        # thrown from where the bow crest leaves the hull, along the waterline's first stretch: spawned on the
+        # centreline with big soft blobs, it read as a fuzzy block ahead of the stem, apart from the crest
+        if sc.speed < sc.v0:
+            n = int(rng.binomial(n, sc.wake_k() ** 2))
+            if not n:
+                return
+        xw = self.wl[:, 0].max() - rng.uniform(0, 0.12, n) ** 1.5 * self.wake_info["L"]
+        side = np.where(rng.random(n) < 0.5, 1.0, -1.0)
+        p = np.stack([xw, side * (wake.half_breadth(self.wl, xw) + rng.uniform(0, 0.04, n) * B)], 1)
+        out = np.stack([rng.uniform(-0.1, 0.25, n), side * rng.uniform(0.2, 0.5, n)], 1) * sc.speed
+        w, v = self.world_of(p), sc.dir_of(out)
+        fs = min(1.0, max(0.3, self.wake_info["L"] / 150))
+        sc.spray.add(x=w[:, 0], y=w[:, 1], vx=v[:, 0], vy=v[:, 1], life=rng.uniform(0.3, 0.8, n),
+                     r0=0.3 * fs, r1=rng.uniform(0.6, 1.3, n) * fs, a0=rng.uniform(0.15, 0.35, n))
+
+    def spawn_smoke(self, dt):
+        sc = self.sc
+        rng = sc.rng
+        for c, r, top in self.funnels:
+            n = int(rng.poisson(dt * (10 + 2 * r)))
+            if not n:
+                continue
+            p = c + rng.normal(0, r * 0.25, (n, 2))
+            w = self.world_of(p)
+            v = np.tile(sc.vel * 0.6, (n, 1)) + rng.normal(0, 0.6, (n, 2))
+            sc.smoke.add(x=w[:, 0], y=w[:, 1], vx=v[:, 0], vy=v[:, 1], life=rng.uniform(5, 9, n),
+                         r0=r * 0.6, r1=r * 1.6 + 3, a0=rng.uniform(0.15, 0.3, n) * (1.6 if self.coal else 1.0),
+                         h=top, coal=float(self.coal))
+
+
+class Scene:
+    def __init__(self, srcs, W, H, fps, heading, target, seed, seconds=None, propellant=None, explode=None,
+                 tier="blast", explode_at=None, sea=None, sink=False, spacing=LINE_SPACING, fire_s=FIRE_S):
+        """srcs: one exported ship, or a list: a line of battle, the first leading."""
+        srcs = [srcs] if isinstance(srcs, (str, Path)) else list(srcs)
+        if explode and len(srcs) > 1:
+            raise ValueError("magazine explosions are for one ship for now")
+        self.W, self.H, self.fps = W, H, fps
+        self.fire_s = fire_s
+        self.rng = np.random.default_rng(seed)
+        self.ships = [Ship(Path(p), propellant) for p in srcs]
+        lead = self.ships[0]
+        # the explosion, the wreck and the HUD read the lead's design (explosions are single-ship for now)
+        self.src, self.sprite, self.hit, self.report = lead.src, lead.sprite, lead.hit, lead.report
+        self.heading = heading
+        if target is None:
+            target = auto_target([m for sh in self.ships for m in sh.sprite["mounts"]])
+        self.target_bearing = target % 360.0
+        self.speed = min(sh.speed_kn for sh in self.ships) * KN     # a line steams at its slowest ship's speed
+        self.vel = unit(heading) * self.speed
+        self.deck_m, self.freeboard = lead.deck_m, lead.freeboard
+
+        # stations in line ahead, the lead first and each next one `spacing` m astern (centre to centre); the
+        # line's middle (halfway between its ends) sits where a lone ship's centre would
+        # (plain floats: a numpy scalar in the scale would promote the float32 fields it touches, wake.bake's included)
+        st = [-spacing * i for i in range(len(self.ships))]
+        fore = max(x + sh.L / 2 for x, sh in zip(st, self.ships))
+        aft = min(x - sh.L / 2 for x, sh in zip(st, self.ships))
+        mid = 0.5 * (fore + aft)
+        for x, sh in zip(st, self.ships):
+            sh.off = float(x - mid)
+        self.spacing = spacing
+
+        # scale: fit the line's canvas (rotated) into 80% x 62% of the frame, never above the sprites' own scale
+        S0 = min(sh.sprite["scale_px_per_m"] for sh in self.ships)
+        Lm, Bm = fore - aft, max(sh.B for sh in self.ships)
+        ch, sh_ = abs(math.cos(math.radians(heading))), abs(math.sin(math.radians(heading)))
+        fit = (EXPLODE_FIT, EXPLODE_FIT) if explode else (0.80, 0.62)
+        self.s = s = min(S0, fit[0] * W / (Lm * ch + Bm * sh_), fit[1] * H / (Lm * sh_ + Bm * ch))
+        # the line sits a little ahead of centre so the wake has room
+        self.C = np.array([W / 2, H / 2]) + unit(heading) * (0.07 * W)
+        # an explosion clip's camera pans (Scene.cam): the scene is drawn on a bigger canvas with the ship fixed at
+        # C there, and each frame is the output window cut from it where the camera puts the ship on screen
+        self.Wo, self.Ho = W, H
+        self.frames_at = None
+        if explode:
+            keys = [CAM_GUNS, CAM_BLAST] + ([CAM_SINK] if sink else [])
+            P = np.array([(k[0] * W, k[1] * H) for k in keys])
+            lo, hi = P.min(0), P.max(0)
+            self.C = hi + CAM_MARGIN
+            self.W, self.H = W, H = [int(math.ceil(v)) for v in hi - lo + (W, H) + 2 * CAM_MARGIN]
+            self.frames_at = P
+        self.pos = np.zeros(2)
+        for sh in self.ships:
+            sh.place(self)
+
+        self._static_layers()
+        self._mounts(self.target_bearing)
+        for sh in self.ships:
+            sh.build_funnels()
+        self.coal = lead.coal
+        self.duration = seconds or (self.t_fire_last + fire_s if self.has_guns else 10.0)
+        self.v0 = self.speed
+        self.blasts, self.t_stop, self.t_hit = [], None, None
+        self.wreck = None
+        if explode:
+            self._explode(explode, tier, explode_at, seed, seconds)
+            if sink:
+                self._wreck(seed, seconds)
+
+        self.water = Water(self.rng, W, H, s, self.C, **(sea or {}))
+        self.dens = Density(W, H)
+        self._wake()
+        self.foam = Particles((0, 0), 2.5)       # water at rest; the push from the hull dies away
+        self.spray = Particles((0, 0), 0.6)      # thrown off the stem, falls back within a second
+        self.smoke = Particles(WIND, 1.2)
+        self.shots = []                           # muzzle.Shot: flash, smoke puff and shell, all analytic in time
+        self.gun_blasts = []                      # muzzle.Blast: each mount's salvo on the water
+        self.fish = []                            # torpedoes [x, y, vx, vy, t0]
+        self.edge_noise = self._noise_tile(128, 0.05)
+        # explosion puffs' clumps (_blast_blobs): offsets in the puff's spread, shares, and a slow turn, by seed
+        crng = np.random.default_rng(997)
+        self.clump_off = (crng.normal(0, CLUMP_SPREAD, (997, CLUMPS, 2))).astype(np.float32)
+        self.clump_w = crng.dirichlet(np.full(CLUMPS, 2.0), 997).astype(np.float32)
+        self.clump_spin = crng.uniform(-0.3, 0.3, 997).astype(np.float32)
+        self.t = -WARM_S
+        self.hud = self._hud()
+
+    # ----- setup
+    def to_screen(self, m):
+        """The lead's ship-local metres (+x bow, +y starboard) -> screen px."""
+        return self.ships[0].to_screen(m)
+
+    def world_of(self, m):
+        """The lead's ship-local metres (one point or an (n, 2) array) -> world metres."""
+        return self.ships[0].world_of(m)
+
+    def dir_of(self, m):
+        """Rotate ship-local vectors (one or (n, 2)) into world axes."""
+        a = math.radians(self.heading)
+        R = np.array([[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]])
+        return np.asarray(m, float) @ R.T
+
+    def _affine(self, im, origin, resample, C):
+        h = math.radians(self.heading)
+        c, sn = math.cos(h), math.sin(h)
+        Cx, Cy = C
+        data = (c, sn, origin[0] - c * Cx - sn * Cy, -sn, c, origin[1] + sn * Cx - c * Cy)
+        return im.transform((self.W, self.H), Image.AFFINE, data, resample=resample)
+
+    def _static_layers(self):
+        """Every ship's hull and height map on one canvas: in a line they all stand still on screen, so they're
+        merged once, and the shadows are marched over the merged height map."""
+        hull, hs = None, None
+        for sh in self.ships:
+            h, m = sh.layers(sh.sprite["scale_px_per_m"])
+            if hull is None:
+                hull, hs = h, m
+            else:       # ships never overlap: each pixel takes the hull that covers it most
+                hull = np.where(h[..., 3:4] > hull[..., 3:4], h, hull)
+                hs = Image.fromarray(np.maximum(np.asarray(hs), np.asarray(m)), "L")
+        self.hull = hull
+        self.Hs = np.asarray(hs, np.float32) * HEIGHT_STEP_M
+        self.hull_alpha = self.hull[..., 3].astype(np.float32) / 255
+        self.hull_shadow = np.asarray(shadow_mask(hs, self.s, SUN_AZ, SUN_EL), np.float32) / 255
+
+    def _mounts(self, target):
+        """Every ship's mounts and firing schedule, merged."""
+        self.mounts, ev = [], []
+        for i, sh in enumerate(self.ships):
+            lag = self.rng.uniform(*LINE_LAG) if i else 0.0
+            sh.build_mounts(sh.sprite["scale_px_per_m"], target, lag)
+            self.mounts += sh.mounts
+            ev += sh.events
+        gunned = [sh for sh in self.ships if sh.has_guns]
+        self.has_guns = bool(gunned)
+        self.t_fire = min((sh.t_fire for sh in gunned), default=self.ships[0].t_fire)
+        self.t_fire_last = max((sh.t_fire for sh in gunned), default=self.t_fire)
         self.events = sorted(ev, key=lambda e: e[0])
         self.next_ev = 0
 
@@ -752,59 +939,30 @@ class Scene:
                 hole = np.clip(sp["barbette"]["r"] * self.s - np.hypot(u - b[0], v - b[1]) + 0.5, 0, 1)
             self.scorch.append((sp, m.astype(np.float32), hole))
 
-    def _funnels(self):
-        plant = self.report.get("plant", {})
-        fuel = str(plant.get("fuel", "oil"))
-        self.coal = "coal" in fuel
-        self.funnels = []
-        for c in self.hit["components"]:
-            if c["kind"] != "funnel":
-                continue
-            p = np.array(c["points"])
-            area = 0.5 * abs(np.dot(p[:, 0], np.roll(p[:, 1], 1)) - np.dot(p[:, 1], np.roll(p[:, 0], 1)))
-            r = math.sqrt(max(area, 1.0) / math.pi)
-            self.funnels.append((p.mean(axis=0), r, c["top"] + self.freeboard))
-
     def _wake(self):
-        """Bake the steady wake once (wake.py) and warp it to the frame: the heading is fixed and the camera follows
-        the ship, so the wake's envelope stands still on screen. Only the foam's texture moves, anchored to the
-        water, so the ship steams through it."""
+        """Bake each ship's steady wake once (wake.py) and warp it to the frame: the heading is fixed and the camera
+        follows the line, so the wakes' envelopes stand still on screen. Only the foam's texture moves, anchored to
+        the water, so the ships steam through it. A line's wakes are merged: slopes add (a linear surface), foam
+        takes the denser."""
         t0 = time.perf_counter()
-        res, style = self.report["results"], self.report["inputs"].get("style")
-        deck = np.array(self.hit["hull"]["points"] if isinstance(self.hit["hull"], dict) else self.hit["hull"])
-        L, B = res["length_m"], res["beam_m"]
-        self.wl = wl = wake.waterline(deck, style, L)
-        self.stem = np.array([deck[:, 0].max(), 0.0])
         W, H, s = self.W, self.H, self.s
         h = math.radians(self.heading)
         c, sn = math.cos(h), math.sin(h)
-        # every pixel in ship-local metres
+        # every pixel in metres from the line's centre, in ship axes
         u, v = np.meshgrid(np.arange(W, dtype=np.float32) + 0.5, np.arange(H, dtype=np.float32) + 0.5)
         dX, dY = u - self.C[0], v - self.C[1]
         self.lx, self.ly = (c * dX + sn * dY) / s, (-sn * dX + c * dY) / s
-        pad = 4 / s + 5
-        extent = (float(self.lx.min()) - pad, float(self.lx.max()) + pad,
-                  float(max(-self.ly.min(), self.ly.max())) + pad)
-        dx = max(1.5 / s, L / 400)
-        shafts = int(self.report.get("plant", {}).get("shafts", 2) or 2)
-        wash = (2.0 if style == "planing" else 1.0) * (0.85 + 0.075 * min(shafts, 4))
-        bk = wake.bake(wl, B, res.get("draught_m", self.deck_m), self.speed, extent, dx,
-                       cb=res.get("block_coefficient", 0.55), wash=wash)
-        self.wake_info = bk.info
-        gx, gy = bk.gx, bk.gy
-        k = 1 / (s * bk.dx)
-        data = (c * k, sn * k, (-c * self.C[0] - sn * self.C[1]) * k - bk.x0 / bk.dx + 0.5,   # + 0.5: PIL samples
-                -sn * k, c * k, (sn * self.C[0] - c * self.C[1]) * k - bk.y0 / bk.dx + 0.5)  # at pixel centres
-
-        def warp(a):
-            return np.asarray(Image.fromarray(np.ascontiguousarray(a, np.float32), "F").transform(
-                (W, H), Image.AFFINE, data, resample=Image.BILINEAR))
-        gain = 1.0                       # wake.md suggests 2-3x; the swell here already carries the light
-        sx, sy = warp(gx) * gain, warp(gy) * gain
-        hx, hy = c * sx - sn * sy, sn * sx + c * sy                     # ship axes -> screen axes
-        lim = 0.3 / np.maximum(np.hypot(hx, hy), 0.3)                    # the linear field's steepest bits are a glare
-        self.wake_hx, self.wake_hy = hx * lim, hy * lim
-        self.wake_fresh, self.wake_resid, self.wake_wash = warp(bk.fresh), warp(bk.resid), warp(bk.wash)
+        for i, sh in enumerate(self.ships):
+            hx, hy, fresh, resid, wash = sh.bake_wake()
+            if i == 0:
+                self.wake_hx, self.wake_hy = hx, hy
+                self.wake_fresh, self.wake_resid, self.wake_wash = fresh, resid, wash
+            else:
+                self.wake_hx, self.wake_hy = self.wake_hx + hx, self.wake_hy + hy
+                self.wake_fresh = np.maximum(self.wake_fresh, fresh)
+                self.wake_resid = np.maximum(self.wake_resid, resid)
+                self.wake_wash = np.maximum(self.wake_wash, wash)
+        self.wake_info = self.ships[0].wake_info
         self.wake_calm = np.clip(self.wake_wash * 0.9, 0, 0.75)
 
         # foam tiles in ship axes, anchored to the water: streaky along the track for the wash, rounder for crests
@@ -825,7 +983,6 @@ class Scene:
             return (out / out.std()).astype(np.float32)     # unit gaussian
         self.tiles_wash = (tile(7, 1.6), tile(7, 1.6))
         self.tiles_crest = (tile(2.5, 1.8), tile(2.5, 1.8))
-        self.spray_rate = self.speed * max(0.0, bk.info["Zb"] - 1.0) * 4
         self.wake_info["t_setup"] = time.perf_counter() - t0
 
     def foam_tex(self, tiles, t, ridged=False):
@@ -854,12 +1011,18 @@ class Scene:
         res = self.report["results"]
         big, small = font(max(14, self.Ho // 30)), font(max(11, self.Ho // 50))
         x, y = self.Ho // 36, self.Ho - self.Ho // 36
-        stats = (f"{res['length_m']:.0f} m  ·  {res['standard_displacement_t']:,} t std  ·  "
-                 f"{self.report['inputs'].get('speed_kn', '?')} kn  ·  {len(self.mounts)} mounts")
-        d.text((x + 1, y - big.size - small.size - 5), self.sprite.get("name", self.sprite["id"]),
-               font=big, fill=(0, 0, 0, 140))
-        d.text((x, y - big.size - small.size - 6), self.sprite.get("name", self.sprite["id"]),
-               font=big, fill=(240, 244, 246, 235))
+        if len(self.ships) == 1:
+            name = self.ships[0].name
+            stats = (f"{res['length_m']:.0f} m  ·  {res['standard_displacement_t']:,} t std  ·  "
+                     f"{self.report['inputs'].get('speed_kn', '?')} kn  ·  {len(self.mounts)} mounts")
+        else:
+            names = [sh.name for sh in self.ships]
+            name = f"{len(names)} × {names[0]}" if len(set(names)) == 1 else "  ·  ".join(names)
+            tons = sum(sh.report["results"]["standard_displacement_t"] for sh in self.ships)
+            stats = (f"line ahead, {len(self.ships)} ships {self.spacing:.0f} m apart  ·  {tons:,} t std  ·  "
+                     f"{self.speed / KN:.4g} kn  ·  {len(self.mounts)} mounts")
+        d.text((x + 1, y - big.size - small.size - 5), name, font=big, fill=(0, 0, 0, 140))
+        d.text((x, y - big.size - small.size - 6), name, font=big, fill=(240, 244, 246, 235))
         d.text((x, y - small.size), stats, font=small, fill=(220, 228, 232, 210))
         self.font_small = small
         return np.asarray(im)
@@ -872,46 +1035,11 @@ class Scene:
         u = smoothstep((t - t0) / (t1 - t0)) if t1 > t0 else float(t >= t0)
         return mt.rest + (mt.aim - mt.rest) * u
 
-    def spawn_spray(self, dt):
-        """Spray thrown off the stem when the bow wave stands high (wake.md 3.2 item 5); the wake itself is baked."""
-        rng = self.rng
-        n = int(rng.poisson(dt * self.spray_rate))
-        if not n:
-            return
-        B = self.report["results"]["beam_m"]
-        # thrown from where the bow crest leaves the hull, along the waterline's first stretch: spawned on the
-        # centreline with big soft blobs, it read as a fuzzy block ahead of the stem, apart from the crest
-        if self.speed < self.v0:
-            n = int(rng.binomial(n, self.wake_k() ** 2))
-            if not n:
-                return
-        xw = self.wl[:, 0].max() - rng.uniform(0, 0.12, n) ** 1.5 * self.wake_info["L"]
-        side = np.where(rng.random(n) < 0.5, 1.0, -1.0)
-        p = np.stack([xw, side * (wake.half_breadth(self.wl, xw) + rng.uniform(0, 0.04, n) * B)], 1)
-        out = np.stack([rng.uniform(-0.1, 0.25, n), side * rng.uniform(0.2, 0.5, n)], 1) * self.speed
-        w, v = self.world_of(p), self.dir_of(out)
-        fs = min(1.0, max(0.3, self.wake_info["L"] / 150))
-        self.spray.add(x=w[:, 0], y=w[:, 1], vx=v[:, 0], vy=v[:, 1], life=rng.uniform(0.3, 0.8, n),
-                       r0=0.3 * fs, r1=rng.uniform(0.6, 1.3, n) * fs, a0=rng.uniform(0.15, 0.35, n))
-
-    def spawn_smoke(self, dt):
-        rng = self.rng
-        for c, r, top in self.funnels:
-            n = int(rng.poisson(dt * (10 + 2 * r)))
-            if not n:
-                continue
-            p = c + rng.normal(0, r * 0.25, (n, 2))
-            w = self.world_of(p)
-            v = np.tile(self.vel * 0.6, (n, 1)) + rng.normal(0, 0.6, (n, 2))
-            self.smoke.add(x=w[:, 0], y=w[:, 1], vx=v[:, 0], vy=v[:, 1], life=rng.uniform(5, 9, n),
-                           r0=r * 0.6, r1=r * 1.6 + 3, a0=rng.uniform(0.15, 0.3, n) * (1.6 if self.coal else 1.0),
-                           h=top)
-
     def fire(self, mt, i):
         rng = self.rng
         ang = self.heading + self.bearing(mt, self.t)
         d = unit(ang)
-        muz = self.pos + rot(mt.pos_m, self.heading) + rot(mt.muzzles[i], ang)
+        muz = mt.ship.pos + rot(mt.pos_m, self.heading) + rot(mt.muzzles[i], ang)
         if mt.kind == "torpedo":
             self.fish.append([muz[0], muz[1], *(self.vel + d * 22.0), self.t])
             self.foam.add(x=muz[0] + rng.normal(0, 1, 12), y=muz[1] + rng.normal(0, 1, 12),
@@ -1053,8 +1181,9 @@ class Scene:
             for xy, size in b.new_splashes:
                 self.splash(xy, size)
         if not self.broken():         # after the break the wreck makes the funnel smoke, and nothing cuts the sea
-            self.spawn_spray(dt)
-            self.spawn_smoke(dt)
+            for sh in self.ships:
+                sh.spawn_spray(dt)
+                sh.spawn_smoke(dt)
         while self.next_ev < len(self.events) and self.events[self.next_ev][0] <= self.t:
             _, mt, i = self.events[self.next_ev]
             self.fire(mt, i)
@@ -1563,7 +1692,8 @@ class Scene:
             x, y = self.scr(sm.d["x"], sm.d["y"])
             px.append(x), py.append(y), r.append(sm.radius() * self.s), w.append(1.4 * sm.opacity())
             h.append(sm.d["h"] + 4)
-            cols.append(np.broadcast_to(np.array(SMOKE_COAL if self.coal else SMOKE_OIL, np.float32), (len(sm), 3)))
+            cols.append(np.where(sm.d["coal"][:, None] > 0.5, np.array(SMOKE_COAL, np.float32),   # each ship's own
+                                 np.array(SMOKE_OIL, np.float32)))
         for shot in self.shots:
             p = shot.puff(self.t)
             if p is None or p["A"] <= 0:
@@ -1871,15 +2001,15 @@ class Scene:
 
 
 # ---------------------------------------------------------------- driver
-def make(src: Path, out: Path, args, still=None, frames=None):
-    """Render one clip (or one PNG at `still` s). frames=(a, b): only frames a..b-1, to out (a chunk of a clip
+def make(src, out: Path, args, still=None, frames=None):
+    """Render one clip (or one PNG at `still` s) of one ship, or of a line of them (src a list, the lead first). frames=(a, b): only frames a..b-1, to out (a chunk of a clip
     rendered in parallel: the scene is rebuilt from the seed and stepped to frame a, and drawing never touches the
     sim, so every chunk sees the same scene)."""
     sc = Scene(src, args.w, args.h, args.fps, args.heading, args.target, args.seed, args.seconds, args.propellant,
-               args.explode, args.tier, args.explode_at, sea_args(args), args.sink)
+               args.explode, args.tier, args.explode_at, sea_args(args), args.sink, args.spacing, args.fire)
     if not args.quiet:
         i = sc.wake_info
-        print(f"  {src.name} wake: Fr_L {i['FrL']:.2f}, Zb {i['Zb']:.1f} m, solve {i['solve'][0]}x{i['solve'][1]}, "
+        print(f"  {sc.src.name} wake: Fr_L {i['FrL']:.2f}, Zb {i['Zb']:.1f} m, solve {i['solve'][0]}x{i['solve'][1]}, "
               f"grid {i['grid'][0]}x{i['grid'][1]}, bake {i['t_total'] * 1000:.0f} ms, "
               f"setup {i['t_setup'] * 1000:.0f} ms")
         for b in sc.blasts:
@@ -1916,7 +2046,7 @@ def make(src: Path, out: Path, args, still=None, frames=None):
     return out
 
 
-def make_chunked(src: Path, out: Path, args, chunks):
+def make_chunked(src, out: Path, args, chunks):
     """One clip rendered as `chunks` parts in parallel processes, then joined without re-encoding. Each part
     steps the scene from the start (cheap next to drawing). Parts go to a scratch folder beside the output, so no
     two processes ever write one file."""
@@ -1925,7 +2055,7 @@ def make_chunked(src: Path, out: Path, args, chunks):
     import subprocess
     import imageio_ffmpeg
     sc = Scene(src, args.w, args.h, args.fps, args.heading, args.target, args.seed, args.seconds, args.propellant,
-               args.explode, args.tier, args.explode_at, sea_args(args), args.sink)
+               args.explode, args.tier, args.explode_at, sea_args(args), args.sink, args.spacing, args.fire)
     n = int(round(sc.duration * args.fps))
     for b in sc.blasts:
         sp = b.s
@@ -1962,7 +2092,9 @@ def sea_args(args):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("ships", nargs="+", help="out_designs/<id> folders or ids, or 'all'")
+    ap.add_argument("ships", nargs="+",
+                    help="out_designs/<id> folders or ids, or 'all'; ids joined by '+' (invincible+inflexible) "
+                         "steam in line ahead in one clip, the first leading")
     ap.add_argument("--designs", default=str(ROOT / "out_designs"), help="where ids are looked up")
     ap.add_argument("--out", default=str(ROOT / "vidgen" / "out"), help="output folder")
     ap.add_argument("--size", default="1280x720")
@@ -1992,6 +2124,10 @@ def main():
                          "sink (sinkvid's break). Writes <id>_explode_<mag>_sink.mp4")
     ap.add_argument("--explode-at", type=float, default=None,
                     help=f"time of the hit, s (default: {EXPLODE_AFTER:g} s after the first salvo)")
+    ap.add_argument("--fire", type=float, default=FIRE_S,
+                    help=f"how long the guns fire, s (default {FIRE_S:g})")
+    ap.add_argument("--spacing", type=float, default=LINE_SPACING,
+                    help=f"a line's distance between ships, centre to centre, m (default {LINE_SPACING:g}, ~2 cables)")
     ap.add_argument("--beaufort", type=float, default=None,
                     help=f"sea state for the waves (default: the smoke's {SEA_WIND:g} m/s wind, about 3); the smoke "
                          "keeps its own wind")
@@ -2003,8 +2139,11 @@ def main():
     if args.w % 2 or args.h % 2:
         ap.error("--size must be even in both dimensions")
     base = Path(args.designs)
-    srcs = sorted(p.parent for p in base.glob("*/sprite.json")) if args.ships == ["all"] else [
-        Path(s) if (Path(s) / "sprite.json").exists() else base / s for s in args.ships]
+    def find(s):
+        return Path(s) if (Path(s) / "sprite.json").exists() else base / s
+    # each entry is one clip: one ship, or a line of them
+    srcs = [[p.parent] for p in sorted(base.glob("*/sprite.json"))] if args.ships == ["all"] else [
+        [find(s) for s in arg.split("+") if s] for arg in args.ships]
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     ext = ".png" if args.still is not None else ".mp4"
@@ -2016,12 +2155,16 @@ def main():
         tag += "_sink" if args.sink and args.tier == "blast" else ""
     if args.sink and (not args.explode or args.tier != "blast"):
         ap.error("--sink needs --explode with --tier blast")
+    if args.explode and any(len(g) > 1 for g in srcs):
+        ap.error("--explode is for one ship for now, not a line")
     todo = []
-    for src in srcs:
-        if not (src / "sprite.json").exists():
-            print(f"skip {src}: no sprite.json", file=sys.stderr)
+    for group in srcs:
+        missing = [s for s in group if not (s / "sprite.json").exists()]
+        if missing:
+            print(f"skip {'+'.join(str(s) for s in group)}: no sprite.json in {missing[0]}", file=sys.stderr)
             continue
-        todo.append((src, out / f"{src.name}{tag}{ext}"))
+        name = "+".join(s.name for s in group)
+        todo.append((group[0] if len(group) == 1 else group, out / f"{name}{tag}{ext}"))
     jobs = max(1, min(args.jobs or os.cpu_count() or 1, len(todo)))
     args.quiet = jobs > 1          # interleaved progress lines would be noise; report each ship as it finishes
     chunks = args.chunks or (min(6, os.cpu_count() or 1) if len(todo) == 1 else 1)
