@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import math
 
+from armour import armour_errors
+
 # Input limits shared by every style: (lo, hi) per dotted path; a style's LIMITS are merged over these.
 # These are sanity bounds for the generator, not gameplay rules: the game's designer enforces those. Armament
 # and armour are deliberately wide (silly designs may look stupid or fail the physics, but they run); hull form
@@ -156,87 +158,6 @@ def superstructure_errors(design, style) -> list[str]:
         elif not isinstance(s["levels_over_bridge"], int) or isinstance(s["levels_over_bridge"], bool) or \
                 s["levels_over_bridge"] < 0:
             errs.append("superstructure.levels_over_bridge: use a whole number, 0 or more")
-    return errs
-
-
-# extents that may share one deck (different stretches of it)
-SHARED_DECK = ({"citadel", "fore"}, {"citadel", "aft"}, {"citadel", "ends"}, {"fore", "aft"})
-
-
-def armour_errors(design) -> list[str]:
-    """armour.decks: a list of {"deck": n (0 the main deck, 1 the second, ..., -1 the first raised deck), "mm",
-    "extent"}, top down."""
-    from navarch import ARMOUR_EXTENTS, ARMOUR_PARTS
-    a = design.get("armour") or {}
-    errs = []
-    if "deck_mm" in a:
-        errs.append("armour.deck_mm is gone: list the armour decks top down in armour.decks, e.g. "
-                    "[{\"deck\": 1, \"mm\": 152, \"extent\": \"citadel\"}]")
-    if "turret_mm" in a:
-        errs.append("armour.turret_mm is gone: give each main battery its turrets' armour_mm (main[k].armour_mm)")
-    decks = a.get("decks", [])
-    if not isinstance(decks, list):
-        return errs + ["armour.decks: use a list of armour decks, top down"]
-    last, prev = None, None
-    for k, d in enumerate(decks):
-        if not isinstance(d, dict) or not isinstance(d.get("deck"), int):
-            errs.append(f"armour.decks[{k}].deck: use a deck number (0 the main deck, 1 the second deck, ..., -1 "
-                        "the first raised deck)")
-            continue
-        if not isinstance(d.get("mm"), (int, float)) or d["mm"] < 0:
-            errs.append(f"armour.decks[{k}].mm: use a thickness of 0 or more")
-        if d.get("extent") not in ARMOUR_EXTENTS:
-            errs.append(f"armour.decks[{k}].extent = {d.get('extent')!r}: use {' or '.join(ARMOUR_EXTENTS)}")
-        if last is not None and d["deck"] < last:
-            errs.append(f"armour.decks[{k}]: list the armour decks top down")
-        elif d["deck"] == last and {d.get("extent"), prev} not in SHARED_DECK:
-            errs.append(f"armour.decks[{k}]: a deck may appear twice only over different stretches (the citadel "
-                        "and its ends)")
-        last, prev = d["deck"] if last is None else max(last, d["deck"]), d.get("extent")
-    ub = a.get("upper_belt")
-    if ub is not None:
-        if not isinstance(ub, dict):
-            errs.append("armour.upper_belt: use {\"mm\", \"to_deck\", \"extent\"}")
-        else:
-            if not isinstance(ub.get("to_deck", 0), int):
-                errs.append("armour.upper_belt.to_deck: use a deck number (0 the main deck, 1 the second deck, ..., "
-                            "-1 the first raised deck)")
-            if ub.get("extent", "citadel") not in ARMOUR_EXTENTS:
-                errs.append(f"armour.upper_belt.extent = {ub.get('extent')!r}: use {' or '.join(ARMOUR_EXTENTS)}")
-    mats = a.get("materials")
-    if mats is not None:
-        if not isinstance(mats, dict):
-            errs.append("armour.materials: name a material per part, e.g. {\"belt\": \"Krupp cemented\", ...}")
-        else:
-            errs += [f"armour.materials.{k}: not an armour part ({', '.join(ARMOUR_PARTS)})" for k in mats
-                     if k not in ARMOUR_PARTS]
-            errs += [f"armour.materials.{k}: name the material as a string" for k, v in mats.items()
-                     if not isinstance(v, str) or not v]
-    owns = [(f"armour.decks[{k}]", d) for k, d in enumerate(decks) if isinstance(d, dict)]
-    owns += [("armour.upper_belt", a["upper_belt"])] if isinstance(a.get("upper_belt"), dict) else []
-    owns += [(f"armour.end_belts.{e}", v) for e, v in (a.get("end_belts") or {}).items() if isinstance(v, dict)] \
-        if isinstance(a.get("end_belts"), dict) else []
-    owns += [("armour.steering_box", a["steering_box"])] if isinstance(a.get("steering_box"), dict) else []
-    owns += [("armour.steering_box.deck", {"material": a["steering_box"]["deck_material"]})] \
-        if isinstance(a.get("steering_box"), dict) and "deck_material" in a["steering_box"] else []
-    sec = design.get("secondary") or []
-    owns += [(f"secondary[{k}]", b) for k, b in enumerate(sec if isinstance(sec, list) else [sec]) if isinstance(b, dict)]
-    mb = design.get("main") or []
-    owns += [(f"main[{k}]", b) for k, b in enumerate(mb if isinstance(mb, list) else [mb]) if isinstance(b, dict)]
-    errs += [f"{where}.material: name the material as a string" for where, d in owns
-             if "material" in d and (not isinstance(d["material"], str) or not d["material"])]
-    eb = a.get("end_belts")
-    if eb is not None:
-        if not isinstance(eb, dict) or set(eb) - {"fore", "aft"}:
-            errs.append("armour.end_belts: use {\"fore\": {\"mm\", \"tip_mm\", \"reach\", \"bulkhead_mm\"}, "
-                        "\"aft\": {...}}")
-        else:
-            errs += [f"armour.end_belts.{end}: use {{\"mm\", \"tip_mm\", \"reach\", \"bulkhead_mm\"}}"
-                     for end, e in eb.items() if not isinstance(e, dict)]
-    sb = a.get("steering_box")
-    if sb is not None and (not isinstance(sb, dict) or set(sb) - {"mm", "deck_mm", "bulkhead_mm", "material",
-                                                                  "deck_material"}):
-        errs.append("armour.steering_box: use {\"mm\", \"deck_mm\", \"bulkhead_mm\"} (0 for none)")
     return errs
 
 

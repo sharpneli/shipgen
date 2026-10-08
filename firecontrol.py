@@ -144,7 +144,7 @@ def place(lay, design, blocks):
     lay.directors. A director with nowhere to stand is an error (more length rarely helps: it needs a roof)."""
     from geometry import director_parts
     from layout import LEVEL_H, _fp_rect, add_block, roof_spots
-    from navarch import Weight
+    from weights import Weight
     fc = spec(design)
     L = lay.hull.L
     for bat in BATTERIES:
@@ -242,7 +242,7 @@ def search_radar(lay, design, blocks, masts, fun_top):
     """The search radar's weight on the foremast's top (masts[0]; its top defaults to fun_top + 6 m, as drawn), or
     1 m over the highest roof on a ship without masts."""
     from layout import block_top
-    from navarch import Weight
+    from weights import Weight
     t = spec(design)["search_radar_t"]
     if not t:
         return

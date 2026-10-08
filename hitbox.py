@@ -61,7 +61,7 @@ def export_hitboxes(lay, design, res, inner):
     plating, hydrostatics, propulsion and battle stations."""
     from decks import deck_name
     from geometry import DECK_PITCH
-    from navarch import armour_material
+    from armour import armour_material
     D, T = res.depth, res.draught
     rz = lambda z: round(z - D, 2)        # metres above the keel -> above the main deck
     ag = inner["armour"]

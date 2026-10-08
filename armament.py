@@ -14,7 +14,8 @@ import math
 from geometry import battery_type, make_torpedo_type, rotate_translate, superfire_step, turret_height, turret_reach
 from geometry import turret_shapes
 from layout import _fp_circle, _fp_rect, _overlap, stepped_counts, turret_name
-from navarch import TUNING, Weight, mount_weights, secondary_batteries, torpedo_weight
+from weights import Weight
+from navarch import TUNING, mount_weights, secondary_batteries, torpedo_weight
 from geometry import AA_CFG
 
 

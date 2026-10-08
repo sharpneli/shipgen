@@ -19,7 +19,8 @@ import firecontrol
 import ordnance
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_steering, clamp, finish_layout,
                     plan_machinery, set_citadel)
-from navarch import Weight, secondary_batteries, volumetric_froude
+from navarch import secondary_batteries, volumetric_froude
+from weights import Weight
 from geometry import AA_CFG, Hull
 from styles.base import Style
 from styles.carrier import _vdc

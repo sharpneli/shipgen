@@ -176,7 +176,7 @@ def crew_space(lay, design, res):
     import powerplant
     from layout import LEVEL_H
     from layout import block_role
-    from navarch import cwp
+    from geometry import cwp
     hull = lay.hull
     L, B = hull.L, hull.B
     cb = design["hull"]["block_coefficient"]
@@ -240,7 +240,7 @@ def apply(lay, design, res, style):
     """Crew the laid-out ship: its complement, the volume the crew needs against the volume the ship has (too
     little: the hull is short of length), and the weights of crew, provisions and water.
     Sets lay.crew (report "crew"); subdivision.build quarters the complement in the hull's free cells."""
-    from navarch import Weight
+    from weights import Weight
     import powerplant
     c = spec(design, style.CREW_STANDARD)
     range_days = math.ceil(design.get("range_nm", 6000) / max(res.cruise_kn, 1.0) / 24.0 - 1e-9)

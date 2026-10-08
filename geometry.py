@@ -265,7 +265,7 @@ class HullForm:
                   centre sits at the ship's lcb (navarch: the layout trims the weights to it)
       waterplane  each station meets its area with its waterline and its section's fullness together: of the
                   share rho of the midship's breadth x fullness it needs, the waterline takes rho ** lambda and
-                  the section the rest (lambda solved so the waterplane fills navarch.cwp, more on the
+                  the section the rest (lambda solved so the waterplane fills geometry.cwp, more on the
                   waterline under U ends, less under V), the waterline never past the deck edge nor narrower
                   than the station nearer the end (a shallow run over a cut-up wants it wider toward the
                   transom: the stations ahead are filled out to it, then smoothed), the fullness
@@ -273,7 +273,7 @@ class HullForm:
                   into a box), falling off as r ** C_END_POW: flat at the shoulder, where a linear fall had put a
                   corner in the flat of bottom and run it out to the stem in straight sides, a needle nose.
                   Departure: lambda stays in LAM_MIN..LAM_MAX so the section always takes part of the fining.
-                  navarch.cwp (0.18 + 0.86 cb) is lean for warships: reaching it took lambda ~1, a fine
+                  geometry.cwp (0.18 + 0.86 cb) is lean for warships: reaching it took lambda ~1, a fine
                   waterline over box-full sections, where a battleship's lines give ~0.6. So warships' waterplanes
                   come out ~0.70-0.73 (Schneekluth & Bertram's regressions give about that), fuller than cwp
       sections    below the waterline each section is a superellipse (y / b) ** p + s ** q = 1 over its own depth
@@ -334,7 +334,7 @@ class HullForm:
         return (lo + hi) / 2
 
     def __init__(self, hull, cb, cwp, T, D, fn=0.0, gear=None, lcb=0.0):
-        """cwp: the waterplane coefficient to aim for (navarch.cwp); fn: the Froude number at the design speed;
+        """cwp: the waterplane coefficient to aim for (geometry.cwp); fn: the Froude number at the design speed;
         gear: propulsion.gear (None: a flat keel aft); lcb: the centre of buoyancy's x (navarch.Result.lcb)."""
         self.hull, self.cb, self.T, self.D, self.fn, self.cwp_target = hull, cb, T, D, fn, cwp
         L, B = hull.L, hull.B
@@ -694,6 +694,11 @@ def turret_reach(t: dict) -> float:
 def turret_height(t: dict) -> float:
     """Roof height of a turret above its base, metres."""
     return {"bb": 0.42, "dp": 0.55, "open": 0.9, "torp": 0.5, "tube": 1.6, "casemate": 0.42}[t.get("shape", "bb")] * t["r"]
+
+
+def cwp(cb):
+    """The waterplane coefficient a hull of block coefficient cb aims for (stability, deck areas, HullForm)."""
+    return 0.18 + 0.86 * cb
 
 
 DECK_PITCH = 2.6   # m between decks: the hull's deck stack below the main deck, raised stretches of hull above it

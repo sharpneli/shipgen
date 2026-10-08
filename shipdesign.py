@@ -28,16 +28,18 @@ from __future__ import annotations
 
 import copy
 
+from armour import armour_geometry
 import crew
 import firecontrol
 import hullweight
 import navarch
 import styles
-from geometry import AA_CFG, HullForm, has_barbette, rrect_polygon, block_outline
+from geometry import AA_CFG, HullForm, cwp, has_barbette, rrect_polygon, block_outline
 from arcs import assign_arcs
 from firecontrol import assign_smoke
 from hitbox import export_hitboxes
 import powerplant
+from weights import SEAWATER
 import propulsion
 import subdivision
 from layout import LEVEL_H, block_top, own_plate_mm
@@ -73,7 +75,7 @@ def min_length(disp_t, v_kn):
     """The shortest hull a displacement ship of disp_t tonnes gets for v_kn knots: slenderness L / volume^(1/3)
     rises with the volumetric Froude number Fn∇, from 5.25 for slow ships (Liberty, Mikasa) to 8.2 for
     destroyers (Fletcher). Fitted to 16 real ships 1900-1945; within about 5% of most."""
-    root = (disp_t / navarch.SEAWATER) ** (1 / 3)
+    root = (disp_t / SEAWATER) ** (1 / 3)
     fnv = navarch.volumetric_froude(disp_t, v_kn)
     return max(5.25, min(8.2, 5.25 + 5.0 * (fnv - 0.55))) * root
 
@@ -355,14 +357,14 @@ def hull_plating(lay, design, res):
 
 
 def interior(lay, design, r):
-    """What the solved, laid-out ship is inside, beyond the layout: its armour (navarch.armour_geometry), hull form
+    """What the solved, laid-out ship is inside, beyond the layout: its armour (armour.armour_geometry), hull form
     (round the stern gear), subdivision with its plating, hydrostatics, propulsion train linked into the
     subdivision, and battle stations (which also go in the report's crew). export_hitboxes publishes it."""
     D, T = r.depth, r.draught
-    ag = navarch.armour_geometry(design, lay.hull.L, T, D, lay.geo)
+    ag = armour_geometry(design, lay.hull.L, T, D, lay.geo)
     cb = design["hull"]["block_coefficient"]
     gear = propulsion.gear(lay, design, r)        # the stern's lines make room for it
-    form = HullForm(lay.hull, cb, navarch.cwp(cb), T, D, navarch.froude(design["speed_kn"], lay.hull.L), gear, r.lcb)
+    form = HullForm(lay.hull, cb, cwp(cb), T, D, navarch.froude(design["speed_kn"], lay.hull.L), gear, r.lcb)
     sub = subdivision.build(lay, design, r, ag, ag["armoured"], form)
     plating = hull_plating(lay, design, r)
     planked = subdivision.deck_plates(sub, plating, design, lay)

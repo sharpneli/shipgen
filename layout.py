@@ -30,7 +30,8 @@ from geometry import (battery_type, make_torpedo_type, rrect_polygon, rrect_clam
                       DECK_PITCH)
 import ordnance
 import powerplant
-from navarch import (Weight, battery_turrets, main_batteries, mount_weights, secondary_batteries, torpedo_weight,
+from weights import Weight
+from navarch import (battery_turrets, main_batteries, mount_weights, secondary_batteries, torpedo_weight,
                      TUNING)
 from arcs import ARC_BEAM, ARC_CASEMATE, ARC_CROSS, mount_traverse
 from geometry import Hull, AA_CFG, has_barbette
@@ -142,7 +143,7 @@ class Layout:
         self.components = []    # exact geometry + heights (hitboxes)
         self.footprints = []    # (fp, base, top, owner_id) for collision tests
         self.overhangs = set()  # id() of footprints that hang over the deck and need nothing under them (stowed barrels)
-        self.weights = []       # navarch.Weight with x positions
+        self.weights = []       # weights.Weight with x positions
         self.errors, self.warnings = [], []
         self.spec = {}
         self.geo = {}
@@ -592,7 +593,7 @@ def plan_machinery(lay, design, res, hull, x=0.0):
     wing bunkers and double bottom can't take goes into end bunkers or tanks, which lengthen the block. Stores the
     plan in lay.geo["plant"] and returns the block's length (powerplant.segments)."""
     from decks import deck_stack
-    from navarch import armour_geometry
+    from armour import armour_geometry
     p = res.plant
     armour = design.get("armour") or {}
     D, T = res.depth, res.draught
@@ -834,7 +835,7 @@ def block_role(bid):
     return BLOCK_ROLES.get(re.sub(r"\s*\d+[SP]?$", "", bid), "deckhouse")
 
 
-# Warship and carrier planform. The main deck fills more of its L x B box than the waterplane (navarch.cwp), since
+# Warship and carrier planform. The main deck fills more of its L x B box than the waterplane (geometry.cwp), since
 # the sides flare out above water: a parallel midbody, then the rest as bow and stern tapers with one power solved
 # for that fill. Big ships are oval (LARGE: at Cb 0.6 close to Dreadnought's deck, fill 0.78 against her 0.76);
 # small ones keep straight sides and a wide transom (SMALL: Fletcher, fill 0.83 at Cb 0.5), blended by the deck's
@@ -849,7 +850,7 @@ PLAN_SIZE = (1500.0, 4000.0)
 
 def planform(cb, size_m2):
     """Bow and stern tapers for a deck of size_m2 (L x B) whose plan fills cwp(cb) + flare of its box."""
-    from navarch import cwp
+    from geometry import cwp
     s = min(1.0, max(0.0, (size_m2 - PLAN_SIZE[0]) / (PLAN_SIZE[1] - PLAN_SIZE[0])))
     large = {**LARGE, "mid": min(0.4, max(0.0, (cb - 0.5) * MIDBODY_K))}
     k = {key: SMALL[key] + (large[key] - SMALL[key]) * s for key in SMALL}

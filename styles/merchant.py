@@ -22,7 +22,7 @@ import ordnance
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
                     add_raised, add_steering, clamp, finish_layout, funnel_seg, plan_funnels, plan_machinery,
                     set_citadel, stack_machinery)
-from navarch import Weight
+from weights import Weight
 from geometry import AA_CFG, Hull
 from styles.base import Style
 from styles.carrier import SECONDARY_LIMITS, _vdc, guns_are_secondaries

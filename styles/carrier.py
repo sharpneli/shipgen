@@ -28,7 +28,7 @@ from geometry import polygon_area, polygon_y_span
 from layout import (LEVEL_H, Layout, _fp_circle, _fp_rect, add_block, add_funnel_weights, add_machinery_rooms,
                     add_steering, clamp, finish_layout, funnel_seg, hull_spec, mast_weight, plan_funnels, plan_machinery, roof_spots,
                     set_citadel, stack_machinery, tower_levels)
-from navarch import STEEL, Weight
+from weights import STEEL, Weight
 from geometry import AA_CFG, Hull
 from styles.base import Style
 

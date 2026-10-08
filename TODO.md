@@ -24,7 +24,6 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Export numeric `calibre_mm`/`calibre_length` in sprite.json turret types and hitbox components
 - [ ] Normalise "one battery or a list" once after validation (about 12 copies; secondary default 25 mm armour 5x)
 - [ ] Split layout.py: shared primitives (public names) vs the warship's `build_layout` into styles/warship.py
-- [ ] Armour out of navarch into its own module (geometry, weights, materials, extents, `armour_errors`)
 - [ ] `armour_geometry` recomputed in 4 places: keep it on the solved result
 - [ ] `lay.geo` is an untyped bag of ~20 keys; Layout gains attributes after `__init__` (`getattr(lay, "crew", None)`)
 - [ ] Private `_` keys as side channels: `b["_plate_mm"]` (layout → hitbox), `spec["_clutter"]` (shipgen → render)

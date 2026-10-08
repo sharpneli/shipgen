@@ -94,7 +94,7 @@ def raised_spans(raised, k):
 def decks(design, D, ag, raised=()):
     """The decks, keel up, as heights above the main deck: [dict(id, kind, z, armour_mm?, x0?, x1?, plates?)]. The
     keel, the inner bottom (not on planing craft), then the deck stack (decks.deck_stack) up to the main deck. An
-    armoured deck carries its armour (navarch.armour_geometry) and the stretch it covers; a deck armoured over
+    armoured deck carries its armour (armour.armour_geometry) and the stretch it covers; a deck armoured over
     several stretches (the citadel and its ends) lists them as plates [dict(armour_mm, x0, x1)]. Above the main
     deck, the decks of raised stretches (raised: lay.raised), each with the spans where it exists."""
     from decks import deck_stack, deck_name
@@ -172,9 +172,9 @@ def stations(L, rooms, cit, min_gap, max_gap, breaks=(), armoured=()):
 
 def build(lay, design, res, ag, armoured, form):
     """The subdivision of the laid-out ship: dict(decks, tiers, sections, bulkheads, cells, rooms) for
-    hitboxes.json. ag is navarch.armour_geometry (heights above the keel); form the hull's cross-sections
+    hitboxes.json. ag is armour.armour_geometry (heights above the keel); form the hull's cross-sections
     (geometry.HullForm)."""
-    from navarch import belt_mm_at
+    from armour import belt_mm_at
     hull = lay.hull
     L, B = hull.L, hull.B
     D, T = res.depth, res.draught
@@ -528,7 +528,7 @@ def deck_plates(sub, plating, design, lay):
     decks and the watertight bulkheads lighter. A torpedo bulkhead gives the protection's plating, all its
     bulkheads together. Deck planking (wood_mm) lies on the weather deck: the flight deck when there is one, else
     the main and raised decks. Returns the ids of the layout's decks (lay.decks: a flight deck) that take it."""
-    from navarch import TUNING
+    from armour import TUNING
     tds = (design.get("armour") or {}).get("tds_m", 0.0) or 0.0
     for d in sub["decks"]:
         if d["kind"] == "inner_bottom":
