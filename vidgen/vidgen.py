@@ -153,9 +153,18 @@ FLASH_LIGHT_MAX = 1.0     # at most this many times the sun's light
 EXPLODE_AFTER = 4.0       # default: the hit lands this long after the first salvo
 EXPLODE_TAIL = 40.0       # the clip runs this long past the main event (the cap mushrooms by ~15 s, research 6)
 EXPLODE_FIT = 0.34        # the ship's share of the frame width in an explosion clip, so the column and cap fit
-EXPLODE_CY = 0.68         # and its height on screen: the column rises up the screen above it
 STOP_TAU = 12.0           # s: the ship loses way after the main event (until the sinking clip takes over)
 BREAK_STOP_TAU = 4.0      # s: with --sink, the halves coast to a stop this fast (an open section is a huge drag)
+# an explosion clip's camera (user, 2026-10-08): the ship's centre on screen, as shares of the frame. Up and left
+# while the guns fire, so their blasts have the right and the bottom of the frame; low and a little left for the
+# explosion, so the column and the cap rise into the empty top; then a little toward the middle for the sinking.
+# The pans are smootherstep, so the camera starts and stops without a jolt (my picks by eye)
+CAM_GUNS = (0.30, 0.36)
+CAM_BLAST = (0.43, 0.68)
+CAM_SINK = (0.48, 0.58)
+CAM_PAN_BLAST = (0.3, 3.0)  # s: the pan to the explosion ends this long before the main event, and how long it takes
+CAM_PAN_SINK = (20.0, 10.0)  # s: the pan to the sinking starts this long after the main event, and how long it takes
+CAM_MARGIN = 8            # px kept around the window, so the blast's camera shake moves it rather than smearing
 # vertical effects are drawn in the research's oblique "3/4" projection (3.1): height above the source lifts a
 # puff up the screen by K_OBL z', with the soft compression z' = H_C (1 - e^(-z/H_C)), while ships and water stay
 # top-down and shadows use the true height. DEPARTURE: z is measured from the source's height (the deck), not the
@@ -219,6 +228,12 @@ def unwrap(a, trav):
 def smoothstep(x):
     x = min(1.0, max(0.0, x))
     return x * x * (3 - 2 * x)
+
+
+def smootherstep(x):
+    """Smoothstep with zero acceleration at both ends too: a camera pan that starts and stops without a jolt."""
+    x = min(1.0, max(0.0, x))
+    return x * x * x * (x * (6 * x - 15) + 10)
 
 
 def box_blur(a, r, passes=3):
@@ -519,8 +534,19 @@ class Scene:
         ch, sh = abs(math.cos(math.radians(heading))), abs(math.sin(math.radians(heading)))
         fit = (EXPLODE_FIT, EXPLODE_FIT) if explode else (0.80, 0.62)
         self.s = s = min(S0, fit[0] * W / (Lm * ch + Bm * sh), fit[1] * H / (Lm * sh + Bm * ch))
-        # the ship sits a little ahead of centre so the wake has room (and low in an explosion clip)
-        self.C = np.array([W / 2, H * EXPLODE_CY if explode else H / 2]) + unit(heading) * (0.07 * W)
+        # the ship sits a little ahead of centre so the wake has room
+        self.C = np.array([W / 2, H / 2]) + unit(heading) * (0.07 * W)
+        # an explosion clip's camera pans (Scene.cam): the scene is drawn on a bigger canvas with the ship fixed at
+        # C there, and each frame is the output window cut from it where the camera puts the ship on screen
+        self.Wo, self.Ho = W, H
+        self.frames_at = None
+        if explode:
+            keys = [CAM_GUNS, CAM_BLAST] + ([CAM_SINK] if sink else [])
+            P = np.array([(k[0] * W, k[1] * H) for k in keys])
+            lo, hi = P.min(0), P.max(0)
+            self.C = hi + CAM_MARGIN
+            self.W, self.H = W, H = [int(math.ceil(v)) for v in hi - lo + (W, H) + 2 * CAM_MARGIN]
+            self.frames_at = P
 
         self._static_layers(S0)
         self._mounts(S0, self.target_bearing)
@@ -823,11 +849,11 @@ class Scene:
         return 1 - np.abs(th) if ridged else 0.5 + 0.5 * th
 
     def _hud(self):
-        im = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
+        im = Image.new("RGBA", (self.Wo, self.Ho), (0, 0, 0, 0))
         d = ImageDraw.Draw(im)
         res = self.report["results"]
-        big, small = font(max(14, self.H // 30)), font(max(11, self.H // 50))
-        x, y = self.H // 36, self.H - self.H // 36
+        big, small = font(max(14, self.Ho // 30)), font(max(11, self.Ho // 50))
+        x, y = self.Ho // 36, self.Ho - self.Ho // 36
         stats = (f"{res['length_m']:.0f} m  ·  {res['standard_displacement_t']:,} t std  ·  "
                  f"{self.report['inputs'].get('speed_kn', '?')} kn  ·  {len(self.mounts)} mounts")
         d.text((x + 1, y - big.size - small.size - 5), self.sprite.get("name", self.sprite["id"]),
@@ -979,6 +1005,17 @@ class Scene:
 
     def broken(self):
         return self.wreck is not None and self.t >= self.t_break
+
+    def cam(self):
+        """An explosion clip's camera: where the ship's centre is on the output frame now, in px (CAM_*)."""
+        P = self.frames_at
+        t_main = self.blasts[0].s["t_main"]
+        end, d = CAM_PAN_BLAST
+        p = P[0] + (P[1] - P[0]) * smootherstep((self.t - (t_main - end - d)) / d)
+        if len(P) > 2:
+            t0, d = CAM_PAN_SINK
+            p = p + (P[2] - P[1]) * smootherstep((self.t - t_main - t0) / d)
+        return p
 
     def wake_k(self):
         """How much of the baked wake is left as the ship loses way after a magazine explosion: the bake is steady,
@@ -1190,6 +1227,13 @@ class Scene:
         shake = (0.0, 0.0)
         if self.blasts:
             shake = self._exposure(frame)
+        self.C_out = self.C
+        if self.frames_at is not None:     # the camera's window on the canvas; the shake moves the window
+            o = np.round(self.C - self.cam()).astype(int)
+            self.C_out = self.C - o
+            o -= shake
+            frame = frame[o[1]:o[1] + self.Ho, o[0]:o[0] + self.Wo]
+            W, H, shake = self.Wo, self.Ho, (0, 0)
 
         # target marker and captions
         frame = np.clip(frame, 0, 1)
@@ -1800,24 +1844,24 @@ class Scene:
             phase = "Hit" if t < self.t_hit + magazine.HIT_LEAD else "Magazine explosion"
         if self.broken() and t >= self.t_break + 6:
             phase = self.wreck._break_phase()
-        m = self.H // 36
+        m = self.Ho // 36
         d.text((m, m), phase, font=self.font_small, fill=(235, 240, 242, 220))
         if self.has_guns and t >= REST_S - 0.5:
             b = self.target_bearing
             dvec = unit(self.heading + b)
             # where the ray from the ship's centre leaves the frame, pulled in by a margin
             ts = []
-            for i, lim in ((0, self.W), (1, self.H)):
+            for i, lim in ((0, self.Wo), (1, self.Ho)):
                 if abs(dvec[i]) > 1e-6:
                     for edge in (m * 2, lim - m * 2):
-                        tt = (edge - self.C[i]) / dvec[i]
+                        tt = (edge - self.C_out[i]) / dvec[i]
                         if tt > 0:
                             ts.append(tt)
             tt = min(ts)
-            p = self.C + dvec * tt
+            p = self.C_out + dvec * tt
             n = rot(np.array([1.0, 0]), self.heading + b)
             q = rot(np.array([0, 1.0]), self.heading + b)
-            sz = self.H / 50
+            sz = self.Ho / 50
             tri = [tuple(p), tuple(p - n * sz * 1.6 + q * sz * 0.8), tuple(p - n * sz * 1.6 - q * sz * 0.8)]
             alpha = int(200 * min(1.0, (t - REST_S + 0.5) / 0.5))
             d.polygon(tri, fill=(230, 60, 50, alpha))

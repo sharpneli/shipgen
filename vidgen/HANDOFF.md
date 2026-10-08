@@ -269,8 +269,17 @@ serves; `Y,X` sends a second one 0.3–0.8 s later, tier 4) writes `out/<id>_exp
   - Steam is sized by the beam.
   - After a blast the ship stops firing and loses way (`STOP_TAU` 12 s), and the baked wake fades with the speed.
     That's a stand-in until the sinking clip takes over.
-- **Framing:** an explosion clip fits the ship to 34 % of the frame width, low on the screen (`EXPLODE_FIT`,
-  `EXPLODE_CY`), so the column and the cap have room. The clip runs 40 s past the main event.
+- **Framing:** an explosion clip fits the ship to 34 % of the frame width (`EXPLODE_FIT`) so the column and the
+  cap have room. The clip runs 40 s past the main event.
+- **Camera (2026-10-08, user):** explosion clips pan. The ship starts up and left (`CAM_GUNS`), so the gun blasts
+  have the right and the bottom of the frame. It pans low and a little left for the explosion (`CAM_BLAST`, so the
+  top left isn't empty while the column rises), arriving 0.3 s before the main event after a 3 s pan
+  (`CAM_PAN_BLAST`). With `--sink` it then drifts toward the middle for the sinking (`CAM_SINK`, from 20 s after
+  the main event, over 10 s). The pans are smootherstep. The positions are my picks by eye.
+  - How: the scene is drawn on a canvas bigger than the frame by the pan's range plus `CAM_MARGIN` 8 px, with the
+    ship fixed at `C` there. Each frame cuts the output window from it (`Scene.cam`, at whole pixels). The blast's
+    camera shake moves the window, so it no longer smears the frame's edge. That costs about 1.6x the pixels on
+    Invincible with `--sink`. Clips without `--explode` are byte-identical (checked on a Bismarck still).
 - **Speed:** a sim step takes ~1 ms; a frame takes 0.6–0.8 s at 720p (two to five more `Density` passes). A
   single-ship clip now renders in `--chunks` parallel parts (default up to 6, the DRAM bandwidth limit), joined
   without re-encoding: Bismarck's 53 s takes about 5 minutes.
