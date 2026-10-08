@@ -2,6 +2,12 @@
 
 Open items from HANDOFF.md, one line each (details there). Keep this in sync: tick off or delete what's done, add what's found.
 
+## C# port (plan: PORTING.md)
+- [ ] Step 0: capture goldens from Python (designs + fuzz cases), then freeze Python
+- [ ] Steps 1-2: design side in Shipgen.Core + CLI, matching goldens
+- [ ] Steps 3-4: SDL_GPU renderer (display list + GPU backend) + full CLI
+- [ ] Steps 5-6: retire Python, port fuzz and verify
+
 ## Generator bugs
 - [ ] `superfire: {"fore": 1}` with 3 fore turrets: B's sweep hits C (Nelson works around it)
 - [ ] Main director 2 placed inside X's barrel sweep (Colorado uses 1 director)
