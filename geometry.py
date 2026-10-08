@@ -334,14 +334,36 @@ class HullForm:
 
     @staticmethod
     def _solve(f, lo, hi, target):
-        """x in lo..hi where the increasing f(x) meets target (an end when it doesn't)."""
-        if f(lo) >= target:
+        """x in lo..hi where the increasing f(x) meets target (an end when it doesn't), to what 40 halvings reached.
+        Illinois regula falsi rather than bisection: the area curve nests three of these (cm, split, n), and
+        bisection took 7,400 station passes, most of a build; this takes ~600. Where f is flat (a planing hull's
+        split pinned at its end leaves the volume barely moving with n) it may land elsewhere on the flat."""
+        f_lo, f_hi = f(lo) - target, f(hi) - target
+        if f_lo >= 0:
             return lo
-        if f(hi) <= target:
+        if f_hi <= 0:
             return hi
-        for _ in range(40):
-            mid = (lo + hi) / 2
-            lo, hi = (mid, hi) if f(mid) < target else (lo, mid)
+        tol = (hi - lo) * 2.0 ** -40
+        side = 0
+        for _ in range(200):            # (a cap: it always shrinks, but never trust a float loop to end)
+            if hi - lo <= tol:
+                break
+            x = (lo * f_hi - hi * f_lo) / (f_hi - f_lo)       # the secant through the bracket; halve a stale end's f
+            if not lo < x < hi:
+                x = (lo + hi) / 2
+            f_x = f(x) - target
+            if f_x == 0:
+                return x
+            if f_x < 0:
+                lo, f_lo = x, f_x
+                if side < 0:
+                    f_hi /= 2
+                side = -1
+            else:
+                hi, f_hi = x, f_x
+                if side > 0:
+                    f_lo /= 2
+                side = 1
         return (lo + hi) / 2
 
     def __init__(self, hull, cb, cwp, T, D, fn=0.0, gear=None, lcb=0.0):
@@ -416,51 +438,87 @@ class HullForm:
     def _stations(self, n, d, lam0, cm=None, xa=None, xf=None):
         """The stations' waterlines, fullness and areas (of B T) for the area curve's n and split d, and the
         waterline's share lam0."""
-        L = self.hull.L
         cm = self.cm if cm is None else cm
         if xa is None:
             xa, xf = self._mid
-        n_f, n_r = n * math.exp(d), n * math.exp(-d)
-        rows = []           # (s, w, dk, c_hi, raw waterline) per station, stern to bow
-        for x, w, dk in zip(self.xs, self._ws, self._ds):
-            if x > xf:
-                r, nn, e, k = (x - xf) / (L / 2 - xf), n_f, self._ends[1], self.k_fore
-            elif x < xa:
-                r, nn, e, k = (xa - x) / (xa + L / 2), n_r, self._ends[0], self.k_aft
-            else:
-                r, nn, e, k = 0.0, 1.0, 1.0, 0.0
-            r = min(1.0, r)
-            s = e + (1 - e) * (1 - r * r) ** (1 / nn)
-            c_hi = min(self.C_MAX, cm - max(0.0, cm - self.C_END) * r ** self.C_END_POW)
+        ends, fore, aft, us0, cs0, area0 = self._static(lam0, cm, xa, xf)
+        inv = (1 / (n * math.exp(d)), 1 / (n * math.exp(-d)))     # 1 / n per end, fore and aft
+        raw_u = {}
+        for i, end, rr, e, dk, w, pw in ends:
+            s = e + (1 - e) * (1 - rr) ** inv[end]
             rho = s / dk if dk > 0 else 0.0
-            u = min(w, rho ** max(0.05, lam0 + self.LAMBDA_K * k)) if rho > 0 else 0.0
-            rows.append([s, w, dk, c_hi, u])
+            raw_u[i] = (s, min(w, rho ** pw) if rho > 0 else 0.0)
         # the waterline only narrows from the shoulders out to the ends: a shallow run over a cut-up wants it
         # wide again toward the transom, so the stations ahead of it are filled out to it (never cut down to a
         # plateau, which met the deck edge in a corner), then smoothed; the sections take up the rest
-        fore = [i for i in reversed(range(self.N)) if self.xs[i] > xf and rows[i][2] > 0]
-        aft = [i for i in range(self.N) if self.xs[i] < xa and rows[i][2] > 0]
+        ws, h = self._ws, self.SMOOTH
+        u_of = {i: su[1] for i, su in raw_u.items()}
         for end in (fore, aft):         # from the end inward
             u_max = 0.0
+            raw = []
             for i in end:
-                u_max = rows[i][4] = min(rows[i][1], max(u_max, rows[i][4]))
-            raw = [rows[i][4] for i in end]
-            h = self.SMOOTH
+                u_max = min(ws[i], max(u_max, u_of[i]))
+                raw.append(u_max)
             for j, i in enumerate(end):
                 win = raw[max(0, j - h):j + h + 1]
-                rows[i][4] = min(rows[i][1], sum(win) / len(win))
-        us, cs, area = [], [], []
-        for s, w, dk, c_hi, u in rows:
-            if dk <= 0 or w <= 0:           # over a counter, or past the deck's tip
-                us.append(w); cs.append(cm); area.append(0.0)
+                u_of[i] = min(ws[i], sum(win) / len(win))
+        us, cs, area = us0[:], cs0[:], area0[:]
+        ds, C_MIN = self._ds, self.C_MIN
+        for i, end, rr, e, dk, w, pw in ends:
+            if dk <= 0 or w <= 0:           # over a counter, or past the deck's tip (set in _static)
                 continue
-            c = cm * s / (u * dk) if u > 0 else self.C_MIN
+            s, u = raw_u[i][0], u_of[i]
+            c_hi = self._c_hi[i]
+            c = cm * s / (u * dk) if u > 0 else C_MIN
             if c > c_hi:
                 c, u = c_hi, min(u, cm * s / (dk * c_hi))
-            elif c < self.C_MIN:
-                c, u = self.C_MIN, min(u, cm * s / (dk * self.C_MIN))
-            us.append(u); cs.append(c); area.append(u * dk * c)
+            elif c < C_MIN:
+                c, u = C_MIN, min(u, cm * s / (dk * C_MIN))
+            us[i] = u; cs[i] = c; area[i] = u * dk * c
         return us, cs, area
+
+    def _static(self, lam0, cm, xa, xf):
+        """What _stations needs that doesn't depend on n and d, cached for the last (lam0, cm, xa, xf): the end
+        stations (index, end 0 fore / 1 aft, r ** 2, e, depth, deck width, the waterline's exponent), the fore
+        and aft ends' stations from the end inward that smoothing runs over, and the waterlines, fullness and
+        areas with the parallel midbody and every dry station filled in (the end stations left to fill)."""
+        key = (lam0, cm, xa, xf)
+        if getattr(self, "_static_key", None) == key:
+            return self._static_val
+        L = self.hull.L
+        ends, us, cs, area, c_his = [], [], [], [], []
+        for i, (x, w, dk) in enumerate(zip(self.xs, self._ws, self._ds)):
+            if x > xf:
+                r, end, e, k = (x - xf) / (L / 2 - xf), 0, self._ends[1], self.k_fore
+            elif x < xa:
+                r, end, e, k = (xa - x) / (xa + L / 2), 1, self._ends[0], self.k_aft
+            else:
+                r, end, e, k = 0.0, None, 1.0, 0.0
+            r = min(1.0, r)
+            c_hi = min(self.C_MAX, cm - max(0.0, cm - self.C_END) * r ** self.C_END_POW)
+            c_his.append(c_hi)
+            pw = max(0.05, lam0 + self.LAMBDA_K * k)
+            u = c = a = None
+            if dk <= 0 or w <= 0:           # over a counter, or past the deck's tip
+                u, c, a = w, cm, 0.0
+            elif end is None:               # the midbody: s = 1 whatever n and d
+                s = e + (1 - e) * (1 - r * r) ** 1.0
+                rho = s / dk
+                u = min(w, rho ** pw) if rho > 0 else 0.0
+                c = cm * s / (u * dk) if u > 0 else self.C_MIN
+                if c > c_hi:
+                    c, u = c_hi, min(u, cm * s / (dk * c_hi))
+                elif c < self.C_MIN:
+                    c, u = self.C_MIN, min(u, cm * s / (dk * self.C_MIN))
+                a = u * dk * c
+            if end is not None:
+                ends.append((i, end, r * r, e, dk, w, pw))
+            us.append(u); cs.append(c); area.append(a)
+        fore = [i for i in reversed(range(self.N)) if self.xs[i] > xf and self._ds[i] > 0]
+        aft = [i for i in range(self.N) if self.xs[i] < xa and self._ds[i] > 0]
+        self._c_hi = c_his
+        self._static_key, self._static_val = key, (ends, fore, aft, us, cs, area)
+        return self._static_val
 
     def _at(self, vals, x):
         """A station table's value at x, linear between the stations' centres."""
