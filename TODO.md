@@ -35,7 +35,8 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Small: `RAISED_ANCHORS` defined twice; validators copy the dotted-path walk; merchant/planing import helpers from carrier
 
 ## Speed
-- [ ] Extreme designs take 25–90 s: cache footprint bboxes and bucket by x in `Layout.free_at`
+- [ ] Re-measure extreme wing-turret pairs (9–15) and 30 deckhouse levels after the 2026-10-08 optimization pass
+- [ ] Decide: PNG `optimize=True` off for mips/height (3x faster saves, 2.5–5 % bigger files)
 
 ## Sizing and physics
 - [ ] Beam refit after `spread_ends` (deferred by user)

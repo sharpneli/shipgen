@@ -250,6 +250,7 @@ def fixed_tube_pairs(lay, mounts, turret_types, tp, xs, y_of_x, base=0.2, toe_de
     return placed
 
 
+AA_CELL = 8.0       # m: place_aa's x cells for spacing mounts from each other
 AA_TUB_T = {"quad40": 3.0, "twin40": 1.5, "single20": 0.3}   # a raised mount's tub and splinter shield (E)
 
 
@@ -263,7 +264,18 @@ def place_aa(lay, aa_out, kind, count, cands, spacing=None, ignore=(), layer_of=
     the sprite layer ("base" by default)."""
     rr = AA_CFG[kind].r
     spacing = spacing if spacing is not None else (3.0 if kind == "quad40" else 2.2)
-    aa_fps = [_fp_circle(a["x"], a["y"], AA_CFG[a["type"]].r) for a in aa_out]   # spaced from each other
+    grid, r_max = {}, [0.0]     # the AA mounts placed (spaced from each other) by x cell, and their largest radius
+
+    def file(fp):
+        grid.setdefault(math.floor(fp[1] / AA_CELL), []).append(fp)
+        r_max[0] = max(r_max[0], fp[3])
+    for a in aa_out:
+        file(_fp_circle(a["x"], a["y"], AA_CFG[a["type"]].r))
+
+    def near(fp):
+        reach = fp[3] + r_max[0] + spacing
+        for c in range(math.floor((fp[1] - reach) / AA_CELL), math.floor((fp[1] + reach) / AA_CELL) + 1):
+            yield from grid.get(c, ())
 
     def single(c):
         return c[1] == 0 or (len(c) > 3 and c[3] is None)
@@ -276,7 +288,7 @@ def place_aa(lay, aa_out, kind, count, cands, spacing=None, ignore=(), layer_of=
         if len(fps) == 2 and _overlap(fps[0], fps[1], spacing):   # a slot too near the centreline to mirror
             return None
         if any(abs(fp[1] - o[1]) < fp[3] + o[3] + spacing and _overlap(fp, o, spacing)   # x distance first
-               for fp in fps for o in list(aa_fps) + list(also)):
+               for fp in fps for o in [*near(fp), *also]):
             return None
         ign = ignore(base) if callable(ignore) else ignore
         if not all(lay.free_at(fp, base, base + 2.0, 0.4, ign) for fp in fps) or \
@@ -286,7 +298,7 @@ def place_aa(lay, aa_out, kind, count, cands, spacing=None, ignore=(), layer_of=
 
     def put(mounts):
         for fp, base, cx in mounts:
-            aa_fps.append(fp)
+            file(fp)
             y = fp[2]
             aid = f"AA{len(aa_out) + 1}"
             d = 180 if (y == 0 and cx < 0) else (90 if y > 0 else -90 if y < 0 else 0)
