@@ -542,7 +542,7 @@ never comes out"); the game will be free. Their storyboard, with my additions (c
 own Lion being the one that blows up, as at Jutland): cold open on a lone Lion, "DESIGN EVERY RIVET.", the design
 bureau flicking through nine real designs (stats, warnings and cutaways from their exports) to Lion stamped
 APPROVED, a match cut from her plan view onto the zoom clip's lead ship, the zoom out over "COMMAND THE LINE.", a
-4 v 4 battle in three framings, a cut to the forward magazines going up with "LIVE WITH THE CONSEQUENCES.", a
+camera swing round onto a 4 v 4 battle in three framings, a cut to the forward magazines going up with "LIVE WITH THE CONSEQUENCES.", a
 whiteout into the animated end card from `stylecard.html`.
 - **Run:** render the footage (`TRAILER_CLIPS` in trailer.py lists the vidgen command lines; all at
   `--size 1920x1080 --clean --out vidgen/out/trailer`), then `~/.venv/bin/python vidgen/trailer.py` writes
@@ -554,6 +554,19 @@ whiteout into the animated end card from `stylecard.html`.
 - **The edit:** `Clip` reads a clip forward and blends neighbouring frames, so `ramp` can play pieces at any speed
   (slow-mo explosion at 0.5x, the zoom's training and zoom-out at 2x). Cuts are hard except the fade in, the drop
   into the sea and the whiteout.
+- **The swing (user, 2026-10-08: the hard cut from the zoom turned the ships from -12 to -78 in one frame):**
+  `trailer.py --render-swing` writes `out/trailer/swing.mp4` (117 frames; 4 parts take about 4 min). It's the
+  battle's own sim (the wide shot's seed and ships) drawn on a 2812x2994 canvas at the wide shot's scale and cut
+  through a moving camera, so the swing can turn 66 deg without empty corners. The camera follows the zoom's own
+  path (turned 66 deg) for `SWING_XF` while the zoom, playing on at 2x, dissolves into it; the dissolve hides the
+  zoom's gun smoke, which the battle sim doesn't have yet. Then a cubic Hermite in log scale and position (it starts
+  with the zoom's velocity, so the pull-back carries on, dips to 0.28 px/m and comes back in to 0.384) and a
+  smootherstep turn bring it to rest on the wide shot's framing. It holds there for `SWING_HOLD` and dissolves into the
+  wide shot itself. The sims match frame for frame, but `Water.foam_noise` is laid out by the canvas size, so the
+  wake's foam texture differs a little; the dissolve at rest hides that. The sea's virtual eye is moved over the
+  frame's centre every frame (`Ocean._light_setup`), and the sun is turned with the camera so the glint stays put on
+  screen as in both clips (the ships' shadows keep the canvas sun; at 0.3 px/m they're a pixel). Times hang off
+  `BATTLE_WIDE[0][0]` and `SWING_ZOOM_AT` (where the zoom's last piece ends): change either and re-render the swing.
 - **The match cut:** the zoom starts with the lead centred at 4 px/m and heading -12 (`ZOOM_START`), so Lion's
   preview_rest.png (the same sprite at 10 px/m) is scaled, turned and slid there and the footage fades up under it.
   If the zoom's start changes, change `ZOOM_START`.

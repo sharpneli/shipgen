@@ -11,6 +11,11 @@ the command lines. Then:
     ~/.venv/bin/python vidgen/trailer.py --still 14.2     # one PNG of the cut at that time
     ~/.venv/bin/python vidgen/trailer.py --only sheets    # just the design-bureau montage (or: end, cards)
 
+The swing from the zoom into the battle is footage too, rendered from the battle's sim through a moving camera:
+
+    ~/.venv/bin/python vidgen/trailer.py --render-swing --chunks 4   # -> vidgen/out/trailer/swing.mp4
+    ~/.venv/bin/python vidgen/trailer.py --render-swing 50           # one frame of it as a PNG
+
 Everything is drawing with numpy and pillow; imageio-ffmpeg reads the clips and writes the MP4.
 """
 from __future__ import annotations
@@ -674,6 +679,179 @@ def to_sea_frames(designs, clip):
     c.close()
 
 
+# the swing from the zoom into the battle (user, 2026-10-08: the hard cut turned the ships from the zoom's heading,
+# -12, to the battle's, -78, in one frame). swing.mp4 is the battle's own sim (same seed and ships as the wide shot)
+# drawn through a moving camera: it starts on the zoom's camera, turned 66 deg so the ships run at -12 on screen, and
+# follows the zoom's path while the zoom clip dissolves into it (that hides what differs between the two sims: the
+# zoom's gun smoke); then it pulls back, swings round and pans from our line to the middle of both, and comes to rest
+# on the wide shot's framing. It holds there while it dissolves into the wide shot itself: the sims match, but the
+# wake's foam noise is laid out by the canvas, so the two differ a little in texture. The sea's virtual eye moves
+# with the camera and the sun turns with it, so the glint stays put on screen as in both clips
+SWING_XF = 0.5           # s: the dissolve from the zoom (playing on at 2x, as its last piece)
+SWING_MOVE = 3.0         # s: the swing itself
+SWING_HOLD = 0.4         # s: at rest on the wide shot's framing, dissolving into it
+SWING_ZOOM_AT = 22.0     # the zoom clip's time where its last piece ends and the dissolve begins
+SWING_CLIP = "swing.mp4"
+
+
+def swing_n():
+    return int(round((SWING_XF + SWING_MOVE + SWING_HOLD) * FPS))
+
+
+def swing_path():
+    """The swing's camera per frame: (s px/m, P world m from the battle scene's centre at the frame's centre,
+    theta deg the frame is turned clockwise), plus the scale the battle scene is drawn at."""
+    import vidgen as V
+    lion = [DESIGNS / x for x in LINE.split("+")]
+    probe = V.Scene(lion, 320, 180, FPS, -12.0, None, 1, scale=0.1)
+    z = V.Zoom(W, H, FPS, -12.0, probe.ships[0].off)
+    sk = V.Scene(lion, W, H, FPS, V.BATTLE_HEADING, None, 1,
+                 enemy=[DESIGNS / x for x in ENEMY.split("+")]).s
+    del probe
+    turn = -12.0 - V.BATTLE_HEADING                    # 66: zoom-world -> screen of the battle's world
+    ours = V.unit(V.BATTLE_HEADING + 90) * (-0.5 * V.BATTLE_RANGE)    # our line's centre (port of the middle)
+
+    def zoom_cam(t):                                   # the zoom clip's camera at output time t of the swing
+        s = z.s(SWING_ZOOM_AT + 2 * t)
+        return np.array([math.log(s), *(ours + V.rot(z.cam(s), -turn))])
+
+    n, i0, i1 = swing_n(), int(round(SWING_XF * FPS)), int(round((SWING_XF + SWING_MOVE) * FPS))
+    end = np.array([math.log(sk), *(-V.unit(V.BATTLE_HEADING) * 0.07 * W / sk)])   # vidgen's line-ahead offset
+    a = zoom_cam(i0 / FPS)
+    v = (zoom_cam(i0 / FPS + 1e-3) - zoom_cam(i0 / FPS - 1e-3)) / 2e-3
+    D = (i1 - i0) / FPS
+    out = []
+    for i in range(n):
+        if i < i0:
+            q, th = zoom_cam(i / FPS), turn
+        elif i >= i1:
+            q, th = end, 0.0
+        else:                                          # cubic Hermite from the zoom's motion to rest on the wide shot
+            x = (i - i0) / (i1 - i0)
+            h00, h10, h01 = 2 * x**3 - 3 * x**2 + 1, x**3 - 2 * x**2 + x, -2 * x**3 + 3 * x**2
+            q = a * h00 + v * D * h10 + end * h01
+            th = turn * (1 - V.smootherstep(x))
+        out.append((math.exp(q[0]), q[1:], th))
+    return out, sk
+
+
+def _swing_canvas(path, sk):
+    """The battle scene's canvas: covering every frame of the path, and where the scene's centre is on it."""
+    lo, hi = np.full(2, np.inf), np.full(2, -np.inf)
+    for s, P, th in path:
+        for cx, cy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+            r = math.radians(-th)
+            vx, vy = cx * W / 2 * sk / s, cy * H / 2 * sk / s
+            p = sk * P + (vx * math.cos(r) - vy * math.sin(r), vx * math.sin(r) + vy * math.cos(r))
+            lo, hi = np.minimum(lo, p), np.maximum(hi, p)
+    lo, hi = np.floor(lo) - 8, np.ceil(hi) + 8
+    Wc, Hc = (int(v) + int(v) % 2 for v in hi - lo)
+    C = -lo
+    v = C + sk * path[-1][1]                           # the last frame's corner on whole pixels, as the wide shot's
+    return Wc, Hc, C + np.round(v) - v
+
+
+def _swing_part(a, b, out):
+    """Frames a..b-1 of swing.mp4 (the battle scene stepped from its start, as vidgen's chunks)."""
+    import argparse as ap_
+    import imageio_ffmpeg
+    import vidgen as V
+    path, sk = swing_path()
+    Wc, Hc, C = _swing_canvas(path, sk)
+    sc = V.Scene([DESIGNS / x for x in LINE.split("+")], W, H, FPS, V.BATTLE_HEADING, None, 1, seconds=34,
+                 sea=V.sea_args(ap_.Namespace(beaufort=None, swell=None)), fire_s=26, scale=sk,
+                 view=(Wc, Hc, C, W, H), enemy=[DESIGNS / x for x in ENEMY.split("+")])
+    sc.bare = True
+    sea = sc.water.sea
+    sun = sea.L.copy()
+    dt = 1.0 / FPS
+    for _ in range(int(V.WARM_S * FPS)):
+        sc.step(dt)
+    sc.t = 0.0
+    sc.next_ev = 0
+    f0 = int(round(BATTLE_WIDE[0][0] * FPS)) - len(path)          # the battle's frame at the swing's first
+    for _ in range(f0 + a):
+        sc.step(dt)
+    w = imageio_ffmpeg.write_frames(str(out), (W, H), fps=FPS, codec="libx264", pix_fmt_out="yuv420p",
+                                    macro_block_size=1, output_params=["-crf", "16", "-preset", "medium"])
+    w.send(None)
+    for i in range(a, b):
+        s, P, th = path[i]
+        sc.set_look(s)
+        k = sk / s
+        X = C + sk * P
+        # the eye above the frame's centre, as high as the frame's width asks; the sun turned with the camera
+        sea.ex = ((np.arange(Wc) - X[0]) / sk).astype(np.float32)
+        sea.ey = ((np.arange(Hc) - X[1]) / sk).astype(np.float32)
+        sea.eye_h = (W / s / 2) / math.tan(math.radians(20.0))
+        sea.L = np.array([*V.rot(sun[:2], -th), sun[2]], np.float32)
+        sea._light_setup()
+        canvas = Image.fromarray(sc.render())
+        if th == 0.0 and s == sk:                      # at rest on the wide shot: the plain window, no resampling
+            x0, y0 = np.round(X - (W / 2, H / 2)).astype(int)
+            fr = canvas.crop((x0, y0, x0 + W, y0 + H))
+        else:
+            if k > 1:                                  # going out: soften first, so the bicubic doesn't alias
+                canvas = canvas.filter(ImageFilter.GaussianBlur(0.5 * math.sqrt(k * k - 1)))
+            r = math.radians(th)
+            ca, sa = k * math.cos(r), k * math.sin(r)
+            data = (ca, sa, X[0] - ca * W / 2 - sa * H / 2, -sa, ca, X[1] + sa * W / 2 - ca * H / 2)
+            fr = canvas.transform((W, H), Image.AFFINE, data, resample=Image.BICUBIC)
+        w.send(np.ascontiguousarray(np.asarray(fr)).tobytes())
+        sc.step(dt)
+        print(f"\r  {out.name}: frame {i + 1}/{b}", end="", flush=True)
+    w.close()
+    return out
+
+
+def render_swing(chunks=2, only=None):
+    """swing.mp4 into vidgen/out/trailer, in `chunks` parallel parts joined without re-encoding. only: one frame
+    index, written as a PNG instead."""
+    from concurrent.futures import ProcessPoolExecutor
+    n = swing_n()
+    if only is not None:
+        p = _swing_part(only, only + 1, CLIPS / f"swing_test{only}.mp4")
+        c = Clip(p.name)
+        Image.fromarray(c.at(0.0)).save(HERE / "out" / f"swing_{only}.png")
+        c.close()
+        p.unlink()
+        print("\n  wrote", HERE / "out" / f"swing_{only}.png")
+        return
+    tmp = CLIPS / ".swing_parts"
+    tmp.mkdir(exist_ok=True)
+    cuts = [round(n * j / chunks) for j in range(chunks + 1)]
+    parts = [tmp / f"part{j:02d}.mp4" for j in range(chunks)]
+    with ProcessPoolExecutor(chunks) as pool:
+        list(pool.map(_swing_part, cuts[:-1], cuts[1:], parts))
+    lst = tmp / "list.txt"
+    lst.write_text("".join(f"file '{p.name}'\n" for p in parts))
+    subprocess.run([ffmpeg(), "-loglevel", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy",
+                    str(CLIPS / SWING_CLIP)], check=True)
+    for p in parts + [lst]:
+        p.unlink()
+    tmp.rmdir()
+    print(f"\n  wrote {CLIPS / SWING_CLIP} ({n} frames)")
+
+
+def swing_frames(zoom):
+    """The dissolve from the zoom (playing on at 2x) into swing.mp4, the swing, and its dissolve at rest into the
+    wide shot (up to the wide shot's first frame)."""
+    n, xf, xh = swing_n(), int(round(SWING_XF * FPS)), int(round(SWING_HOLD * FPS))
+    t0 = BATTLE_WIDE[0][0] - n / FPS                   # the battle's time at the swing's first frame
+    zc, sw, bc = Clip(zoom, SWING_ZOOM_AT), Clip(SWING_CLIP), Clip(f"{LINE_CLIP}.mp4", t0 + (n - xh) / FPS)
+    for i in range(n):
+        f = sw.at(i / FPS)
+        if i < xf:
+            a = ease((i + 1) / (xf + 1))
+            f = (zc.at(SWING_ZOOM_AT + 2 * i / FPS).astype(np.float32) * (1 - a) + f * a).astype(np.uint8)
+        elif i >= n - xh:
+            a = ease((i - (n - xh) + 1) / (xh + 1))
+            f = (f * (1 - a) + bc.at(t0 + i / FPS).astype(np.float32) * a).astype(np.uint8)
+        yield f
+    for c in (zc, sw, bc):
+        c.close()
+
+
 def fade(frames, t_in=0.0, t_out=0.0, color=(0, 0, 0), n=None):
     """Fade a run of frames in from and/or out to a colour (n: its length in frames, needed for t_out)."""
     col = np.array(color, np.float32)
@@ -729,7 +907,8 @@ def cut():
     f0 = TO_SEA[2][1] - TO_SEA[2][0]
     yield from overlay_card(ramp(zoom, [(f0, 4.0, 1.0), (4.0, 7.5, 2.0), (7.5, 12.0, 1.0), (12.0, 22.0, 2.0)]),
                             "COMMAND THE LINE.", 10.4, 2.2)
-    # 6. the battle: wide, our salvos on the enemy lead, then the second Lion straddled and hit
+    # 6. the battle: the swing round to it, wide, our salvos on the enemy lead, then the second Lion straddled and hit
+    yield from swing_frames(zoom)
     yield from ramp(f"{LINE_CLIP}.mp4", BATTLE_WIDE)
     yield from ramp(f"{LINE_CLIP}_s1.6_f4.mp4", BATTLE_ENEMY)
     yield from ramp(f"{LINE_CLIP}_s2_f1.mp4", BATTLE_OURS)
@@ -769,8 +948,15 @@ def main():
     ap.add_argument("--only", choices=("sheets", "end", "cards"), default=None)
     ap.add_argument("--still", type=float, default=None, help="one PNG at this time (of --only's piece)")
     ap.add_argument("--out", default=str(HERE / "out"))
+    ap.add_argument("--render-swing", nargs="?", const=-1, type=int, default=None, metavar="FRAME",
+                    help="render swing.mp4 (the zoom-to-battle camera move) from the battle's sim; with a frame "
+                         "index, just that frame as a PNG")
+    ap.add_argument("--chunks", type=int, default=2, help="--render-swing's parallel parts")
     args = ap.parse_args()
     out = Path(args.out)
+    if args.render_swing is not None:
+        render_swing(args.chunks, None if args.render_swing < 0 else args.render_swing)
+        return
     if args.only == "sheets":
         frames = sheets_frames([Design(*m) for m in MONTAGE])
         if args.still is not None:
