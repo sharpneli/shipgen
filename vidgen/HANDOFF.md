@@ -426,6 +426,11 @@ of a massive battleline shooting broadside for those Jutland feelings"); ships s
   Invincible `--explode`, and `--sink` at 40 s). A trap found on the way: a numpy float64 scale (from the line's
   arithmetic) promoted wake.bake's float32 fields and changed the wake slightly; the line geometry is kept in plain
   floats.
+- **Squadron and strategic views (2026-10-08):** the user wants the look "majority of the time one is looking at
+  squadron level", and a strategic one with the squadron at a sixth of the screen. `lion+lion+lion+tiger_1914
+  --size 1920x1080 --fire 20` and the same with `--fit 0.1667` (`--fit`: the share of the frame the line fills).
+  At 0.17 (~0.13 px/m at 1080p) the sea's swell reads as fine diagonal streaks and the wake as a thin line; nothing
+  is tuned for that scale yet.
 - **Next (user's order):** more ships and the line's look; then ships firing at each other (range compression on
   screen, shells landing, splashes and hits need research first); then explosions and sinking on any ship.
   Different speeds or headings would break the locked layers: hulls cropped to their box and wakes shifted per frame.

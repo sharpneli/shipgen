@@ -506,7 +506,8 @@ an ffmpeg binary) besides numpy and pillow.
 - A line of battle: ids joined by `+` (`invincible+invincible`) steam in line ahead in one clip, the first leading,
   `--spacing` m apart centre to centre (default 366, about two cables), at the slowest ship's speed. All train on
   one bearing and fire on their own beats. Writes `<id>+<id>.mp4`. `--fire S` sets how long the guns fire (default
-  7 s). Explosions are single-ship for now.
+  7 s). Explosions are single-ship for now. `--fit F` zooms: the ship or line fills F of the frame (0.17 is a
+  strategic view; the name gets `_fitF`).
 - `vidgen.py all`, `--jobs N` (default one ship per core), `--chunks N` (one ship's clip in parallel parts), `--size 1920x1080`, `--heading`, `--target`, `--seconds`, `--seed`, `--crf`, `--propellant`; `--still T` writes
   one PNG at time T instead. About 0.35 s a frame at 720p, so a 14 s clip takes 2–3 minutes. Videos go to
   `vidgen/out/` (git-ignored).

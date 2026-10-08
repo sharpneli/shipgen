@@ -762,7 +762,8 @@ class Ship:
 
 class Scene:
     def __init__(self, srcs, W, H, fps, heading, target, seed, seconds=None, propellant=None, explode=None,
-                 tier="blast", explode_at=None, sea=None, sink=False, spacing=LINE_SPACING, fire_s=FIRE_S):
+                 tier="blast", explode_at=None, sea=None, sink=False, spacing=LINE_SPACING, fire_s=FIRE_S,
+                 fit=None):
         """srcs: one exported ship, or a list: a line of battle, the first leading."""
         srcs = [srcs] if isinstance(srcs, (str, Path)) else list(srcs)
         if explode and len(srcs) > 1:
@@ -797,7 +798,7 @@ class Scene:
         S0 = min(sh.sprite["scale_px_per_m"] for sh in self.ships)
         Lm, Bm = fore - aft, max(sh.B for sh in self.ships)
         ch, sh_ = abs(math.cos(math.radians(heading))), abs(math.sin(math.radians(heading)))
-        fit = (EXPLODE_FIT, EXPLODE_FIT) if explode else (0.80, 0.62)
+        fit = (fit, fit) if fit else (EXPLODE_FIT, EXPLODE_FIT) if explode else (0.80, 0.62)
         self.s = s = min(S0, fit[0] * W / (Lm * ch + Bm * sh_), fit[1] * H / (Lm * sh_ + Bm * ch))
         # the line sits a little ahead of centre so the wake has room
         self.C = np.array([W / 2, H / 2]) + unit(heading) * (0.07 * W)
@@ -1016,8 +1017,13 @@ class Scene:
             stats = (f"{res['length_m']:.0f} m  ·  {res['standard_displacement_t']:,} t std  ·  "
                      f"{self.report['inputs'].get('speed_kn', '?')} kn  ·  {len(self.mounts)} mounts")
         else:
-            names = [sh.name for sh in self.ships]
-            name = f"{len(names)} × {names[0]}" if len(set(names)) == 1 else "  ·  ".join(names)
+            runs = []           # sister ships in a row: "3 × Lion-like  ·  Tiger-like"
+            for sh in self.ships:
+                if runs and runs[-1][0] == sh.name:
+                    runs[-1][1] += 1
+                else:
+                    runs.append([sh.name, 1])
+            name = "  ·  ".join(f"{k} × {n}" if k > 1 else n for n, k in runs)
             tons = sum(sh.report["results"]["standard_displacement_t"] for sh in self.ships)
             stats = (f"line ahead, {len(self.ships)} ships {self.spacing:.0f} m apart  ·  {tons:,} t std  ·  "
                      f"{self.speed / KN:.4g} kn  ·  {len(self.mounts)} mounts")
@@ -2006,7 +2012,8 @@ def make(src, out: Path, args, still=None, frames=None):
     rendered in parallel: the scene is rebuilt from the seed and stepped to frame a, and drawing never touches the
     sim, so every chunk sees the same scene)."""
     sc = Scene(src, args.w, args.h, args.fps, args.heading, args.target, args.seed, args.seconds, args.propellant,
-               args.explode, args.tier, args.explode_at, sea_args(args), args.sink, args.spacing, args.fire)
+               args.explode, args.tier, args.explode_at, sea_args(args), args.sink, args.spacing, args.fire,
+               args.fit)
     if not args.quiet:
         i = sc.wake_info
         print(f"  {sc.src.name} wake: Fr_L {i['FrL']:.2f}, Zb {i['Zb']:.1f} m, solve {i['solve'][0]}x{i['solve'][1]}, "
@@ -2055,7 +2062,8 @@ def make_chunked(src, out: Path, args, chunks):
     import subprocess
     import imageio_ffmpeg
     sc = Scene(src, args.w, args.h, args.fps, args.heading, args.target, args.seed, args.seconds, args.propellant,
-               args.explode, args.tier, args.explode_at, sea_args(args), args.sink, args.spacing, args.fire)
+               args.explode, args.tier, args.explode_at, sea_args(args), args.sink, args.spacing, args.fire,
+               args.fit)
     n = int(round(sc.duration * args.fps))
     for b in sc.blasts:
         sp = b.s
@@ -2126,6 +2134,9 @@ def main():
                     help=f"time of the hit, s (default: {EXPLODE_AFTER:g} s after the first salvo)")
     ap.add_argument("--fire", type=float, default=FIRE_S,
                     help=f"how long the guns fire, s (default {FIRE_S:g})")
+    ap.add_argument("--fit", type=float, default=None,
+                    help="zoom: the share of the frame the ship or line fills, across and down (default 0.8 x 0.62; "
+                         f"{EXPLODE_FIT:g} in explosion clips); 0.17 is a strategic view")
     ap.add_argument("--spacing", type=float, default=LINE_SPACING,
                     help=f"a line's distance between ships, centre to centre, m (default {LINE_SPACING:g}, ~2 cables)")
     ap.add_argument("--beaufort", type=float, default=None,
@@ -2153,6 +2164,8 @@ def main():
         tag = "_explode_" + "_".join(re.sub(r"\W+", "", m.replace("Magazine", "")) for m in args.explode)
         tag += "_column" if args.tier == "column" else ""
         tag += "_sink" if args.sink and args.tier == "blast" else ""
+    if args.fit:
+        tag += f"_fit{args.fit:g}"
     if args.sink and (not args.explode or args.tier != "blast"):
         ap.error("--sink needs --explode with --tier blast")
     if args.explode and any(len(g) > 1 for g in srcs):

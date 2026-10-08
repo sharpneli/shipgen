@@ -489,7 +489,16 @@ Housekeeping, whenever convenient:
   - **`M_req` (the middle's length need) undercounts:** it leaves out torpedo mounts beside a single funnel, deck secondaries beside wing turrets, wing-pair room and deckhouse crew volume. `spread_ends`' check covers for it now; counting them properly would let the ends take all the spare without the bisection.
   - **Crew fills the citadel first (optional):** quarters are spread over the free cells by volume, citadel or not; free citadel cells could fill before the ends.
   - **Torpedo placement needs a full check and verification:** large batteries in the spirit of the Japanese heavy cruisers (the user's example: 3 × 8 launchers per side; check the real ships' numbers when this is picked up), placement beside and between funnels, deck-edge swing room, and how the layout reserves their room.
-- **Physics calibration:** carriers' full loads run light; the PT boat runs heavy; the T2 tanker needs about 30% more power than real.
+- **Jutland battlecruisers (2026-10-08, for vidgen's squadron clips):** `lion` (from `battlecruiser.json` with
+  portsmouth looks, a forecastle to the aft control, 152 mm upper belt, 102 mm end belts) and `tiger_1914` (the same
+  plus twelve 152 mm upper casemates, two light AA, a 127 mm fore end belt). The user's squadron is the 1st BCS:
+  `lion+lion+lion+tiger_1914` (Lion, Princess Royal, Queen Mary as a Lion, Tiger). Q placement comes from the
+  arrangement: Lion's split boilers (`["boiler", "boiler", "engine"]`) put Q between funnels 2 and 3, as on the real
+  ship, at +17 m (246 -> 263 m); Tiger's `grouped` puts it aft of all three, as on hers. Both run long and heavy, like
+  Invincible and Seydlitz: Lion 263 m / 39,800 t std (real 210 m / ~26,300 t), Tiger 247 m / 36,900 t (real 215 m /
+  ~28,400 t). Fuel is most of it (Lion 6,800 t at 5,610 nm, real ~3,500 t of coal); the inputs are historical, the
+  calibration is open (below).
+- **Physics calibration:** Great War battlecruisers run ~15-25 % long and heavy (above); carriers' full loads run light; the PT boat runs heavy; the T2 tanker needs about 30% more power than real.
 - **No sweep reservation outside warships.** That's deliberate for carriers and merchants (see above).
 - **Height map:** columns only, so mast yards, derricks and barrels are left out. It's 8-bit with a 0.25 m step, so anything above 63.75 m clips.
 - **Baked lighting:** the light rim on the upper-left edges of blocks and funnels is still baked in.
