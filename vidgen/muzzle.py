@@ -142,6 +142,8 @@ class Shot:
         self.gun, self.D = gun, D
         self.pos, self.h, self.az, self.el, self.t0 = np.asarray(pos, float), h, az, el, t0
         self.carry, self.wind = np.asarray(carry, float), np.asarray(wind, float)
+        self.shell_carry = self.carry   # what the shell keeps of the ship's way (a caller drawing it on a slowed
+                                        # clock may raise it so the shell still lands where the ships will be)
         self.sec_on = rng.random() < D["P_sec"]
         self.jit = float(np.exp(0.25 * rng.standard_normal()))
         self.lobes = rng.random(2) * 2 * math.pi
@@ -262,9 +264,9 @@ class Shot:
         tt = t - self.t0
         v = self.D["v0"]
         vh = v * math.cos(self.el)
-        xy = self.pos + (self.hdir * vh + self.carry) * tt
+        xy = self.pos + (self.hdir * vh + self.shell_carry) * tt
         z = self.h + v * math.sin(self.el) * tt - 0.5 * G * tt * tt
-        vel = self.hdir * vh + self.carry
+        vel = self.hdir * vh + self.shell_carry
         return xy, z, vel
 
 

@@ -104,7 +104,7 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 ## vidgen
 - [ ] Shells and fire legible from high up (with ships firing at each other)
 - [ ] Wake at ~0.5 px/m may read too smooth (a beam); faint lengthwise streaks could come back
-- [ ] Line of battle: ships firing at each other (range compression, shells landing on target, splashes and hits; research first)
+- [ ] Battle extras (HANDOFF "Battle"): hit debris, near-miss deck wetting, dye stain in foam, camera moves and a zoom within a battle clip, storyboard shots
 - [ ] Line of battle: explosions and sinking on any ship of a line (blasts, Pose and the wreck are per scene, lead only)
 - [ ] Line of battle: ships at different speeds or headings (hull layers cropped and moved, wakes shifted per frame)
 - [ ] Breaking in two: sinkvid's own break clips still use a stand-in flash and smoke (`vidgen.py --explode Y --sink` has the real explosion)

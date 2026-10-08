@@ -502,6 +502,40 @@ strategic scale. It conveys the scale the game mostly operates on." `vidgen.py l
 - **Cost:** each level's scene is built when first needed (4 wake bakes) and stepped from the start; a chunk holds
   only its levels.
 
+## Battle: two lines firing at each other (2026-10-08)
+The user: "2 battlelines firing at each other in anger for the visual feel", no explosions, a short shot and the
+framework in place, for a storyboard and a faux trailer next session. `vidgen.py lion+lion --vs seydlitz+seydlitz
+--size 1920x1080 --fire 22` writes `out/lion+lion_vs_seydlitz+seydlitz.mp4`; `--scale 1.0 --focus 2` frames the
+enemy lead closer. Code: `battle.py` (gunnery, `Splash`, `Hit`), wired in `Scene` (`enemy=`, `_battle_step`,
+`_splash`, `_hit_glow`, splash blobs in `_smoke_fields`).
+- **Geometry (my picks):** both lines on one course and speed, the second `--range` (2 km) to starboard, so the
+  locked layers still hold (a Run to the South). Heading -78 in a battle, so the gap runs across the frame's long
+  side. Each ship engages its opposite number; the second line replies `BATTLE_REPLY` 2 s later. Only main
+  batteries fire: at a real range the secondaries were out of reach (every 4" gun firing at 2 km filled the sea).
+- **Range compression:** the lines are 2 km apart on screen, but everything range-dependent in the fall of shot is
+  taken at `--fall-range` (14 km, Jutland-like): angle of fall from the brief's 16" table (~12 deg), the salvo
+  pattern (sigma 0.45 % of range along, 1/6 of that across: ~250 m by 40 m) and spotting errors. Shells fly the
+  vacuum path over the screen range on a clock stretched to at least `TOF_MIN` 5 s (a real 14 km flight is ~23 s),
+  with `LAND_JITTER` so a salvo lands as a ripple. The shell keeps pace with the ships on the slowed clock
+  (`Shot.shell_carry`).
+- **Spotting:** per battery, the salvo's mean point starts 4 % of range off, flips over/short and closes by 0.55
+  a salvo to 0.5 %: the first salvos fall short, then over, then straddle and hit.
+- **Splash (`shell_splashes.md`, the user's brief):** its sizes (H = 73 m (d/0.406), width 25 d, t_a), curves (top,
+  opacity, crown blossom 0.5-2 widths, base surge to 2.5 widths), angle-of-fall height factor, lean and foam ellipse,
+  ricochets at flat falls, dye rules (per firing ship, unique in its line; `--dye auto` dyes only `wwii` and
+  `cold_war` looks: navies dyed from ~1930, so Jutland splashes white). Drawn as blobs in the shared smoke field,
+  lifted up the screen by height (the explosion column's oblique projection), so a column reads as a pillar and
+  casts its long shadow. The foam disc is foam particles that appear as the column falls back. The brief's LOD
+  tiers aren't needed offline: the conserving splats widen a sub-pixel column and dim it by the same factor (the
+  brief's "size floor"). Departures: the mist is thin (`MIST_TAU` 0.35, fading over 9 s): a salvo's stacked mist
+  made a white wall; the column is a ragged stack, not a capsule.
+- **Hits:** inside the target's waterline (`wake.waterline`): no column (brief), a 0.1 s burst, a flickering fire
+  for 12-30 s by calibre and dark smoke trailing like the funnels' (`HIT_SMOKE`). No damage, no debris yet.
+- **Camera:** `--focus N` centres any ship (the first line, then the second) for storyboard shots.
+- **Not done:** hits' debris and deck wetting by near misses, AP delayed underwater bursts, HE, a dye stain in
+  the foam (foam is one colour), ships manoeuvring (breaks the locked layers), firing in a zoom (`--zoom` is one
+  line), the camera moving within a battle clip.
+
 ## Known oddities
 - Masts cast long, thin, solid shadows on the sea. That's correct for a 23 m mast at 45°, but it can look heavy.
 - Coal smoke shades the deck dark around the funnels. That's intended.

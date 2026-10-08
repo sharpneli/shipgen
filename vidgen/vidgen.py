@@ -44,6 +44,7 @@ Everything is drawing; nothing here feeds back into the design. Particle and wav
     ~/.venv/bin/python vidgen/vidgen.py invincible+invincible --fire 20  # a line of battle -> invincible+invincible.mp4
     ~/.venv/bin/python vidgen/vidgen.py lion --size 1920x1080 --scale 0.25 --fire 20   # one ship at strategic scale
     ~/.venv/bin/python vidgen/vidgen.py lion+lion+lion+tiger_1914 --size 1920x1080 --zoom  # one ship -> squadron -> strategic
+    ~/.venv/bin/python vidgen/vidgen.py lion+lion --vs seydlitz+seydlitz --size 1920x1080 --fire 22   # two lines in battle
 
 Needs numpy, pillow and imageio-ffmpeg (pip install imageio-ffmpeg; it bundles an ffmpeg binary).
 """
@@ -68,6 +69,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from shadow import HEIGHT_STEP_M, shadow_mask, sun_offset_px  # noqa: E402
 
+import battle  # noqa: E402  (vidgen/battle.py)
 import magazine  # noqa: E402  (vidgen/magazine.py)
 import muzzle  # noqa: E402  (vidgen/muzzle.py)
 import ocean  # noqa: E402  (vidgen/ocean.py)
@@ -184,6 +186,15 @@ FLASH_LIGHT_MAX = 1.0     # at most this many times the sun's light
 # A look, like the lens's own bloom; the light itself is unchanged
 FLASH_GLARE = 1.0
 GLARE_FULL_S = 0.25
+
+# a battle (battle.py): two lines on one course, the second abeam to starboard. My picks: the range is compressed
+# so both lines fit a frame (real ranges would put the enemy 20 frames away); the second line opens fire
+# BATTLE_REPLY s after the first; the lines run up the screen so their gap is across the frame's long side
+BATTLE_RANGE = 2000.0
+BATTLE_REPLY = 2.0
+BATTLE_HEADING = -78.0
+SPRAY = SMOKE_NEUTRAL * 0.98 * SMOKE_GAIN   # a splash column's spray: white water
+HIT_SMOKE = (0.2, 0.18, 0.16)               # a burning hit's smoke: oil, paint and cork
 
 # magazine explosions (magazine.py, from magazine_explosion.md)
 EXPLODE_AFTER = 4.0       # default: the hit lands this long after the first salvo
@@ -515,8 +526,8 @@ class Density:
             mx, my, mm = mx[m], my[m], (mass[m] * share[m]) / (f * f)
             i0 = max(int(math.floor(mx.min())) - reach, -reach)
             j0 = max(int(math.floor(my.min())) - reach, -reach)
-            i1 = min(int(math.floor(mx.max())) + reach + 2, gw + reach)
-            j1 = min(int(math.floor(my.max())) + reach + 2, gh + reach)
+            i1 = int(math.floor(mx.max())) + reach + 2      # (past the buffer is cropped when it's added)
+            j1 = int(math.floor(my.max())) + reach + 2
             nw, nh = i1 - i0, j1 - j0
             ix, iy = np.floor(mx).astype(int), np.floor(my).astype(int)
             fx, fy = mx - ix, my - iy
@@ -671,17 +682,30 @@ class Ship:
         self.speed_kn = float(self.report["inputs"].get("speed_kn", 20))
         self.deck_m = self.sprite["shadow"]["deck_m"]
         self.freeboard = self.hit["vertical"].get("freeboard", self.deck_m)
-        self.off = 0.0
+        self.off = 0.0            # station: metres ahead of the scene's centre along the heading
+        self.side = 0.0           # ... and to starboard of it (the second line of a battle)
+        self.team = 0
+        self.foe = None           # the ship it engages (a battle)
+        self.dye = None           # its splashes' dye (a battle)
 
     def place(self, sc):
         """Its anchor on the scene's canvas, once the scene's scale and centre are set."""
         self.sc = sc
-        self.C = sc.C + unit(sc.heading) * (self.off * sc.s)
+        self.C = sc.C + (unit(sc.heading) * self.off + unit(sc.heading + 90) * self.side) * sc.s
+
+    @property
+    def station(self):
+        """Its offset from the scene's centre, world metres."""
+        return unit(self.sc.heading) * self.off + unit(self.sc.heading + 90) * self.side
 
     @property
     def pos(self):
         """Its centre in world metres."""
-        return self.sc.pos + unit(self.sc.heading) * self.off
+        return self.sc.pos + self.station
+
+    def local_of(self, w):
+        """World metres -> ship-local metres (+x bow, +y starboard)."""
+        return rot(np.asarray(w, float) - self.pos, -self.sc.heading)
 
     def to_screen(self, m):
         """Ship-local metres (+x bow, +y starboard) -> screen px."""
@@ -773,6 +797,10 @@ class Ship:
             else:
                 mt.train = (REST_S, REST_S + abs(mt.aim - mt.rest) / TRAIN_RATE.get(mt.kind, 30.0))
             self.mounts.append(mt)
+        if self.foe is not None:   # a battle at a real range is a main-battery duel: secondaries were out of range
+            for mt in self.mounts:  # (the lines are only close on screen), so they stay trained fore and aft
+                if mt.kind != "main":
+                    mt.aim, mt.train = None, (0.0, 0.0)
         bearing = [mt for mt in self.mounts if mt.aim is not None]
         self.has_guns = bool(bearing)
         self.t_fire = max((mt.train[1] for mt in bearing), default=REST_S) + SETTLE_S + lag
@@ -833,9 +861,10 @@ class Ship:
         c, sn = math.cos(h), math.sin(h)
         # every pixel in this ship's local metres: the scene's, less its station along the heading
         lx = sc.lx - np.float32(self.off)
+        ly = sc.ly - np.float32(self.side)
         pad = 4 / s + 5
         extent = (float(lx.min()) - pad, float(lx.max()) + pad,
-                  float(max(-sc.ly.min(), sc.ly.max())) + pad)
+                  float(max(-ly.min(), ly.max())) + pad)
         dx = max(1.5 / s, L / 400)
         shafts = int(self.report.get("plant", {}).get("shafts", 2) or 2)
         wash = (2.0 if style == "planing" else 1.0) * (0.85 + 0.075 * min(shafts, 4))
@@ -922,11 +951,15 @@ class Ship:
 class Scene:
     def __init__(self, srcs, W, H, fps, heading, target, seed, seconds=None, propellant=None, explode=None,
                  tier="blast", explode_at=None, sea=None, sink=False, spacing=LINE_SPACING, fire_s=FIRE_S,
-                 fit=None, scale=None, view=None, feat_m=None):
+                 fit=None, scale=None, view=None, feat_m=None, enemy=None, range_m=None, fall_range=None,
+                 dye="auto", focus=None):
         """srcs: one exported ship, or a list: a line of battle, the first leading. scale: px per metre, in place
         of fitting the ship or line to the frame (never above the sprites' own scale). view: (W, H, C, Wo, Ho), a
         canvas W x H with the line's centre at C, for a zoom's level (make_zoom); the HUD is for an Wo x Ho output.
-        feat_m: the wake foam's clump size, fixed (a zoom), in place of one tied to the scale."""
+        feat_m: the wake foam's clump size, fixed (a zoom), in place of one tied to the scale. enemy: a second line
+        (paths) steaming abeam to starboard, range_m apart, the two lines firing at each other (battle.py), the fall
+        of shot drawn as at fall_range; dye: 'auto' (by the look's era), 'on' or 'off' (splash colours). focus: a ship's
+        index (the first line, then the second) to centre the frame on, in place of the middle of everything."""
         srcs = [srcs] if isinstance(srcs, (str, Path)) else list(srcs)
         if explode and len(srcs) > 1:
             raise ValueError("magazine explosions are for one ship for now")
@@ -934,12 +967,20 @@ class Scene:
         self.fire_s = fire_s
         self.rng = np.random.default_rng(seed)
         self.ships = [Ship(Path(p), propellant) for p in srcs]
+        self.battle = bool(enemy)
+        if enemy:
+            if explode:
+                raise ValueError("magazine explosions aren't part of a battle yet")
+            foes = [Ship(Path(p), propellant) for p in enemy]
+            for sh in foes:
+                sh.team = 1
+            self.ships += foes
         lead = self.ships[0]
         # the explosion, the wreck and the HUD read the lead's design (explosions are single-ship for now)
         self.src, self.sprite, self.hit, self.report = lead.src, lead.sprite, lead.hit, lead.report
         self.heading = heading
         if target is None:
-            target = auto_target([m for sh in self.ships for m in sh.sprite["mounts"]])
+            target = auto_target([m for sh in self.ships for m in sh.sprite["mounts"]]) if not enemy else 90.0
         self.target_bearing = target % 360.0
         self.speed = min(sh.speed_kn for sh in self.ships) * KN     # a line steams at its slowest ship's speed
         self.vel = unit(heading) * self.speed
@@ -948,23 +989,37 @@ class Scene:
         # stations in line ahead, the lead first and each next one `spacing` m astern (centre to centre); the
         # line's middle (halfway between its ends) sits where a lone ship's centre would
         # (plain floats: a numpy scalar in the scale would promote the float32 fields it touches, wake.bake's included)
-        st = [-spacing * i for i in range(len(self.ships))]
+        # a battle's second line: the same stations, range_m to starboard; the scene's centre is the middle of both
+        lines = [[sh for sh in self.ships if sh.team == k] for k in (0, 1)]
+        st = []
+        for line in lines:
+            st += [-spacing * i for i in range(len(line))]
         fore = max(x + sh.L / 2 for x, sh in zip(st, self.ships))
         aft = min(x - sh.L / 2 for x, sh in zip(st, self.ships))
         mid = 0.5 * (fore + aft)
+        self.range_m = float(range_m or BATTLE_RANGE) if enemy else 0.0
         for x, sh in zip(st, self.ships):
             sh.off = float(x - mid)
+            sh.side = float((sh.team - 0.5) * self.range_m) if enemy else 0.0
+        if enemy:      # each ship engages its opposite number (the last of the shorter line takes the rest)
+            for k in (0, 1):
+                for i, sh in enumerate(lines[k]):
+                    sh.foe = lines[1 - k][min(i, len(lines[1 - k]) - 1)]
         self.spacing = spacing
+        self.lines = lines
 
         # scale: fit the line's canvas (rotated) into 80% x 62% of the frame, never above the sprites' own scale
         S0 = min(sh.sprite["scale_px_per_m"] for sh in self.ships)
-        Lm, Bm = fore - aft, max(sh.B for sh in self.ships)
+        Lm, Bm = fore - aft, max(sh.B for sh in self.ships) + self.range_m
         ch, sh_ = abs(math.cos(math.radians(heading))), abs(math.sin(math.radians(heading)))
         fit = (fit, fit) if fit else (EXPLODE_FIT, EXPLODE_FIT) if explode else (0.80, 0.62)
         self.s = s = min(S0, scale) if scale else min(S0, fit[0] * W / (Lm * ch + Bm * sh_),
                                                       fit[1] * H / (Lm * sh_ + Bm * ch))
         # the line sits a little ahead of centre so the wake has room
         self.C = np.array([W / 2, H / 2]) + unit(heading) * (0.07 * W)
+        if focus is not None:      # that ship in the middle (a little ahead, as a lone ship)
+            f = self.ships[focus]
+            self.C = self.C - (unit(heading) * f.off + unit(heading + 90) * f.side) * s
         # an explosion clip's camera pans (Scene.cam): the scene is drawn on a bigger canvas with the ship fixed at
         # C there, and each frame is the output window cut from it where the camera puts the ship on screen
         self.Wo, self.Ho = W, H
@@ -1008,6 +1063,16 @@ class Scene:
         self.smoke = Plume(WIND, 1.2)
         self.set_look(s)
         self.shots = []                           # muzzle.Shot: flash, smoke puff and shell, all analytic in time
+        self.splashes, self.hits = [], []         # a battle's fall of shot (battle.py)
+        self.gunnery = battle.Gunnery(np.random.default_rng(seed + 31337), fall_range or battle.FALL_RANGE) \
+            if enemy else None
+        if enemy:      # splash dye per firing ship, unique within its line (brief: unique within a division)
+            names = list(battle.DYES)
+            for line in self.lines:
+                for i, sh in enumerate(line):
+                    era = sh.report["inputs"].get("look", {}).get("era")
+                    on = dye == "on" or (dye == "auto" and era in battle.DYE_ERAS)
+                    sh.dye = battle.DYES[names[i % len(names)]] if on else None
         self.gun_blasts = []                      # muzzle.Blast: each mount's salvo on the water
         self.fish = []                            # torpedoes [x, y, vx, vy, t0]
         self.edge_noise = self._noise_tile(128, 0.05)
@@ -1077,7 +1142,13 @@ class Scene:
         self.mounts, ev = [], []
         for i, sh in enumerate(self.ships):
             lag = self.rng.uniform(*LINE_LAG) if i else 0.0
-            sh.build_mounts(sh.sprite["scale_px_per_m"], target, lag)
+            if sh.foe is not None:      # a battle: the bearing of its foe, and the second line replies a little later
+                d = sh.foe.station - sh.station
+                tgt = math.degrees(math.atan2(*rot(d, -self.heading)[::-1]))
+                lag += BATTLE_REPLY if sh.team else 0.0
+            else:
+                tgt = target
+            sh.build_mounts(sh.sprite["scale_px_per_m"], tgt, lag)
             self.mounts += sh.mounts
             ev += sh.events
         gunned = [sh for sh in self.ships if sh.has_guns]
@@ -1204,16 +1275,21 @@ class Scene:
             stats = (f"{res['length_m']:.0f} m  ·  {res['standard_displacement_t']:,} t std  ·  "
                      f"{self.report['inputs'].get('speed_kn', '?')} kn  ·  {nm} mounts")
         else:
-            runs = []           # sister ships in a row: "3 × Lion-like  ·  Tiger-like"
-            for sh in self.ships:
-                if runs and runs[-1][0] == sh.name:
-                    runs[-1][1] += 1
-                else:
-                    runs.append([sh.name, 1])
-            name = "  ·  ".join(f"{k} × {n}" if k > 1 else n for n, k in runs)
+            def runs_of(ships):   # sister ships in a row: "3 × Lion-like  ·  Tiger-like"
+                runs = []
+                for sh in ships:
+                    if runs and runs[-1][0] == sh.name:
+                        runs[-1][1] += 1
+                    else:
+                        runs.append([sh.name, 1])
+                return "  ·  ".join(f"{k} × {n}" if k > 1 else n for n, k in runs)
+            name = runs_of(self.ships) if not self.battle else f"{runs_of(self.lines[0])}   vs   {runs_of(self.lines[1])}"
             tons = sum(sh.report["results"]["standard_displacement_t"] for sh in self.ships)
             stats = (f"line ahead, {len(self.ships)} ships {self.spacing:.0f} m apart  ·  {tons:,} t std  ·  "
                      f"{self.speed / KN:.4g} kn  ·  {len(self.mounts)} mounts")
+            if self.battle:
+                stats = (f"two lines {self.range_m / 1000:.1f} km apart (range compressed)  ·  "
+                         f"{self.speed / KN:.4g} kn  ·  {tons:,} t std in all")
         d.text((x + 1, y - big.size - small.size - 5), name, font=big, fill=(0, 0, 0, 140))
         d.text((x, y - big.size - small.size - 6), name, font=big, fill=(240, 244, 246, 235))
         d.text((x, y - small.size), stats, font=small, fill=(220, 228, 232, 210))
@@ -1239,7 +1315,29 @@ class Scene:
                           vx=d[0] * 4, vy=d[1] * 4, life=2.0, r0=0.5, r1=2.5, a0=0.7)
             return
         D = mt.fxD
-        shot = muzzle.Shot(mt.fx, D, muz, mt.muzzle_h, math.radians(ang), mt.el, self.t, self.vel, WIND, rng)
+        az, el, foe = math.radians(ang), mt.el, mt.ship.foe
+        if foe is not None:
+            # a battle: the shell goes to its salvo's fall of shot about the foe (battle.Gunnery), on the vacuum
+            # path, its clock stretched so the flight takes at least battle.TOF_MIN
+            tgt = foe.pos
+            dv = tgt - muz
+            R = float(np.hypot(*dv))
+            u = dv / R
+            main = mt.kind == "main"
+            along, across = self.gunnery.aim((id(mt.ship), mt.gun if main else mt.id), self.t, main)
+            aim = tgt + u * along + np.array([-u[1], u[0]]) * across
+            dv = aim - muz
+            az = math.atan2(dv[1], dv[0])
+            el = muzzle.elevation(D["v0"], float(np.hypot(*dv)))
+        shot = muzzle.Shot(mt.fx, D, muz, mt.muzzle_h, az, el, self.t, self.vel, WIND, rng)
+        shot.clock, shot.land = SHELL_TIME, None
+        if foe is not None:
+            tof = battle.tof(D["v0"], el)
+            flight = max(tof, battle.TOF_MIN) + float(self.gunnery.rng.normal(0, battle.LAND_JITTER))
+            shot.clock, shot.land = tof / flight, self.t + flight
+            shot.shell_carry = self.vel / shot.clock   # on the slowed clock it still keeps pace with the ships
+            shot.aim, shot.foe, shot.cal, shot.landed = aim, foe, mt.calibre / 1000, False
+            shot.travel, shot.dye = dv / float(np.hypot(*dv)), mt.ship.dye
         # the clumps its smoke is drawn as: offsets in units of the puff's spread, a slow drift of their own
         shot.sub_off = rng.normal(0, 0.7, (SUB_PUFFS, 2))
         shot.sub_vel = rng.normal(0, 0.6, (SUB_PUFFS, 2))
@@ -1381,6 +1479,8 @@ class Scene:
             _, mt, i = self.events[self.next_ev]
             self.fire(mt, i)
             self.next_ev += 1
+        if self.battle:
+            self._battle_step(dt)
         for ps in (self.foam, self.spray, self.smoke):
             ps.step(dt)
         for f in self.fish:
@@ -1393,12 +1493,59 @@ class Scene:
         self.gun_blasts = [b for b in self.gun_blasts if self.t - b.t0 < b.life]
         self.fish = [f for f in self.fish if np.hypot(f[0] - self.pos[0], f[1] - self.pos[1]) < far]
 
+    def _battle_step(self, dt):
+        """Shells landing (a splash, or a hit inside the foe's waterline), the hits' smoke, and pruning."""
+        rng = self.gunnery.rng
+        for sh in self.shots:
+            if sh.land is None or sh.landed or self.t < sh.land:
+                continue
+            sh.landed = True
+            xy = sh.aim + self.vel * (sh.land - sh.t0)       # the ships kept their way while it flew
+            local = sh.foe.local_of(xy)
+            if battle.in_poly(local, sh.foe.wl):
+                self.hits.append(battle.Hit(sh.foe, local, sh.cal, self.t, rng))
+                continue
+            self._splash(xy, sh.cal, sh.travel, sh.dye, self.t, rng)
+            # a ricochet off a flat fall (brief: some sub-8 degree impacts): a smaller splash 300-800 m on
+            th = self.gunnery.theta
+            if rng.random() < battle.RICOCHET_P * (1 - smoothstep((th - 3.0) / 5.0)):
+                hop = rng.uniform(300, 800)
+                trav = rot(sh.travel, rng.normal(0, 4))
+                self._splash(xy + trav * hop + self.vel * hop / 400, 0.6 * sh.cal, trav, sh.dye,
+                             self.t + hop / 400, rng)
+        for h in self.hits:          # smoke from the burning hit, trailing like the funnels' (the same Plume)
+            n = int(rng.poisson(h.smoke_rate(self.t) * dt))
+            if not n:
+                continue
+            w = h.ship.world_of(h.local + rng.normal(0, 1.5, (n, 2)))
+            v = np.tile(self.vel * 0.6, (n, 1)) + rng.normal(0, 1.0, (n, 2))
+            self.smoke.add(x=w[:, 0], y=w[:, 1], vx=v[:, 0], vy=v[:, 1], life=rng.uniform(*PLUME_LIFE, n),
+                           r0=2 + 6 * h.d, r1=6 + 16 * h.d, a0=rng.uniform(0.25, 0.45, n),
+                           h=h.ship.deck_m + 4, coal=2.0)
+        self.splashes = [sp for sp in self.splashes if self.t - sp.t0 < sp.life]   # (ricochets wait their t0)
+        self.hits = [h for h in self.hits if self.t - h.t0 < h.fire_s]
+
+    def _splash(self, xy, d, travel, dye, t0, rng):
+        """A splash at xy from t0 (battle.Splash, drawn with the smoke), and the foam disc it leaves (brief: 1.5
+        widths, 30-60 s, an ellipse along the track at a flat fall) as foam particles that appear as the column
+        falls back."""
+        sp = battle.Splash(xy, d, t0, travel, self.gunnery.theta, dye, rng)
+        self.splashes.append(sp)
+        R, k = 1.5 * sp.Wd, 14
+        stretch = 1 + 1.5 * (1 - sp.alpha) * 2               # 1 at a steep fall, 2.5 at the flattest
+        n = np.array([-travel[1], travel[0]])
+        u = rng.normal(0, 0.45, (k, 2))
+        p = xy + travel * (u[:, 0] * R * stretch)[:, None] + n * (u[:, 1] * R)[:, None]
+        delay = t0 - self.t + sp.t_a * rng.uniform(1.0, 1.8, k)
+        self.foam.add(x=p[:, 0], y=p[:, 1], age=-delay, life=rng.uniform(*battle.FOAM_LIFE, k) + delay,
+                      r0=0.5 * R, r1=1.0 * R, a0=0.55)
+
     def _shot_alive(self, sh, far):
         """A shot lives while its shell is in the air near the frame, or its smoke still shows (research 7.1: until
         the puff's peak optical depth is under 0.01) and hasn't drifted far off."""
         if self.t < sh.flash_end + 0.1:
             return True
-        xy, z, _ = sh.shell(sh.t0 + (self.t - sh.t0) * SHELL_TIME)
+        xy, z, _ = sh.shell(sh.t0 + (self.t - sh.t0) * sh.clock)
         if z > 0 and np.hypot(*(xy - self.pos)) < far:
             return True
         p = sh.puff(self.t)
@@ -1551,6 +1698,8 @@ class Scene:
         # the flashes: on the slowed clock they're still inside the fireball they really outran, so they show as
         # silhouettes against it, as in high-speed photographs of a shell leaving the muzzle
         self._flashes(frame)
+        if self.hits:
+            self._hit_glow(frame)
         self._shells(frame)
         shake = (0.0, 0.0)
         if self.blasts:
@@ -1926,8 +2075,9 @@ class Scene:
             x, y = self.scr(sm.d["x"], sm.d["y"])
             px.append(x), py.append(y), r.append(sm.radius() * self.s), w.append(1.4 * sm.opacity())
             h.append(sm.d["h"] + 4)
-            cols.append(np.where(sm.d["coal"][:, None] > 0.5, np.array(SMOKE_COAL, np.float32),   # each ship's own
-                                 np.array(SMOKE_OIL, np.float32)))
+            cols.append(np.where(sm.d["coal"][:, None] > 1.5, np.array(HIT_SMOKE, np.float32),   # a hit's fire
+                                 np.where(sm.d["coal"][:, None] > 0.5, np.array(SMOKE_COAL, np.float32),  # each
+                                          np.array(SMOKE_OIL, np.float32))))                               # ship's own
         for shot in self.shots:
             p = shot.puff(self.t)
             if p is None or p["A"] <= 0:
@@ -1973,6 +2123,15 @@ class Scene:
                 h.append(ps.d["h"] + 4)
                 cols.append(np.broadcast_to(np.array(c, np.float32), (len(ps), 3)))
         shx, shy = list(px), list(py)    # where each blob's shadow is cast from (explosion puffs are drawn lifted)
+        for sp in self.splashes:         # a battle's splash columns: white spray, lifted up the screen by height
+            P = sp.parcels(self.t, WIND, SPRAY)
+            if P is None:
+                continue
+            xy, z, rr, tau, cc = P
+            x, y = self.scr(xy[:, 0], xy[:, 1])
+            px.append(x), py.append(y - self.lift(z, 0.0)), shx.append(x), shy.append(y)
+            r.append(rr * self.s), w.append(tau), h.append(z)
+            cols.append(cc)
         B = getattr(self, "_blobs", None)
         if B and B["n"]:
             px.append(B["px"]), py.append(B["py"]), r.append(B["rp"]), w.append(B["tau"])
@@ -2003,11 +2162,11 @@ class Scene:
         sd = unit(SUN_AZ)
         cel, sel = math.cos(math.radians(SUN_EL)), math.sin(math.radians(SUN_EL))
         for shot in self.shots:
-            tt = (self.t - shot.t0) * SHELL_TIME
-            if tt <= 0:
+            tt = (self.t - shot.t0) * shot.clock
+            if tt <= 0 or (shot.land is not None and self.t >= shot.land):
                 continue
             xy, z, vel = shot.shell(shot.t0 + tt)
-            vel = vel * SHELL_TIME
+            vel = vel * shot.clock
             if z <= 0:
                 continue
             d = shot.gun.d
@@ -2119,6 +2278,40 @@ class Scene:
             F[y0 - by0:y1 - by0, x0 - bx0:x1 - bx0] += Lpx[..., None] * rgb.astype(np.float32)
         self._glow(frame, F, bx0, by0)
 
+    def _hit_glow(self, frame):
+        """Each hit's flash and fire (battle.Hit) as a light: a gaussian of its radius, its total light kept when
+        it's under a pixel (as the muzzle flashes'), coloured by its temperature, then the flashes' bloom."""
+        s, H, W = self.s, frame.shape[0], frame.shape[1]
+        lights = []
+        for h in self.hits:
+            f = h.flash(self.t)
+            if f is None:
+                continue
+            L, r_m, T = f
+            sig = r_m * s / 2
+            sg = max(sig, 0.7)
+            L *= (sig / sg) ** 2
+            c = self.scr(*h.ship.world_of(h.local))
+            rgb = muzzle.bb_rgb(T)
+            lights.append((c, sg, L, (rgb / max(float(rgb @ muzzle.LUM), 1e-3)).astype(np.float32)))
+        if not lights:
+            return
+        M = 60
+        ext = max(3.5 * l[1] for l in lights)
+        bx0 = max(0, int(min(l[0][0] for l in lights) - ext) - M)
+        by0 = max(0, int(min(l[0][1] for l in lights) - ext) - M)
+        bx1 = min(W, int(max(l[0][0] for l in lights) + ext) + M + 1)
+        by1 = min(H, int(max(l[0][1] for l in lights) + ext) + M + 1)
+        if bx0 >= bx1 or by0 >= by1:
+            return
+        F = np.zeros((by1 - by0, bx1 - bx0, 3), np.float32)
+        X = np.arange(bx0, bx1, dtype=np.float32)[None, :] + 0.5
+        Y = np.arange(by0, by1, dtype=np.float32)[:, None] + 0.5
+        for c, sg, L, rgb in lights:
+            g = np.exp(-0.5 * ((X - np.float32(c[0])) ** 2 + (Y - np.float32(c[1])) ** 2) / (sg * sg))
+            F += (np.float32(L) * g)[..., None] * rgb
+        self._glow(frame, F, bx0, by0)
+
     def _fireball(self, shot, e, ts, u, v):
         """The secondary flash as burning gas, not a sprite: a temperature field over the fireball's ellipse (u, v:
         metres along and across the bore), its luminance and colour from the blackbody and sodium ramps per pixel
@@ -2214,7 +2407,7 @@ class Scene:
             phase = self.wreck._break_phase()
         m = self.Ho // 36
         d.text((m, m), phase, font=self.font_small, fill=(235, 240, 242, 220))
-        if self.has_guns and t >= REST_S - 0.5:
+        if self.has_guns and t >= REST_S - 0.5 and not self.battle:
             b = self.target_bearing
             dvec = unit(self.heading + b)
             # where the ray from the ship's centre leaves the frame, pulled in by a margin
@@ -2245,7 +2438,8 @@ def make(src, out: Path, args, still=None, frames=None):
     sim, so every chunk sees the same scene)."""
     sc = Scene(src, args.w, args.h, args.fps, args.heading, args.target, args.seed, args.seconds, args.propellant,
                args.explode, args.tier, args.explode_at, sea_args(args), args.sink, args.spacing, args.fire,
-               args.fit, args.scale)
+               args.fit, args.scale, enemy=args.enemy, range_m=args.range, fall_range=args.fall_range,
+               dye=args.dye, focus=args.focus)
     if not args.quiet:
         i = sc.wake_info
         print(f"  {sc.src.name} wake: Fr_L {i['FrL']:.2f}, Zb {i['Zb']:.1f} m, solve {i['solve'][0]}x{i['solve'][1]}, "
@@ -2499,7 +2693,8 @@ def main():
     ap.add_argument("--size", default="1280x720")
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--seconds", type=float, default=None, help="clip length (default: fits the timeline)")
-    ap.add_argument("--heading", type=float, default=-12.0, help="ship heading on screen, deg clockwise from right")
+    ap.add_argument("--heading", type=float, default=None,
+                    help=f"ship heading on screen, deg clockwise from right (default -12; {BATTLE_HEADING:g} in a battle)")
     ap.add_argument("--target", type=float, default=None,
                     help="target bearing relative to the bow, deg clockwise (90 = starboard beam); default: the "
                          "starboard bearing the most main guns reach, nearest 55")
@@ -2534,6 +2729,18 @@ def main():
     ap.add_argument("--zoom", action="store_true",
                     help="the zoom demo: one ship close up, out to the whole line, ending at the strategic scale "
                          f"({ZOOM_S[0]:g} to {ZOOM_S[1]:g} px/m). Writes <ids>_zoom.mp4")
+    ap.add_argument("--vs", default=None,
+                    help="a battle: a second line (ids joined by '+') abeam to starboard, the two lines firing at "
+                         "each other (no explosions). Writes <ids>_vs_<ids>.mp4")
+    ap.add_argument("--range", type=float, default=None,
+                    help=f"a battle's range between the lines, m (default {BATTLE_RANGE:g}: compressed, so both fit)")
+    ap.add_argument("--fall-range", type=float, default=None,
+                    help=f"a battle: the range the fall of shot is drawn for, m (angle of fall, salvo pattern; "
+                         f"default {battle.FALL_RANGE:g})")
+    ap.add_argument("--dye", choices=("auto", "on", "off"), default="auto",
+                    help="a battle's splash dye per firing ship (auto: WWII and later looks)")
+    ap.add_argument("--focus", type=int, default=None,
+                    help="centre the frame on this ship (0-based: the first line, then --vs's); with --scale")
     ap.add_argument("--spacing", type=float, default=LINE_SPACING,
                     help=f"a line's distance between ships, centre to centre, m (default {LINE_SPACING:g}, ~2 cables)")
     ap.add_argument("--beaufort", type=float, default=None,
@@ -2549,6 +2756,9 @@ def main():
     base = Path(args.designs)
     def find(s):
         return Path(s) if (Path(s) / "sprite.json").exists() else base / s
+    args.enemy = [find(s) for s in args.vs.split("+") if s] if args.vs else None
+    if args.heading is None:
+        args.heading = BATTLE_HEADING if args.vs else -12.0
     # each entry is one clip: one ship, or a line of them
     srcs = [[p.parent] for p in sorted(base.glob("*/sprite.json"))] if args.ships == ["all"] else [
         [find(s) for s in arg.split("+") if s] for arg in args.ships]
@@ -2561,17 +2771,23 @@ def main():
         tag = "_explode_" + "_".join(re.sub(r"\W+", "", m.replace("Magazine", "")) for m in args.explode)
         tag += "_column" if args.tier == "column" else ""
         tag += "_sink" if args.sink and args.tier == "blast" else ""
+    if args.vs:
+        tag += "_vs_" + "+".join(p.name for p in args.enemy)
+        if args.range:
+            tag += f"_r{args.range:g}"
     if args.fit:
         tag += f"_fit{args.fit:g}"
     if args.scale:
         tag += f"_s{args.scale:g}"
+    if args.focus is not None:
+        tag += f"_f{args.focus}"
     if args.sink and (not args.explode or args.tier != "blast"):
         ap.error("--sink needs --explode with --tier blast")
     if args.explode and any(len(g) > 1 for g in srcs):
         ap.error("--explode is for one ship for now, not a line")
     if args.zoom:
-        if len(srcs) != 1 or args.explode or args.still is not None:
-            ap.error("--zoom takes one ship or one line, no --explode or --still")
+        if len(srcs) != 1 or args.explode or args.still is not None or args.vs:
+            ap.error("--zoom takes one ship or one line, no --explode, --vs or --still")
         group = srcs[0]
         name = "+".join(p.name for p in group)
         path = out / f"{name}_zoom.mp4"
