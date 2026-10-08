@@ -572,8 +572,31 @@ whiteout into the animated end card from `stylecard.html`.
   If the zoom's start changes, change `ZOOM_START`.
 - **Type:** Bodoni Moda and IBM Plex Mono are in `vidgen/fonts` (OFL). Bodoni is set at optical size 20, not the
   display 96: at 96 its hairlines go under a pixel and x264 eats them.
-- **Not done:** music (the cut is silent; the beats fall on cuts, so a track can be laid under it), a rendered
-  explosion inside the battle (vidgen still refuses `--explode` in a line, so it's a cut to a lone Lion).
+- **Not done:** a rendered explosion inside the battle (vidgen still refuses `--explode` in a line, so it's a cut
+  to a lone Lion). Music: see the next section.
+
+## The trailer score (score.py, synth.py, 2026-10-08)
+The user asked for music "of naval battles and somewhat serene", beat-matched to the cut, with `soundfx.md` as an
+environment guide only and no gun sounds for now. Node and system ffmpeg aren't installed, so instead of ZzFX it's
+a numpy orchestra (`synth.py`: additive strings, horns/trombones/trumpets, choir, harp, celesta, ship's bell,
+timpani, taiko, field drum, cymbals, risers, a braam, a sea bed; per-bus convolution hall; a lookahead limiter).
+No samples and no AI audio. `scipy`, `soundfile`, `pyloudnorm` and `matplotlib` were added to `~/.venv`.
+- **Run:** `~/.venv/bin/python vidgen/score.py` (about 85 s) writes `out/fleetwright_score.wav` (48 kHz 24-bit,
+  -14 LUFS, -1.2 dBTP), float stems in `out/score_stems/` (strings, brass, choir, keys, perc, fx, sea; same length,
+  pre-limiter, sum them to rebalance) and muxes `out/fleetwright_trailer_scored.mp4`. `--from/--to` renders a
+  stretch for drafts; `synth.py` alone writes `out/synth_demo.wav`, every instrument in turn.
+- **Music:** D minor, one theme (A-D-E-F) three times: lone horn on the cold open, strings over the zoom, brass
+  over the battle; the montage is a bass climbing D to C# with harp sixteenths that speed up with the sheets;
+  B-flat tutti on the stamp; D minor tutti on the hit, slow-motion strings, the braam on the fireball, the theme's
+  head on a horn under the last card; D major under the title, and it lets go on "[HAH, AS IF]".
+- **Beat-matching:** `timeline()` rebuilds every section's start from trailer.py's constants (the zoom's speed
+  pieces are copied from `cut()`, keep them in step). From Lion's sheet to the hit the cut is a 100 BPM grid
+  (`G`, anchored on the stamp, the sea, the wide shot, the cut to the second Lion and the hit; under 3 % tempo
+  drift); the open (`O`), the montage (`M`, one beat per sheet) and the end card (`E`, title on beat 2) have their
+  own. Flash times in the footage (Lion's salvos 24.37/27.20, the squadron's, the fireball 55.07) were measured
+  off the render and are hard-coded: re-measure if the footage changes. The run prints each hit's onset error.
+- **Can't listen:** balance was set from per-stem RMS tables and spectrograms only; the user's ears decide.
+
 
 ## Known oddities
 - Masts cast long, thin, solid shadows on the sea. That's correct for a 23 m mast at 45°, but it can look heavy.
