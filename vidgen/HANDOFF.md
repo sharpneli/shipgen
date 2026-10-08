@@ -460,9 +460,22 @@ loved and must stay. Every change is a smooth function of the scale `s`, never a
   soot laid a black slab astern close up; faded fast there was no trail from high up. It's pre-warmed analytically
   along the track with its own rng (`Ship.prewarm_smoke`), so clips start with the trail.
 - **Fireball:** the temperature field and the analytic splat crossfade over 1.5-3 px across (was a switch at 2 px).
-- **Not done yet:** the sea's swell streaks and the wake at long zoom; flash visibility and bloom at long zoom;
-  shell and blast-on-water legibility; the zoom itself (static layers, the wake warp and turret sprites are baked
-  at one scale, so a zoom needs them per frame or a mip chain).
+- **Wake foam (`lace_k`):** the lace texture is never drawn finer than ~2.5 px, so from high up it was coarse
+  clumps, a dashed confetti ribbon. Lace now blends toward its mean coverage (the noise is uniform, so the mean of
+  a lace layer is just its coverage c) by smoothstep in log s from 1.5 px/m (all lace; the line clips at ~1.8 keep
+  theirs) to 0.4 (none): a smooth bright stripe fading astern, as a wake reads from altitude. Blast scour foam too.
+  At 0.5 it can look a touch too smooth, a beam; some low-frequency streaks could come back there.
+- **Flash glare:** the bloom's 6 and 17 px halos gain 0.6 and 0.3 x `FLASH_GLARE` from S_REF out to 0.25 px/m
+  (smoothstep in log s), so a salvo flares from high up while staying point-like. The light itself is unchanged;
+  the explosion fire shares `_glow`, so it gets the same glare at the same zoom.
+- **Clips (user's to compare):** `out/lion_s0.25_v1.mp4` and `lion_s1_v1.mp4` (smoke only), `lion_s0.25.mp4` and
+  `lion_s0.5.mp4` (plus wake and glare).
+- **The zoom demo:** shipgen exports mips (user, 2026-10-08: use them): `hull_mips.png`, `height_mips.png` (2x2 max)
+  and `turrets/<type>_mips.png`, five halvings from 10 px/m packed in 1.5W x H, rects in `sprite.json` `mip_rects`
+  (README "Outputs"). Per frame take the two levels around the scale and blend them, in place of `Ship.layers`'
+  one Lanczos resize. The shadows march the height map per scale; the wake's warp and foam tiles need re-making or
+  a mip chain too.
+- **Not done yet:** the sea's swell streaks; shell legibility; the zoom itself.
 
 ## Known oddities
 - Masts cast long, thin, solid shadows on the sea. That's correct for a 23 m mast at 45°, but it can look heavy.

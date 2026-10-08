@@ -103,12 +103,27 @@ WATER_SKY = np.array([0.55, 0.66, 0.72], np.float32)
 LACE = {"fresh": (0.55, 1.5), "resid": (0.45, 1.0), "wash": (0.7, 1.0)}
 LACE_SOFT = 0.2
 LACE_RESID = 0.5          # residual foam's opacity (wake.md 3)
+LACE_ZOOM = (0.4, 1.5)    # px/m: lace_k's ends (the line-of-battle clips, ~1.8, keep their full lace)
 
 
-def lace(d, noise, kind):
+def lace(d, noise, kind, k=1.0):
+    """Foam drawn as lace: noise (uniform 0..1) over 1 - c. k < 1 blends it toward its mean coverage c, for a zoom
+    where the real foam texture is far under a pixel (lace_k); k = 0 never reads the noise."""
     cap, gamma = LACE[kind]
     c = cap * np.clip(d, 0, 1) ** gamma
-    return np.clip((noise - (1 - c)) / LACE_SOFT + 0.5, 0, 1) * np.clip(1.6 * d, 0, 0.9)
+    op = np.clip(1.6 * d, 0, 0.9)
+    if k <= 0:
+        return c * op
+    f = np.clip((noise - (1 - c)) / LACE_SOFT + 0.5, 0, 1)
+    return (f if k >= 1 else c + (f - c) * np.float32(k)) * op
+
+
+def lace_k(s):
+    """How much of the foam's lace texture shows at s px/m: all of it from LACE_ZOOM[1] in, none (its mean coverage,
+    a smooth bright stripe, as a wake reads from altitude) from LACE_ZOOM[0] out; smoothstep in log s between. The
+    texture is never drawn finer than ~2.5 px, so from high up it was coarse clumps, a dashed confetti ribbon."""
+    a, b = (math.log(v) for v in LACE_ZOOM)
+    return smoothstep((math.log(s) - a) / (b - a))
 
 
 CHURN = np.array([0.26, 0.45, 0.49], np.float32)
@@ -162,6 +177,11 @@ FIREBALL_R = 1.4          # the gas reaches this far in units of the fireball's 
 E_SUN = 7.0e4             # lux on a level surface from the sun at SUN_EL (L_BG's sea at albedo ~0.07)
 FLASH_WRAP = 0.3          # rough and vertical faces turned toward the flash, as a share of the ground distance
 FLASH_LIGHT_MAX = 1.0     # at most this many times the sun's light
+# zoomed out, a flash is a few pixels and only as wide as the hull: its bloom grows (the 6 and 17 px halos gain
+# 0.6 and 0.3 of FLASH_GLARE) smoothly from S_REF out to GLARE_FULL_S px/m, so a salvo still flares from high up.
+# A look, like the lens's own bloom; the light itself is unchanged
+FLASH_GLARE = 1.0
+GLARE_FULL_S = 0.25
 
 # magazine explosions (magazine.py, from magazine_explosion.md)
 EXPLODE_AFTER = 4.0       # default: the hit lands this long after the first salvo
@@ -973,6 +993,8 @@ class Scene:
 
         self.water = Water(self.rng, W, H, s, self.C, **(sea or {}))
         self.dens = Density(W, H, res=1, conserve=True)   # full res, blobs keep their optical depth at any zoom
+        self.lace_k = lace_k(s)
+        self.glare = FLASH_GLARE * smoothstep(math.log(S_REF / s) / math.log(S_REF / GLARE_FULL_S))
         self.smoke_vis = min(1.0, GUN_SMOKE_VIS * (S_REF / s) ** GUN_SMOKE_ZOOM)
         self._wake()
         self.foam = Particles((0, 0), 2.5)       # water at rest; the push from the hull dies away
@@ -1412,10 +1434,11 @@ class Scene:
         frame += (CHURN - frame) * np.clip(wash * 0.9, 0, 0.7)[..., None]
         tw = self.foam_tex(self.tiles_wash, self.t, ridged=True)
         tc = self.foam_tex(self.tiles_crest, self.t, ridged=True)
-        f = np.maximum(np.maximum(lace(wash, tw, "wash"), lace(fresh, tc, "fresh")),
-                       LACE_RESID * lace(resid, tw, "resid"))
+        lk = self.lace_k
+        f = np.maximum(np.maximum(lace(wash, tw, "wash", lk), lace(fresh, tc, "fresh", lk)),
+                       LACE_RESID * lace(resid, tw, "resid", lk))
         if bfoam is not None:
-            np.maximum(f, lace(BLAST_FOAM * bfoam, tc, "fresh"), out=f)
+            np.maximum(f, lace(BLAST_FOAM * bfoam, tc, "fresh", lk), out=f)
         if self.blasts:
             self._shock(frame, f, tc)
         frame += (FOAM - frame) * f[..., None]
@@ -1658,7 +1681,7 @@ class Scene:
                 frame += (0.05 * frost)[..., None]
             if te > 0.05:
                 d = np.clip(1.2 - r / lam, 0, 1) ** 1.5 * math.exp(-te / 10)
-                np.maximum(f, lace(d, tc, "fresh"), out=f)
+                np.maximum(f, lace(d, tc, "fresh", self.lace_k), out=f)
 
     def _scorch(self, frame):
         for sp, m, hole in self.scorch:
@@ -1815,7 +1838,8 @@ class Scene:
         """Bloom on a compressed copy of the light F (display units, a window of the frame at bx0, by0), or a big
         flash paints the whole frame (research 7.2 item 6), then the luminance roll-off on what it adds only."""
         src = F / (1 + F / 6)
-        for frac, r in ((0.20, 1), (0.10, 6), (0.05, 17)):
+        g = self.glare
+        for frac, r in ((0.20, 1), (0.10 + 0.6 * g, 6), (0.05 + 0.3 * g, 17)):
             for c in range(3):
                 F[..., c] += frac * box_blur(src[..., c], r)
         sub = frame[by0:by0 + F.shape[0], bx0:bx0 + F.shape[1]]

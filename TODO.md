@@ -102,8 +102,8 @@ Open items from HANDOFF.md, one line each (details there). Keep this in sync: ti
 - [ ] Missiles, helicopters and electronics for Cold War ships
 
 ## vidgen
-- [ ] Long-zoom effects (user 2026-10-08, HANDOFF "Long zoom"): smoke done (conserving splats, plume, zoom-drawn gun smoke); still the sea's swell streaks, the wake, flash and blast legibility at `--scale 0.25`
-- [ ] Zoom demo: a clip whose scale changes smoothly (static layers, wake warp and turret sprites re-made per frame or mipped)
+- [ ] Long-zoom effects (user 2026-10-08, HANDOFF "Long zoom"): smoke, wake (lace to mean coverage) and flash glare done; still the sea's swell streaks and shell legibility at `--scale 0.25`
+- [ ] Zoom demo: a clip whose scale changes smoothly (use shipgen's exported hull/height/turret mips, two levels blended per frame; wake warp and shadows per scale)
 - [ ] Line of battle: ships firing at each other (range compression, shells landing on target, splashes and hits; research first)
 - [ ] Line of battle: explosions and sinking on any ship of a line (blasts, Pose and the wreck are per scene, lead only)
 - [ ] Line of battle: ships at different speeds or headings (hull layers cropped and moved, wakes shifted per frame)
