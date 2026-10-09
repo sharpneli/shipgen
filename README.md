@@ -1,5 +1,9 @@
 # shipgen: parametric top-down ship designer and sprite generator
 
+> **Frozen (2026-10-09).** Shipgen now lives in C# in the fleetwright repo (`Fleetwright.Shipgen`,
+> `Fleetwright.Shipgen.Render`); its docs moved to `fleetwright/docs/shipgen/`. This Python is kept as the reference
+> the goldens were captured from (tags `golden-capture`, `golden-svg-capture`). Don't add features here.
+
 ```
 pip install cairosvg pillow numpy             # the renderer only; the design side needs the standard library alone
 python design.py designs/*.json            # player designs -> out_designs/<id>/ (10 px/m + 5 mip levels)
