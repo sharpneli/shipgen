@@ -7,6 +7,7 @@ fleetwright/PORTING.md, Step 1. Everything is written under OUT (default ../flee
     python tools/golden.py design --platform windows [--golden DIR] [--jobs N]
                                                     validate/build every case -> DIR/<case>.json.gz + DIR/capture.json
     python tools/golden.py sprites                  (needs cairosvg: WSL) sprite.json + reference images per design
+    python tools/golden.py svgs                     (WSL) the SVGs (hull, turrets, height map) with the C# port's RNG
     python tools/golden.py diff A B                 compare two design captures, print every differing case
 
 Run `mutants` once and capture from the saved mutants on every platform: mutate() draws numbers through libm
@@ -228,6 +229,98 @@ def cmd_sprites(args):
                        scale_px_per_m=10.0, mips=5, previews=False, cases=states), fh, indent=1)
 
 
+# --- svgs ------------------------------------------------------------------------------------------------------
+
+class PortRandom:
+    """The C# port's RNG (Fleetwright.Shipgen.Render.ShipRng), for the svgs capture: FNV-1a 64 of the seed text,
+    then SplitMix64. With it the drawing's random parts (clutter, dazzle, vents) come out the same on both sides,
+    so whole SVGs can be compared. Only what the drawing calls: random, uniform, choice, randrange(n)."""
+    M = (1 << 64) - 1
+
+    def __init__(self, seed=None):
+        h = 0xcbf29ce484222325
+        for b in str(seed).encode():
+            h = ((h ^ b) * 0x100000001b3) & self.M
+        self.s = h
+
+    def _next(self):
+        self.s = (self.s + 0x9E3779B97F4A7C15) & self.M
+        z = self.s
+        z = ((z ^ (z >> 30)) * 0xBF58476D1CE4E5B9) & self.M
+        z = ((z ^ (z >> 27)) * 0x94D049BB133111EB) & self.M
+        return z ^ (z >> 31)
+
+    def random(self):
+        return (self._next() >> 11) * (1.0 / 9007199254740992.0)
+
+    def uniform(self, a, b):
+        return a + (b - a) * self.random()
+
+    def randrange(self, n):
+        return int(self.random() * n)
+
+    def choice(self, seq):
+        return seq[int(self.random() * len(seq))]
+
+
+def capture_svg(args):
+    path, out = args
+    random.Random = PortRandom      # this worker only; the design side draws no random numbers
+    import copy
+    import clutter
+    import looks
+    import shadow
+    import shipdesign
+    import shipgen
+    with open(path) as fh:
+        d = json.load(fh)
+    case = os.path.basename(path)[:-5]
+    if shipdesign.validate(d, limits=False) or looks.validate(d):
+        return case, "invalid"
+    ship = shipdesign.build(d)
+    design, rd = ship["design"], ship["render"]
+    S, align = 10.0, 2 ** (5 + 1)          # as the sprite capture: 10 px/m, 5 mips
+    spec = copy.deepcopy(rd["spec"])       # render.render_ship's set-up
+    spec["palette"] = looks.palette(design)
+    pal = {**shipgen.DEFAULT_PALETTE, **spec["palette"]}
+    turret_look = looks.get(design)["turrets"]
+    spec["shapes"] = looks.shapes(design)
+    dst = os.path.join(out, case)
+    shutil.rmtree(dst, ignore_errors=True)
+    os.makedirs(os.path.join(dst, "turrets"))
+    def save(rel, text):
+        with open(os.path.join(dst, rel), "wb") as fh:
+            with gzip.GzipFile(fileobj=fh, mode="wb", mtime=0, filename="") as gz:
+                gz.write(text.encode())
+    for tid, t in spec["turret_types"].items():
+        save(f"turrets/{tid}.svg.gz", shipgen.build_turret(t, pal, S, align, shadows=False, look=turret_look,
+                                                           shapes=spec["shapes"]))
+    hull_svg, vb, mounts, hull = shipgen.build_hull(spec, S, align, shadows=False)
+    save("hull.svg.gz", hull_svg)
+    columns = rd["columns"] + clutter.height_columns(spec.get("_clutter", []), rd["columns"], hull)
+    height_svg, max_h = shadow.build_height_svg(columns, vb, S, hull)
+    save("height.svg.gz", height_svg)
+    return case, dict(max_height_m=max_h, clutter=len(spec.get("_clutter", [])))
+
+
+def cmd_svgs(args):
+    out = os.path.join(args.out, "golden", "svg")
+    shutil.rmtree(out, ignore_errors=True)
+    os.makedirs(out)
+    with open(os.path.join(args.out, "golden", "cases.json")) as fh:
+        cases = json.load(fh)["cases"]
+    jobs = [(os.path.join(args.out, c["design"]), out) for c in cases]
+    states = {}
+    with ProcessPoolExecutor(args.jobs) as pool:
+        for case, state in pool.map(capture_svg, jobs):
+            states[case] = state
+            print(f"{case:<24} {state}", flush=True)
+    with open(os.path.join(out, "capture.json"), "w", newline="\n") as fh:
+        json.dump(dict(shipgen_commit=commit_hash(), python=sys.version.split()[0], platform=platform.platform(),
+                       scale_px_per_m=10.0, mips=5, rng="PortRandom (FNV-1a 64 + SplitMix64)", cases=states),
+                  fh, indent=1)
+
+
 # --- diff ------------------------------------------------------------------------------------------------------
 
 def first_diff(a, b, path="$"):
@@ -332,6 +425,8 @@ def main():
     p.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) // 2))
     p = sub.add_parser("sprites")
     p.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) // 2))
+    p = sub.add_parser("svgs")
+    p.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) // 2))
     p = sub.add_parser("diff")
     p.add_argument("a")
     p.add_argument("b")
@@ -341,7 +436,7 @@ def main():
     if args.cmd != "diff" and os.environ.get("PYTHONHASHSEED") != "0" and not args.any_hashseed:
         raise SystemExit("run with PYTHONHASHSEED=0")
     args.out = os.path.abspath(args.out)
-    dict(mutants=cmd_mutants, design=cmd_design, sprites=cmd_sprites, diff=cmd_diff)[args.cmd](args)
+    dict(mutants=cmd_mutants, design=cmd_design, sprites=cmd_sprites, svgs=cmd_svgs, diff=cmd_diff)[args.cmd](args)
 
 
 if __name__ == "__main__":
