@@ -65,8 +65,12 @@ def gzip_file(src, dst):
 def commit_hash():
     try:
         h = subprocess.check_output(["git", "-C", ROOT, "rev-parse", "HEAD"], text=True).strip()
-        dirty = subprocess.check_output(["git", "-C", ROOT, "status", "--porcelain", "--", "*.py"], text=True).strip()
-        return h + ("+dirty" if dirty else "")
+        # Line endings ignored: WSL's git sees the Windows checkout's CRLF as changes.
+        changed = subprocess.run(["git", "-C", ROOT, "diff", "HEAD", "--ignore-cr-at-eol", "--quiet", "--", "*.py"]
+                                 ).returncode != 0
+        untracked = subprocess.check_output(["git", "-C", ROOT, "ls-files", "--others", "--exclude-standard",
+                                             "--", "*.py"], text=True).strip()
+        return h + ("+dirty" if changed or untracked else "")
     except (OSError, subprocess.CalledProcessError):
         return "unknown"
 
@@ -249,8 +253,53 @@ def first_diff(a, b, path="$"):
     return None if a == b or (a != a and b != b) else (path, a, b)
 
 
+def rel_diffs(a, b, path="$", rtol=1e-9, out=None):
+    """Every difference between two JSON trees under the golden rules (PORTING.md Step 1): floats within rtol,
+    everything else exact. -> (max relative float difference, [(path, a, b)] beyond that)."""
+    if out is None:
+        out = [0.0, []]
+    if isinstance(a, float) and isinstance(b, (int, float)) and not isinstance(b, bool) or \
+            isinstance(b, float) and isinstance(a, (int, float)) and not isinstance(a, bool):
+        if a != b and not (a != a and b != b):
+            r = abs(a - b) / max(abs(a), abs(b))
+            out[0] = max(out[0], r)
+            if r > rtol:
+                out[1].append((path, a, b))
+    elif type(a) is not type(b):
+        out[1].append((path, a, b))
+    elif isinstance(a, dict):
+        if list(a) != list(b):
+            out[1].append((path + " (keys)", list(a), list(b)))
+        for k in a:
+            if k in b:
+                rel_diffs(a[k], b[k], f"{path}.{k}", rtol, out)
+    elif isinstance(a, list):
+        if len(a) != len(b):
+            out[1].append((path + " (length)", len(a), len(b)))
+        for i, (x, y) in enumerate(zip(a, b)):
+            rel_diffs(x, y, f"{path}[{i}]", rtol, out)
+    elif a != b:
+        out[1].append((path, a, b))
+    return out
+
+
 def cmd_diff(args):
     names = sorted(f for f in os.listdir(args.a) if f.endswith(".json.gz"))
+    if args.tolerant:
+        worst, n = 0.0, 0
+        for f in names:
+            a, b = read_json_gz(os.path.join(args.a, f)), read_json_gz(os.path.join(args.b, f))
+            a.pop("build_s", None)
+            b.pop("build_s", None)
+            m, bad = rel_diffs(a, b)
+            worst = max(worst, m)
+            if bad:
+                n += 1
+                print(f"{f[:-8]}: {len(bad)} differences beyond tolerance (max float rel {m:.2e})")
+                for p, x, y in bad[:args.show]:
+                    print(f"    {p}\n        {str(x)[:160]}\n        {str(y)[:160]}")
+        print(f"{n} of {len(names)} cases differ beyond the golden tolerance; max float rel difference {worst:.2e}")
+        return
     other = set(f for f in os.listdir(args.b) if f.endswith(".json.gz"))
     n = 0
     for f in names:
@@ -286,6 +335,8 @@ def main():
     p = sub.add_parser("diff")
     p.add_argument("a")
     p.add_argument("b")
+    p.add_argument("--tolerant", action="store_true", help="the golden rules: floats within 1e-9 relative")
+    p.add_argument("--show", type=int, default=5, help="differences shown per case with --tolerant")
     args = ap.parse_args()
     if args.cmd != "diff" and os.environ.get("PYTHONHASHSEED") != "0" and not args.any_hashseed:
         raise SystemExit("run with PYTHONHASHSEED=0")
